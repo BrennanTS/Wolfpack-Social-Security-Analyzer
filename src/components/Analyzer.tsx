@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AnalysisResult, Gender } from '../lib/socialSecurity';
 import {
   computeBreakEvens,
+  formatAgeDisplay,
   formatCurrency,
   fraLabel,
   getCurrentAge,
@@ -177,6 +178,17 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
         : null,
     [birthYear, birthMonth],
   );
+  const spouseCurrentAge = useMemo(
+    () =>
+      spouseBirthYear !== '' && spouseBirthMonth !== ''
+        ? getCurrentAge(spouseBirthYear, spouseBirthMonth)
+        : null,
+    [spouseBirthYear, spouseBirthMonth],
+  );
+  const spouseFra = useMemo(
+    () => (spouseBirthYear !== '' ? getFullRetirementAge(spouseBirthYear) : null),
+    [spouseBirthYear],
+  );
 
   function applyLifeExpectancySuggestion(nextGender: Gender) {
     if (birthYear === '' || birthMonth === '') return;
@@ -320,10 +332,14 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                   ))}
                 </select>
               </div>
-              {fra && currentAge && (
-                <span className="field-hint">
-                  FRA: {fraLabel(fra)} · Age {currentAge.years}
-                </span>
+              {currentAge && fra && (
+                <div className="age-badge">
+                  <div>
+                    <span className="age-badge-label">Client age</span>
+                    <span className="age-badge-meta">FRA {fraLabel(fra)}</span>
+                  </div>
+                  <span className="age-badge-value">{formatAgeDisplay(currentAge)}</span>
+                </div>
               )}
             </div>
 
@@ -408,6 +424,15 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                       ))}
                     </select>
                   </div>
+                  {spouseCurrentAge && spouseFra && (
+                    <div className="age-badge">
+                      <div>
+                        <span className="age-badge-label">Spouse age</span>
+                        <span className="age-badge-meta">FRA {fraLabel(spouseFra)}</span>
+                      </div>
+                      <span className="age-badge-value">{formatAgeDisplay(spouseCurrentAge)}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="field">

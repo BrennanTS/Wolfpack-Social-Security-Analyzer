@@ -2,7 +2,7 @@
 .app-root {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 .view-layer {
@@ -446,23 +446,26 @@
   flex-direction: column;
   background: var(--bg);
   --drawer-w: clamp(280px, 22vw, 420px);
+  --header-h: 64px;
   overflow-x: hidden;
 }
 
 .header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 110;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 28px;
-  height: 52px;
+  height: var(--header-h);
+  min-height: var(--header-h);
   background: var(--surface-raised);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  box-shadow: 0 1px 0 rgba(20, 20, 20, 0.04);
 }
 
 .header-brand {
@@ -678,7 +681,7 @@
 /* ─── Settings drawer ─── */
 .settings-drawer {
   position: fixed;
-  top: 52px;
+  top: var(--header-h);
   left: 0;
   bottom: 0;
   z-index: 95;
@@ -699,7 +702,7 @@
 
 .drawer-backdrop {
   position: fixed;
-  inset: 52px 0 0;
+  inset: var(--header-h) 0 0;
   z-index: 90;
   border: none;
   padding: 0;
@@ -762,19 +765,6 @@
   gap: 0;
 }
 
-@media (min-width: 1200px) {
-  .input-fields {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 16px;
-  }
-
-  .input-fields .field:has(.currency-input),
-  .input-fields .assumptions-panel {
-    grid-column: 1 / -1;
-  }
-}
-
 .input-panel h2 {
   font-size: 1.5rem;
   font-weight: 500;
@@ -812,7 +802,8 @@
 }
 
 .segment-btn {
-  padding: 8px 12px;
+  padding: 10px 12px;
+  min-height: 42px;
   border: none;
   border-radius: calc(var(--radius) - 2px);
   background: transparent;
@@ -853,17 +844,20 @@
 
 .birth-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 10px;
 }
 
 .birth-row select,
 .currency-input input {
   width: 100%;
-  padding: 10px 12px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 11px 12px;
   border: none;
   border-radius: var(--radius);
   font-size: 0.9375rem;
+  line-height: 1.35;
   background: var(--fill);
   color: var(--text);
   transition: box-shadow 0.2s var(--ease), background 0.2s var(--ease);
@@ -874,8 +868,9 @@
 .birth-row select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2386868b' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
+  background-position: right 14px center;
+  padding-right: 38px;
+  min-height: 42px;
 }
 
 .birth-row select:focus,
@@ -891,6 +886,7 @@
   background: var(--fill);
   border-radius: var(--radius);
   overflow: hidden;
+  min-height: 42px;
   transition: box-shadow 0.2s var(--ease), background 0.2s var(--ease);
 }
 
@@ -923,6 +919,42 @@
   color: var(--text-subtle);
   margin-top: 6px;
   line-height: 1.4;
+}
+
+.age-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--fill);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--gold);
+  border-radius: var(--radius);
+}
+
+.age-badge-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.age-badge-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
+.age-badge-meta {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .advanced-toggle {
@@ -1439,21 +1471,54 @@ tbody tr:hover {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  padding: 24px 24px 20px;
+  padding: 20px 20px 16px;
   box-shadow: var(--shadow-sm);
 }
 
 .chart-header p {
   color: var(--text-muted);
   font-size: 0.875rem;
-  margin: 0 0 16px;
+  margin: 0 0 10px;
   line-height: 1.45;
+}
+
+.chart-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.chart-legend-swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
 }
 
 .chart-surface {
   width: 100%;
-  height: var(--chart-height);
-  min-height: 240px;
+  height: clamp(220px, 28vh, 320px);
+  min-height: 220px;
+}
+
+.chart-axis-caption {
+  display: block;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  margin-top: 4px;
 }
 
 /* ─── Optional Charts ─── */
@@ -1805,7 +1870,7 @@ tbody tr:hover {
 /* ─── Resources panel ─── */
 .resources-panel {
   position: fixed;
-  top: 52px;
+  top: var(--header-h);
   right: 0;
   bottom: 0;
   z-index: 110;
@@ -2004,7 +2069,7 @@ tbody tr:hover {
     gap: 10px;
     padding: 10px 16px;
     height: auto;
-    min-height: 52px;
+    min-height: var(--header-h);
   }
 
   .header-actions {

@@ -123,6 +123,12 @@ export function getCurrentAge(
   return { years: Math.max(0, years), months: Math.max(0, months) };
 }
 
+/** Human-readable age for profile badges (e.g. "66 years, 3 months"). */
+export function formatAgeDisplay(age: { years: number; months: number }): string {
+  if (age.months === 0) return `${age.years} years old`;
+  return `${age.years} years, ${age.months} months`;
+}
+
 export function ageToMonths(years: number, months = 0): number {
   return years * 12 + months;
 }
