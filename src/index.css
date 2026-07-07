@@ -1,0 +1,157 @@
+:root {
+  --bg: #f5f5f7;
+  --bg-secondary: #ffffff;
+  --surface: #ffffff;
+  --surface-raised: rgba(255, 255, 255, 0.78);
+  --fill: #f5f5f7;
+  --fill-secondary: #e8e8ed;
+  --border: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.1);
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --text-subtle: #86868b;
+  --blue: #0071e3;
+  --blue-hover: #0077ed;
+  --blue-soft: rgba(0, 113, 227, 0.1);
+  --green: #34c759;
+  --green-soft: rgba(52, 199, 89, 0.12);
+  --red: #ff3b30;
+  --red-soft: rgba(255, 59, 48, 0.1);
+  --orange: #ff9500;
+  --orange-soft: rgba(255, 149, 0, 0.12);
+  --purple: #5856d6;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 980px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.08);
+  --blur: saturate(180%) blur(20px);
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue',
+    Helvetica, Arial, sans-serif;
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  font-family: var(--font);
+  line-height: 1.47059;
+  font-weight: 400;
+  letter-spacing: -0.022em;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font);
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+}
+
+input,
+select {
+  font-family: inherit;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+::selection {
+  background: var(--blue-soft);
+  color: var(--text);
+}
+
+/* ─── Migraine Effect (low-glare dark mode) ─── */
+[data-migraine='true'] {
+  --bg: #0a0a0a;
+  --bg-secondary: #111111;
+  --surface: #1c1c1e;
+  --surface-raised: rgba(28, 28, 30, 0.88);
+  --fill: #2c2c2e;
+  --fill-secondary: #3a3a3c;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text: #b8b8bd;
+  --text-muted: #8e8e93;
+  --text-subtle: #636366;
+  --blue: #7eb8f0;
+  --blue-hover: #9cc9f5;
+  --blue-soft: rgba(126, 184, 240, 0.14);
+  --green: #7bc47f;
+  --green-soft: rgba(123, 196, 127, 0.14);
+  --red: #d4847f;
+  --red-soft: rgba(212, 132, 127, 0.14);
+  --orange: #c9a55a;
+  --orange-soft: rgba(201, 165, 90, 0.14);
+  --purple: #9b99d4;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --blur: saturate(120%) blur(20px);
+}
+
+[data-migraine='true'] .chart-container,
+[data-migraine='true'] .toggle-chart-body {
+  filter: brightness(0.82) saturate(0.55) contrast(0.95);
+}
+
+[data-migraine='true'] .gate-app-icon,
+[data-migraine='true'] .brand-app-icon {
+  background: linear-gradient(145deg, #4a6a8a 0%, #3d5a73 50%, #2f4559 100%);
+  box-shadow: none;
+}
+
+[data-migraine='true'] .recommendation-card::before {
+  background: linear-gradient(90deg, #5a7a96, #4a6a82);
+  opacity: 0.6;
+}
+
+[data-migraine='true'] .gate-card.shake {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-migraine='true'] .summary-card:hover,
+  [data-migraine='true'] .breakeven-card:hover {
+    transform: none;
+  }
+}
