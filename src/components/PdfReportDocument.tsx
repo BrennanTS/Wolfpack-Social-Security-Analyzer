@@ -25,6 +25,7 @@ import {
   heatmapColorPdf,
 } from '../lib/chartData';
 import { BRAND_NAME } from '../lib/brand';
+import { formatVersionLabel } from '../lib/version';
 import { BLS_CPI_URL, formatPercent, getCpiLast30Years } from '../lib/cpiHistory';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
 
@@ -36,17 +37,12 @@ const MONTHS = [
 const INK = '#141414';
 const GOLD = '#b8965a';
 const GOLD_DARK = '#8a7144';
-const GOLD_SOFT = '#f5f0e8';
-const CREAM = '#f7f5f0';
 const SURFACE = '#ffffff';
-const FILL = '#f0eeea';
 const BORDER = '#e4e1da';
 const MUTED = '#5c5c5c';
 const SUBTLE = '#8a8a8a';
 const GREEN = '#5a7a5e';
-const GREEN_SOFT = '#eef3ef';
 const RED = '#9a4a44';
-const RED_SOFT = '#f8efee';
 
 /** Letter page content width: 612pt − left/right padding */
 const CONTENT_W = 516;
@@ -62,7 +58,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica',
     fontSize: 9,
     color: INK,
-    backgroundColor: CREAM,
+    backgroundColor: SURFACE,
     paddingTop: PAD_TOP,
     paddingBottom: PAD_BOTTOM,
     paddingHorizontal: PAD_H,
@@ -176,7 +172,7 @@ const styles = StyleSheet.create({
     backgroundColor: SURFACE,
   },
   kcCardLast: { marginRight: 0 },
-  kcHighlight: { borderColor: GOLD, backgroundColor: GOLD_SOFT },
+  kcHighlight: { borderColor: GOLD, backgroundColor: SURFACE, borderWidth: 2 },
   kcLabel: {
     fontSize: 6.5,
     color: MUTED,
@@ -187,7 +183,7 @@ const styles = StyleSheet.create({
   kcSub: { fontSize: 7, color: SUBTLE, marginTop: 2 },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: FILL,
+    backgroundColor: SURFACE,
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
     paddingVertical: 5,
@@ -202,7 +198,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: SURFACE,
   },
-  tableRowOptimal: { backgroundColor: GOLD_SOFT },
+  tableRowOptimal: {
+    backgroundColor: SURFACE,
+    borderLeftWidth: 2,
+    borderLeftColor: GOLD,
+  },
   th: {
     fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   beVerdictLater: {
     fontSize: 7,
     color: GREEN,
-    backgroundColor: GREEN_SOFT,
+    backgroundColor: SURFACE,
     padding: 4,
     borderRadius: 2,
     textAlign: 'center',
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   beVerdictEarlier: {
     fontSize: 7,
     color: RED,
-    backgroundColor: RED_SOFT,
+    backgroundColor: SURFACE,
     padding: 4,
     borderRadius: 2,
     textAlign: 'center',
@@ -331,7 +331,9 @@ const styles = StyleSheet.create({
   pdfBarTrack: {
     flex: 1,
     height: 10,
-    backgroundColor: FILL,
+    backgroundColor: SURFACE,
+    borderWidth: 1,
+    borderColor: BORDER,
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -831,7 +833,7 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
   const age62 = claimingOptions.find((o) => o.age === 62)!;
   const age70 = claimingOptions.find((o) => o.age === 70)!;
   const dob = `${MONTHS[birthMonth - 1]} ${birthYear}`;
-  const footerText = `${BRAND_NAME} · Confidential · ${formatReportDate()}`;
+  const footerText = `${BRAND_NAME} · ${formatVersionLabel()} · Confidential · ${formatReportDate()}`;
   const cpi = getCpiLast30Years();
   const ssaSuggested = result.ssaSuggestedLifeExpectancy;
 

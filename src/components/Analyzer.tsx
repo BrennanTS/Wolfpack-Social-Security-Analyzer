@@ -27,6 +27,7 @@ import { ResultsPanel } from './ResultsPanel';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
 import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
+import { AppVersion } from './AppVersion';
 
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -273,6 +274,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           <button type="button" className="btn-ghost" onClick={onLogout}>
             Sign out
           </button>
+          <AppVersion />
         </div>
       </header>
 

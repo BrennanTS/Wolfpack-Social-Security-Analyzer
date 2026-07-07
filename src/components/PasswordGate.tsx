@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { DarkModeToggle } from './DarkModeToggle';
+import { AppVersion } from './AppVersion';
 import { BRAND_NAME } from '../lib/brand';
 import { DEMO_PASSWORD, signIn } from '../lib/auth';
 
@@ -30,6 +31,7 @@ export function PasswordGate({ onAuthenticated, darkMode, onToggleDarkMode }: Pa
   return (
     <div className="gate">
       <div className="gate-toolbar">
+        <AppVersion />
         <DarkModeToggle active={darkMode} onToggle={onToggleDarkMode} />
       </div>
 
