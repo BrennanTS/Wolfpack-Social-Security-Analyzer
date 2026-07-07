@@ -24,6 +24,8 @@ import { BreakEvenSection } from './BreakEvenSection';
 import { OptionalChartsPanel, type ChartKey } from './OptionalChartsPanel';
 import { ResultsPanel } from './ResultsPanel';
 import { DarkModeToggle } from './DarkModeToggle';
+import { ResourcesPanel } from './ResourcesPanel';
+import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
 
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -66,7 +68,9 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [showAssumptions, setShowAssumptions] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(true);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [showAssumptions, setShowAssumptions] = useState(true);
   const [chartVisibility, setChartVisibility] = useState(DEFAULT_CHART_VISIBILITY);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -193,9 +197,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   }
 
   return (
-    <div className="analyzer">
+    <div className={`analyzer${settingsOpen ? ' settings-open' : ''}`}>
       <header className="header">
         <div className="header-brand">
+          <SettingsDrawerToggle open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} />
           <div className="brand-monogram" aria-hidden="true">
             W
           </div>
@@ -205,6 +210,22 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           </div>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="btn-resources"
+            onClick={() => setResourcesOpen(true)}
+            aria-haspopup="dialog"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M8 1.5l1.8 3.7 4 .6-2.9 2.8.7 4L8 10.8l-3.6 1.9.7-4L2.2 5.8l4-.6L8 1.5z"
+                stroke="currentColor"
+                strokeWidth="1.1"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Resources
+          </button>
           <DarkModeToggle active={darkMode} onToggle={onToggleDarkMode} />
           <button
             type="button"
@@ -229,9 +250,9 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
         </div>
       </header>
 
-      <main className="main">
-        <aside className="input-panel">
-          <h2>Your Information</h2>
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)}>
+        <div className="input-panel">
+          <h2 id="settings-title">Your Information</h2>
           <p className="input-hint">A few quick fields for a more accurate analysis.</p>
 
           <div className="input-fields">
@@ -436,8 +457,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               )}
             </p>
           </div>
-        </aside>
+        </div>
+      </SettingsDrawer>
 
+      <main className="main">
         <section className="output-panel">
           {analyzing ? (
             <div className="empty-state">
@@ -547,6 +570,8 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           )}
         </section>
       </main>
+
+      <ResourcesPanel open={resourcesOpen} onClose={() => setResourcesOpen(false)} />
 
       <footer className="footer">
         <p>
