@@ -44,11 +44,13 @@ export function OptionalChartsPanel({
         <p>Click the eye icon to show or hide additional charts. The PDF report includes the heatmap and summary charts.</p>
       </div>
 
+      <div className="optional-charts-list">
       <ToggleChartSection
         title="Lifetime Benefit Heatmap"
         description="Cumulative benefits by claiming age (rows) and living age (columns). Darker colors = more total received."
         visible={visibility.lifetimeHeatmap}
         onToggle={() => onToggle('lifetimeHeatmap')}
+        className="chart-span-full"
       >
         <LifetimeHeatmapChart
           options={claimingOptions}
@@ -127,6 +129,7 @@ export function OptionalChartsPanel({
           />
         )}
       </ToggleChartSection>
+      </div>
     </div>
   );
 }

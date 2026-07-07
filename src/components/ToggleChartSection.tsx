@@ -6,6 +6,7 @@ interface ToggleChartSectionProps {
   visible: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  className?: string;
   children: ReactNode;
 }
 
@@ -58,10 +59,13 @@ export function ToggleChartSection({
   visible,
   onToggle,
   disabled = false,
+  className = '',
   children,
 }: ToggleChartSectionProps) {
   return (
-    <div className={`toggle-chart-section ${visible ? 'is-visible' : ''} ${disabled ? 'is-disabled' : ''}`}>
+    <div
+      className={`toggle-chart-section ${visible ? 'is-visible' : ''} ${disabled ? 'is-disabled' : ''} ${className}`.trim()}
+    >
       <div className="toggle-chart-header">
         <div className="toggle-chart-titles">
           <h3>{title}</h3>

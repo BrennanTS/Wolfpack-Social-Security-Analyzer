@@ -22,19 +22,18 @@ import {
   heatmapColorWeb,
 } from '../lib/chartData';
 
-const BLUE = '#007aff';
-const ORANGE = '#ff9500';
-const MUTED = '#86868b';
-const PURPLE = '#5856d6';
-const GREEN = '#34c759';
+const GOLD = '#b8965a';
+const INK = '#3a3a3a';
+const MUTED = '#8a8a8a';
+const GREY_MID = '#b0b0b0';
 
 const TOOLTIP_STYLE = {
-  background: 'rgba(29, 29, 31, 0.92)',
+  background: 'rgba(20, 20, 20, 0.94)',
   border: 'none',
-  borderRadius: 10,
-  color: '#f5f5f7',
+  borderRadius: 4,
+  color: '#f7f5f0',
   fontSize: 13,
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.24)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
 };
 
 interface MonthlyBenefitBarChartProps {
@@ -50,7 +49,8 @@ export function MonthlyBenefitBarChart({ options, optimalAge }: MonthlyBenefitBa
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <div className="chart-surface">
+      <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
         <XAxis
           dataKey="age"
@@ -76,13 +76,14 @@ export function MonthlyBenefitBarChart({ options, optimalAge }: MonthlyBenefitBa
           {data.map((entry) => (
             <Cell
               key={entry.age}
-              fill={entry.isOptimal ? ORANGE : BLUE}
+              fill={entry.isOptimal ? GOLD : INK}
               fillOpacity={entry.isOptimal ? 1 : 0.75}
             />
           ))}
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -99,7 +100,8 @@ export function LifetimeBarChart({ options, optimalAge }: LifetimeBarChartProps)
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <div className="chart-surface">
+      <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
         <XAxis
           dataKey="age"
@@ -125,13 +127,14 @@ export function LifetimeBarChart({ options, optimalAge }: LifetimeBarChartProps)
           {data.map((entry) => (
             <Cell
               key={entry.age}
-              fill={entry.isOptimal ? ORANGE : BLUE}
+              fill={entry.isOptimal ? GOLD : INK}
               fillOpacity={entry.isOptimal ? 1 : 0.7}
             />
           ))}
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -160,7 +163,8 @@ export function ColaProjectionChart({
   }
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <div className="chart-surface">
+      <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
         <XAxis
           dataKey="age"
@@ -183,9 +187,10 @@ export function ColaProjectionChart({
           }}
           labelFormatter={(age) => `Age ${age}`}
         />
-        <Bar dataKey="monthly" fill={GREEN} radius={[4, 4, 0, 0]} maxBarSize={14} />
+        <Bar dataKey="monthly" fill={INK} radius={[4, 4, 0, 0]} maxBarSize={14} />
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -208,7 +213,8 @@ export function SpousalSurvivorChart({
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <div className="chart-surface">
+      <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
         <XAxis
           dataKey="age"
@@ -243,13 +249,14 @@ export function SpousalSurvivorChart({
           {data.map((entry) => (
             <Cell
               key={entry.age}
-              fill={entry.isOptimal ? ORANGE : PURPLE}
+              fill={entry.isOptimal ? GOLD : GREY_MID}
               fillOpacity={entry.isOptimal ? 1 : 0.8}
             />
           ))}
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -346,7 +353,8 @@ export function OpportunityCostChart({ options, optimalAge }: OpportunityCostCha
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <div className="chart-surface">
+      <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
         <CartesianGrid stroke="#e8e8ed" horizontal={false} strokeDasharray="3 3" />
         <XAxis
@@ -376,13 +384,14 @@ export function OpportunityCostChart({ options, optimalAge }: OpportunityCostCha
           {data.map((entry) => (
             <Cell
               key={entry.age}
-              fill={entry.isOptimal ? GREEN : '#ff3b30'}
-              fillOpacity={entry.isOptimal ? 0.35 : 0.85}
+              fill={entry.isOptimal ? GOLD : '#9a4a44'}
+              fillOpacity={entry.isOptimal ? 0.35 : 0.75}
             />
           ))}
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -396,7 +405,8 @@ export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps)
   const age62 = data.find((d) => d.age === 62)?.monthly ?? 1;
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <div className="chart-surface">
+      <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 12, right: 16, left: 4, bottom: 4 }}>
         <CartesianGrid stroke="#e8e8ed" strokeDasharray="3 3" vertical={false} />
         <XAxis
@@ -427,14 +437,14 @@ export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps)
         />
         <ReferenceLine
           x={optimalAge}
-          stroke={ORANGE}
+          stroke={GOLD}
           strokeDasharray="4 4"
-          label={{ value: 'Optimal', fill: ORANGE, fontSize: 10, position: 'top' }}
+          label={{ value: 'Optimal', fill: GOLD, fontSize: 10, position: 'top' }}
         />
         <Line
           type="monotone"
           dataKey="monthly"
-          stroke={BLUE}
+          stroke={INK}
           strokeWidth={2.5}
           dot={(props) => {
             const { cx, cy, payload } = props;
@@ -446,7 +456,7 @@ export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps)
                 cx={cx}
                 cy={cy}
                 r={row.isOptimal ? 6 : 4}
-                fill={row.isOptimal ? ORANGE : BLUE}
+                fill={row.isOptimal ? GOLD : INK}
                 stroke="white"
                 strokeWidth={2}
               />
@@ -456,5 +466,6 @@ export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps)
         />
       </LineChart>
     </ResponsiveContainer>
+    </div>
   );
 }

@@ -16,7 +16,7 @@ function applyMigraineMode(active: boolean): void {
 
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) {
-    themeMeta.setAttribute('content', active ? '#0a0a0a' : '#f5f5f7');
+    themeMeta.setAttribute('content', active ? '#0e0e0e' : '#f7f5f0');
   }
 }
 

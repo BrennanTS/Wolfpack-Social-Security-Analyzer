@@ -96,10 +96,10 @@ export function generateMonthlyRampData(
 /** Interpolate hex colors for heatmap cells (ratio 0–1). */
 export function heatmapColorWeb(ratio: number): string {
   const t = Math.max(0, Math.min(1, ratio));
-  if (t < 0.5) {
-    return mixHex('#e8f4fc', '#007aff', t * 2);
+  if (t < 0.55) {
+    return mixHex('#f0eeea', '#8a8a8a', t / 0.55);
   }
-  return mixHex('#007aff', '#ff9500', (t - 0.5) * 2);
+  return mixHex('#8a8a8a', '#b8965a', (t - 0.55) / 0.45);
 }
 
 /** PDF heatmap palette (navy → gold). */

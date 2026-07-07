@@ -23,25 +23,24 @@ interface BenefitChartProps {
 }
 
 const COLORS: Record<number, string> = {
-  62: '#aeaeb2',
-  63: '#c7c7cc',
-  64: '#d1d1d6',
-  65: '#8e8e93',
-  66: '#5ac8fa',
-  67: '#007aff',
-  68: '#5856d6',
-  69: '#af52de',
-  70: '#ff9500',
+  62: '#d4d4d4',
+  63: '#c4c4c4',
+  64: '#b4b4b4',
+  65: '#9a9a9a',
+  66: '#8a8a8a',
+  67: '#6b6b6b',
+  68: '#5c5c5c',
+  69: '#4a4a4a',
+  70: '#b8965a',
 };
 
 const TOOLTIP_STYLE = {
-  background: 'rgba(29, 29, 31, 0.92)',
+  background: 'rgba(20, 20, 20, 0.94)',
   border: 'none',
-  borderRadius: 10,
-  color: '#f5f5f7',
+  borderRadius: 4,
+  color: '#f7f5f0',
   fontSize: 13,
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.24)',
-  backdropFilter: 'blur(20px)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
 };
 
 const HIGHLIGHT_AGES = [62, 67, 70];
@@ -65,12 +64,13 @@ export function BenefitChart({
         <h3>Cumulative Lifetime Benefits</h3>
         <p>Total benefits received by age, comparing key claiming strategies</p>
       </div>
-      <ResponsiveContainer width="100%" height={320}>
+      <div className="chart-surface">
+        <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
           <XAxis
             dataKey="age"
-            tick={{ fill: '#86868b', fontSize: 12 }}
-            axisLine={{ stroke: '#e8e8ed' }}
+            tick={{ fill: '#8a8a8a', fontSize: 12 }}
+            axisLine={{ stroke: '#e4e1da' }}
             tickLine={false}
             label={{ value: 'Age', position: 'insideBottom', offset: -4, fill: '#86868b' }}
           />
@@ -91,9 +91,9 @@ export function BenefitChart({
           />
           <ReferenceLine
             x={lifeExpectancy}
-            stroke="#ff3b30"
+            stroke="#9a4a44"
             strokeDasharray="4 4"
-            label={{ value: `Life exp. ${lifeExpectancy}`, fill: '#ff3b30', fontSize: 11 }}
+            label={{ value: `Life exp. ${lifeExpectancy}`, fill: '#9a4a44', fontSize: 11 }}
           />
           {displayOptions.map((opt) => (
             <Line
@@ -116,6 +116,7 @@ export function BenefitChart({
           />
         </LineChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

@@ -101,16 +101,8 @@ export function Analyzer({ onLogout, migraineMode, onToggleMigraineMode }: Analy
     <div className="analyzer">
       <header className="header">
         <div className="header-brand">
-          <div className="brand-app-icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M4 18V6l8-3 8 3v12l-8 3-8-3z"
-                stroke="white"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-              <path d="M12 3v18M4 6l8 3 8-3" stroke="white" strokeWidth="1.5" />
-            </svg>
+          <div className="brand-monogram" aria-hidden="true">
+            W
           </div>
           <div>
             <h1>Social Security Analyzer</h1>
@@ -147,6 +139,7 @@ export function Analyzer({ onLogout, migraineMode, onToggleMigraineMode }: Analy
           <h2>Your Information</h2>
           <p className="input-hint">A few quick fields for a more accurate analysis.</p>
 
+          <div className="input-fields">
           <div className="field">
             <label htmlFor="birth">Date of Birth</label>
             <div className="birth-row">
@@ -252,6 +245,7 @@ export function Analyzer({ onLogout, migraineMode, onToggleMigraineMode }: Analy
             expanded={showAssumptions}
             onToggle={() => setShowAssumptions(!showAssumptions)}
           />
+          </div>
 
           <div className="input-summary">
             <p>
@@ -277,14 +271,16 @@ export function Analyzer({ onLogout, migraineMode, onToggleMigraineMode }: Analy
             spousal={result.spousal}
           />
 
-          <BenefitChart
-            options={result.claimingOptions}
-            lifeExpectancy={lifeExpectancy}
-            optimalAge={result.optimalAge}
-            annualCola={annualCola}
-          />
+          <div className="output-duo">
+            <BenefitChart
+              options={result.claimingOptions}
+              lifeExpectancy={lifeExpectancy}
+              optimalAge={result.optimalAge}
+              annualCola={annualCola}
+            />
 
-          <BreakEvenSection breakEvens={result.breakEvens} lifeExpectancy={lifeExpectancy} />
+            <BreakEvenSection breakEvens={result.breakEvens} lifeExpectancy={lifeExpectancy} />
+          </div>
 
           <OptionalChartsPanel
             result={result}

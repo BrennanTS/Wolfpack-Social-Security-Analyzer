@@ -9,7 +9,7 @@ export function BreakEvenSection({ breakEvens, lifeExpectancy }: BreakEvenSectio
   if (breakEvens.length === 0) return null;
 
   return (
-    <div className="breakeven-section">
+    <div className="breakeven-section chart-container">
       <h3>Break-Even Analysis</h3>
       <p className="table-desc">
         The age when a later claiming strategy catches up to an earlier one in total benefits
