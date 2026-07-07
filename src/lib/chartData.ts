@@ -102,13 +102,9 @@ export function heatmapColorWeb(ratio: number): string {
   return mixHex('#8a8a8a', '#b8965a', (t - 0.55) / 0.45);
 }
 
-/** PDF heatmap palette (navy → gold). */
+/** PDF heatmap palette — matches web (cream → grey → gold). */
 export function heatmapColorPdf(ratio: number): string {
-  const t = Math.max(0, Math.min(1, ratio));
-  if (t < 0.55) {
-    return mixHex('#f1f5f9', '#1e3a5f', t / 0.55);
-  }
-  return mixHex('#1e3a5f', '#b8860b', (t - 0.55) / 0.45);
+  return heatmapColorWeb(ratio);
 }
 
 function mixHex(a: string, b: string, t: number): string {

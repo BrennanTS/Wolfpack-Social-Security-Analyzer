@@ -1,6 +1,6 @@
 # Wolfpack Social Security Analyzer
 
-Client-facing Social Security claiming analysis tool for **Wolfpack Planning Team**.
+Client-facing Social Security claiming analysis tool for **Wolfpack | Planning Team**.
 
 ## Features
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { MigraineToggle } from './MigraineToggle';
+import { DarkModeToggle } from './DarkModeToggle';
+import { BRAND_NAME } from '../lib/brand';
 
 const DEMO_PASSWORD = 'wolfpack';
 const AUTH_KEY = 'ssa-demo-auth';
@@ -15,11 +16,11 @@ export function logout(): void {
 
 interface PasswordGateProps {
   onAuthenticated: () => void;
-  migraineMode: boolean;
-  onToggleMigraineMode: () => void;
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
 }
 
-export function PasswordGate({ onAuthenticated, migraineMode, onToggleMigraineMode }: PasswordGateProps) {
+export function PasswordGate({ onAuthenticated, darkMode, onToggleDarkMode }: PasswordGateProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
   const [shaking, setShaking] = useState(false);
@@ -39,7 +40,7 @@ export function PasswordGate({ onAuthenticated, migraineMode, onToggleMigraineMo
   return (
     <div className="gate">
       <div className="gate-toolbar">
-        <MigraineToggle active={migraineMode} onToggle={onToggleMigraineMode} />
+        <DarkModeToggle active={darkMode} onToggle={onToggleDarkMode} />
       </div>
 
       <div className="gate-layout">
@@ -47,7 +48,7 @@ export function PasswordGate({ onAuthenticated, migraineMode, onToggleMigraineMo
           <div className="gate-monogram" aria-hidden="true">
             W
           </div>
-          <p className="gate-eyebrow">Wolfpack Planning Team</p>
+          <p className="gate-eyebrow">{BRAND_NAME}</p>
           <h1 className="gate-title">
             Social Security
             <span>Analyzer</span>

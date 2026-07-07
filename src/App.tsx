@@ -1,32 +1,62 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Analyzer } from './components/Analyzer';
 import { isAuthenticated, logout, PasswordGate } from './components/PasswordGate';
-import { useMigraineMode } from './hooks/useMigraineMode';
+import { useDarkMode } from './hooks/useDarkMode';
 import './App.css';
 
-function App() {
-  const [authed, setAuthed] = useState(isAuthenticated);
-  const { migraineMode, toggleMigraineMode } = useMigraineMode();
+const TRANSITION_MS = 620;
 
-  if (!authed) {
-    return (
-      <PasswordGate
-        onAuthenticated={() => setAuthed(true)}
-        migraineMode={migraineMode}
-        onToggleMigraineMode={toggleMigraineMode}
-      />
-    );
-  }
+function App() {
+  const [view, setView] = useState<'gate' | 'app'>(isAuthenticated() ? 'app' : 'gate');
+  const [gateExiting, setGateExiting] = useState(false);
+  const [appEntering, setAppEntering] = useState(false);
+  const { darkMode, toggleDarkMode } = useDarkMode();
+
+  const handleAuthenticated = useCallback(() => {
+    setGateExiting(true);
+    window.setTimeout(() => {
+      setView('app');
+      setGateExiting(false);
+      setAppEntering(true);
+      window.setTimeout(() => setAppEntering(false), TRANSITION_MS);
+    }, TRANSITION_MS);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    logout();
+    setView('gate');
+    setGateExiting(false);
+    setAppEntering(false);
+  }, []);
 
   return (
-    <Analyzer
-      migraineMode={migraineMode}
-      onToggleMigraineMode={toggleMigraineMode}
-      onLogout={() => {
-        logout();
-        setAuthed(false);
-      }}
-    />
+    <div className="app-root">
+      {view === 'gate' && (
+        <div className={`view-layer view-gate${gateExiting ? ' is-exiting' : ''}`}>
+          <PasswordGate
+            onAuthenticated={handleAuthenticated}
+            darkMode={darkMode}
+            onToggleDarkMode={toggleDarkMode}
+          />
+        </div>
+      )}
+
+      {view === 'app' && (
+        <>
+          <div
+            className={`transition-curtain${appEntering ? ' is-active' : ''}`}
+            aria-hidden="true"
+          />
+          <div className={`view-layer view-app${appEntering ? ' is-entering' : ''}`}>
+            <Analyzer
+              darkMode={darkMode}
+              onToggleDarkMode={toggleDarkMode}
+              onLogout={handleLogout}
+            />
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

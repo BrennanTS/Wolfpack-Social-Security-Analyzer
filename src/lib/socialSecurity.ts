@@ -1,20 +1,39 @@
 import { CPI_DEFAULT_COLA } from './cpiHistory';
 import type { Gender } from './lifeExpectancy';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
+import {
+  computeOptimalFilingCouple,
+  computeOptimalFilingSingle,
+  createPiaRecipient,
+  DEFAULT_DISCOUNT_RATE,
+  fraFromBirthYear,
+  isSsaClaimAgeEligible,
+  lifetimeNpvToAge,
+  nearestWholeClaimAge,
+  spousalBenefitAtFra,
+  ssaMonthlyBenefitAtAge,
+  ssaMonthlyBenefitAtFilingAge,
+  type FilingAgeDisplay,
+} from './ssaTools';
+import { MonthDuration } from '$lib/month-time';
 
-export type { Gender };
+export type { Gender, FilingAgeDisplay };
 
-/** SSA-aligned Social Security benefit and claiming analysis. */
+/** SSA-aligned Social Security benefit and claiming analysis (powered by ssa.tools). */
 
 export interface UserInputs {
   birthYear: number;
   birthMonth: number;
   monthlyBenefitAtFra: number;
   lifeExpectancy: number;
-  /** Annual COLA / inflation rate applied to lifetime projections (percent, e.g. 2.5). */
+  /** Used for illustrative chart projections only; benefit math uses SSA COLA tables. */
   annualCola: number;
   gender: Gender;
   hasSpouse: boolean;
+  discountRate: number;
+  spouseBirthYear?: number;
+  spouseBirthMonth?: number;
+  spouseMonthlyBenefitAtFra?: number;
 }
 
 export interface FraResult {
@@ -42,10 +61,9 @@ export interface BreakEvenPair {
 }
 
 export interface SpousalAnalysis {
-  /** Maximum spousal benefit at spouse's FRA (50% of worker PIA). */
   spousalBenefitAtFra: number;
-  /** Monthly survivor benefit = worker's benefit at each claiming age. */
   survivorByClaimAge: { age: number; survivorMonthly: number }[];
+  spouseFilingAge?: FilingAgeDisplay;
 }
 
 export interface AnalysisResult {
@@ -54,8 +72,11 @@ export interface AnalysisResult {
   pia: number;
   claimingOptions: ClaimingOption[];
   optimalAge: number;
+  optimalFilingAge: FilingAgeDisplay;
   optimalMonthly: number;
   optimalLifetime: number;
+  expectedPresentValue: number;
+  discountRate: number;
   breakEvens: BreakEvenPair[];
   recommendation: string;
   recommendationDetail: string;
@@ -66,27 +87,14 @@ export interface AnalysisResult {
 const MIN_CLAIM_AGE = 62;
 const MAX_CLAIM_AGE = 70;
 
-/** Full Retirement Age in months per SSA birth-year schedule. */
 export function getFullRetirementAge(birthYear: number): FraResult {
-  let years: number;
-  let months = 0;
-
-  if (birthYear <= 1937) {
-    years = 65;
-  } else if (birthYear <= 1942) {
-    years = 65;
-    months = (birthYear - 1937) * 2;
-  } else if (birthYear <= 1954) {
-    years = 66;
-  } else if (birthYear <= 1959) {
-    years = 66;
-    months = (birthYear - 1954) * 2;
-  } else {
-    years = 67;
-  }
-
-  const totalMonths = years * 12 + months;
-  return { years, months, totalMonths, fraDate: new Date(birthYear + years, months, 1) };
+  const fra = fraFromBirthYear(birthYear);
+  return {
+    years: fra.years,
+    months: fra.months,
+    totalMonths: fra.totalMonths,
+    fraDate: new Date(birthYear + fra.years, fra.months, 1),
+  };
 }
 
 export function getCurrentAge(
@@ -109,53 +117,20 @@ export function ageToMonths(years: number, months = 0): number {
   return years * 12 + months;
 }
 
-/** Monthly benefit at a given claiming age, based on PIA at FRA. */
 export function calculateMonthlyBenefit(
   pia: number,
   claimAge: number,
-  fraTotalMonths: number,
+  _fraTotalMonths: number,
+  birthYear?: number,
+  birthMonth?: number,
+  gender: Gender = 'female',
 ): { benefit: number; percentOfPia: number; monthsFromFra: number } {
-  const claimMonths = claimAge * 12;
-  const monthsFromFra = claimMonths - fraTotalMonths;
-
-  if (monthsFromFra === 0) {
-    return { benefit: pia, percentOfPia: 100, monthsFromFra: 0 };
-  }
-
-  if (monthsFromFra > 0) {
-    const delayedMonths = Math.min(monthsFromFra, MAX_CLAIM_AGE * 12 - fraTotalMonths);
-    const credit = delayedMonths * (2 / 3 / 100);
-    const benefit = pia * (1 + credit);
-    return {
-      benefit: roundCents(benefit),
-      percentOfPia: roundPercent((benefit / pia) * 100),
-      monthsFromFra: delayedMonths,
-    };
-  }
-
-  const monthsEarly = Math.abs(monthsFromFra);
-  let reduction: number;
-
-  if (monthsEarly <= 36) {
-    reduction = monthsEarly * (5 / 9 / 100);
-  } else {
-    reduction = 36 * (5 / 9 / 100) + (monthsEarly - 36) * (5 / 12 / 100);
-  }
-
-  const benefit = pia * (1 - reduction);
-  return {
-    benefit: roundCents(benefit),
-    percentOfPia: roundPercent((benefit / pia) * 100),
-    monthsFromFra: -monthsEarly,
-  };
+  const recipient = createPiaRecipient(birthYear ?? 1960, birthMonth ?? 1, pia, gender);
+  return ssaMonthlyBenefitAtAge(recipient, claimAge);
 }
 
 function roundCents(n: number): number {
   return Math.round(n * 100) / 100;
-}
-
-function roundPercent(n: number): number {
-  return Math.round(n * 10) / 10;
 }
 
 export function isClaimAgeEligible(
@@ -164,12 +139,10 @@ export function isClaimAgeEligible(
   birthMonth: number,
   asOf: Date = new Date(),
 ): boolean {
-  const current = getCurrentAge(birthYear, birthMonth, asOf);
-  const currentTotalMonths = ageToMonths(current.years, current.months);
-  return claimAge * 12 <= currentTotalMonths + 12;
+  const recipient = createPiaRecipient(birthYear, birthMonth, 0, 'female');
+  return isSsaClaimAgeEligible(recipient, claimAge, asOf);
 }
 
-/** Lifetime benefits with optional annual COLA compounding on payments. */
 export function calculateLifetimeBenefits(
   monthlyBenefit: number,
   claimAge: number,
@@ -181,7 +154,6 @@ export function calculateLifetimeBenefits(
   return { lifetime, yearsOfPayments };
 }
 
-/** Cumulative nominal benefits from claim age through a given end age. */
 export function cumulativeBenefits(
   monthlyBenefit: number,
   claimAge: number,
@@ -203,7 +175,6 @@ export function cumulativeBenefits(
   return roundCents(total);
 }
 
-/** Age when cumulative benefits from later claiming exceed earlier claiming. */
 export function breakEvenAge(
   earlierAge: number,
   earlierMonthly: number,
@@ -224,7 +195,20 @@ export function breakEvenAge(
   return null;
 }
 
-export function analyzeClaiming(inputs: UserInputs): AnalysisResult {
+function pickTableOption(
+  claimingOptions: ClaimingOption[],
+  eligibleOptions: ClaimingOption[],
+  optimalAge: number,
+): ClaimingOption {
+  const pool = eligibleOptions.length > 0 ? eligibleOptions : claimingOptions;
+  const exact = pool.find((o) => o.age === optimalAge);
+  if (exact) return exact;
+  return pool.reduce((closest, option) =>
+    Math.abs(option.age - optimalAge) < Math.abs(closest.age - optimalAge) ? option : closest,
+  );
+}
+
+export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResult> {
   const {
     birthYear,
     birthMonth,
@@ -233,48 +217,77 @@ export function analyzeClaiming(inputs: UserInputs): AnalysisResult {
     annualCola,
     gender,
     hasSpouse,
+    discountRate,
+    spouseBirthYear,
+    spouseBirthMonth,
+    spouseMonthlyBenefitAtFra = 0,
   } = inputs;
+
   const fra = getFullRetirementAge(birthYear);
   const currentAge = getCurrentAge(birthYear, birthMonth);
   const pia = monthlyBenefitAtFra;
+  const recipient = createPiaRecipient(birthYear, birthMonth, pia, gender);
   const ssaSuggestedLifeExpectancy = getSuggestedLifeExpectancy(currentAge.years, gender);
+
+  let optimalFilingAge: FilingAgeDisplay;
+  let expectedPresentValue: number;
+  let spouseFilingAge: FilingAgeDisplay | undefined;
+
+  if (hasSpouse) {
+    const spouse = createPiaRecipient(
+      spouseBirthYear ?? birthYear,
+      spouseBirthMonth ?? birthMonth,
+      spouseMonthlyBenefitAtFra,
+      gender === 'male' ? 'female' : 'male',
+    );
+    const couple = await computeOptimalFilingCouple(recipient, spouse, discountRate);
+    optimalFilingAge = couple.workerFilingAge;
+    spouseFilingAge = couple.spouseFilingAge;
+    expectedPresentValue = couple.expectedNpv;
+  } else {
+    const single = await computeOptimalFilingSingle(recipient, discountRate);
+    optimalFilingAge = single.filingAge;
+    expectedPresentValue = single.expectedNpv;
+  }
+
+  const optimalAge = nearestWholeClaimAge(optimalFilingAge.decimalYears);
+  const optimalBenefit = ssaMonthlyBenefitAtFilingAge(
+    recipient,
+    optimalFilingAge.monthDuration,
+  );
 
   const claimingOptions: ClaimingOption[] = [];
 
   for (let age = MIN_CLAIM_AGE; age <= MAX_CLAIM_AGE; age++) {
-    const { benefit, percentOfPia, monthsFromFra } = calculateMonthlyBenefit(
-      pia,
-      age,
-      fra.totalMonths,
-    );
-    const eligible = isClaimAgeEligible(age, birthYear, birthMonth);
-    const { lifetime, yearsOfPayments } = calculateLifetimeBenefits(
-      benefit,
-      age,
+    const { benefit, percentOfPia, monthsFromFra } = ssaMonthlyBenefitAtAge(recipient, age);
+    const eligible = isSsaClaimAgeEligible(recipient, age);
+    const lifetimeAtAge = lifetimeNpvToAge(
+      recipient,
+      MonthDuration.initFromYearsMonths({ years: age, months: 0 }),
       lifeExpectancy,
-      annualCola,
+      0,
     );
 
     claimingOptions.push({
       age,
       monthlyBenefit: benefit,
       percentOfPia,
-      lifetimeBenefits: lifetime,
-      yearsOfPayments,
+      lifetimeBenefits: lifetimeAtAge,
+      yearsOfPayments: Math.max(0, lifeExpectancy - age),
       isEligible: eligible,
       monthsFromFra,
     });
   }
 
   const eligibleOptions = claimingOptions.filter((o) => o.isEligible);
-  const best =
-    eligibleOptions.length > 0
-      ? eligibleOptions.reduce((a, b) =>
-          a.lifetimeBenefits >= b.lifetimeBenefits ? a : b,
-        )
-      : claimingOptions.reduce((a, b) =>
-          a.lifetimeBenefits >= b.lifetimeBenefits ? a : b,
-        );
+  const bestTableOption = pickTableOption(claimingOptions, eligibleOptions, optimalAge);
+
+  const optimalLifetime = lifetimeNpvToAge(
+    recipient,
+    optimalFilingAge.monthDuration,
+    lifeExpectancy,
+    0,
+  );
 
   const breakEvens: BreakEvenPair[] = [];
   const ages = [62, 67, 70].filter((a) => a >= MIN_CLAIM_AGE && a <= MAX_CLAIM_AGE);
@@ -301,23 +314,29 @@ export function analyzeClaiming(inputs: UserInputs): AnalysisResult {
     }
   }
 
-  const { recommendation, recommendationDetail } = buildRecommendation(
-    best,
+  const { recommendation, recommendationDetail } = buildRecommendation({
+    optimalFilingAge,
+    optimalMonthly: optimalBenefit.benefit,
+    optimalLifetime,
+    expectedPresentValue,
+    discountRate,
     fra,
     lifeExpectancy,
-    annualCola,
     currentAge,
     claimingOptions,
     hasSpouse,
-  );
+    spouseFilingAge,
+    bestTableAge: bestTableOption.age,
+  });
 
   const spousal: SpousalAnalysis | undefined = hasSpouse
     ? {
-        spousalBenefitAtFra: roundCents(pia * 0.5),
+        spousalBenefitAtFra: roundCents(spousalBenefitAtFra(recipient, spouseMonthlyBenefitAtFra)),
         survivorByClaimAge: claimingOptions.map((o) => ({
           age: o.age,
           survivorMonthly: o.monthlyBenefit,
         })),
+        spouseFilingAge,
       }
     : undefined;
 
@@ -326,9 +345,12 @@ export function analyzeClaiming(inputs: UserInputs): AnalysisResult {
     currentAge,
     pia,
     claimingOptions,
-    optimalAge: best.age,
-    optimalMonthly: best.monthlyBenefit,
-    optimalLifetime: best.lifetimeBenefits,
+    optimalAge,
+    optimalFilingAge,
+    optimalMonthly: optimalBenefit.benefit,
+    optimalLifetime,
+    expectedPresentValue,
+    discountRate,
     breakEvens,
     recommendation,
     recommendationDetail,
@@ -337,63 +359,79 @@ export function analyzeClaiming(inputs: UserInputs): AnalysisResult {
   };
 }
 
-function buildRecommendation(
-  best: ClaimingOption,
-  fra: FraResult,
-  lifeExpectancy: number,
-  annualCola: number,
-  currentAge: { years: number; months: number },
-  options: ClaimingOption[],
-  hasSpouse: boolean,
-): { recommendation: string; recommendationDetail: string } {
-  const fraAge = fra.years + fra.months / 12;
-  const fraOption = options.find((o) => Math.abs(o.age - Math.round(fraAge)) < 0.5)
-    ?? options.find((o) => o.age === Math.ceil(fraAge))
-    ?? options.find((o) => o.age === Math.floor(fraAge));
+function buildRecommendation(ctx: {
+  optimalFilingAge: FilingAgeDisplay;
+  optimalMonthly: number;
+  optimalLifetime: number;
+  expectedPresentValue: number;
+  discountRate: number;
+  fra: FraResult;
+  lifeExpectancy: number;
+  currentAge: { years: number; months: number };
+  claimingOptions: ClaimingOption[];
+  hasSpouse: boolean;
+  spouseFilingAge?: FilingAgeDisplay;
+  bestTableAge: number;
+}): { recommendation: string; recommendationDetail: string } {
+  const {
+    optimalFilingAge,
+    optimalMonthly,
+    optimalLifetime,
+    expectedPresentValue,
+    discountRate,
+    fra,
+    lifeExpectancy,
+    currentAge,
+    claimingOptions,
+    hasSpouse,
+    spouseFilingAge,
+  } = ctx;
 
-  const age62 = options.find((o) => o.age === 62)!;
-  const age70 = options.find((o) => o.age === 70)!;
-  const colaNote =
-    annualCola > 0
-      ? ` (includes ${annualCola}% annual COLA on lifetime projections)`
-      : '';
+  const age62 = claimingOptions.find((o) => o.age === 62)!;
+  const age70 = claimingOptions.find((o) => o.age === 70)!;
+  const fraAge = fra.years + fra.months / 12;
+  const discountPct = (discountRate * 100).toFixed(1);
+
   const spouseNote = hasSpouse
-    ? ` As a married claimant, delaying increases your spouse's potential survivor benefit (up to ${formatCurrency(age70.monthlyBenefit)}/mo if you claim at 70 vs. ${formatCurrency(age62.monthlyBenefit)}/mo at 62).`
+    ? spouseFilingAge
+      ? ` Spouse optimal filing: age ${spouseFilingAge.label}.`
+      : ` As a married claimant, delaying increases survivor benefits (up to ${formatCurrency(age70.monthlyBenefit)}/mo at 70 vs. ${formatCurrency(age62.monthlyBenefit)}/mo at 62).`
     : '';
 
-  if (best.age === 70) {
+  const ageLabel = optimalFilingAge.label;
+
+  if (optimalFilingAge.years === 70 && optimalFilingAge.months === 0) {
     return {
-      recommendation: `Wait until age 70`,
-      recommendationDetail: `Based on a life expectancy of ${lifeExpectancy}${colaNote}, delaying to 70 maximizes lifetime benefits at ${formatCurrency(best.monthlyBenefit)}/month — ${formatCurrency(best.lifetimeBenefits)} total. You gain ${formatCurrency(best.lifetimeBenefits - age62.lifetimeBenefits)} vs. claiming at 62.${spouseNote}`,
+      recommendation: 'Wait until age 70',
+      recommendationDetail: `ssa.tools mortality-weighted analysis (${discountPct}% discount rate) recommends filing at age ${ageLabel} — ${formatCurrency(optimalMonthly)}/month. Expected present value: ${formatCurrency(expectedPresentValue)}. Lifetime to age ${lifeExpectancy}: ${formatCurrency(optimalLifetime)}.${spouseNote}`,
     };
   }
 
-  if (best.age === 62) {
+  if (optimalFilingAge.years === 62 && optimalFilingAge.months === 0) {
     return {
-      recommendation: `Claim as early as eligible (age 62)`,
-      recommendationDetail: `With a life expectancy of ${lifeExpectancy}${colaNote}, starting at 62 provides the highest lifetime total of ${formatCurrency(best.lifetimeBenefits)}. The higher monthly checks from delaying don't offset the fewer years of payments.${spouseNote}`,
+      recommendation: 'Claim as early as eligible (age 62)',
+      recommendationDetail: `ssa.tools mortality-weighted analysis (${discountPct}% discount rate) favors filing at age ${ageLabel} with expected present value ${formatCurrency(expectedPresentValue)}. Lifetime to age ${lifeExpectancy}: ${formatCurrency(optimalLifetime)}.${spouseNote}`,
     };
   }
 
-  if (fraOption && best.age === fraOption.age) {
+  if (Math.abs(optimalFilingAge.decimalYears - fraAge) < 0.5) {
     return {
       recommendation: `Claim at Full Retirement Age (${fraLabel(fra)})`,
-      recommendationDetail: `At life expectancy ${lifeExpectancy}${colaNote}, FRA maximizes lifetime benefits at ${formatCurrency(best.monthlyBenefit)}/month. You receive 100% of your Primary Insurance Amount with no early reduction or need to wait for delayed credits.${spouseNote}`,
+      recommendationDetail: `ssa.tools recommends filing at age ${ageLabel} (${formatCurrency(optimalMonthly)}/month). Expected present value: ${formatCurrency(expectedPresentValue)} at a ${discountPct}% discount rate.${spouseNote}`,
     };
   }
 
-  const currentTotal = ageToMonths(currentAge.years, currentAge.months);
-
-  if (best.age * 12 > currentTotal) {
+  if (optimalFilingAge.decimalYears * 12 > ageToMonths(currentAge.years, currentAge.months)) {
+    const yearsUntil = Math.ceil(optimalFilingAge.decimalYears - currentAge.years);
     return {
-      recommendation: `Claim at age ${best.age}`,
-      recommendationDetail: `Based on life expectancy ${lifeExpectancy}${colaNote}, age ${best.age} optimizes lifetime benefits at ${formatCurrency(best.monthlyBenefit)}/month (${formatCurrency(best.lifetimeBenefits)} total). You're currently ${currentAge.years} — plan to claim in ${best.age - currentAge.years} year${best.age - currentAge.years !== 1 ? 's' : ''}.${spouseNote}`,
+      recommendation: `Claim at age ${ageLabel}`,
+      recommendationDetail: `ssa.tools mortality-weighted analysis recommends age ${ageLabel} (${formatCurrency(optimalMonthly)}/month, PV ${formatCurrency(expectedPresentValue)}). You're ${currentAge.years} — plan to claim in about ${yearsUntil} year${yearsUntil !== 1 ? 's' : ''}.${spouseNote}`,
     };
   }
 
   return {
-    recommendation: `Claim at age ${best.age}`,
-    recommendationDetail: `At life expectancy ${lifeExpectancy}${colaNote}, age ${best.age} provides the highest lifetime benefit of ${formatCurrency(best.lifetimeBenefits)} (${formatCurrency(best.monthlyBenefit)}/month).${spouseNote}`,
+    recommendation: `Claim at age ${ageLabel}`,
+    recommendationDetail: `ssa.tools recommends filing at age ${ageLabel} for the highest expected present value (${formatCurrency(expectedPresentValue)}) at a ${discountPct}% discount rate. Lifetime to age ${lifeExpectancy}: ${formatCurrency(optimalLifetime)}.${spouseNote}`,
   };
 }
 
@@ -420,7 +458,6 @@ export function formatCurrencyPrecise(amount: number): string {
   }).format(amount);
 }
 
-/** Chart data: cumulative benefits by age for each claiming strategy. */
 export function generateCumulativeChartData(
   options: ClaimingOption[],
   maxAge: number,
@@ -454,4 +491,5 @@ export const DEFAULT_INPUTS: UserInputs = {
   annualCola: CPI_DEFAULT_COLA,
   gender: 'female',
   hasSpouse: false,
+  discountRate: DEFAULT_DISCOUNT_RATE,
 };

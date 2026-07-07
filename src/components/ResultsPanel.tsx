@@ -1,9 +1,16 @@
-import type { ClaimingOption, FraResult, Gender, SpousalAnalysis } from '../lib/socialSecurity';
+import type {
+  ClaimingOption,
+  FraResult,
+  Gender,
+  SpousalAnalysis,
+  FilingAgeDisplay,
+} from '../lib/socialSecurity';
 import {
   formatCurrency,
   formatCurrencyPrecise,
   fraLabel,
 } from '../lib/socialSecurity';
+import { formatPercent } from '../lib/cpiHistory';
 import { genderLabel } from '../lib/lifeExpectancy';
 
 interface ResultsPanelProps {
@@ -11,6 +18,10 @@ interface ResultsPanelProps {
   currentAge: { years: number; months: number };
   claimingOptions: ClaimingOption[];
   optimalAge: number;
+  optimalFilingAge: FilingAgeDisplay;
+  optimalMonthly: number;
+  expectedPresentValue: number;
+  discountRate: number;
   recommendation: string;
   recommendationDetail: string;
   lifeExpectancy: number;
@@ -24,6 +35,10 @@ export function ResultsPanel({
   fra,
   claimingOptions,
   optimalAge,
+  optimalFilingAge,
+  optimalMonthly,
+  expectedPresentValue,
+  discountRate,
   recommendation,
   recommendationDetail,
   lifeExpectancy,
@@ -32,24 +47,27 @@ export function ResultsPanel({
   hasSpouse,
   spousal,
 }: ResultsPanelProps) {
-  const optimal = claimingOptions.find((o) => o.age === optimalAge)!;
+  const optimal =
+    claimingOptions.find((o) => o.age === optimalAge) ?? claimingOptions[0];
   const age62 = claimingOptions.find((o) => o.age === 62)!;
   const age70 = claimingOptions.find((o) => o.age === 70)!;
 
   return (
     <div className="results">
       <div className="recommendation-card">
-        <span className="rec-label">Recommended Strategy</span>
+        <span className="rec-label">Recommended Strategy (ssa.tools)</span>
         <h2>{recommendation}</h2>
         <p>{recommendationDetail}</p>
         <div className="rec-stats">
           <div>
-            <span className="stat-value">{formatCurrency(optimal.monthlyBenefit)}</span>
-            <span className="stat-label">Monthly at age {optimalAge}</span>
+            <span className="stat-value">{formatCurrency(optimalMonthly)}</span>
+            <span className="stat-label">Monthly at age {optimalFilingAge.label}</span>
           </div>
           <div>
-            <span className="stat-value">{formatCurrency(optimal.lifetimeBenefits)}</span>
-            <span className="stat-label">Lifetime total</span>
+            <span className="stat-value">{formatCurrency(expectedPresentValue)}</span>
+            <span className="stat-label">
+              Expected PV ({formatPercent(discountRate * 100, 1)} discount)
+            </span>
           </div>
           <div>
             <span className="stat-value">{optimal.percentOfPia}%</span>
@@ -84,7 +102,10 @@ export function ResultsPanel({
             <span className="summary-label">Spousal at FRA</span>
             <span className="summary-value">{formatCurrency(spousal.spousalBenefitAtFra)}/mo</span>
             <span className="summary-hint">
-              50% of your PIA · survivor up to {formatCurrency(age70.monthlyBenefit)}/mo at 70
+              ssa.tools spousal top-up
+              {spousal.spouseFilingAge
+                ? ` · spouse files at ${spousal.spouseFilingAge.label}`
+                : ''}
             </span>
           </div>
         )}
@@ -93,8 +114,8 @@ export function ResultsPanel({
       <div className="table-section">
         <h3>Benefit by Claiming Age</h3>
         <p className="table-desc">
-          Monthly benefit, lifetime total (to age {lifeExpectancy} with {annualCola}% COLA), and
-          adjustment from FRA
+          Monthly benefit (ssa.tools) and lifetime total to age {lifeExpectancy} at 0% discount.
+          Charts may use {annualCola}% COLA for illustration.
         </p>
         <div className="table-wrap">
           <table>
@@ -112,11 +133,13 @@ export function ResultsPanel({
               {claimingOptions.map((opt) => {
                 const diff = opt.lifetimeBenefits - optimal.lifetimeBenefits;
                 const isOptimal = opt.age === optimalAge;
+                const isRecommended =
+                  optimalFilingAge.years === opt.age && optimalFilingAge.months === 0;
                 return (
                   <tr
                     key={opt.age}
                     className={[
-                      isOptimal ? 'row-optimal' : '',
+                      isOptimal || isRecommended ? 'row-optimal' : '',
                       !opt.isEligible ? 'row-future' : '',
                     ]
                       .filter(Boolean)
@@ -124,7 +147,7 @@ export function ResultsPanel({
                   >
                     <td>
                       <strong>{opt.age}</strong>
-                      {isOptimal && <span className="badge">Best</span>}
+                      {(isOptimal || isRecommended) && <span className="badge">Best</span>}
                     </td>
                     <td>{formatCurrencyPrecise(opt.monthlyBenefit)}</td>
                     <td>{opt.percentOfPia}%</td>
@@ -135,7 +158,7 @@ export function ResultsPanel({
                     <td>
                       {!opt.isEligible ? (
                         <span className="status-future">Future</span>
-                      ) : isOptimal ? (
+                      ) : isOptimal || isRecommended ? (
                         <span className="status-optimal">Optimal</span>
                       ) : (
                         <span className="status-eligible">Eligible</span>

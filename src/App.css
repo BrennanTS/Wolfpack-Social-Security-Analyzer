@@ -1,3 +1,173 @@
+/* ─── App shell & transitions ─── */
+.app-root {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.view-layer {
+  min-height: 100vh;
+}
+
+.view-gate.is-exiting {
+  animation: luxuryGateExit 0.62s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.view-app.is-entering {
+  animation: luxuryAppEnter 0.72s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.transition-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: linear-gradient(135deg, var(--ink) 0%, #2a2418 100%);
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+  opacity: 0.96;
+}
+
+.transition-curtain.is-active {
+  animation: luxuryCurtain 0.62s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.transition-curtain.is-active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--gold);
+  opacity: 0.6;
+  transform: translateX(-50%);
+}
+
+@keyframes luxuryGateExit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.015);
+    filter: blur(8px);
+  }
+}
+
+@keyframes luxuryAppEnter {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes luxuryCurtain {
+  0% {
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  45% {
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+  55% {
+    transform: scaleX(1);
+    transform-origin: right center;
+  }
+  100% {
+    transform: scaleX(0);
+    transform-origin: right center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-gate.is-exiting,
+  .view-app.is-entering,
+  .transition-curtain.is-active {
+    animation: none;
+  }
+
+  .view-gate.is-exiting {
+    opacity: 0;
+  }
+
+  .view-app.is-entering {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ─── Empty state ─── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: clamp(320px, 50vh, 480px);
+  padding: 48px 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.empty-state-icon span {
+  display: block;
+  width: 20px;
+  height: 1px;
+  background: var(--gold);
+  position: relative;
+}
+
+.empty-state-icon span::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -9px;
+  width: 1px;
+  height: 20px;
+  background: var(--gold);
+  transform: translateX(-50%);
+}
+
+.empty-state h3 {
+  font-size: 1.75rem;
+  font-weight: 500;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+
+.empty-state p {
+  margin: 0;
+  max-width: 420px;
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.assumptions-placeholder {
+  margin: 8px 0 0;
+}
+
 /* ─── Password Gate ─── */
 .gate {
   min-height: 100vh;
@@ -50,7 +220,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-display);
   font-size: 1.625rem;
   font-weight: 500;
   color: var(--gold);
@@ -70,9 +239,8 @@
 
 .gate-title {
   position: relative;
-  font-family: var(--font-display);
   font-size: clamp(2.5rem, 5vw, 3.75rem);
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.05;
   letter-spacing: -0.02em;
   color: var(--cream);
@@ -81,7 +249,7 @@
 
 .gate-title span {
   display: block;
-  font-style: italic;
+  font-weight: 500;
   color: rgba(247, 245, 240, 0.72);
 }
 
@@ -142,7 +310,6 @@
 }
 
 .gate-form-title {
-  font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -306,7 +473,6 @@
   width: 28px;
   height: 28px;
   border: 1px solid var(--gold);
-  font-family: var(--font-display);
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--gold);
@@ -394,54 +560,29 @@
   background: transparent;
 }
 
-.btn-migraine {
+.btn-theme {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   background: var(--fill);
   color: var(--text-muted);
   border: 1px solid var(--border);
-  padding: 7px 12px;
-  border-radius: var(--radius-pill);
-  font-size: 0.75rem;
-  font-weight: 500;
+  border-radius: var(--radius);
   transition: background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease);
 }
 
-.btn-migraine:hover {
+.btn-theme:hover {
   background: var(--fill-secondary);
   color: var(--text);
 }
 
-.btn-migraine-on {
+.btn-theme-on {
   background: var(--fill-secondary);
   color: var(--text);
   border-color: var(--border-strong);
-}
-
-.btn-migraine-icon {
-  font-size: 0.875rem;
-  line-height: 1;
-}
-
-.btn-migraine-label {
-  letter-spacing: -0.01em;
-}
-
-.btn-migraine-badge {
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--gold-dark);
-  background: var(--gold-soft);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-}
-
-[data-migraine='true'] .btn-migraine-badge {
-  color: var(--green);
-  background: var(--green-soft);
 }
 
 .main {
@@ -491,7 +632,6 @@
 }
 
 .input-panel h2 {
-  font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -909,7 +1049,6 @@
 }
 
 .recommendation-card h2 {
-  font-family: var(--font-display);
   font-size: 2.25rem;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -969,7 +1108,6 @@
 
 .rec-stats .stat-value {
   display: block;
-  font-family: var(--font-display);
   font-size: 1.875rem;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -1017,7 +1155,6 @@
 }
 
 .summary-value {
-  font-family: var(--font-display);
   font-size: 1.375rem;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -1040,7 +1177,6 @@
 .breakeven-section h3,
 .methodology h3,
 .chart-header h3 {
-  font-family: var(--font-display);
   font-size: 1.375rem;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -1379,7 +1515,7 @@ tbody tr:hover {
   letter-spacing: -0.02em;
 }
 
-[data-migraine='true'] .heatmap-cell-value {
+[data-theme='dark'] .heatmap-cell-value {
   color: rgba(255, 255, 255, 0.65);
 }
 
@@ -1400,7 +1536,7 @@ tbody tr:hover {
   background: linear-gradient(90deg, #ebe8e1, #8a8a8a, var(--gold));
 }
 
-[data-migraine='true'] .heatmap-legend-bar {
+[data-theme='dark'] .heatmap-legend-bar {
   filter: brightness(0.75) saturate(0.6);
 }
 
@@ -1573,14 +1709,6 @@ tbody tr:hover {
     width: 100%;
     justify-content: flex-end;
     flex-wrap: wrap;
-  }
-
-  .btn-migraine-label {
-    display: none;
-  }
-
-  .btn-migraine {
-    padding: 7px 10px;
   }
 
   .export-error {

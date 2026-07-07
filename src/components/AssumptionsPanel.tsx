@@ -6,14 +6,17 @@ import {
 } from '../lib/cpiHistory';
 import type { Gender } from '../lib/socialSecurity';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
+import { DEFAULT_DISCOUNT_RATE } from '../lib/ssaTools';
 
 interface AssumptionsPanelProps {
-  lifeExpectancy: number;
+  lifeExpectancy: number | null;
   onLifeExpectancyChange: (value: number) => void;
   annualCola: number;
   onAnnualColaChange: (value: number) => void;
-  ssaSuggestedLifeExpectancy: number;
-  gender: Gender;
+  discountRate: number;
+  onDiscountRateChange: (value: number) => void;
+  ssaSuggestedLifeExpectancy: number | null;
+  gender: Gender | null;
   expanded: boolean;
   onToggle: () => void;
 }
@@ -23,13 +26,16 @@ export function AssumptionsPanel({
   onLifeExpectancyChange,
   annualCola,
   onAnnualColaChange,
+  discountRate,
+  onDiscountRateChange,
   ssaSuggestedLifeExpectancy,
   gender,
   expanded,
   onToggle,
 }: AssumptionsPanelProps) {
   const cpi = getCpiLast30Years();
-  const usingDefault = Math.abs(annualCola - CPI_DEFAULT_COLA) < 0.05;
+  const usingDefaultCola = Math.abs(annualCola - CPI_DEFAULT_COLA) < 0.05;
+  const usingDefaultDiscount = Math.abs(discountRate - DEFAULT_DISCOUNT_RATE) < 0.001;
 
   return (
     <div className="assumptions-panel">
@@ -45,41 +51,80 @@ export function AssumptionsPanel({
       {expanded && (
         <div className="assumptions-body">
           <div className="field advanced-field">
-            <label htmlFor="life">Life expectancy — plan to age {lifeExpectancy}</label>
+            <label htmlFor="discount">
+              Discount rate (ssa.tools) — {formatPercent(discountRate * 100, 2)}
+            </label>
             <input
-              id="life"
+              id="discount"
               type="range"
-              min={75}
-              max={100}
-              value={lifeExpectancy}
-              onChange={(e) => onLifeExpectancyChange(Number(e.target.value))}
+              min={0}
+              max={6}
+              step={0.1}
+              value={discountRate * 100}
+              onChange={(e) => onDiscountRateChange(Number(e.target.value) / 100)}
             />
             <div className="range-labels">
-              <span>75</span>
-              <span>100</span>
+              <span>0%</span>
+              <span>6%</span>
             </div>
-            <div className="ssa-life-row">
-              <span className="field-hint">
-                SSA suggests age <strong>{ssaSuggestedLifeExpectancy}</strong> for{' '}
-                {genderLabel(gender).toLowerCase()} (
-                <a href={SSA_LIFE_TABLE_URL} target="_blank" rel="noopener noreferrer">
-                  period life table
-                </a>
-                )
-              </span>
-              <button
-                type="button"
-                className="btn-reset-cola"
-                onClick={() => onLifeExpectancyChange(ssaSuggestedLifeExpectancy)}
-              >
-                Use SSA age ({ssaSuggestedLifeExpectancy})
-              </button>
-            </div>
+            <span className="field-hint">
+              Used for mortality-weighted optimal filing (ssa.tools expected NPV). Default 2.5%
+              approximates long-term TIPS yield.
+            </span>
+            {usingDefaultDiscount && (
+              <p className="cpi-active-note">Using ssa.tools default discount rate.</p>
+            )}
+          </div>
+
+          <div className="field advanced-field">
+            <label htmlFor="life">
+              Life expectancy
+              {lifeExpectancy !== null ? ` — plan to age ${lifeExpectancy}` : ''}
+            </label>
+            {lifeExpectancy !== null ? (
+              <>
+                <input
+                  id="life"
+                  type="range"
+                  min={75}
+                  max={100}
+                  value={lifeExpectancy}
+                  onChange={(e) => onLifeExpectancyChange(Number(e.target.value))}
+                />
+                <div className="range-labels">
+                  <span>75</span>
+                  <span>100</span>
+                </div>
+              </>
+            ) : (
+              <p className="field-hint assumptions-placeholder">
+                Set date of birth and gender to enable life expectancy planning.
+              </p>
+            )}
+            {ssaSuggestedLifeExpectancy !== null && gender !== null && (
+              <div className="ssa-life-row">
+                <span className="field-hint">
+                  SSA suggests age <strong>{ssaSuggestedLifeExpectancy}</strong> for{' '}
+                  {genderLabel(gender).toLowerCase()} (
+                  <a href={SSA_LIFE_TABLE_URL} target="_blank" rel="noopener noreferrer">
+                    period life table
+                  </a>
+                  )
+                </span>
+                <button
+                  type="button"
+                  className="btn-reset-cola"
+                  onClick={() => onLifeExpectancyChange(ssaSuggestedLifeExpectancy)}
+                >
+                  Use SSA age ({ssaSuggestedLifeExpectancy})
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="field advanced-field">
             <label htmlFor="cola">
-              Annual COLA / inflation — {formatPercent(annualCola, 2)}
+              Chart COLA assumption — {formatPercent(annualCola, 2)}
             </label>
             <input
               id="cola"
@@ -114,7 +159,8 @@ export function AssumptionsPanel({
               </button>
             </div>
             <span className="field-hint">
-              Applied to lifetime benefit totals (models SSA cost-of-living adjustments)
+              Benefit math uses SSA historical COLA tables (ssa.tools). This rate applies to
+              illustrative cumulative charts only.
             </span>
           </div>
 
@@ -172,9 +218,9 @@ export function AssumptionsPanel({
               </table>
             </div>
 
-            {usingDefault && (
+            {usingDefaultCola && (
               <p className="cpi-active-note">
-                Default COLA assumption matches the 30-year CPI-U arithmetic average.
+                Chart COLA default matches the 30-year CPI-U arithmetic average.
               </p>
             )}
           </div>

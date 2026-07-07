@@ -24,6 +24,7 @@ import {
   getLivingAgeTicks,
   heatmapColorPdf,
 } from '../lib/chartData';
+import { BRAND_NAME } from '../lib/brand';
 import { BLS_CPI_URL, formatPercent, getCpiLast30Years } from '../lib/cpiHistory';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
 
@@ -32,11 +33,20 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const NAVY = '#1e3a5f';
-const GOLD = '#b8860b';
-const MUTED = '#64748b';
-const LIGHT = '#f1f5f9';
-const HIGHLIGHT = '#fdf8ee';
+const INK = '#141414';
+const GOLD = '#b8965a';
+const GOLD_DARK = '#8a7144';
+const GOLD_SOFT = '#f5f0e8';
+const CREAM = '#f7f5f0';
+const SURFACE = '#ffffff';
+const FILL = '#f0eeea';
+const BORDER = '#e4e1da';
+const MUTED = '#5c5c5c';
+const SUBTLE = '#8a8a8a';
+const GREEN = '#5a7a5e';
+const GREEN_SOFT = '#eef3ef';
+const RED = '#9a4a44';
+const RED_SOFT = '#f8efee';
 
 /** Letter page content width: 612pt − left/right padding */
 const CONTENT_W = 516;
@@ -51,7 +61,8 @@ const styles = StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 9,
-    color: '#0f172a',
+    color: INK,
+    backgroundColor: CREAM,
     paddingTop: PAD_TOP,
     paddingBottom: PAD_BOTTOM,
     paddingHorizontal: PAD_H,
@@ -60,79 +71,96 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   brandBlock: { flexDirection: 'row', alignItems: 'flex-start' },
-  logoWrap: { marginRight: 8, marginTop: 3 },
+  monogram: {
+    width: 22,
+    height: 22,
+    borderWidth: 1,
+    borderColor: GOLD,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 1,
+  },
+  monogramText: {
+    fontSize: 10,
+    color: GOLD,
+    fontFamily: 'Helvetica-Bold',
+  },
   org: {
     fontSize: 7,
     fontWeight: 700,
-    letterSpacing: 1,
-    color: GOLD,
+    letterSpacing: 1.2,
+    color: GOLD_DARK,
     textTransform: 'uppercase',
     marginBottom: 2,
   },
-  title: { fontSize: 17, color: NAVY, fontFamily: 'Helvetica-Bold' },
+  title: { fontSize: 16, color: INK, fontFamily: 'Helvetica-Bold', letterSpacing: -0.2 },
   meta: { textAlign: 'right', marginLeft: 16 },
-  metaDate: { fontSize: 8.5, color: '#475569' },
+  metaDate: { fontSize: 8.5, color: MUTED },
   metaId: {
     fontSize: 7,
-    color: '#94a3b8',
+    color: SUBTLE,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     marginTop: 3,
   },
-  accentBar: { height: 2, marginBottom: 12, flexDirection: 'row' },
-  accentGold: { width: 120, backgroundColor: GOLD, height: 2 },
-  accentNavy: { flex: 1, backgroundColor: NAVY, height: 2 },
+  accentBar: { width: 48, height: 2, backgroundColor: GOLD, marginBottom: 14, opacity: 0.9 },
   sectionTitle: {
-    fontSize: 11,
-    color: NAVY,
+    fontSize: 10.5,
+    color: INK,
     fontFamily: 'Helvetica-Bold',
     marginBottom: 5,
     marginTop: 10,
     paddingBottom: 3,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: BORDER,
   },
   sectionTitleFirst: { marginTop: 0 },
-  sectionDesc: { fontSize: 8, color: MUTED, marginBottom: 8, lineHeight: 1.4 },
+  sectionDesc: { fontSize: 8, color: MUTED, marginBottom: 8, lineHeight: 1.45 },
   profileGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },
   profileItem: { width: '33.33%', marginBottom: 8, paddingRight: 8 },
   profileLabel: {
     fontSize: 6.5,
-    color: '#94a3b8',
+    color: SUBTLE,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
-  profileValue: { fontSize: 9, fontFamily: 'Helvetica-Bold' },
+  profileValue: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: INK },
   recBox: {
-    backgroundColor: NAVY,
-    borderRadius: 4,
+    backgroundColor: SURFACE,
+    borderRadius: 6,
     padding: 12,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderTopWidth: 2,
+    borderTopColor: GOLD,
   },
   recEyebrow: {
     fontSize: 7,
-    color: '#d4af37',
+    color: GOLD_DARK,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 3,
   },
   recHeadline: {
     fontSize: 13,
-    color: '#ffffff',
+    color: INK,
     fontFamily: 'Helvetica-Bold',
     marginBottom: 5,
+    letterSpacing: -0.2,
   },
-  recBody: { fontSize: 8.5, color: '#dbe4f0', lineHeight: 1.45, marginBottom: 10 },
-  recMetrics: { flexDirection: 'row' },
+  recBody: { fontSize: 8.5, color: MUTED, lineHeight: 1.45, marginBottom: 10 },
+  recMetrics: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 8 },
   recMetricBlock: { marginRight: 32 },
-  recMetricValue: { fontSize: 12, color: '#ffffff', fontFamily: 'Helvetica-Bold' },
+  recMetricValue: { fontSize: 12, color: INK, fontFamily: 'Helvetica-Bold' },
   recMetricLabel: {
     fontSize: 6.5,
-    color: '#94a3b8',
+    color: SUBTLE,
     textTransform: 'uppercase',
     marginTop: 2,
   },
@@ -140,52 +168,54 @@ const styles = StyleSheet.create({
   kcCard: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 4,
+    borderColor: BORDER,
+    borderRadius: 6,
     padding: 8,
     alignItems: 'center',
     marginRight: 8,
+    backgroundColor: SURFACE,
   },
   kcCardLast: { marginRight: 0 },
-  kcHighlight: { borderColor: GOLD, backgroundColor: HIGHLIGHT },
+  kcHighlight: { borderColor: GOLD, backgroundColor: GOLD_SOFT },
   kcLabel: {
     fontSize: 6.5,
     color: MUTED,
     textTransform: 'uppercase',
     marginBottom: 3,
   },
-  kcValue: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: NAVY },
-  kcSub: { fontSize: 7, color: '#94a3b8', marginTop: 2 },
+  kcValue: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: INK },
+  kcSub: { fontSize: 7, color: SUBTLE, marginTop: 2 },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: LIGHT,
+    backgroundColor: FILL,
     borderBottomWidth: 1,
-    borderBottomColor: '#cbd5e1',
+    borderBottomColor: BORDER,
     paddingVertical: 5,
     paddingHorizontal: 4,
   },
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: BORDER,
     paddingVertical: 4,
     paddingHorizontal: 4,
     alignItems: 'center',
+    backgroundColor: SURFACE,
   },
-  tableRowOptimal: { backgroundColor: HIGHLIGHT },
+  tableRowOptimal: { backgroundColor: GOLD_SOFT },
   th: {
     fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
     color: MUTED,
     textTransform: 'uppercase',
   },
-  td: { fontSize: 8.5 },
-  tdBold: { fontSize: 8.5, fontFamily: 'Helvetica-Bold' },
+  td: { fontSize: 8.5, color: INK },
+  tdBold: { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: INK },
   tdAge: { flexDirection: 'row', alignItems: 'center' },
-  negative: { color: '#b91c1c' },
+  negative: { color: RED },
   badge: {
     fontSize: 5.5,
-    color: '#ffffff',
+    color: SURFACE,
     backgroundColor: GOLD,
     paddingHorizontal: 4,
     paddingVertical: 1,
@@ -195,10 +225,10 @@ const styles = StyleSheet.create({
   chartSection: { marginTop: 4, marginBottom: 12 },
   chartBox: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 4,
+    borderColor: BORDER,
+    borderRadius: 6,
     padding: 8,
-    backgroundColor: '#fafbfc',
+    backgroundColor: SURFACE,
   },
   chartLegend: {
     flexDirection: 'row',
@@ -213,33 +243,34 @@ const styles = StyleSheet.create({
   beCard: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 4,
+    borderColor: BORDER,
+    borderRadius: 6,
     padding: 8,
     alignItems: 'center',
     marginRight: 8,
+    backgroundColor: SURFACE,
   },
   beCardLast: { marginRight: 0 },
   bePair: { fontSize: 8, color: MUTED, marginBottom: 3 },
-  beAge: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: NAVY },
+  beAge: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: INK },
   beLabel: {
     fontSize: 6.5,
-    color: '#94a3b8',
+    color: SUBTLE,
     textTransform: 'uppercase',
     marginBottom: 5,
   },
   beVerdictLater: {
     fontSize: 7,
-    color: '#047857',
-    backgroundColor: '#ecfdf5',
+    color: GREEN,
+    backgroundColor: GREEN_SOFT,
     padding: 4,
     borderRadius: 2,
     textAlign: 'center',
   },
   beVerdictEarlier: {
     fontSize: 7,
-    color: '#b91c1c',
-    backgroundColor: '#fef2f2',
+    color: RED,
+    backgroundColor: RED_SOFT,
     padding: 4,
     borderRadius: 2,
     textAlign: 'center',
@@ -247,21 +278,21 @@ const styles = StyleSheet.create({
   methodRow: { flexDirection: 'row', marginBottom: 8 },
   methodBlock: { flex: 1, marginRight: 12 },
   methodBlockLast: { marginRight: 0 },
-  methodTitle: { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: NAVY, marginBottom: 3 },
-  methodText: { fontSize: 8, color: '#475569', lineHeight: 1.4 },
+  methodTitle: { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: INK, marginBottom: 3 },
+  methodText: { fontSize: 8, color: MUTED, lineHeight: 1.4 },
   disclaimer: {
     marginTop: 10,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: BORDER,
     borderLeftWidth: 3,
-    borderLeftColor: NAVY,
-    backgroundColor: '#f8fafc',
+    borderLeftColor: GOLD,
+    backgroundColor: SURFACE,
   },
   disclaimerTitle: {
     fontSize: 7.5,
     fontFamily: 'Helvetica-Bold',
-    color: NAVY,
+    color: INK,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
@@ -272,10 +303,10 @@ const styles = StyleSheet.create({
     left: PAD_H,
     right: PAD_H,
     fontSize: 7,
-    color: '#94a3b8',
+    color: SUBTLE,
     textAlign: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: BORDER,
     paddingTop: 6,
   },
   pdfHeatmapLegend: {
@@ -288,7 +319,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 6,
     marginHorizontal: 8,
-    backgroundColor: NAVY,
+    backgroundColor: GOLD,
   },
   pdfHeatmapLegendText: { fontSize: 6.5, color: MUTED },
   pdfBarRow: {
@@ -300,12 +331,12 @@ const styles = StyleSheet.create({
   pdfBarTrack: {
     flex: 1,
     height: 10,
-    backgroundColor: LIGHT,
+    backgroundColor: FILL,
     borderRadius: 2,
     overflow: 'hidden',
   },
-  pdfBarFill: { height: 10, backgroundColor: '#b91c1c', borderRadius: 2 },
-  pdfBarFillOptimal: { height: 10, backgroundColor: '#059669', borderRadius: 2, width: 4 },
+  pdfBarFill: { height: 10, backgroundColor: RED, borderRadius: 2 },
+  pdfBarFillOptimal: { height: 10, backgroundColor: GREEN, borderRadius: 2, width: 4 },
   pdfBarValue: { width: 52, fontSize: 7, color: MUTED, textAlign: 'right' },
 });
 
@@ -317,12 +348,10 @@ function formatReportDate(): string {
   }).format(new Date());
 }
 
-function BrandLogo() {
+function BrandMonogram() {
   return (
-    <View style={styles.logoWrap}>
-      <Svg width={11} height={11} viewBox="0 0 12 12">
-        <Path d="M6 0 L12 6 L6 12 L0 6 Z" fill={GOLD} />
-      </Svg>
+    <View style={styles.monogram}>
+      <Text style={styles.monogramText}>W</Text>
     </View>
   );
 }
@@ -361,7 +390,7 @@ function PdfChart({
   const xScale = (age: number) => padL + ((age - 62) / (lifeExpectancy - 62)) * plotW;
   const yScale = (val: number) => padT + plotH - (val / maxVal) * plotH;
 
-  const colors: Record<number, string> = { 62: '#64748b', 67: '#4f46e5', 70: GOLD };
+  const colors: Record<number, string> = { 62: '#8a8a8a', 67: '#5c5c5c', 70: GOLD };
 
   function linePath(age: number): string {
     const parts: string[] = [];
@@ -387,7 +416,7 @@ function PdfChart({
               y1={y}
               x2={W - padR}
               y2={y}
-              stroke="#e2e8f0"
+              stroke={BORDER}
               strokeWidth={0.5}
             />
           );
@@ -413,7 +442,7 @@ function PdfChart({
             y1={padT + plotH}
             x2={xScale(age)}
             y2={padT + plotH + 3}
-            stroke="#cbd5e1"
+            stroke={SUBTLE}
             strokeWidth={0.5}
           />
         ))}
@@ -432,7 +461,7 @@ function PdfChart({
           <Text
             x={xScale(lifeExpectancy)}
             y={H - 4}
-            style={{ fontSize: 6, fill: '#dc2626' }}
+            style={{ fontSize: 6, fill: RED }}
             textAnchor="middle"
           >
             {lifeExpectancy}
@@ -443,7 +472,7 @@ function PdfChart({
           y1={padT}
           x2={xScale(lifeExpectancy)}
           y2={padT + plotH}
-          stroke="#dc2626"
+          stroke={RED}
           strokeWidth={1}
           strokeDasharray="3 2"
         />
@@ -644,7 +673,7 @@ function PdfMonthlyRamp({
           y1={padT + plotH}
           x2={W - padR}
           y2={padT + plotH}
-          stroke="#e2e8f0"
+          stroke={BORDER}
           strokeWidth={0.5}
         />
         {[62, 64, 66, 68, 70].map((age) => (
@@ -664,7 +693,7 @@ function PdfMonthlyRamp({
         <Text x={padL - 3} y={yScale(minM) + 2} style={{ fontSize: 5.5, fill: MUTED }} textAnchor="end">
           ${Math.round(minM / 1000)}k
         </Text>
-        <Path d={path} stroke={NAVY} strokeWidth={1.5} fill="none" />
+        <Path d={path} stroke={INK} strokeWidth={1.5} fill="none" />
         {data.map((d) => (
           <Rect
             key={d.age}
@@ -672,7 +701,7 @@ function PdfMonthlyRamp({
             y={yScale(d.monthly) - (d.isOptimal ? 2.5 : 1.5)}
             width={d.isOptimal ? 5 : 3}
             height={d.isOptimal ? 5 : 3}
-            fill={d.isOptimal ? GOLD : NAVY}
+            fill={d.isOptimal ? GOLD : INK}
             rx={d.isOptimal ? 2.5 : 1.5}
           />
         ))}
@@ -787,6 +816,10 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
     currentAge,
     claimingOptions,
     optimalAge,
+    optimalFilingAge,
+    optimalMonthly,
+    expectedPresentValue,
+    discountRate,
     recommendation,
     recommendationDetail,
     breakEvens,
@@ -797,7 +830,7 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
   const age62 = claimingOptions.find((o) => o.age === 62)!;
   const age70 = claimingOptions.find((o) => o.age === 70)!;
   const dob = `${MONTHS[birthMonth - 1]} ${birthYear}`;
-  const footerText = `Wolfpack Planning Team · Confidential · ${formatReportDate()}`;
+  const footerText = `${BRAND_NAME} · Confidential · ${formatReportDate()}`;
   const cpi = getCpiLast30Years();
   const ssaSuggested = result.ssaSuggestedLifeExpectancy;
 
@@ -856,15 +889,15 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
   return (
     <Document
       title="Social Security Claiming Analysis"
-      author="Wolfpack Planning Team"
+      author={BRAND_NAME}
       subject="Social Security Claiming Analysis"
     >
       <Page size="LETTER" style={styles.page}>
         <View style={styles.headerRow}>
           <View style={styles.brandBlock}>
-            <BrandLogo />
+            <BrandMonogram />
             <View>
-              <Text style={styles.org}>Wolfpack Planning Team</Text>
+              <Text style={styles.org}>{BRAND_NAME}</Text>
               <Text style={styles.title}>Social Security Claiming Analysis</Text>
             </View>
           </View>
@@ -874,10 +907,7 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
           </View>
         </View>
 
-        <View style={styles.accentBar}>
-          <View style={styles.accentNavy} />
-          <View style={styles.accentGold} />
-        </View>
+        <View style={styles.accentBar} />
 
         <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Client Profile</Text>
         <View style={styles.profileGrid}>
@@ -890,7 +920,8 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
             ['PIA (Benefit at FRA)', `${formatCurrencyPrecise(pia)}/mo`],
             ['Life Expectancy', `Age ${lifeExpectancy}`],
             ['SSA Suggested Age', `Age ${result.ssaSuggestedLifeExpectancy}`],
-            ['Annual COLA', formatPercent(annualCola, 2)],
+            ['Discount Rate', formatPercent(discountRate * 100, 2)],
+            ['Chart COLA', formatPercent(annualCola, 2)],
           ].map(([label, value]) => (
             <View key={label} style={styles.profileItem}>
               <Text style={styles.profileLabel}>{label}</Text>
@@ -900,17 +931,17 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
         </View>
 
         <View style={styles.recBox}>
-          <Text style={styles.recEyebrow}>Recommended Strategy</Text>
+          <Text style={styles.recEyebrow}>Recommended Strategy (ssa.tools)</Text>
           <Text style={styles.recHeadline}>{recommendation}</Text>
           <Text style={styles.recBody}>{recommendationDetail}</Text>
           <View style={styles.recMetrics}>
             <View style={styles.recMetricBlock}>
-              <Text style={styles.recMetricValue}>{formatCurrency(optimal.monthlyBenefit)}</Text>
-              <Text style={styles.recMetricLabel}>Monthly at age {optimalAge}</Text>
+              <Text style={styles.recMetricValue}>{formatCurrency(optimalMonthly)}</Text>
+              <Text style={styles.recMetricLabel}>Monthly at age {optimalFilingAge.label}</Text>
             </View>
             <View style={styles.recMetricBlock}>
-              <Text style={styles.recMetricValue}>{formatCurrency(optimal.lifetimeBenefits)}</Text>
-              <Text style={styles.recMetricLabel}>Lifetime total</Text>
+              <Text style={styles.recMetricValue}>{formatCurrency(expectedPresentValue)}</Text>
+              <Text style={styles.recMetricLabel}>Expected present value</Text>
             </View>
             <View style={styles.recMetricBlock}>
               <Text style={styles.recMetricValue}>{optimal.percentOfPia}%</Text>
@@ -1010,7 +1041,7 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
         <View style={styles.disclaimer}>
           <Text style={styles.disclaimerTitle}>Important Disclosures</Text>
           <Text style={styles.disclaimerText}>
-            Prepared by Wolfpack Planning Team for educational planning only. Not affiliated with
+            Prepared by {BRAND_NAME} using the open-source ssa.tools engine for educational planning only. Not affiliated with
             the SSA. Projections include stated COLA ({formatPercent(annualCola, 2)}) but exclude
             taxation, spousal/survivor benefits, earnings limits, and rule changes. Data:{' '}
             {BLS_CPI_URL}. Verify at ssa.gov before claiming.
