@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Analyzer } from './components/Analyzer';
-import { isAuthenticated, logout, PasswordGate } from './components/PasswordGate';
+import { PasswordGate } from './components/PasswordGate';
+import { isAuthenticated, logout } from './lib/auth';
 import { useDarkMode } from './hooks/useDarkMode';
 import './App.css';
 

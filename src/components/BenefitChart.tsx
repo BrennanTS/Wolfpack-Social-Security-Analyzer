@@ -14,6 +14,13 @@ import {
   generateCumulativeChartData,
   formatCurrency,
 } from '../lib/socialSecurity';
+import {
+  CHART_AXIS_LINE,
+  CHART_MUTED,
+  CHART_RED,
+  CHART_TOOLTIP_STYLE,
+  CLAIM_AGE_COLORS,
+} from '../lib/chartTheme';
 
 interface BenefitChartProps {
   options: ClaimingOption[];
@@ -22,27 +29,7 @@ interface BenefitChartProps {
   annualCola?: number;
 }
 
-const COLORS: Record<number, string> = {
-  62: '#d4d4d4',
-  63: '#c4c4c4',
-  64: '#b4b4b4',
-  65: '#9a9a9a',
-  66: '#8a8a8a',
-  67: '#6b6b6b',
-  68: '#5c5c5c',
-  69: '#4a4a4a',
-  70: '#b8965a',
-};
-
-const TOOLTIP_STYLE = {
-  background: 'rgba(20, 20, 20, 0.94)',
-  border: 'none',
-  borderRadius: 4,
-  color: '#f7f5f0',
-  fontSize: 13,
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-};
-
+/** The three canonical claiming ages we plot to keep the chart readable. */
 const HIGHLIGHT_AGES = [62, 67, 70];
 
 export function BenefitChart({
@@ -69,19 +56,19 @@ export function BenefitChart({
         <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
           <XAxis
             dataKey="age"
-            tick={{ fill: '#8a8a8a', fontSize: 12 }}
-            axisLine={{ stroke: '#e4e1da' }}
+            tick={{ fill: CHART_MUTED, fontSize: 12 }}
+            axisLine={{ stroke: CHART_AXIS_LINE }}
             tickLine={false}
-            label={{ value: 'Age', position: 'insideBottom', offset: -4, fill: '#86868b' }}
+            label={{ value: 'Age', position: 'insideBottom', offset: -4, fill: CHART_MUTED }}
           />
           <YAxis
-            tick={{ fill: '#86868b', fontSize: 12 }}
+            tick={{ fill: CHART_MUTED, fontSize: 12 }}
             axisLine={false}
             tickLine={false}
             tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
           />
           <Tooltip
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(value, name) => {
               const num = typeof value === 'number' ? value : 0;
               const age = String(name).replace('age', '');
@@ -91,9 +78,9 @@ export function BenefitChart({
           />
           <ReferenceLine
             x={lifeExpectancy}
-            stroke="#9a4a44"
+            stroke={CHART_RED}
             strokeDasharray="4 4"
-            label={{ value: `Life exp. ${lifeExpectancy}`, fill: '#9a4a44', fontSize: 11 }}
+            label={{ value: `Life exp. ${lifeExpectancy}`, fill: CHART_RED, fontSize: 11 }}
           />
           {displayOptions.map((opt) => (
             <Line
@@ -101,7 +88,7 @@ export function BenefitChart({
               type="monotone"
               dataKey={`age${opt.age}`}
               name={`age${opt.age}`}
-              stroke={opt.age === optimalAge ? COLORS[70] : COLORS[opt.age]}
+              stroke={opt.age === optimalAge ? CLAIM_AGE_COLORS[70] : CLAIM_AGE_COLORS[opt.age]}
               strokeWidth={opt.age === optimalAge ? 3 : 2}
               dot={false}
               connectNulls

@@ -89,7 +89,7 @@ export function OptionalChartsPanel({
 
       <ToggleChartSection
         title="Lifetime Total by Claiming Age"
-        description={`Projected lifetime benefits through age ${lifeExpectancy} with ${annualCola}% COLA.`}
+        description={`Total benefits received through age ${lifeExpectancy}, using SSA cost-of-living adjustments (ssa.tools), undiscounted.`}
         visible={visibility.lifetimeBar}
         onToggle={() => onToggle('lifetimeBar')}
       >

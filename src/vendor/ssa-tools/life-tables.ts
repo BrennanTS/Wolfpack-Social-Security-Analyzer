@@ -1,5 +1,4 @@
 // @ts-nocheck
-import { getBundledLifeTable } from '../../lib/lifeTableLoader';
 
 export interface LifeTableEntry {
   age: number; // Renamed from 'x' for clarity
@@ -66,6 +65,11 @@ function validateCurrentAge(age: number): void {
   }
 }
 
+// Session cache of parsed tables, keyed by `${gender}_${year}`. Analyses re-run
+// whenever the user adjusts an input (e.g. the discount-rate slider), so caching
+// avoids re-fetching and re-parsing the same JSON on every recompute.
+const rawTableCache = new Map<string, Promise<LifeTableEntry[]>>();
+
 /**
  * Fetches raw life table data for a specific gender and birth year.
  * This is a low-level function that should typically not be called directly.
@@ -77,39 +81,46 @@ async function fetchRawLifeTableData(
   validateGender(gender);
   validateBirthYear(year);
 
+  const cacheKey = `${gender}_${year}`;
+  const cached = rawTableCache.get(cacheKey);
+  if (cached) return cached;
+
+  // Life tables are served as static assets from public/data/processed and
+  // fetched on demand (only 2–4 tables per analysis), rather than eagerly
+  // bundled into the JS. This keeps the initial bundle small.
   const filePath = `${CONFIG.DATA_PATH_PREFIX}/${gender}_${year}.json`;
 
-  try {
-    const bundled = getBundledLifeTable(gender, year);
-    if (bundled) {
-      return bundled.map((entry) => ({
+  const request = (async () => {
+    try {
+      const response = await fetch(filePath);
+
+      if (!response.ok) {
+        throw new DataNotFoundError(gender, year);
+      }
+
+      const rawData: { x: number; q_x: number }[] = await response.json();
+
+      // Transform data to use clearer property names
+      return rawData.map((entry) => ({
         age: entry.x,
         mortalityRate: entry.q_x,
       }));
+    } catch (error) {
+      if (error instanceof LifeTableError) {
+        throw error;
+      }
+      throw new LifeTableError(
+        `Failed to fetch life table data for ${gender} ${year}`,
+        error
+      );
     }
+  })();
 
-    const response = await fetch(filePath);
-
-    if (!response.ok) {
-      throw new DataNotFoundError(gender, year);
-    }
-
-    const rawData: { x: number; q_x: number }[] = await response.json();
-
-    // Transform data to use clearer property names
-    return rawData.map((entry) => ({
-      age: entry.x,
-      mortalityRate: entry.q_x,
-    }));
-  } catch (error) {
-    if (error instanceof LifeTableError) {
-      throw error;
-    }
-    throw new LifeTableError(
-      `Failed to fetch life table data for ${gender} ${year}`,
-      error
-    );
-  }
+  // Cache the in-flight promise so concurrent callers share one request; drop it
+  // on failure so a transient error doesn't poison the cache permanently.
+  rawTableCache.set(cacheKey, request);
+  request.catch(() => rawTableCache.delete(cacheKey));
+  return request;
 }
 
 /**

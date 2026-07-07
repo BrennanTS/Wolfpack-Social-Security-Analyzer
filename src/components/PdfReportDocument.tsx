@@ -824,6 +824,7 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
     recommendationDetail,
     breakEvens,
     pia,
+    spousal,
   } = result;
 
   const optimal = claimingOptions.find((o) => o.age === optimalAge)!;
@@ -852,7 +853,7 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
       },
       {
         title: 'Lifetime Benefit Projection',
-        body: `Benefits compounded at ${formatPercent(annualCola, 2)} COLA through age ${lifeExpectancy}. Optimal claim age: ${optimalAge}.`,
+        body: `Lifetime totals use SSA cost-of-living adjustments (ssa.tools), undiscounted, through age ${lifeExpectancy}. Optimal claim age: ${optimalAge}.`,
       },
     ],
     [
@@ -869,12 +870,12 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
       {
         title: 'Spousal & Survivor',
         body: hasSpouse
-          ? `Spousal at FRA: 50% of PIA (${formatCurrencyPrecise(pia * 0.5)}/mo). Survivor receives worker's full monthly benefit.`
+          ? `Spousal top-up at FRA: ${formatCurrencyPrecise(spousal?.spousalBenefitAtFra ?? 0)}/mo (ssa.tools). Survivor receives the worker's full monthly benefit.`
           : 'Single claimant — spousal/survivor benefits not modeled.',
       },
       {
         title: 'Break-Even',
-        body: 'Age when later strategy cumulative benefits exceed earlier, with COLA applied.',
+        body: `Age when a later strategy's cumulative benefits overtake an earlier one (illustrative flat ${formatPercent(annualCola, 2)} COLA).`,
       },
     ],
     [
@@ -970,8 +971,8 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
 
         <Text style={styles.sectionTitle}>Benefit Comparison by Claiming Age</Text>
         <Text style={styles.sectionDesc}>
-          Monthly benefit and lifetime total through age {lifeExpectancy} with{' '}
-          {formatPercent(annualCola, 2)} annual COLA
+          Monthly benefit and lifetime total through age {lifeExpectancy}, using SSA
+          cost-of-living adjustments (ssa.tools), undiscounted
         </Text>
         <BenefitTable
           claimingOptions={claimingOptions}
@@ -1042,8 +1043,11 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
           <Text style={styles.disclaimerTitle}>Important Disclosures</Text>
           <Text style={styles.disclaimerText}>
             Prepared by {BRAND_NAME} using the open-source ssa.tools engine for educational planning only. Not affiliated with
-            the SSA. Projections include stated COLA ({formatPercent(annualCola, 2)}) but exclude
-            taxation, spousal/survivor benefits, earnings limits, and rule changes. Data:{' '}
+            the SSA. Benefit amounts reflect SSA cost-of-living adjustments;{' '}
+            {hasSpouse
+              ? 'spousal and survivor benefits are modeled via the ssa.tools couple optimizer. '
+              : 'spousal and survivor benefits are not modeled for single claimants. '}
+            Projections exclude taxation, earnings limits, and future rule changes. Data:{' '}
             {BLS_CPI_URL}. Verify at ssa.gov before claiming.
           </Text>
         </View>

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -21,20 +22,15 @@ import {
   getLivingAgeTicks,
   heatmapColorWeb,
 } from '../lib/chartData';
-
-const GOLD = '#b8965a';
-const INK = '#3a3a3a';
-const MUTED = '#8a8a8a';
-const GREY_MID = '#b0b0b0';
-
-const TOOLTIP_STYLE = {
-  background: 'rgba(20, 20, 20, 0.94)',
-  border: 'none',
-  borderRadius: 4,
-  color: '#f7f5f0',
-  fontSize: 13,
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-};
+import {
+  CHART_AXIS_LINE,
+  CHART_GOLD as GOLD,
+  CHART_GREY_MID as GREY_MID,
+  CHART_INK as INK,
+  CHART_MUTED as MUTED,
+  CHART_RED,
+  CHART_TOOLTIP_STYLE as TOOLTIP_STYLE,
+} from '../lib/chartTheme';
 
 interface MonthlyBenefitBarChartProps {
   options: ClaimingOption[];
@@ -42,11 +38,15 @@ interface MonthlyBenefitBarChartProps {
 }
 
 export function MonthlyBenefitBarChart({ options, optimalAge }: MonthlyBenefitBarChartProps) {
-  const data = options.map((o) => ({
-    age: o.age,
-    monthly: o.monthlyBenefit,
-    isOptimal: o.age === optimalAge,
-  }));
+  const data = useMemo(
+    () =>
+      options.map((o) => ({
+        age: o.age,
+        monthly: o.monthlyBenefit,
+        isOptimal: o.age === optimalAge,
+      })),
+    [options, optimalAge],
+  );
 
   return (
     <div className="chart-surface">
@@ -55,7 +55,7 @@ export function MonthlyBenefitBarChart({ options, optimalAge }: MonthlyBenefitBa
         <XAxis
           dataKey="age"
           tick={{ fill: MUTED, fontSize: 12 }}
-          axisLine={{ stroke: '#e8e8ed' }}
+          axisLine={{ stroke: CHART_AXIS_LINE }}
           tickLine={false}
         />
         <YAxis
@@ -93,11 +93,15 @@ interface LifetimeBarChartProps {
 }
 
 export function LifetimeBarChart({ options, optimalAge }: LifetimeBarChartProps) {
-  const data = options.map((o) => ({
-    age: o.age,
-    lifetime: o.lifetimeBenefits,
-    isOptimal: o.age === optimalAge,
-  }));
+  const data = useMemo(
+    () =>
+      options.map((o) => ({
+        age: o.age,
+        lifetime: o.lifetimeBenefits,
+        isOptimal: o.age === optimalAge,
+      })),
+    [options, optimalAge],
+  );
 
   return (
     <div className="chart-surface">
@@ -106,7 +110,7 @@ export function LifetimeBarChart({ options, optimalAge }: LifetimeBarChartProps)
         <XAxis
           dataKey="age"
           tick={{ fill: MUTED, fontSize: 12 }}
-          axisLine={{ stroke: '#e8e8ed' }}
+          axisLine={{ stroke: CHART_AXIS_LINE }}
           tickLine={false}
         />
         <YAxis
@@ -151,16 +155,19 @@ export function ColaProjectionChart({
   lifeExpectancy,
   annualCola,
 }: ColaProjectionChartProps) {
-  const rate = annualCola / 100;
-  const data: { year: number; age: number; monthly: number }[] = [];
-  for (let age = claimAge; age <= lifeExpectancy; age++) {
-    const year = age - claimAge;
-    data.push({
-      year,
-      age,
-      monthly: Math.round(monthlyBenefit * Math.pow(1 + rate, year) * 100) / 100,
-    });
-  }
+  const data = useMemo(() => {
+    const rate = annualCola / 100;
+    const rows: { year: number; age: number; monthly: number }[] = [];
+    for (let age = claimAge; age <= lifeExpectancy; age++) {
+      const year = age - claimAge;
+      rows.push({
+        year,
+        age,
+        monthly: Math.round(monthlyBenefit * Math.pow(1 + rate, year) * 100) / 100,
+      });
+    }
+    return rows;
+  }, [claimAge, monthlyBenefit, lifeExpectancy, annualCola]);
 
   return (
     <div className="chart-surface">
@@ -169,7 +176,7 @@ export function ColaProjectionChart({
         <XAxis
           dataKey="age"
           tick={{ fill: MUTED, fontSize: 11 }}
-          axisLine={{ stroke: '#e8e8ed' }}
+          axisLine={{ stroke: CHART_AXIS_LINE }}
           tickLine={false}
           interval={Math.max(0, Math.floor(data.length / 8) - 1)}
         />
@@ -205,12 +212,18 @@ export function SpousalSurvivorChart({
   spousalAtFra,
   optimalAge,
 }: SpousalSurvivorChartProps) {
-  const data = options.map((o) => ({
-    age: o.age,
-    survivor: o.monthlyBenefit,
-    spousal: spousalAtFra,
-    isOptimal: o.age === optimalAge,
-  }));
+  // A surviving spouse steps up to the deceased worker's own monthly benefit,
+  // so the survivor amount at each claiming age equals the worker's benefit there.
+  const data = useMemo(
+    () =>
+      options.map((o) => ({
+        age: o.age,
+        survivor: o.monthlyBenefit,
+        spousal: spousalAtFra,
+        isOptimal: o.age === optimalAge,
+      })),
+    [options, spousalAtFra, optimalAge],
+  );
 
   return (
     <div className="chart-surface">
@@ -219,7 +232,7 @@ export function SpousalSurvivorChart({
         <XAxis
           dataKey="age"
           tick={{ fill: MUTED, fontSize: 12 }}
-          axisLine={{ stroke: '#e8e8ed' }}
+          axisLine={{ stroke: CHART_AXIS_LINE }}
           tickLine={false}
         />
         <YAxis
@@ -273,7 +286,10 @@ export function LifetimeHeatmapChart({
   optimalAge,
   annualCola,
 }: LifetimeHeatmapProps) {
-  const cells = generateHeatmapData(options, lifeExpectancy, annualCola);
+  const cells = useMemo(
+    () => generateHeatmapData(options, lifeExpectancy, annualCola),
+    [options, lifeExpectancy, annualCola],
+  );
   const claimAges = options.map((o) => o.age);
   const livingAges = getLivingAgeTicks(62, lifeExpectancy);
   const values = cells.map((c) => c.cumulative);
@@ -334,7 +350,8 @@ export function LifetimeHeatmapChart({
         <span>Higher cumulative</span>
       </div>
       <p className="heatmap-caption">
-        Rows = claiming age · Columns = living age · Color = total benefits received (with COLA)
+        Rows = claiming age · Columns = living age · Color = total benefits received
+        (illustrative flat {annualCola}% COLA)
       </p>
     </div>
   );
@@ -346,21 +363,25 @@ interface OpportunityCostChartProps {
 }
 
 export function OpportunityCostChart({ options, optimalAge }: OpportunityCostChartProps) {
-  const data = generateOpportunityCostData(options, optimalAge).map((row) => ({
-    ...row,
-    label: row.age === optimalAge ? `${row.age} (optimal)` : String(row.age),
-    shortfall: row.vsOptimal < 0 ? Math.abs(row.vsOptimal) : 0,
-  }));
+  const data = useMemo(
+    () =>
+      generateOpportunityCostData(options, optimalAge).map((row) => ({
+        ...row,
+        label: row.age === optimalAge ? `${row.age} (optimal)` : String(row.age),
+        shortfall: row.vsOptimal < 0 ? Math.abs(row.vsOptimal) : 0,
+      })),
+    [options, optimalAge],
+  );
 
   return (
     <div className="chart-surface">
       <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 4, bottom: 4 }}>
-        <CartesianGrid stroke="#e8e8ed" horizontal={false} strokeDasharray="3 3" />
+        <CartesianGrid stroke={CHART_AXIS_LINE} horizontal={false} strokeDasharray="3 3" />
         <XAxis
           type="number"
           tick={{ fill: MUTED, fontSize: 11 }}
-          axisLine={{ stroke: '#e8e8ed' }}
+          axisLine={{ stroke: CHART_AXIS_LINE }}
           tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
         />
         <YAxis
@@ -384,7 +405,7 @@ export function OpportunityCostChart({ options, optimalAge }: OpportunityCostCha
           {data.map((entry) => (
             <Cell
               key={entry.age}
-              fill={entry.isOptimal ? GOLD : '#9a4a44'}
+              fill={entry.isOptimal ? GOLD : CHART_RED}
               fillOpacity={entry.isOptimal ? 0.35 : 0.75}
             />
           ))}
@@ -401,18 +422,21 @@ interface MonthlyRampChartProps {
 }
 
 export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps) {
-  const data = generateMonthlyRampData(options, optimalAge);
+  const data = useMemo(
+    () => generateMonthlyRampData(options, optimalAge),
+    [options, optimalAge],
+  );
   const age62 = data.find((d) => d.age === 62)?.monthly ?? 1;
 
   return (
     <div className="chart-surface">
       <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 12, right: 16, left: 4, bottom: 4 }}>
-        <CartesianGrid stroke="#e8e8ed" strokeDasharray="3 3" vertical={false} />
+        <CartesianGrid stroke={CHART_AXIS_LINE} strokeDasharray="3 3" vertical={false} />
         <XAxis
           dataKey="age"
           tick={{ fill: MUTED, fontSize: 12 }}
-          axisLine={{ stroke: '#e8e8ed' }}
+          axisLine={{ stroke: CHART_AXIS_LINE }}
           tickLine={false}
         />
         <YAxis

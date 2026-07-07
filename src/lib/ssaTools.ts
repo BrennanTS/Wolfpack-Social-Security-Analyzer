@@ -2,7 +2,7 @@
  * Adapter for Gregable/social-security-tools (ssa.tools).
  * MIT License — https://github.com/Gregable/social-security-tools
  */
-import { benefitAtAge, baseSpousalBenefit, survivorBenefit } from '$lib/benefit-calculator';
+import { benefitAtAge, baseSpousalBenefit } from '$lib/benefit-calculator';
 import { getDeathProbabilityDistribution } from '$lib/life-tables';
 import { Money } from '$lib/money';
 import { Birthdate } from '$lib/birthday';
@@ -108,49 +108,11 @@ export function isSsaClaimAgeEligible(
   return currentAge.greaterThanOrEqual(claimAgeMonths);
 }
 
-export function isSsaFilingAgeEligible(
-  recipient: Recipient,
-  filingAge: MonthDuration,
-  asOf: Date = new Date(),
-): boolean {
-  const asOfMonth = MonthDate.initFromYearsMonths({
-    years: asOf.getFullYear(),
-    months: asOf.getMonth(),
-  });
-  const currentAge = recipient.birthdate.ageAtSsaDate(asOfMonth);
-  return currentAge.greaterThanOrEqual(filingAge);
-}
-
 export function spousalBenefitAtFra(worker: Recipient, spousePia = 0): number {
   const spouse = new Recipient();
   spouse.birthdate = worker.birthdate;
   spouse.setPia(Money.from(spousePia));
   return baseSpousalBenefit(worker, spouse).value();
-}
-
-export function survivorBenefitAtFiling(
-  worker: Recipient,
-  spouse: Recipient,
-  workerFilingAge: MonthDuration,
-  survivorFilingAge: MonthDuration,
-): number {
-  const workerFilingDate = worker.birthdate.dateAtSsaAge(workerFilingAge);
-  const survivorFilingDate = spouse.birthdate.dateAtSsaAge(survivorFilingAge);
-  const deathDate = worker.birthdate.dateAtLayAge(
-    MonthDuration.initFromYearsMonths({ years: 85, months: 0 }),
-  );
-
-  try {
-    return survivorBenefit(
-      spouse,
-      worker,
-      workerFilingDate,
-      deathDate,
-      survivorFilingDate,
-    ).value();
-  } catch {
-    return 0;
-  }
 }
 
 export function lifetimeNpvToAge(

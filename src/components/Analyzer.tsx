@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AnalysisResult, Gender } from '../lib/socialSecurity';
 import {
+  computeBreakEvens,
   formatCurrency,
   fraLabel,
   getCurrentAge,
@@ -107,6 +108,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const inputsComplete = isFormComplete(form);
   const inputs = inputsComplete ? toUserInputs(form) : null;
 
+  // The ssa.tools engine (benefits, optimal filing, expected PV) does not depend
+  // on the chart-only COLA slider, so we intentionally exclude `annualCola` from
+  // the dependencies below. Break-even lines that DO use COLA are recomputed
+  // cheaply on the client via the `breakEvens` memo further down.
   useEffect(() => {
     if (!isFormComplete(form)) {
       setResult(null);
@@ -137,7 +142,27 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     return () => {
       cancelled = true;
     };
-  }, [form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    birthYear,
+    birthMonth,
+    monthlyBenefit,
+    lifeExpectancy,
+    discountRate,
+    gender,
+    hasSpouse,
+    spouseBirthYear,
+    spouseBirthMonth,
+    spouseMonthlyBenefit,
+  ]);
+
+  // Illustrative break-even ages depend on the flat COLA assumption; recompute
+  // them locally so moving the COLA slider updates instantly without re-running
+  // the full mortality-weighted analysis.
+  const breakEvens = useMemo(
+    () => (result ? computeBreakEvens(result.claimingOptions, annualCola) : []),
+    [result, annualCola],
+  );
   const ssaSuggested = suggestedLifeExpectancy(form);
 
   const fra = useMemo(
@@ -188,7 +213,8 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     setExportError(null);
     setExporting(true);
     try {
-      await downloadPdfReport(inputs, result);
+      // Use the live COLA-driven break-evens so the PDF matches what's on screen.
+      await downloadPdfReport(inputs, { ...result, breakEvens });
     } catch {
       setExportError('PDF export failed. Please try again.');
     } finally {
@@ -514,7 +540,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                   annualCola={annualCola}
                 />
 
-                <BreakEvenSection breakEvens={result.breakEvens} lifeExpectancy={lifeExpectancy!} />
+                <BreakEvenSection breakEvens={breakEvens} lifeExpectancy={lifeExpectancy!} />
               </div>
 
               <OptionalChartsPanel

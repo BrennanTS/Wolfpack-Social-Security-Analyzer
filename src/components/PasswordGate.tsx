@@ -2,17 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { DarkModeToggle } from './DarkModeToggle';
 import { BRAND_NAME } from '../lib/brand';
-
-const DEMO_PASSWORD = 'wolfpack';
-const AUTH_KEY = 'ssa-demo-auth';
-
-export function isAuthenticated(): boolean {
-  return sessionStorage.getItem(AUTH_KEY) === 'true';
-}
-
-export function logout(): void {
-  sessionStorage.removeItem(AUTH_KEY);
-}
+import { DEMO_PASSWORD, signIn } from '../lib/auth';
 
 interface PasswordGateProps {
   onAuthenticated: () => void;
@@ -28,7 +18,7 @@ export function PasswordGate({ onAuthenticated, darkMode, onToggleDarkMode }: Pa
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (password === DEMO_PASSWORD) {
-      sessionStorage.setItem(AUTH_KEY, 'true');
+      signIn();
       onAuthenticated();
       return;
     }

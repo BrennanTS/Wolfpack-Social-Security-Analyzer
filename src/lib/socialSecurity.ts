@@ -1,11 +1,9 @@
-import { CPI_DEFAULT_COLA } from './cpiHistory';
 import type { Gender } from './lifeExpectancy';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
 import {
   computeOptimalFilingCouple,
   computeOptimalFilingSingle,
   createPiaRecipient,
-  DEFAULT_DISCOUNT_RATE,
   fraFromBirthYear,
   isSsaClaimAgeEligible,
   lifetimeNpvToAge,
@@ -19,7 +17,19 @@ import { MonthDuration } from '$lib/month-time';
 
 export type { Gender, FilingAgeDisplay };
 
-/** SSA-aligned Social Security benefit and claiming analysis (powered by ssa.tools). */
+/**
+ * SSA-aligned Social Security benefit and claiming analysis.
+ *
+ * All benefit amounts, the full-retirement-age calculation, spousal/survivor
+ * rules, and the mortality-weighted optimal filing age come from the vendored
+ * ssa.tools engine (see `ssaTools.ts`). This module orchestrates those calls,
+ * builds the per-age comparison table, derives break-even ages, and writes the
+ * plain-language recommendation shown in the UI.
+ *
+ * COLA note: the `annualCola` input drives ONLY the illustrative cumulative
+ * charts and break-even lines. Every dollar figure sourced from ssa.tools
+ * already reflects SSA's historical/scheduled cost-of-living adjustments.
+ */
 
 export interface UserInputs {
   birthYear: number;
@@ -117,43 +127,15 @@ export function ageToMonths(years: number, months = 0): number {
   return years * 12 + months;
 }
 
-export function calculateMonthlyBenefit(
-  pia: number,
-  claimAge: number,
-  _fraTotalMonths: number,
-  birthYear?: number,
-  birthMonth?: number,
-  gender: Gender = 'female',
-): { benefit: number; percentOfPia: number; monthsFromFra: number } {
-  const recipient = createPiaRecipient(birthYear ?? 1960, birthMonth ?? 1, pia, gender);
-  return ssaMonthlyBenefitAtAge(recipient, claimAge);
-}
-
 function roundCents(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-export function isClaimAgeEligible(
-  claimAge: number,
-  birthYear: number,
-  birthMonth: number,
-  asOf: Date = new Date(),
-): boolean {
-  const recipient = createPiaRecipient(birthYear, birthMonth, 0, 'female');
-  return isSsaClaimAgeEligible(recipient, claimAge, asOf);
-}
-
-export function calculateLifetimeBenefits(
-  monthlyBenefit: number,
-  claimAge: number,
-  lifeExpectancy: number,
-  annualCola = 0,
-): { lifetime: number; yearsOfPayments: number } {
-  const yearsOfPayments = Math.max(0, lifeExpectancy - claimAge);
-  const lifetime = cumulativeBenefits(monthlyBenefit, claimAge, lifeExpectancy, annualCola);
-  return { lifetime, yearsOfPayments };
-}
-
+/**
+ * Sum of nominal monthly benefits from `claimAge` through `throughAge`,
+ * optionally grown by a flat `annualCola`. Used only for the illustrative
+ * cumulative charts and break-even math — not for the ssa.tools totals.
+ */
 export function cumulativeBenefits(
   monthlyBenefit: number,
   claimAge: number,
@@ -195,17 +177,46 @@ export function breakEvenAge(
   return null;
 }
 
-function pickTableOption(
+/** Claiming ages compared pairwise for break-even analysis (early / FRA-ish / max). */
+const BREAK_EVEN_AGES = [62, 67, 70];
+
+/**
+ * Break-even ages for the canonical claiming-age pairs. This is illustrative and
+ * driven by the flat `annualCola` slider, so it is computed on the client and
+ * recomputed instantly when COLA changes — no need to re-run the ssa.tools engine.
+ */
+export function computeBreakEvens(
   claimingOptions: ClaimingOption[],
-  eligibleOptions: ClaimingOption[],
-  optimalAge: number,
-): ClaimingOption {
-  const pool = eligibleOptions.length > 0 ? eligibleOptions : claimingOptions;
-  const exact = pool.find((o) => o.age === optimalAge);
-  if (exact) return exact;
-  return pool.reduce((closest, option) =>
-    Math.abs(option.age - optimalAge) < Math.abs(closest.age - optimalAge) ? option : closest,
-  );
+  annualCola = 0,
+): BreakEvenPair[] {
+  const breakEvens: BreakEvenPair[] = [];
+  const ages = BREAK_EVEN_AGES.filter((a) => a >= MIN_CLAIM_AGE && a <= MAX_CLAIM_AGE);
+
+  for (let i = 0; i < ages.length; i++) {
+    for (let j = i + 1; j < ages.length; j++) {
+      const earlier = claimingOptions.find((o) => o.age === ages[i]);
+      const later = claimingOptions.find((o) => o.age === ages[j]);
+      if (!earlier || !later) continue;
+
+      const be = breakEvenAge(
+        earlier.age,
+        earlier.monthlyBenefit,
+        later.age,
+        later.monthlyBenefit,
+        annualCola,
+      );
+      if (be !== null) {
+        breakEvens.push({
+          earlierAge: earlier.age,
+          laterAge: later.age,
+          breakEvenAge: be,
+          breakEvenYears: Math.round((be - later.age) * 10) / 10,
+        });
+      }
+    }
+  }
+
+  return breakEvens;
 }
 
 export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResult> {
@@ -279,9 +290,6 @@ export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResul
     });
   }
 
-  const eligibleOptions = claimingOptions.filter((o) => o.isEligible);
-  const bestTableOption = pickTableOption(claimingOptions, eligibleOptions, optimalAge);
-
   const optimalLifetime = lifetimeNpvToAge(
     recipient,
     optimalFilingAge.monthDuration,
@@ -289,30 +297,7 @@ export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResul
     0,
   );
 
-  const breakEvens: BreakEvenPair[] = [];
-  const ages = [62, 67, 70].filter((a) => a >= MIN_CLAIM_AGE && a <= MAX_CLAIM_AGE);
-
-  for (let i = 0; i < ages.length; i++) {
-    for (let j = i + 1; j < ages.length; j++) {
-      const earlier = claimingOptions.find((o) => o.age === ages[i])!;
-      const later = claimingOptions.find((o) => o.age === ages[j])!;
-      const be = breakEvenAge(
-        earlier.age,
-        earlier.monthlyBenefit,
-        later.age,
-        later.monthlyBenefit,
-        annualCola,
-      );
-      if (be !== null) {
-        breakEvens.push({
-          earlierAge: earlier.age,
-          laterAge: later.age,
-          breakEvenAge: be,
-          breakEvenYears: Math.round((be - later.age) * 10) / 10,
-        });
-      }
-    }
-  }
+  const breakEvens = computeBreakEvens(claimingOptions, annualCola);
 
   const { recommendation, recommendationDetail } = buildRecommendation({
     optimalFilingAge,
@@ -326,12 +311,13 @@ export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResul
     claimingOptions,
     hasSpouse,
     spouseFilingAge,
-    bestTableAge: bestTableOption.age,
   });
 
   const spousal: SpousalAnalysis | undefined = hasSpouse
     ? {
         spousalBenefitAtFra: roundCents(spousalBenefitAtFra(recipient, spouseMonthlyBenefitAtFra)),
+        // A surviving spouse inherits the deceased worker's own benefit, so the
+        // survivor amount at each claiming age is that age's worker benefit.
         survivorByClaimAge: claimingOptions.map((o) => ({
           age: o.age,
           survivorMonthly: o.monthlyBenefit,
@@ -371,7 +357,6 @@ function buildRecommendation(ctx: {
   claimingOptions: ClaimingOption[];
   hasSpouse: boolean;
   spouseFilingAge?: FilingAgeDisplay;
-  bestTableAge: number;
 }): { recommendation: string; recommendationDetail: string } {
   const {
     optimalFilingAge,
@@ -482,14 +467,3 @@ export function generateCumulativeChartData(
 
   return data;
 }
-
-export const DEFAULT_INPUTS: UserInputs = {
-  birthYear: 1960,
-  birthMonth: 6,
-  monthlyBenefitAtFra: 2500,
-  lifeExpectancy: getSuggestedLifeExpectancy(66, 'female'),
-  annualCola: CPI_DEFAULT_COLA,
-  gender: 'female',
-  hasSpouse: false,
-  discountRate: DEFAULT_DISCOUNT_RATE,
-};
