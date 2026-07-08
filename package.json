@@ -9,6 +9,15 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:dev": "PW_DEV=1 playwright test",
+    "validate": "npm run lint && npm run test && npm run test:e2e",
+    "crosscheck:ssatools": "playwright test --config playwright.crosscheck.config.ts",
+    "fixtures:gen": "node validation/scripts/gen-fixtures.mjs",
+    "record": "npm run record:ssatools",
+    "record:ssatools": "node validation/scripts/record.mjs ssatools",
+    "record:app": "node validation/scripts/record.mjs app",
+    "prepare": "git config core.hooksPath .githooks",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -18,6 +27,7 @@
     "recharts": "^3.9.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

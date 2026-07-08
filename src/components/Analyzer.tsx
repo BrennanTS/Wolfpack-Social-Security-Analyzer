@@ -516,7 +516,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       <main className="main">
         <section className="output-panel">
           {analyzing ? (
-            <div className="empty-state">
+            <div className="empty-state" data-testid="analysis-loading">
               <div className="empty-state-icon" aria-hidden="true">
                 <span />
               </div>
@@ -524,7 +524,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               <p>Computing optimal filing ages with SSA mortality tables and benefit formulas.</p>
             </div>
           ) : analysisError ? (
-            <div className="empty-state">
+            <div className="empty-state" data-testid="analysis-error">
               <h3>Analysis unavailable</h3>
               <p>{analysisError}</p>
             </div>

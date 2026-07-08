@@ -1,0 +1,19 @@
+#!/bin/sh
+# Pre-commit validation: lint, engine golden fixtures, UI golden fixtures.
+# Escape hatches:
+#   SKIP_E2E=1 git commit …    skips only the Playwright UI suite
+#   git commit --no-verify     skips everything
+set -e
+
+echo "[pre-commit] oxlint"
+npm run lint
+
+echo "[pre-commit] vitest (engine vs golden fixtures)"
+npm run test
+
+if [ "${SKIP_E2E:-0}" = "1" ]; then
+  echo "[pre-commit] SKIP_E2E=1 — skipping Playwright UI validation"
+else
+  echo "[pre-commit] playwright (UI vs golden fixtures, production build)"
+  npm run test:e2e
+fi
