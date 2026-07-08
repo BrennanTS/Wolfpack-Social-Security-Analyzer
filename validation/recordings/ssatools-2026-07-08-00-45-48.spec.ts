@@ -1,0 +1,30 @@
+import { test, expect } from '@playwright/test';
+
+test('test', async ({ page }) => {
+  await page.goto('https://ssa.tools/');
+  await page.getByRole('button', { name: 'Get Started Free' }).click();
+  await page.getByRole('button', { name: 'Alternative data entry options' }).click();
+  await page.getByRole('spinbutton', { name: 'Primary Insurance Amount:' }).click();
+  await page.getByRole('spinbutton', { name: 'Primary Insurance Amount:' }).fill('4000');
+  await page.getByRole('button', { name: '✓ Submit' }).click();
+  await page.getByRole('textbox', { name: 'Month' }).click();
+  await page.getByRole('textbox', { name: 'Month' }).fill('02');
+  await page.getByRole('textbox', { name: 'Day' }).fill('02');
+  await page.getByRole('textbox', { name: 'Year' }).fill('1965');
+  await page.getByRole('button', { name: '✓ Next' }).click();
+  await page.getByRole('button', { name: '🧑‍🤝‍🧑 Yes, Enter Spouse\'s' }).click();
+  await page.getByRole('textbox').first().click();
+  await page.getByRole('textbox').first().press('ControlOrMeta+a');
+  await page.getByRole('textbox').first().fill('Client');
+  await page.getByRole('textbox').first().press('Tab');
+  await page.getByRole('textbox').nth(1).press('ArrowRight');
+  await page.getByRole('button', { name: '✓ Use these names' }).click();
+  await page.getByRole('button', { name: 'Alternative data entry options' }).click();
+  await page.getByRole('spinbutton', { name: 'Primary Insurance Amount:' }).click();
+  await page.getByRole('spinbutton', { name: 'Primary Insurance Amount:' }).fill('3000');
+  await page.getByRole('button', { name: '✓ Submit' }).click();
+  await page.getByRole('textbox', { name: 'Month' }).fill('03');
+  await page.getByRole('textbox', { name: 'Day' }).fill('03');
+  await page.getByRole('textbox', { name: 'Year' }).fill('1967');
+  await page.getByRole('button', { name: '✓ Next' }).click();
+});

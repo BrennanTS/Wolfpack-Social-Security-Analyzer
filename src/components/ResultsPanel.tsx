@@ -56,11 +56,11 @@ export function ResultsPanel({
     <div className="results">
       <div className="recommendation-card">
         <span className="rec-label">Recommended Strategy (ssa.tools)</span>
-        <h2>{recommendation}</h2>
+        <h2 data-testid="recommendation-title">{recommendation}</h2>
         <p>{recommendationDetail}</p>
         <div className="rec-stats">
           <div>
-            <span className="stat-value">{formatCurrency(optimalMonthly)}</span>
+            <span className="stat-value" data-testid="stat-optimal-monthly">{formatCurrency(optimalMonthly)}</span>
             <span className="stat-label">Monthly at age {optimalFilingAge.label}</span>
           </div>
           <div>
@@ -84,23 +84,23 @@ export function ResultsPanel({
         </div>
         <div className="summary-card">
           <span className="summary-label">Your FRA</span>
-          <span className="summary-value">{fraLabel(fra)}</span>
+          <span className="summary-value" data-testid="summary-fra">{fraLabel(fra)}</span>
           <span className="summary-hint">Full Retirement Age</span>
         </div>
         <div className="summary-card">
           <span className="summary-label">Age 62 Benefit</span>
-          <span className="summary-value">{formatCurrency(age62.monthlyBenefit)}</span>
+          <span className="summary-value" data-testid="summary-age62">{formatCurrency(age62.monthlyBenefit)}</span>
           <span className="summary-hint">{age62.percentOfPia}% of PIA · earliest</span>
         </div>
         <div className="summary-card">
           <span className="summary-label">Age 70 Benefit</span>
-          <span className="summary-value">{formatCurrency(age70.monthlyBenefit)}</span>
+          <span className="summary-value" data-testid="summary-age70">{formatCurrency(age70.monthlyBenefit)}</span>
           <span className="summary-hint">{age70.percentOfPia}% of PIA · maximum</span>
         </div>
         {hasSpouse && spousal && (
           <div className="summary-card summary-card-wide">
             <span className="summary-label">Spousal at FRA</span>
-            <span className="summary-value">{formatCurrency(spousal.spousalBenefitAtFra)}/mo</span>
+            <span className="summary-value" data-testid="summary-spousal">{formatCurrency(spousal.spousalBenefitAtFra)}/mo</span>
             <span className="summary-hint">
               ssa.tools spousal top-up
               {spousal.spouseFilingAge
@@ -118,7 +118,7 @@ export function ResultsPanel({
           Charts may use {annualCola}% COLA for illustration.
         </p>
         <div className="table-wrap">
-          <table>
+          <table data-testid="benefit-table">
             <thead>
               <tr>
                 <th>Age</th>
@@ -138,6 +138,7 @@ export function ResultsPanel({
                 return (
                   <tr
                     key={opt.age}
+                    data-testid={`claim-row-${opt.age}`}
                     className={[
                       isOptimal || isRecommended ? 'row-optimal' : '',
                       !opt.isEligible ? 'row-future' : '',
@@ -149,8 +150,8 @@ export function ResultsPanel({
                       <strong>{opt.age}</strong>
                       {(isOptimal || isRecommended) && <span className="badge">Best</span>}
                     </td>
-                    <td>{formatCurrencyPrecise(opt.monthlyBenefit)}</td>
-                    <td>{opt.percentOfPia}%</td>
+                    <td data-testid="cell-monthly">{formatCurrencyPrecise(opt.monthlyBenefit)}</td>
+                    <td data-testid="cell-percent">{opt.percentOfPia}%</td>
                     <td>{formatCurrency(opt.lifetimeBenefits)}</td>
                     <td className={diff < 0 ? 'negative' : diff > 0 ? 'positive' : ''}>
                       {diff === 0 ? '—' : formatCurrency(diff)}
