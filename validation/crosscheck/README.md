@@ -80,9 +80,11 @@ Couples are cross-checked the same way. The couple report contains a separate
 "Monthly benefit by filing age" table per person plus a **"Spousal benefits"**
 section, so the cross-check validates both:
 
-- the **worker's** benefit-by-age table — selected by the SSA identity
-  "benefit at FRA == PIA" (robust to ssa.tools listing the higher earner
-  first), and
+- the **worker's** benefit-by-age table — selected as whichever of the two
+  tables best fits our expected values (robust to ssa.tools listing the higher
+  earner first, and to non-integer FRAs where "benefit at FRA == PIA" doesn't
+  hold; this only decides which person is the worker — the per-age assertions
+  still compare against the independently-derived fixtures), and
 - the **spousal top-up at FRA** (from the "Spousal benefits" summary line),
   compared to our `max(0, workerPIA/2 − spousePIA)`, for scenarios where the
   worker is the higher earner (top-up > 0). Zero / role-flipped top-ups are

@@ -149,6 +149,21 @@ const specs = [
     spouseBirthYear: 1967, spouseBirthMonth: 9, spousePia: 0,
     description: 'Worker Mar 1965 M PIA $3,600; younger spouse Sep 1967 no record ($0) - 50% top-up ($1,800)' },
 
+  // Sample cases from validation/samples/sample-cases.csv (expressible subset;
+  // the rest need features the engine/UI does not model - see samples/README.md).
+  // Note: dates use the CSV's month/year; the engine takes no birth DAY.
+  { id: 'sample-hh1-single-1962-pia2400-delay70', mode: 'full', birthYear: 1962, birthMonth: 4, gender: 'male', hasSpouse: false, pia: 2400,
+    description: 'Sample HH1: baseline single, born Apr 1962 M PIA $2,400, FRA 67 - clean delayed-credit math from FRA to 70' },
+  { id: 'sample-hh2-married-1960-dual-high-earners', mode: 'full', birthYear: 1960, birthMonth: 2, gender: 'male', hasSpouse: true, pia: 3200,
+    spouseBirthYear: 1961, spouseBirthMonth: 9, spousePia: 3000,
+    description: 'Sample HH2: dual high earners, worker Feb 1960 M PIA $3,200; spouse Sep 1961 F PIA $3,000 - similar PIAs, no spousal top-up ($0)' },
+  { id: 'sample-hh3-married-1959-reduced-spousal', mode: 'full', birthYear: 1959, birthMonth: 7, gender: 'female', hasSpouse: true, pia: 3600,
+    spouseBirthYear: 1963, spouseBirthMonth: 11, spousePia: 700,
+    description: "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 below 50% of worker PIA - routed to spousal, top-up $1,100" },
+  { id: 'sample-hh13-married-1962-two-max-earners', mode: 'full', birthYear: 1962, birthMonth: 4, gender: 'male', hasSpouse: true, pia: 4000,
+    spouseBirthYear: 1962, spouseBirthMonth: 10, spousePia: 3900,
+    description: 'Sample HH13: two near-max earners, worker Apr 1962 M PIA $4,000; spouse Oct 1962 F PIA $3,900 - both delay; exercises the DRC ceiling at 70, no spousal top-up ($0)' },
+
   // factorsOnly mode (FRA-schedule + factor coverage, durable) -----------------
   { id: 'single-1943-fra66-pia2000', mode: 'factorsOnly', birthYear: 1943, birthMonth: 5, gender: 'male', hasSpouse: false, pia: 2000,
     description: 'Born May 1943, FRA 66, PIA $2,000, male - earliest full-8%-DRC / FRA-66 cohort' },

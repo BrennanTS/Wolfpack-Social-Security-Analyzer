@@ -83,16 +83,33 @@ async function fetchSsaTools(page: Page, scenario: GoldenScenario): Promise<Live
   if (!tables.length) return null;
 
   // A couple report has two "Monthly benefit by filing age" tables and may
-  // list the higher earner first, so pick the worker's by the SSA identity
-  // "benefit at FRA == PIA" rather than by position. (All married scenarios
-  // have an integer FRA, so the FRA-age row exists; single reports have one
-  // table anyway.)
-  const fraAge = String(scenario.expected.fra.years);
-  const pia = scenario.inputs.monthlyBenefitAtFra;
-  const workerByAge =
-    tables.find((t) => Math.abs((t[fraAge] ?? Number.NaN) - pia) <= 1) ?? tables[0];
+  // list the higher earner first, so pick the worker's by whichever table best
+  // fits our expected values rather than by position. (This only decides WHICH
+  // person is the worker; the per-age assertions below still compare that table
+  // to the independently-derived fixtures, so a real discrepancy is not masked.
+  // Robust to non-integer FRA, where "benefit at FRA == PIA" does not hold.)
+  const workerByAge = tables.length === 1 ? tables[0] : pickClosestTable(tables, scenario);
 
   return { workerByAge, spousalTopupAtFra: scenario.inputs.hasSpouse ? parseSpousalTopup(md) : null };
+}
+
+/**
+ * Of several benefit tables, return the one whose whole-year values deviate
+ * least from the scenario's expected worker benefits (sum of absolute diffs;
+ * a missing age is heavily penalized). Used to identify the worker's table in
+ * a couple report regardless of the order ssa.tools lists the two people.
+ */
+function pickClosestTable(
+  tables: Record<string, number>[],
+  scenario: GoldenScenario,
+): Record<string, number> {
+  const expected = scenario.expected.monthlyByClaimAge;
+  const deviation = (t: Record<string, number>) =>
+    Object.entries(expected).reduce(
+      (sum, [age, v]) => sum + (age in t ? Math.abs(t[age] - v) : 1e9),
+      0,
+    );
+  return [...tables].sort((a, b) => deviation(a) - deviation(b))[0];
 }
 
 /**
