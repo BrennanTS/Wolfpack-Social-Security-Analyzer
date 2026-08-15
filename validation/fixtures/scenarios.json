@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "conventions": "expected.monthly = floor(round_to_cent(PIA * factor)) with whole-dollar PIA, matching the vendored ssa.tools engine (benefitAtAge: PIA.floorToDollar() x factor, then floorToDollar). Values are generated independently from SSA's published rules (gen-fixtures.mjs), not copied from the engine. Early-claim factor: 1 - (min(36,m)*5/900 + max(0,m-36)*5/1200); delayed credits: 1 + m*(2/3 of 1%) per month to age 70. percentOfPia = round(benefit/PIA*1000)/10. Break-evens assume annualCola=0 and are the first 0.1-year grid point where the later strategy's cumulative total catches up. SPOUSAL (two fields, both the amount by which half the worker's PIA exceeds the spouse's own PIA, floored at $0): spousalBenefitAtFra = max(0, workerPIA/2 - spousePIA), evaluated at the spouse's own FRA where no early-filing reduction applies and delayed credits never apply to spousal benefits — independently derivable, and what gen-fixtures.mjs computes. spousalTopUpAtFilingAge = the same top-up reduced by SSA's early-filing schedule (25/36% per month for the first 36 months the spouse files before their own FRA, then 5/12% per month beyond that) at the mortality-weighted couple optimizer's actual chosen spouse filing age, which is frequently before FRA; this depends on the optimizer, so gen-fixtures.mjs cannot derive it and instead preserves the hand-derived value already on record for each scenario id (see each scenario's description for the derivation) rather than silently dropping or reverting it. MODE: 'full' runs the complete analyzeClaiming pipeline and the Playwright UI suite; only valid while the cohort (and spouse) are under 70 (the optimizer needs a prospective filing age). 'factorsOnly' validates the deterministic factor math (FRA, monthly, %PIA, break-evens) without the optimizer and never ages out.",
   "tolerances": {
     "monthlyUsd": 1,
@@ -13,65 +13,80 @@
       "description": "Born Jun 1960, FRA 67, PIA $2,500, female, single - canonical FRA-67 case (full until Jun 2030)",
       "mode": "full",
       "inputs": {
-        "birthYear": 1960,
-        "birthMonth": 6,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 2500,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1960,
+            "birthMonth": 6,
+            "gender": "female",
+            "piaMonthly": 2500,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 1750,
-          "63": 1875,
-          "64": 2000,
-          "65": 2166,
-          "66": 2333,
-          "67": 2500,
-          "68": 2700,
-          "69": 2900,
-          "70": 3100
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.6,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1750,
+            "63": 1875,
+            "64": 2000,
+            "65": 2166,
+            "66": 2333,
+            "67": 2500,
+            "68": 2700,
+            "69": 2900,
+            "70": 3100
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.6,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -88,65 +103,80 @@
       "description": "Born Jun 1960, FRA 67, PIA $500 (form minimum), single - low-benefit edge where dollar flooring shows",
       "mode": "full",
       "inputs": {
-        "birthYear": 1960,
-        "birthMonth": 6,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 500,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1960,
+            "birthMonth": 6,
+            "gender": "female",
+            "piaMonthly": 500,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 350,
-          "63": 375,
-          "64": 400,
-          "65": 433,
-          "66": 466,
-          "67": 500,
-          "68": 540,
-          "69": 580,
-          "70": 620
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.6,
-          "66": 93.2,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 350,
+            "63": 375,
+            "64": 400,
+            "65": 433,
+            "66": 466,
+            "67": 500,
+            "68": 540,
+            "69": 580,
+            "70": 620
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.6,
+            "66": 93.2,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -163,65 +193,80 @@
       "description": "Born Jun 1960, FRA 67, PIA $5,000 (form maximum), single - high-benefit / max delayed credit",
       "mode": "full",
       "inputs": {
-        "birthYear": 1960,
-        "birthMonth": 6,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 5000,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1960,
+            "birthMonth": 6,
+            "gender": "female",
+            "piaMonthly": 5000,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 3500,
-          "63": 3750,
-          "64": 4000,
-          "65": 4333,
-          "66": 4666,
-          "67": 5000,
-          "68": 5400,
-          "69": 5800,
-          "70": 6200
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 3500,
+            "63": 3750,
+            "64": 4000,
+            "65": 4333,
+            "66": 4666,
+            "67": 5000,
+            "68": 5400,
+            "69": 5800,
+            "70": 6200
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -238,65 +283,80 @@
       "description": "Born Sep 1961, FRA 67, PIA $3,500, male, single",
       "mode": "full",
       "inputs": {
-        "birthYear": 1961,
-        "birthMonth": 9,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 3500,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1961,
+            "birthMonth": 9,
+            "gender": "male",
+            "piaMonthly": 3500,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 2450,
-          "63": 2625,
-          "64": 2800,
-          "65": 3033,
-          "66": 3266,
-          "67": 3500,
-          "68": 3780,
-          "69": 4060,
-          "70": 4340
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2450,
+            "63": 2625,
+            "64": 2800,
+            "65": 3033,
+            "66": 3266,
+            "67": 3500,
+            "68": 3780,
+            "69": 4060,
+            "70": 4340
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -313,65 +373,80 @@
       "description": "Born Jan 1962, FRA 67, PIA $5,000 (max), male, single",
       "mode": "full",
       "inputs": {
-        "birthYear": 1962,
-        "birthMonth": 1,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 5000,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1962,
+            "birthMonth": 1,
+            "gender": "male",
+            "piaMonthly": 5000,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 3500,
-          "63": 3750,
-          "64": 4000,
-          "65": 4333,
-          "66": 4666,
-          "67": 5000,
-          "68": 5400,
-          "69": 5800,
-          "70": 6200
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 3500,
+            "63": 3750,
+            "64": 4000,
+            "65": 4333,
+            "66": 4666,
+            "67": 5000,
+            "68": 5400,
+            "69": 5800,
+            "70": 6200
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -388,65 +463,80 @@
       "description": "Born Apr 1963, FRA 67, PIA $1,500, female, single - low-mid PIA",
       "mode": "full",
       "inputs": {
-        "birthYear": 1963,
-        "birthMonth": 4,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 1500,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1963,
+            "birthMonth": 4,
+            "gender": "female",
+            "piaMonthly": 1500,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 1050,
-          "63": 1125,
-          "64": 1200,
-          "65": 1300,
-          "66": 1400,
-          "67": 1500,
-          "68": 1620,
-          "69": 1740,
-          "70": 1860
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1050,
+            "63": 1125,
+            "64": 1200,
+            "65": 1300,
+            "66": 1400,
+            "67": 1500,
+            "68": 1620,
+            "69": 1740,
+            "70": 1860
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -463,65 +553,80 @@
       "description": "Born Feb 1965, FRA 67, PIA $4,000, single - live ssa.tools cross-check anchor (full until Feb 2035)",
       "mode": "full",
       "inputs": {
-        "birthYear": 1965,
-        "birthMonth": 2,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 4000,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1965,
+            "birthMonth": 2,
+            "gender": "female",
+            "piaMonthly": 4000,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 2800,
-          "63": 3000,
-          "64": 3200,
-          "65": 3466,
-          "66": 3733,
-          "67": 4000,
-          "68": 4320,
-          "69": 4640,
-          "70": 4960
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2800,
+            "63": 3000,
+            "64": 3200,
+            "65": 3466,
+            "66": 3733,
+            "67": 4000,
+            "68": 4320,
+            "69": 4640,
+            "70": 4960
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -538,65 +643,80 @@
       "description": "Born Aug 1966, FRA 67, PIA $1,234 (odd amount), male, single - stresses dime/dollar rounding",
       "mode": "full",
       "inputs": {
-        "birthYear": 1966,
-        "birthMonth": 8,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 1234,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1966,
+            "birthMonth": 8,
+            "gender": "male",
+            "piaMonthly": 1234,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 863,
-          "63": 925,
-          "64": 987,
-          "65": 1069,
-          "66": 1151,
-          "67": 1234,
-          "68": 1332,
-          "69": 1431,
-          "70": 1530
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 69.9,
-          "63": 75,
-          "64": 80,
-          "65": 86.6,
-          "66": 93.3,
-          "67": 100,
-          "68": 107.9,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.6
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 863,
+            "63": 925,
+            "64": 987,
+            "65": 1069,
+            "66": 1151,
+            "67": 1234,
+            "68": 1332,
+            "69": 1431,
+            "70": 1530
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 69.9,
+            "63": 75,
+            "64": 80,
+            "65": 86.6,
+            "66": 93.3,
+            "67": 100,
+            "68": 107.9,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.6
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -613,65 +733,80 @@
       "description": "Born Nov 1959, FRA 66y10m, PIA $2,400, female, single - non-integer FRA through the UI (ages out Nov 2029)",
       "mode": "full",
       "inputs": {
-        "birthYear": 1959,
-        "birthMonth": 11,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 2400,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1959,
+            "birthMonth": 11,
+            "gender": "female",
+            "piaMonthly": 2400,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 10,
-          "label": "66 years, 10 months"
-        },
-        "monthlyByClaimAge": {
-          "62": 1700,
-          "63": 1820,
-          "64": 1946,
-          "65": 2106,
-          "66": 2266,
-          "67": 2432,
-          "68": 2624,
-          "69": 2816,
-          "70": 3008
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70.8,
-          "63": 75.8,
-          "64": 81.1,
-          "65": 87.8,
-          "66": 94.4,
-          "67": 101.3,
-          "68": 109.3,
-          "69": 117.3,
-          "70": 125.3
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.7
+            "years": 66,
+            "months": 10,
+            "label": "66 years, 10 months"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1700,
+            "63": 1820,
+            "64": 1946,
+            "65": 2106,
+            "66": 2266,
+            "67": 2432,
+            "68": 2624,
+            "69": 2816,
+            "70": 3008
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70.8,
+            "63": 75.8,
+            "64": 81.1,
+            "65": 87.8,
+            "66": 94.4,
+            "67": 101.3,
+            "68": 109.3,
+            "69": 117.3,
+            "70": 125.3
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.7
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -688,68 +823,87 @@
       "description": "Worker Jun 1960 male PIA $2,500; spouse Mar 1962 no record ($0). spousalBenefitAtFra: unreduced top-up = 2500/2 - 0 = $1,250, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the mortality-weighted couple optimizer files the spouse at 64y5m, 31 months before that FRA. Early-filing reduction (all 31 months within the first-36-month band): 31 * 25/36% = 21.5278%. Top-up = 1250 * (1 - 775/3600) = $980.90.",
       "mode": "full",
       "inputs": {
-        "birthYear": 1960,
-        "birthMonth": 6,
-        "gender": "male",
-        "hasSpouse": true,
-        "monthlyBenefitAtFra": 2500,
-        "lifeExpectancy": 85,
-        "annualCola": 0,
-        "discountRate": 0.025,
-        "spouseBirthYear": 1962,
-        "spouseBirthMonth": 3,
-        "spouseMonthlyBenefitAtFra": 0
-      },
-      "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 1750,
-          "63": 1875,
-          "64": 2000,
-          "65": 2166,
-          "66": 2333,
-          "67": 2500,
-          "68": 2700,
-          "69": 2900,
-          "70": 3100
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.6,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
+            "birthYear": 1960,
+            "birthMonth": 6,
+            "gender": "male",
+            "piaMonthly": 2500,
+            "lifeExpectancy": 85
           },
           {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "birthYear": 1962,
+            "birthMonth": 3,
+            "gender": "female",
+            "piaMonthly": 0,
+            "lifeExpectancy": 85
           }
         ],
-        "spousalBenefitAtFra": 1250,
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1750,
+            "63": 1875,
+            "64": 2000,
+            "65": 2166,
+            "66": 2333,
+            "67": 2500,
+            "68": 2700,
+            "69": 2900,
+            "70": 3100
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.6,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 1250,
         "spousalTopUpAtFilingAge": 980.9,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -766,68 +920,87 @@
       "description": "Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000. spousalBenefitAtFra: unreduced top-up = 2500/2 - 1000 = $250, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 65y3m, 21 months before that FRA. Early-filing reduction (21 months, first-36-month band): 21 * 25/36% = 14.5833%. Top-up = 250 * (1 - 525/3600) = $213.54.",
       "mode": "full",
       "inputs": {
-        "birthYear": 1960,
-        "birthMonth": 6,
-        "gender": "male",
-        "hasSpouse": true,
-        "monthlyBenefitAtFra": 2500,
-        "lifeExpectancy": 85,
-        "annualCola": 0,
-        "discountRate": 0.025,
-        "spouseBirthYear": 1961,
-        "spouseBirthMonth": 5,
-        "spouseMonthlyBenefitAtFra": 1000
-      },
-      "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 1750,
-          "63": 1875,
-          "64": 2000,
-          "65": 2166,
-          "66": 2333,
-          "67": 2500,
-          "68": 2700,
-          "69": 2900,
-          "70": 3100
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.6,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
+            "birthYear": 1960,
+            "birthMonth": 6,
+            "gender": "male",
+            "piaMonthly": 2500,
+            "lifeExpectancy": 85
           },
           {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "birthYear": 1961,
+            "birthMonth": 5,
+            "gender": "female",
+            "piaMonthly": 1000,
+            "lifeExpectancy": 85
           }
         ],
-        "spousalBenefitAtFra": 250,
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1750,
+            "63": 1875,
+            "64": 2000,
+            "65": 2166,
+            "66": 2333,
+            "67": 2500,
+            "68": 2700,
+            "69": 2900,
+            "70": 3100
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.6,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 250,
         "spousalTopUpAtFilingAge": 213.54,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -844,68 +1017,87 @@
       "description": "Worker Jul 1964 F PIA $3,000; spouse Feb 1964 M PIA $3,000 - dual earners, no spousal top-up ($0)",
       "mode": "full",
       "inputs": {
-        "birthYear": 1964,
-        "birthMonth": 7,
-        "gender": "female",
-        "hasSpouse": true,
-        "monthlyBenefitAtFra": 3000,
-        "lifeExpectancy": 85,
-        "annualCola": 0,
-        "discountRate": 0.025,
-        "spouseBirthYear": 1964,
-        "spouseBirthMonth": 2,
-        "spouseMonthlyBenefitAtFra": 3000
-      },
-      "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 2100,
-          "63": 2250,
-          "64": 2400,
-          "65": 2600,
-          "66": 2800,
-          "67": 3000,
-          "68": 3240,
-          "69": 3480,
-          "70": 3720
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
+            "birthYear": 1964,
+            "birthMonth": 7,
+            "gender": "female",
+            "piaMonthly": 3000,
+            "lifeExpectancy": 85
           },
           {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "birthYear": 1964,
+            "birthMonth": 2,
+            "gender": "male",
+            "piaMonthly": 3000,
+            "lifeExpectancy": 85
           }
         ],
-        "spousalBenefitAtFra": 0,
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2100,
+            "63": 2250,
+            "64": 2400,
+            "65": 2600,
+            "66": 2800,
+            "67": 3000,
+            "68": 3240,
+            "69": 3480,
+            "70": 3720
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 0,
         "spousalTopUpAtFilingAge": 0,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -922,68 +1114,87 @@
       "description": "Worker Oct 1962 F PIA $2,000; spouse Aug 1960 M PIA $4,000 - spouse is higher earner ($0 top-up on worker record)",
       "mode": "full",
       "inputs": {
-        "birthYear": 1962,
-        "birthMonth": 10,
-        "gender": "female",
-        "hasSpouse": true,
-        "monthlyBenefitAtFra": 2000,
-        "lifeExpectancy": 85,
-        "annualCola": 0,
-        "discountRate": 0.025,
-        "spouseBirthYear": 1960,
-        "spouseBirthMonth": 8,
-        "spouseMonthlyBenefitAtFra": 4000
-      },
-      "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 1400,
-          "63": 1500,
-          "64": 1600,
-          "65": 1733,
-          "66": 1866,
-          "67": 2000,
-          "68": 2160,
-          "69": 2320,
-          "70": 2480
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
+            "birthYear": 1962,
+            "birthMonth": 10,
+            "gender": "female",
+            "piaMonthly": 2000,
+            "lifeExpectancy": 85
           },
           {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "birthYear": 1960,
+            "birthMonth": 8,
+            "gender": "male",
+            "piaMonthly": 4000,
+            "lifeExpectancy": 85
           }
         ],
-        "spousalBenefitAtFra": 0,
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1400,
+            "63": 1500,
+            "64": 1600,
+            "65": 1733,
+            "66": 1866,
+            "67": 2000,
+            "68": 2160,
+            "69": 2320,
+            "70": 2480
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 0,
         "spousalTopUpAtFilingAge": 0,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -1000,68 +1211,87 @@
       "description": "Worker Mar 1965 M PIA $3,600; younger spouse Sep 1967 no record ($0). spousalBenefitAtFra: unreduced top-up = 3600/2 - 0 = $1,800, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 62y1m, 59 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 23 months at 5/12% = 25% + 23*5/12% = 34.5833%. Top-up = 1800 * (1 - 0.345833) = $1,177.50.",
       "mode": "full",
       "inputs": {
-        "birthYear": 1965,
-        "birthMonth": 3,
-        "gender": "male",
-        "hasSpouse": true,
-        "monthlyBenefitAtFra": 3600,
-        "lifeExpectancy": 85,
-        "annualCola": 0,
-        "discountRate": 0.025,
-        "spouseBirthYear": 1967,
-        "spouseBirthMonth": 9,
-        "spouseMonthlyBenefitAtFra": 0
-      },
-      "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 2520,
-          "63": 2700,
-          "64": 2880,
-          "65": 3120,
-          "66": 3360,
-          "67": 3600,
-          "68": 3888,
-          "69": 4176,
-          "70": 4464
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
+            "birthYear": 1965,
+            "birthMonth": 3,
+            "gender": "male",
+            "piaMonthly": 3600,
+            "lifeExpectancy": 85
           },
           {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "birthYear": 1967,
+            "birthMonth": 9,
+            "gender": "female",
+            "piaMonthly": 0,
+            "lifeExpectancy": 85
           }
         ],
-        "spousalBenefitAtFra": 1800,
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2520,
+            "63": 2700,
+            "64": 2880,
+            "65": 3120,
+            "66": 3360,
+            "67": 3600,
+            "68": 3888,
+            "69": 4176,
+            "70": 4464
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 1800,
         "spousalTopUpAtFilingAge": 1177.5,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -1078,65 +1308,80 @@
       "description": "Sample HH1: baseline single, born Apr 1962 M PIA $2,400, FRA 67 - clean delayed-credit math from FRA to 70",
       "mode": "full",
       "inputs": {
-        "birthYear": 1962,
-        "birthMonth": 4,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 2400,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1962,
+            "birthMonth": 4,
+            "gender": "male",
+            "piaMonthly": 2400,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 1680,
-          "63": 1800,
-          "64": 1920,
-          "65": 2080,
-          "66": 2240,
-          "67": 2400,
-          "68": 2592,
-          "69": 2784,
-          "70": 2976
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "years": 67,
+            "months": 0,
+            "label": "67"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1680,
+            "63": 1800,
+            "64": 1920,
+            "65": 2080,
+            "66": 2240,
+            "67": 2400,
+            "68": 2592,
+            "69": 2784,
+            "70": 2976
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -1153,68 +1398,87 @@
       "description": "Sample HH2: dual high earners, worker Feb 1960 M PIA $3,200; spouse Sep 1961 F PIA $3,000 - similar PIAs, no spousal top-up ($0)",
       "mode": "full",
       "inputs": {
-        "birthYear": 1960,
-        "birthMonth": 2,
-        "gender": "male",
-        "hasSpouse": true,
-        "monthlyBenefitAtFra": 3200,
-        "lifeExpectancy": 85,
-        "annualCola": 0,
-        "discountRate": 0.025,
-        "spouseBirthYear": 1961,
-        "spouseBirthMonth": 9,
-        "spouseMonthlyBenefitAtFra": 3000
-      },
-      "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 2240,
-          "63": 2400,
-          "64": 2560,
-          "65": 2773,
-          "66": 2986,
-          "67": 3200,
-          "68": 3456,
-          "69": 3712,
-          "70": 3968
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
+            "birthYear": 1960,
+            "birthMonth": 2,
+            "gender": "male",
+            "piaMonthly": 3200,
+            "lifeExpectancy": 85
           },
           {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "birthYear": 1961,
+            "birthMonth": 9,
+            "gender": "female",
+            "piaMonthly": 3000,
+            "lifeExpectancy": 85
           }
         ],
-        "spousalBenefitAtFra": 0,
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2240,
+            "63": 2400,
+            "64": 2560,
+            "65": 2773,
+            "66": 2986,
+            "67": 3200,
+            "68": 3456,
+            "69": 3712,
+            "70": 3968
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 0,
         "spousalTopUpAtFilingAge": 0,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -1231,68 +1495,87 @@
       "description": "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 (FRA 67y0m) below 50% of worker PIA - routed to spousal. spousalBenefitAtFra: unreduced top-up = 3600/2 - 700 = $1,100, evaluated at the spouse's own FRA. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 62y9m, 51 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 15 months at 5/12% = 25% + 15*5/12% = 31.25%. Top-up = 1100 * (1 - 0.3125) = $756.25.",
       "mode": "full",
       "inputs": {
-        "birthYear": 1959,
-        "birthMonth": 7,
-        "gender": "female",
-        "hasSpouse": true,
-        "monthlyBenefitAtFra": 3600,
-        "lifeExpectancy": 85,
-        "annualCola": 0,
-        "discountRate": 0.025,
-        "spouseBirthYear": 1963,
-        "spouseBirthMonth": 11,
-        "spouseMonthlyBenefitAtFra": 700
-      },
-      "expected": {
-        "fra": {
-          "years": 66,
-          "months": 10,
-          "label": "66 years, 10 months"
-        },
-        "monthlyByClaimAge": {
-          "62": 2550,
-          "63": 2730,
-          "64": 2920,
-          "65": 3160,
-          "66": 3400,
-          "67": 3648,
-          "68": 3936,
-          "69": 4224,
-          "70": 4512
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70.8,
-          "63": 75.8,
-          "64": 81.1,
-          "65": 87.8,
-          "66": 94.4,
-          "67": 101.3,
-          "68": 109.3,
-          "69": 117.3,
-          "70": 125.3
-        },
-        "breakEvens": [
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
+            "birthYear": 1959,
+            "birthMonth": 7,
+            "gender": "female",
+            "piaMonthly": 3600,
+            "lifeExpectancy": 85
           },
           {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.7
+            "birthYear": 1963,
+            "birthMonth": 11,
+            "gender": "male",
+            "piaMonthly": 700,
+            "lifeExpectancy": 85
           }
         ],
-        "spousalBenefitAtFra": 1100,
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 66,
+            "months": 10,
+            "label": "66 years, 10 months"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2550,
+            "63": 2730,
+            "64": 2920,
+            "65": 3160,
+            "66": 3400,
+            "67": 3648,
+            "68": 3936,
+            "69": 4224,
+            "70": 4512
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70.8,
+            "63": 75.8,
+            "64": 81.1,
+            "65": 87.8,
+            "66": 94.4,
+            "67": 101.3,
+            "68": 109.3,
+            "69": 117.3,
+            "70": 125.3
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.7
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 1100,
         "spousalTopUpAtFilingAge": 756.25,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -1309,68 +1592,87 @@
       "description": "Sample HH13: two near-max earners, worker Apr 1962 M PIA $4,000; spouse Oct 1962 F PIA $3,900 - both delay; exercises the DRC ceiling at 70, no spousal top-up ($0)",
       "mode": "full",
       "inputs": {
-        "birthYear": 1962,
-        "birthMonth": 4,
-        "gender": "male",
-        "hasSpouse": true,
-        "monthlyBenefitAtFra": 4000,
-        "lifeExpectancy": 85,
-        "annualCola": 0,
-        "discountRate": 0.025,
-        "spouseBirthYear": 1962,
-        "spouseBirthMonth": 10,
-        "spouseMonthlyBenefitAtFra": 3900
-      },
-      "expected": {
-        "fra": {
-          "years": 67,
-          "months": 0,
-          "label": "67"
-        },
-        "monthlyByClaimAge": {
-          "62": 2800,
-          "63": 3000,
-          "64": 3200,
-          "65": 3466,
-          "66": 3733,
-          "67": 4000,
-          "68": 4320,
-          "69": 4640,
-          "70": 4960
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 70,
-          "63": 75,
-          "64": 80,
-          "65": 86.7,
-          "66": 93.3,
-          "67": 100,
-          "68": 108,
-          "69": 116,
-          "70": 124
-        },
-        "breakEvens": [
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.7
+            "birthYear": 1962,
+            "birthMonth": 4,
+            "gender": "male",
+            "piaMonthly": 4000,
+            "lifeExpectancy": 85
           },
           {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.4
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.5
+            "birthYear": 1962,
+            "birthMonth": 10,
+            "gender": "female",
+            "piaMonthly": 3900,
+            "lifeExpectancy": 85
           }
         ],
-        "spousalBenefitAtFra": 0,
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2800,
+            "63": 3000,
+            "64": 3200,
+            "65": 3466,
+            "66": 3733,
+            "67": 4000,
+            "68": 4320,
+            "69": 4640,
+            "70": 4960
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 0,
         "spousalTopUpAtFilingAge": 0,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing",
@@ -1387,65 +1689,80 @@
       "description": "Born May 1943, FRA 66, PIA $2,000, male - earliest full-8%-DRC / FRA-66 cohort",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1943,
-        "birthMonth": 5,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 2000,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1943,
+            "birthMonth": 5,
+            "gender": "male",
+            "piaMonthly": 2000,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 0,
-          "label": "66"
-        },
-        "monthlyByClaimAge": {
-          "62": 1500,
-          "63": 1600,
-          "64": 1733,
-          "65": 1866,
-          "66": 2000,
-          "67": 2160,
-          "68": 2320,
-          "69": 2480,
-          "70": 2640
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 75,
-          "63": 80,
-          "64": 86.7,
-          "65": 93.3,
-          "66": 100,
-          "67": 108,
-          "68": 116,
-          "69": 124,
-          "70": 132
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.4
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.6
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 83.5
+            "years": 66,
+            "months": 0,
+            "label": "66"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1500,
+            "63": 1600,
+            "64": 1733,
+            "65": 1866,
+            "66": 2000,
+            "67": 2160,
+            "68": 2320,
+            "69": 2480,
+            "70": 2640
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 75,
+            "63": 80,
+            "64": 86.7,
+            "65": 93.3,
+            "66": 100,
+            "67": 108,
+            "68": 116,
+            "69": 124,
+            "70": 132
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.4
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.6
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
@@ -1461,65 +1778,80 @@
       "description": "Born Oct 1950, FRA 66, PIA $1,800, male",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1950,
-        "birthMonth": 10,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 1800,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1950,
+            "birthMonth": 10,
+            "gender": "male",
+            "piaMonthly": 1800,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 0,
-          "label": "66"
-        },
-        "monthlyByClaimAge": {
-          "62": 1350,
-          "63": 1440,
-          "64": 1560,
-          "65": 1680,
-          "66": 1800,
-          "67": 1944,
-          "68": 2088,
-          "69": 2232,
-          "70": 2376
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 75,
-          "63": 80,
-          "64": 86.7,
-          "65": 93.3,
-          "66": 100,
-          "67": 108,
-          "68": 116,
-          "69": 124,
-          "70": 132
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.4
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.6
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 83.5
+            "years": 66,
+            "months": 0,
+            "label": "66"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1350,
+            "63": 1440,
+            "64": 1560,
+            "65": 1680,
+            "66": 1800,
+            "67": 1944,
+            "68": 2088,
+            "69": 2232,
+            "70": 2376
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 75,
+            "63": 80,
+            "64": 86.7,
+            "65": 93.3,
+            "66": 100,
+            "67": 108,
+            "68": 116,
+            "69": 124,
+            "70": 132
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.4
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.6
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
@@ -1535,65 +1867,80 @@
       "description": "Born Feb 1953, FRA 66, PIA $4,500, female - high PIA, FRA 66",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1953,
-        "birthMonth": 2,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 4500,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1953,
+            "birthMonth": 2,
+            "gender": "female",
+            "piaMonthly": 4500,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 0,
-          "label": "66"
-        },
-        "monthlyByClaimAge": {
-          "62": 3375,
-          "63": 3600,
-          "64": 3900,
-          "65": 4200,
-          "66": 4500,
-          "67": 4860,
-          "68": 5220,
-          "69": 5580,
-          "70": 5940
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 75,
-          "63": 80,
-          "64": 86.7,
-          "65": 93.3,
-          "66": 100,
-          "67": 108,
-          "68": 116,
-          "69": 124,
-          "70": 132
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.4
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.6
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 83.5
+            "years": 66,
+            "months": 0,
+            "label": "66"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 3375,
+            "63": 3600,
+            "64": 3900,
+            "65": 4200,
+            "66": 4500,
+            "67": 4860,
+            "68": 5220,
+            "69": 5580,
+            "70": 5940
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 75,
+            "63": 80,
+            "64": 86.7,
+            "65": 93.3,
+            "66": 100,
+            "67": 108,
+            "68": 116,
+            "69": 124,
+            "70": 132
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.4
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.6
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
@@ -1609,65 +1956,80 @@
       "description": "Born Sep 1954, FRA 66, PIA $3,000, female - last FRA-66 cohort",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1954,
-        "birthMonth": 9,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 3000,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1954,
+            "birthMonth": 9,
+            "gender": "female",
+            "piaMonthly": 3000,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 0,
-          "label": "66"
-        },
-        "monthlyByClaimAge": {
-          "62": 2250,
-          "63": 2400,
-          "64": 2600,
-          "65": 2800,
-          "66": 3000,
-          "67": 3240,
-          "68": 3480,
-          "69": 3720,
-          "70": 3960
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 75,
-          "63": 80,
-          "64": 86.7,
-          "65": 93.3,
-          "66": 100,
-          "67": 108,
-          "68": 116,
-          "69": 124,
-          "70": 132
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.4
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.6
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 83.5
+            "years": 66,
+            "months": 0,
+            "label": "66"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2250,
+            "63": 2400,
+            "64": 2600,
+            "65": 2800,
+            "66": 3000,
+            "67": 3240,
+            "68": 3480,
+            "69": 3720,
+            "70": 3960
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 75,
+            "63": 80,
+            "64": 86.7,
+            "65": 93.3,
+            "66": 100,
+            "67": 108,
+            "68": 116,
+            "69": 124,
+            "70": 132
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.4
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.6
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
@@ -1683,65 +2045,80 @@
       "description": "Born Sep 1954, FRA 66, PIA $1,234 (odd) - rounding stress at FRA 66",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1954,
-        "birthMonth": 9,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 1234,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1954,
+            "birthMonth": 9,
+            "gender": "male",
+            "piaMonthly": 1234,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 0,
-          "label": "66"
-        },
-        "monthlyByClaimAge": {
-          "62": 925,
-          "63": 987,
-          "64": 1069,
-          "65": 1151,
-          "66": 1234,
-          "67": 1332,
-          "68": 1431,
-          "69": 1530,
-          "70": 1628
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 75,
-          "63": 80,
-          "64": 86.6,
-          "65": 93.3,
-          "66": 100,
-          "67": 107.9,
-          "68": 116,
-          "69": 124,
-          "70": 131.9
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.4
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.6
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 83.5
+            "years": 66,
+            "months": 0,
+            "label": "66"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 925,
+            "63": 987,
+            "64": 1069,
+            "65": 1151,
+            "66": 1234,
+            "67": 1332,
+            "68": 1431,
+            "69": 1530,
+            "70": 1628
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 75,
+            "63": 80,
+            "64": 86.6,
+            "65": 93.3,
+            "66": 100,
+            "67": 107.9,
+            "68": 116,
+            "69": 124,
+            "70": 131.9
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.4
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.6
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
@@ -1757,65 +2134,80 @@
       "description": "Born Jul 1955, FRA 66y2m, PIA $2,500, male - first graduated-FRA cohort",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1955,
-        "birthMonth": 7,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 2500,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1955,
+            "birthMonth": 7,
+            "gender": "male",
+            "piaMonthly": 2500,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 2,
-          "label": "66 years, 2 months"
-        },
-        "monthlyByClaimAge": {
-          "62": 1854,
-          "63": 1979,
-          "64": 2138,
-          "65": 2305,
-          "66": 2472,
-          "67": 2666,
-          "68": 2866,
-          "69": 3066,
-          "70": 3266
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 74.2,
-          "63": 79.2,
-          "64": 85.5,
-          "65": 92.2,
-          "66": 98.9,
-          "67": 106.6,
-          "68": 114.6,
-          "69": 122.6,
-          "70": 130.6
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.5
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.6
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 83.4
+            "years": 66,
+            "months": 2,
+            "label": "66 years, 2 months"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1854,
+            "63": 1979,
+            "64": 2138,
+            "65": 2305,
+            "66": 2472,
+            "67": 2666,
+            "68": 2866,
+            "69": 3066,
+            "70": 3266
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 74.2,
+            "63": 79.2,
+            "64": 85.5,
+            "65": 92.2,
+            "66": 98.9,
+            "67": 106.6,
+            "68": 114.6,
+            "69": 122.6,
+            "70": 130.6
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.5
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.6
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83.4
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
@@ -1831,65 +2223,80 @@
       "description": "Born Mar 1956, FRA 66y4m, PIA $2,200, female",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1956,
-        "birthMonth": 3,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 2200,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1956,
+            "birthMonth": 3,
+            "gender": "female",
+            "piaMonthly": 2200,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 4,
-          "label": "66 years, 4 months"
-        },
-        "monthlyByClaimAge": {
-          "62": 1613,
-          "63": 1723,
-          "64": 1857,
-          "65": 2004,
-          "66": 2151,
-          "67": 2317,
-          "68": 2493,
-          "69": 2669,
-          "70": 2845
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 73.3,
-          "63": 78.3,
-          "64": 84.4,
-          "65": 91.1,
-          "66": 97.8,
-          "67": 105.3,
-          "68": 113.3,
-          "69": 121.3,
-          "70": 129.3
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.5
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.5
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 83.2
+            "years": 66,
+            "months": 4,
+            "label": "66 years, 4 months"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1613,
+            "63": 1723,
+            "64": 1857,
+            "65": 2004,
+            "66": 2151,
+            "67": 2317,
+            "68": 2493,
+            "69": 2669,
+            "70": 2845
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 73.3,
+            "63": 78.3,
+            "64": 84.4,
+            "65": 91.1,
+            "66": 97.8,
+            "67": 105.3,
+            "68": 113.3,
+            "69": 121.3,
+            "70": 129.3
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.5
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.5
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83.2
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
@@ -1905,65 +2312,80 @@
       "description": "Born Mar 1957, FRA 66y6m, PIA $2,000, male - 54-month max reduction",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1957,
-        "birthMonth": 3,
-        "gender": "male",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 2000,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1957,
+            "birthMonth": 3,
+            "gender": "male",
+            "piaMonthly": 2000,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 6,
-          "label": "66 years, 6 months"
-        },
-        "monthlyByClaimAge": {
-          "62": 1450,
-          "63": 1550,
-          "64": 1666,
-          "65": 1800,
-          "66": 1933,
-          "67": 2080,
-          "68": 2240,
-          "69": 2400,
-          "70": 2560
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 72.5,
-          "63": 77.5,
-          "64": 83.3,
-          "65": 90,
-          "66": 96.7,
-          "67": 104,
-          "68": 112,
-          "69": 120,
-          "70": 128
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.6
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.5
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 83
+            "years": 66,
+            "months": 6,
+            "label": "66 years, 6 months"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1450,
+            "63": 1550,
+            "64": 1666,
+            "65": 1800,
+            "66": 1933,
+            "67": 2080,
+            "68": 2240,
+            "69": 2400,
+            "70": 2560
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 72.5,
+            "63": 77.5,
+            "64": 83.3,
+            "65": 90,
+            "66": 96.7,
+            "67": 104,
+            "68": 112,
+            "69": 120,
+            "70": 128
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.6
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.5
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
@@ -1979,65 +2401,80 @@
       "description": "Born Dec 1958, FRA 66y8m, PIA $2,800, female",
       "mode": "factorsOnly",
       "inputs": {
-        "birthYear": 1958,
-        "birthMonth": 12,
-        "gender": "female",
-        "hasSpouse": false,
-        "monthlyBenefitAtFra": 2800,
-        "lifeExpectancy": 85,
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1958,
+            "birthMonth": 12,
+            "gender": "female",
+            "piaMonthly": 2800,
+            "lifeExpectancy": 85
+          }
+        ],
         "annualCola": 0,
         "discountRate": 0.025
       },
       "expected": {
-        "fra": {
-          "years": 66,
-          "months": 8,
-          "label": "66 years, 8 months"
-        },
-        "monthlyByClaimAge": {
-          "62": 2006,
-          "63": 2146,
-          "64": 2302,
-          "65": 2488,
-          "66": 2675,
-          "67": 2874,
-          "68": 3098,
-          "69": 3322,
-          "70": 3546
-        },
-        "percentOfPiaByClaimAge": {
-          "62": 71.6,
-          "63": 76.6,
-          "64": 82.2,
-          "65": 88.9,
-          "66": 95.5,
-          "67": 102.6,
-          "68": 110.6,
-          "69": 118.6,
-          "70": 126.6
-        },
-        "breakEvens": [
+        "fraByPerson": [
           {
-            "earlierAge": 62,
-            "laterAge": 67,
-            "breakEvenAge": 78.6
-          },
-          {
-            "earlierAge": 62,
-            "laterAge": 70,
-            "breakEvenAge": 80.5
-          },
-          {
-            "earlierAge": 67,
-            "laterAge": 70,
-            "breakEvenAge": 82.9
+            "years": 66,
+            "months": 8,
+            "label": "66 years, 8 months"
           }
         ],
-        "spousalBenefitAtFra": null,
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2006,
+            "63": 2146,
+            "64": 2302,
+            "65": 2488,
+            "66": 2675,
+            "67": 2874,
+            "68": 3098,
+            "69": 3322,
+            "70": 3546
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 71.6,
+            "63": 76.6,
+            "64": 82.2,
+            "65": 88.9,
+            "66": 95.5,
+            "67": 102.6,
+            "68": 110.6,
+            "69": 118.6,
+            "70": 126.6
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.6
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.5
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.9
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
         "spousalTopUpAtFilingAge": null,
-        "optimalAgeRange": [
-          62,
-          70
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
         ],
         "invariants": [
           "monthlyMonotonicIncreasing"
