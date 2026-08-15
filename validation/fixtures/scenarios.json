@@ -1837,7 +1837,7 @@
     },
     {
       "id": "sample-hh4-married-1955-wide-age-gap",
-      "description": "Sample HH4: wide age gap, worker Mar 1955 M PIA $2,800 (FRA 66y2m); spouse Jun 1968 F own PIA $1,900, 13 years younger. asOf pinned to 2024-01-15 so the worker (68, turning 69 in Mar 2024) is still under 70 and eligible for the 'full'-mode optimizer - as of any 2026+ asOf the worker is 71+ and the optimizer has no prospective filing age left, which is why this case was previously marked 'Aged out' in validation/samples/README.md. spousalTopUpAtFra: unreduced top-up = max(0, 2800/2 - 1900) = max(0, -500) = $0 - the spouse's own PIA already exceeds half the worker's, so no top-up applies (independently derivable; no hand-derivation needed for spousalTopUpAtFilingAge either, since a non-positive at-FRA top-up is trivially $0 at any filing age).",
+      "description": "Sample HH4: wide age gap, worker Mar 1955 M PIA $2,800 (FRA 66y2m); spouse Jun 1968 F own PIA $1,900, 13 years younger. asOf pinned to 2024-01-15 so the worker (68, turning 69 in Mar 2024) is still under 70 and eligible for the 'full'-mode optimizer - as of any 2026+ asOf the worker is 71+ and the optimizer has no prospective filing age left, which is why this case was previously marked 'Aged out' in validation/samples/README.md. uiTestable: false (Task 23) because Playwright drives the real app against the real wall-clock date rather than this pinned asOf — by 2026-08 the worker has already aged past 70 in the live app, hitting its 'Analysis unavailable' error path (analyzeIfComplete throws when the optimizer has no prospective filing age), so the Playwright golden-scenarios suite skips this scenario's UI assertions while the Vitest engine suite (which passes the pinned asOf explicitly) keeps validating it. spousalTopUpAtFra: unreduced top-up = max(0, 2800/2 - 1900) = max(0, -500) = $0 - the spouse's own PIA already exceeds half the worker's, so no top-up applies (independently derivable; no hand-derivation needed for spousalTopUpAtFilingAge either, since a non-positive at-FRA top-up is trivially $0 at any filing age).",
       "mode": "full",
       "inputs": {
         "asOf": "2024-01-15",
@@ -1928,8 +1928,8 @@
         ]
       },
       "e2e": {
-        "assertTable": true,
-        "assertSummaryCards": true
+        "assertTable": false,
+        "assertSummaryCards": false
       }
     },
     {

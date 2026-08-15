@@ -2,8 +2,10 @@ import { useState } from 'react';
 import type { PersonAnalysis } from '../lib/personAnalysis';
 import { formatCurrency, formatCurrencyPrecise, fraLabel, personLabel } from '../lib/format';
 import { nearestWholeClaimAge } from '../lib/ssaTools';
+import { computeBreakEvens } from '../lib/benefitMath';
 import { DEFAULT_CHART_VISIBILITY, type ChartKey } from '../lib/chartVisibility';
 import { BenefitChart } from './BenefitChart';
+import { BreakEvenSection } from './BreakEvenSection';
 import { OptionalChartsPanel } from './OptionalChartsPanel';
 
 interface PersonPanelProps {
@@ -23,6 +25,17 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
   // exactly one row is always marked, the same way the deleted ResultsPanel
   // did via `nearestWholeClaimAge`. A whole-year optimum rounds to itself.
   const recommendedAge = nearestWholeClaimAge(recommendedFilingAge.decimalYears);
+
+  // Live-COLA break-evens for this person, recomputed the same way
+  // HouseholdPanel recomputes person A's (see that component's doc comment):
+  // `annualCola` is deliberately excluded from the analysis effect's
+  // dependencies, so the COLA slider must recompute this locally rather than
+  // read a baked-in field. Before the couples refactor, every claimant saw a
+  // Break-Even Analysis section (Analyzer.tsx's old `output-duo` block); the
+  // refactor only wired it back up on the married Household tab, silently
+  // dropping it for single claimants and for each married person's own tab.
+  // Rendering it here restores that for everyone, single or married.
+  const breakEvens = computeBreakEvens(claimingOptions, annualCola);
 
   // Chart visibility is per-person state, not lifted to Analyzer/HouseholdView:
   // each person's charts are toggled independently, and since HouseholdView
@@ -121,12 +134,16 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
         </div>
       </div>
 
-      <BenefitChart
-        options={claimingOptions}
-        lifeExpectancy={analysis.person.lifeExpectancy}
-        optimalAge={recommendedAge}
-        annualCola={annualCola}
-      />
+      <div className="output-duo">
+        <BenefitChart
+          options={claimingOptions}
+          lifeExpectancy={analysis.person.lifeExpectancy}
+          optimalAge={recommendedAge}
+          annualCola={annualCola}
+        />
+
+        <BreakEvenSection breakEvens={breakEvens} lifeExpectancy={analysis.person.lifeExpectancy} />
+      </div>
 
       <OptionalChartsPanel
         claimingOptions={claimingOptions}

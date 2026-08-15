@@ -201,7 +201,19 @@ function build(spec) {
       optimalAgeRangeByPerson,
       invariants,
     },
-    e2e: { assertTable: spec.mode === 'full', assertSummaryCards: spec.mode === 'full' },
+    // spec.uiTestable overrides the default derivation from `mode` for
+    // scenarios that are engine-testable (their pinned `asOf` keeps them
+    // 'full') but not UI-testable — the Playwright suite drives the real app
+    // against the real wall-clock date, which it cannot pin, so a scenario
+    // whose asOf is far enough in the past that its person(s) have since
+    // aged past 70 will hit the app's "no prospective filing age" error
+    // path in a live 2026+ run even though the Vitest engine suite (which
+    // does pass the pinned asOf) still validates it correctly. Currently
+    // only sample household 4 (see its spec below) needs this.
+    e2e: {
+      assertTable: spec.mode === 'full' && spec.uiTestable !== false,
+      assertSummaryCards: spec.mode === 'full' && spec.uiTestable !== false,
+    },
   };
 }
 
@@ -263,9 +275,9 @@ const specs = [
   { id: 'sample-hh3-married-1959-reduced-spousal', mode: 'full', birthYear: 1959, birthMonth: 7, gender: 'female', hasSpouse: true, pia: 3600,
     spouseBirthYear: 1963, spouseBirthMonth: 11, spousePia: 700,
     description: "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 (FRA 67y0m) below 50% of worker PIA - routed to spousal. spousalTopUpAtFra: unreduced top-up = 3600/2 - 700 = $1,100, evaluated at the spouse's own FRA. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15, the couple optimizer files the spouse at 62y2m, 58 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 22 months at 5/12% = 25% + 22*5/12% = 34.1667%. Top-up = 1100 * (1 - 0.341667) = $724.17." },
-  { id: 'sample-hh4-married-1955-wide-age-gap', mode: 'full', asOf: '2024-01-15', birthYear: 1955, birthMonth: 3, gender: 'male', hasSpouse: true, pia: 2800,
+  { id: 'sample-hh4-married-1955-wide-age-gap', mode: 'full', asOf: '2024-01-15', uiTestable: false, birthYear: 1955, birthMonth: 3, gender: 'male', hasSpouse: true, pia: 2800,
     spouseBirthYear: 1968, spouseBirthMonth: 6, spousePia: 1900,
-    description: "Sample HH4: wide age gap, worker Mar 1955 M PIA $2,800 (FRA 66y2m); spouse Jun 1968 F own PIA $1,900, 13 years younger. asOf pinned to 2024-01-15 so the worker (68, turning 69 in Mar 2024) is still under 70 and eligible for the 'full'-mode optimizer - as of any 2026+ asOf the worker is 71+ and the optimizer has no prospective filing age left, which is why this case was previously marked 'Aged out' in validation/samples/README.md. spousalTopUpAtFra: unreduced top-up = max(0, 2800/2 - 1900) = max(0, -500) = $0 - the spouse's own PIA already exceeds half the worker's, so no top-up applies (independently derivable; no hand-derivation needed for spousalTopUpAtFilingAge either, since a non-positive at-FRA top-up is trivially $0 at any filing age)." },
+    description: "Sample HH4: wide age gap, worker Mar 1955 M PIA $2,800 (FRA 66y2m); spouse Jun 1968 F own PIA $1,900, 13 years younger. asOf pinned to 2024-01-15 so the worker (68, turning 69 in Mar 2024) is still under 70 and eligible for the 'full'-mode optimizer - as of any 2026+ asOf the worker is 71+ and the optimizer has no prospective filing age left, which is why this case was previously marked 'Aged out' in validation/samples/README.md. uiTestable: false (Task 23) because Playwright drives the real app against the real wall-clock date rather than this pinned asOf — by 2026-08 the worker has already aged past 70 in the live app, hitting its 'Analysis unavailable' error path (analyzeIfComplete throws when the optimizer has no prospective filing age), so the Playwright golden-scenarios suite skips this scenario's UI assertions while the Vitest engine suite (which passes the pinned asOf explicitly) keeps validating it. spousalTopUpAtFra: unreduced top-up = max(0, 2800/2 - 1900) = max(0, -500) = $0 - the spouse's own PIA already exceeds half the worker's, so no top-up applies (independently derivable; no hand-derivation needed for spousalTopUpAtFilingAge either, since a non-positive at-FRA top-up is trivially $0 at any filing age)." },
   { id: 'sample-hh13-married-1962-two-max-earners', mode: 'full', birthYear: 1962, birthMonth: 4, gender: 'male', hasSpouse: true, pia: 4000,
     spouseBirthYear: 1962, spouseBirthMonth: 10, spousePia: 3900,
     description: 'Sample HH13: two near-max earners, worker Apr 1962 M PIA $4,000; spouse Oct 1962 F PIA $3,900 - both delay; exercises the DRC ceiling at 70, no spousal top-up ($0)' },

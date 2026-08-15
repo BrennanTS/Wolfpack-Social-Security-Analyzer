@@ -103,4 +103,26 @@ describe('PersonPanel', () => {
     render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
     expect(screen.getByText('Optional Visualizations')).toBeDefined();
   });
+
+  // Regression coverage for a real bug found in Task 23's e2e pass: before
+  // the couples refactor, every claimant (there was only ever one) saw a
+  // Break-Even Analysis section. HouseholdPanel restored it for married
+  // households' Household tab, but nothing restored it for a single
+  // claimant or for each married person's own tab — PersonPanel is the only
+  // component that renders for both, so it needs its own live-COLA
+  // break-even section rather than relying on HouseholdPanel's.
+  it('renders a break-even section, recomputed live from the annualCola prop', () => {
+    const zeroCola = render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={0} />);
+    expect(screen.getByText('Break-Even Analysis')).toBeDefined();
+    const zeroColaAge = screen.getByTestId('break-even-62-70').textContent;
+    zeroCola.unmount();
+
+    // Not 8 (the slider's max): at 8% COLA this PIA's 62->70 break-even
+    // never occurs within the search grid (an earlier claimant's extra years
+    // of compounding can permanently outrun a later, larger check), so the
+    // card would legitimately disappear rather than just show a different
+    // age. 5% still lands a real, later break-even age.
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={5} />);
+    expect(screen.getByTestId('break-even-62-70').textContent).not.toBe(zeroColaAge);
+  });
 });

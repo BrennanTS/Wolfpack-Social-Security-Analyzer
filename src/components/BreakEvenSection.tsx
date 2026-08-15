@@ -18,8 +18,9 @@ export function BreakEvenSection({ breakEvens, lifeExpectancy }: BreakEvenSectio
       <div className="breakeven-grid">
         {breakEvens.map((be) => {
           const beatsLater = lifeExpectancy >= be.breakEvenAge;
+          const testId = `break-even-${be.earlierAge}-${be.laterAge}`;
           return (
-            <div key={`${be.earlierAge}-${be.laterAge}`} className="breakeven-card">
+            <div key={`${be.earlierAge}-${be.laterAge}`} className="breakeven-card" data-testid={testId}>
               <div className="be-ages">
                 <span>Age {be.earlierAge}</span>
                 <span className="be-arrow">→</span>
