@@ -72,6 +72,31 @@ const run = (s: GoldenScenario) =>
     new Date(s.inputs.asOf),
   );
 
+/**
+ * Re-runs a married scenario with one person's gender flipped, holding
+ * everything else (birthdate, PIA, asOf) fixed. Used only by the
+ * genderSensitiveMortality invariant below, as a differential probe: the
+ * mortality table is the one input that this doesn't hold constant, so if
+ * the two runs' expectedNpv come out equal, per-person gender isn't
+ * reaching the mortality tables at all — the exact shape of the "spouse
+ * gender hardcoded as the opposite of the worker's" defect this guards.
+ */
+const runWithGenderFlipped = (s: GoldenScenario, personIndex: 0 | 1) => {
+  const flippedInputs: ScenarioInputs = {
+    ...s.inputs,
+    people: s.inputs.people.map((p, i) => {
+      if (i !== personIndex) return p;
+      const flippedGender: 'female' | 'male' = p.gender === 'male' ? 'female' : 'male';
+      return { ...p, gender: flippedGender };
+    }),
+  };
+  return analyzeHousehold(
+    toHousehold(flippedInputs),
+    { annualCola: flippedInputs.annualCola, discountRate: flippedInputs.discountRate },
+    new Date(flippedInputs.asOf),
+  );
+};
+
 function expectMonthlyMatches(
   expectedMonthlyByClaimAge: Record<string, number>,
   expectedPercentOfPiaByClaimAge: Record<string, number>,
@@ -215,11 +240,42 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
       const filedEarly =
         result.people[lowerIndex].recommendedFilingAge.decimalYears <
         result.people[lowerIndex].fra.years + result.people[lowerIndex].fra.months / 12;
-      if (filedEarly) {
-        expect(result.spousalTopUp!.atRecommendedFilingAge).toBeLessThan(
-          result.spousalTopUp!.atFra,
-        );
-      }
+      // The precondition (lower earner files before their own FRA) is part
+      // of what this fixture claims, not an optional branch — if the
+      // optimizer ever stopped filing this person early, the invariant
+      // must FAIL loudly rather than silently stop testing anything.
+      expect(
+        filedEarly,
+        `expected the lower earner (people[${lowerIndex}]) to file before their own FRA for ` +
+          `scenario '${scenario.id}' — the spousalTopUpReducedWhenClaimedEarly invariant only ` +
+          'means something when that precondition holds; if the optimizer no longer files ' +
+          'early here, re-derive spousalTopUpAtFilingAge or drop the invariant instead of ' +
+          'letting this assertion silently stop testing anything',
+      ).toBe(true);
+      expect(result.spousalTopUp!.atRecommendedFilingAge).toBeLessThan(
+        result.spousalTopUp!.atFra,
+      );
+    }
+
+    if (scenario.expected.invariants.includes('genderSensitiveMortality')) {
+      // Differential probe for the "spouse gender hardcoded as the opposite
+      // of the worker's" defect: benefit tables, %PIA, and $0 spousal
+      // top-ups are all gender-independent by construction, so they can't
+      // discriminate fixed-vs-buggy behavior. expectedNpv is the one output
+      // here that's mortality-driven — but it's an optimizer output over
+      // empirical SSA/CDC life tables, not a published closed-form factor,
+      // so it can't be hand-derived and pinned as a magic number without
+      // violating this file's never-copy-engine-output rule. Instead this
+      // asserts the PROPERTY the defect breaks: flipping one person's
+      // gender (nothing else) must change the joint expectedNpv, because a
+      // different person is now scored against a different cohort life
+      // table. If genders stopped reaching the mortality tables at all
+      // (the bug), both runs would use the same table and produce an
+      // identical expectedNpv.
+      expect(result.optimal.expectedNpv).toBeGreaterThan(0);
+      const flipped = await runWithGenderFlipped(scenario, 1);
+      expect(flipped.optimal.expectedNpv).toBeGreaterThan(0);
+      expect(flipped.optimal.expectedNpv).not.toBe(result.optimal.expectedNpv);
     }
   });
 });
