@@ -1,14 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { MonthDuration } from '$lib/month-time';
 import {
   createPiaRecipient,
+  findStrategyByAges,
   fraFromBirthYear,
   isSsaClaimAgeEligible,
   monthDateFrom,
   nearestWholeClaimAge,
+  rankedCoupleStrategies,
+  rankedSingleStrategies,
   spousalTopUp,
   ssaMonthlyBenefitAtAge,
 } from './ssaTools';
+
+const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
 describe('fraFromBirthYear (SSA full retirement age schedule)', () => {
   it('returns 66y for 1954 and earlier', () => {
@@ -127,5 +135,59 @@ describe('isSsaClaimAgeEligible with an injected date', () => {
     const r = createPiaRecipient(1960, 6, 2500, 'female'); // born Jun 1960
     expect(isSsaClaimAgeEligible(r, 65, new Date(2024, 5, 1))).toBe(false);
     expect(isSsaClaimAgeEligible(r, 65, new Date(2026, 5, 1))).toBe(true);
+  });
+});
+
+describe('ranked strategies', () => {
+  // Serve the real life-table JSON from public/ so the async mortality path runs
+  // exactly as it does in the browser after the on-demand fetch change.
+  beforeAll(() => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      const relative = String(url).replace(/^\//, '');
+      const file = path.join(publicDir, relative);
+      const contents = await readFile(file, 'utf8');
+      return {
+        ok: true,
+        json: async () => JSON.parse(contents),
+      } as Response;
+    });
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const asOf = new Date(2026, 0, 15);
+
+  it('returns single strategies sorted best-first', async () => {
+    const r = createPiaRecipient(1962, 6, 2500, 'female');
+    const ranked = await rankedSingleStrategies(r, 0.025, asOf);
+    expect(ranked.length).toBeGreaterThan(1);
+    expect(ranked[0].filingAges).toHaveLength(1);
+    for (let i = 1; i < ranked.length; i++) {
+      expect(ranked[i - 1].expectedNpv).toBeGreaterThanOrEqual(ranked[i].expectedNpv);
+    }
+  });
+
+  it('returns couple strategies with one filing age per person, sorted best-first', async () => {
+    const a = createPiaRecipient(1962, 6, 3200, 'male');
+    const b = createPiaRecipient(1964, 2, 2100, 'female');
+    const ranked = await rankedCoupleStrategies(a, b, 0.025, asOf);
+    expect(ranked[0].filingAges).toHaveLength(2);
+    expect(ranked[0].expectedNpv).toBeGreaterThanOrEqual(ranked[1].expectedNpv);
+  });
+
+  it('finds an exact whole-year combination and returns null when absent', async () => {
+    const a = createPiaRecipient(1962, 6, 3200, 'male');
+    const b = createPiaRecipient(1964, 2, 2100, 'female');
+    const ranked = await rankedCoupleStrategies(a, b, 0.025, asOf);
+
+    const both70 = findStrategyByAges(ranked, [70, 70]);
+    expect(both70).not.toBeNull();
+    expect(both70!.filingAges[0].years).toBe(70);
+    expect(both70!.filingAges[1].years).toBe(70);
+
+    // 61 is below the SSA filing window, so no strategy uses it.
+    expect(findStrategyByAges(ranked, [61, 61])).toBeNull();
   });
 });

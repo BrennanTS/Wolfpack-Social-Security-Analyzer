@@ -175,20 +175,81 @@ export function lifetimeNpvToAge(
   return cents / 100;
 }
 
+/** One filing-age combination and its expected NPV, as returned by the engine's optimizer. */
+export interface RankedStrategy {
+  filingAges: FilingAgeDisplay[];
+  expectedNpv: number;
+}
+
+/**
+ * Every filing age for a single recipient, sorted best-first by expected NPV.
+ * `expectedNPVSingle` already computes and sorts the full set (one entry per
+ * eligible filing month); this just shapes it for display.
+ */
+export async function rankedSingleStrategies(
+  recipient: Recipient,
+  discountRate: number,
+  asOf: Date = new Date(),
+): Promise<RankedStrategy[]> {
+  const deathDist = await getDeathProbabilityDistribution(recipient);
+  return expectedNPVSingle(recipient, monthDateFrom(asOf), discountRate, deathDist).map((r) => ({
+    filingAges: [formatFilingAge(r.filingAge)],
+    expectedNpv: r.expectedNPVCents / 100,
+  }));
+}
+
+/**
+ * Every filing-age combination for a couple, sorted best-first by expected
+ * NPV. `expectedNPVCoupleOptimized` already computes and sorts the full
+ * cross-product (~9,400 combinations for a typical couple); this just shapes
+ * it for display.
+ */
+export async function rankedCoupleStrategies(
+  a: Recipient,
+  b: Recipient,
+  discountRate: number,
+  asOf: Date = new Date(),
+): Promise<RankedStrategy[]> {
+  const [distA, distB] = await Promise.all([
+    getDeathProbabilityDistribution(a),
+    getDeathProbabilityDistribution(b),
+  ]);
+  return expectedNPVCoupleOptimized([a, b], monthDateFrom(asOf), discountRate, [
+    distA,
+    distB,
+  ]).map((r) => ({
+    filingAges: [formatFilingAge(r.filingAges[0]), formatFilingAge(r.filingAges[1])],
+    expectedNpv: r.expectedNPVCents / 100,
+  }));
+}
+
+/** Exact whole-year match on every person's filing age; null when unavailable. */
+export function findStrategyByAges(
+  ranked: RankedStrategy[],
+  ages: number[],
+): RankedStrategy | null {
+  return (
+    ranked.find(
+      (s) =>
+        s.filingAges.length === ages.length &&
+        s.filingAges.every((f, i) => f.years === ages[i] && f.months === 0),
+    ) ?? null
+  );
+}
+
 export async function computeOptimalFilingSingle(
   recipient: Recipient,
   discountRate: number,
   asOf: Date = new Date(),
 ): Promise<{ filingAge: FilingAgeDisplay; expectedNpv: number }> {
-  const deathDist = await getDeathProbabilityDistribution(recipient);
-  const results = expectedNPVSingle(recipient, monthDateFrom(asOf), discountRate, deathDist);
-  if (results.length === 0) {
+  const ranked = await rankedSingleStrategies(recipient, discountRate, asOf);
+  if (ranked.length === 0) {
     throw new Error('No eligible filing ages for this recipient');
   }
-  const best = results[0];
+  const best = ranked[0];
   return {
-    filingAge: formatFilingAge(best.filingAge),
-    expectedNpv: best.expectedNPVCents / 100,
+    filingAge: best.filingAges[0],
+    expectedNpv: best.expectedNpv,
   };
 }
 
@@ -202,24 +263,15 @@ export async function computeOptimalFilingCouple(
   spouseFilingAge: FilingAgeDisplay;
   expectedNpv: number;
 }> {
-  const [workerDist, spouseDist] = await Promise.all([
-    getDeathProbabilityDistribution(worker),
-    getDeathProbabilityDistribution(spouse),
-  ]);
-  const results = expectedNPVCoupleOptimized(
-    [worker, spouse],
-    monthDateFrom(asOf),
-    discountRate,
-    [workerDist, spouseDist],
-  );
-  if (results.length === 0) {
+  const ranked = await rankedCoupleStrategies(worker, spouse, discountRate, asOf);
+  if (ranked.length === 0) {
     throw new Error('No eligible couple filing strategies');
   }
-  const best = results[0];
+  const best = ranked[0];
   return {
-    workerFilingAge: formatFilingAge(best.filingAges[0]),
-    spouseFilingAge: formatFilingAge(best.filingAges[1]),
-    expectedNpv: best.expectedNPVCents / 100,
+    workerFilingAge: best.filingAges[0],
+    spouseFilingAge: best.filingAges[1],
+    expectedNpv: best.expectedNpv,
   };
 }
 
