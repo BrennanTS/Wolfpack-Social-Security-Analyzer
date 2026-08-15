@@ -77,6 +77,28 @@ test('switches between household and person tabs', async ({ page }) => {
   await expect(page.getByTestId('benefit-table')).toHaveCount(0);
 });
 
+test('keeps the "vs. best" column on a phone-sized viewport', async ({ page }) => {
+  // Regression: the <=720px rule that hides the benefit table's decorative
+  // "Status" column was written against `.table-wrap table`, which also
+  // matched the strategy comparison table. A married household's 5th column
+  // there is "vs. best" — the whole reason that table exists — so it silently
+  // disappeared on phones and portrait tablets.
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/');
+  await fillScenarioForm(page, married);
+
+  const strategyTable = page.getByTestId('strategy-table');
+  await expect(strategyTable).toBeVisible();
+  await expect(strategyTable.getByRole('columnheader', { name: 'vs. best' })).toBeVisible();
+  await expect(strategyTable.getByTestId('cell-delta').first()).toBeVisible();
+
+  // The narrow-screen trim is still in force where it was intended.
+  await page.getByRole('tab', { name: 'Sarah' }).click();
+  const benefitTable = page.getByTestId('benefit-table');
+  await expect(benefitTable).toBeVisible();
+  await expect(benefitTable.getByRole('columnheader', { name: 'Status' })).toBeHidden();
+});
+
 test('recomputes break-evens when the COLA slider moves', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, single);

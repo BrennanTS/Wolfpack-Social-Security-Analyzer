@@ -2119,10 +2119,15 @@ tbody tr:hover {
 }
 
 @media (max-width: 720px) {
-  .table-wrap table th:nth-child(5),
-  .table-wrap table td:nth-child(5),
-  .table-wrap table th:nth-child(6),
-  .table-wrap table td:nth-child(6) {
+  /* Drops the benefit table's 5th column ("Status"), which is decorative —
+     the optimal row already carries a "Best" badge and ineligible rows are
+     styled. Scoped to that one table by testid: the unscoped
+     `.table-wrap table` selector also matched the strategy comparison table,
+     where a married household's 5th column is "vs. best" — the entire point
+     of that table — so it silently vanished on phones and portrait tablets.
+     No table in the app has a 6th column. */
+  [data-testid='benefit-table'] th:nth-child(5),
+  [data-testid='benefit-table'] td:nth-child(5) {
     display: none;
   }
 
