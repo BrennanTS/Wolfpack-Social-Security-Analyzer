@@ -38,11 +38,12 @@ import {
  * have not migrated yet keep compiling.
  *
  * `analyzeClaiming` and its `AnalysisResult` / `UserInputs` / `SpousalAnalysis`
- * shape are NOT a re-export: they are the legacy single-person pipeline, still
- * genuinely used by components that haven't migrated to `HouseholdAnalysis`
- * (Task 19) and by the golden-fixture suite (Task 21). It cannot be reduced to
- * a pure barrel until those callers move off it. Task 20 deletes this file
- * once the last importer is gone.
+ * shape are NOT a re-export: they are the legacy single-person pipeline. As of
+ * Task 20, the only remaining importer is the golden-fixture suite
+ * (`validation/engine/golden.test.ts`) plus this module's own test — every
+ * on-screen and PDF consumer now runs on `HouseholdAnalysis` directly. It
+ * cannot be reduced to a pure barrel, or deleted, until Task 21 migrates the
+ * golden fixtures off `analyzeClaiming`.
  */
 
 export { formatAgeDisplay, formatCurrency, formatCurrencyPrecise, fraLabel } from './format';

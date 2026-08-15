@@ -11,7 +11,9 @@ import { analyzeClaiming, type UserInputs } from './socialSecurity';
  * only covers what's still genuinely implemented here — the legacy
  * `analyzeClaiming` single-person pipeline, which has no equivalent test
  * elsewhere (household.test.ts exercises the different `analyzeHousehold`
- * pipeline, not this one). Delete this file in Task 20 alongside the module.
+ * pipeline, not this one). As of Task 20 the only other importer of
+ * `analyzeClaiming` is `validation/engine/golden.test.ts`; delete this file
+ * alongside the module once Task 21 migrates that suite off it.
  */
 
 const publicDir = path.resolve(

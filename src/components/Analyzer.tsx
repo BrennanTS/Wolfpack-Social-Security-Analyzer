@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AnalysisResult, SpousalAnalysis, UserInputs } from '../lib/socialSecurity';
-import { computeBreakEvens, type BreakEvenPair } from '../lib/benefitMath';
 import { genderLabel, getSuggestedLifeExpectancy } from '../lib/lifeExpectancy';
-import { getCurrentAge, type Gender } from '../lib/personAnalysis';
+import { getCurrentAge } from '../lib/personAnalysis';
 import type { HouseholdAnalysis } from '../lib/household';
-import { createPiaRecipient, nearestWholeClaimAge, spousalTopUp } from '../lib/ssaTools';
+import { createPiaRecipient, spousalTopUp, type FilingAgeDisplay } from '../lib/ssaTools';
 import { formatCurrency } from '../lib/format';
 import { BRAND_NAME } from '../lib/brand';
 import {
@@ -30,15 +28,23 @@ interface AnalyzerProps {
   onToggleDarkMode: () => void;
 }
 
+interface SpousalDisplay {
+  spousalBenefitAtFra: number;
+  spousalTopUpAtFilingAge: number;
+  spouseFilingAge?: FilingAgeDisplay;
+}
+
 /**
  * The spousal top-up A's spouse receives based on A's PIA — always computed
  * directly from person A and person B rather than reused from the
  * household's `spousalTopUp` (which accrues to whichever person has the
- * lower PIA). Both the "How This Works" methodology copy and the PDF report
- * frame this as "your spouse's benefit," so it must stay anchored to A
- * regardless of who earns more.
+ * lower PIA). The "How This Works" methodology copy frames this as "your
+ * spouse's benefit," so it must stay anchored to A regardless of who earns
+ * more. (The PDF report, migrated in Task 20, instead states the household's
+ * own `spousalTopUp` — anchored to the lower earner and clearly labeled —
+ * since it isn't written from A's point of view.)
  */
-function buildLegacySpousal(analysis: HouseholdAnalysis): SpousalAnalysis | undefined {
+function buildLegacySpousal(analysis: HouseholdAnalysis): SpousalDisplay | undefined {
   if (analysis.status !== 'married') return undefined;
   const [a, b] = analysis.people;
   const recipientA = createPiaRecipient(
@@ -62,61 +68,6 @@ function buildLegacySpousal(analysis: HouseholdAnalysis): SpousalAnalysis | unde
       b.recommendedFilingAge.monthDuration,
     ),
     spouseFilingAge: b.recommendedFilingAge,
-  };
-}
-
-/**
- * Adapts a `HouseholdAnalysis` to the single-person `AnalysisResult` shape.
- *
- * As of Task 19, the on-screen results are built directly on
- * `HouseholdAnalysis` via `HouseholdView` — this adapter's only remaining
- * caller is `handleExportPdf` below, since `downloadPdfReport` /
- * `PdfReportDocument` still take the legacy `AnalysisResult`/`UserInputs`
- * pair from `socialSecurity.ts`. It stays a person-A-only adapter (not
- * household-aware) because that's what the current PDF report renders.
- * Task 20 splits the PDF report onto `HouseholdAnalysis` directly, at which
- * point this function, `buildLegacyInputs`, `buildLegacySpousal`, and the
- * `socialSecurity.ts` barrel they depend on can all be deleted.
- */
-function buildLegacyResult(analysis: HouseholdAnalysis, breakEvens: BreakEvenPair[]): AnalysisResult {
-  const [personA] = analysis.people;
-  const optimalAge = nearestWholeClaimAge(personA.recommendedFilingAge.decimalYears);
-  const optimalOption =
-    personA.claimingOptions.find((o) => o.age === optimalAge) ?? personA.claimingOptions[0];
-
-  return {
-    fra: personA.fra,
-    currentAge: personA.currentAge,
-    pia: personA.person.piaMonthly,
-    claimingOptions: personA.claimingOptions,
-    optimalAge,
-    optimalFilingAge: personA.recommendedFilingAge,
-    optimalMonthly: personA.recommendedMonthly,
-    optimalLifetime: optimalOption.lifetimeBenefits,
-    expectedPresentValue: analysis.optimal.expectedNpv,
-    discountRate: analysis.assumptions.discountRate,
-    breakEvens,
-    recommendation: analysis.recommendation,
-    recommendationDetail: analysis.recommendationDetail,
-    ssaSuggestedLifeExpectancy: personA.ssaSuggestedLifeExpectancy,
-    spousal: buildLegacySpousal(analysis),
-  };
-}
-
-function buildLegacyInputs(form: AnalyzerFormState): UserInputs {
-  const hasSpouse = !!form.hasSpouse;
-  return {
-    birthYear: form.personA.birthYear as number,
-    birthMonth: form.personA.birthMonth as number,
-    monthlyBenefitAtFra: form.personA.monthlyBenefit as number,
-    lifeExpectancy: form.lifeExpectancy as number,
-    annualCola: form.annualCola,
-    gender: form.personA.gender as Gender,
-    hasSpouse,
-    discountRate: form.discountRate,
-    spouseBirthYear: hasSpouse ? (form.personB.birthYear as number) : undefined,
-    spouseBirthMonth: hasSpouse ? (form.personB.birthMonth as number) : undefined,
-    spouseMonthlyBenefitAtFra: hasSpouse ? (form.personB.monthlyBenefit as number) : undefined,
   };
 }
 
@@ -152,8 +103,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
 
   // The ssa.tools engine (benefits, optimal filing, expected PV) does not depend
   // on the chart-only COLA slider, so we intentionally exclude `annualCola` from
-  // the dependencies below. Break-even lines that DO use COLA are recomputed
-  // cheaply on the client via the `breakEvens` memo further down.
+  // the dependencies below. On-screen break-even lines that DO use COLA are
+  // recomputed cheaply from `analysis.people[0].claimingOptions` where they're
+  // needed (see `HouseholdPanel`); the PDF export instead uses the analysis's
+  // own baked-in `assumptions.annualCola`, since it's a point-in-time snapshot.
   useEffect(() => {
     if (!isFormComplete(form)) {
       setAnalysis(null);
@@ -187,32 +140,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personA, personB, hasSpouse, lifeExpectancy, discountRate]);
 
-  // Illustrative break-even ages depend on the flat COLA assumption; recompute
-  // them locally so the PDF export reflects the current COLA slider instantly
-  // without re-running the full mortality-weighted analysis. The on-screen
-  // household break-even (in `HouseholdPanel`) instead reads
-  // `analysis.people[0].breakEvens`, the engine's own COLA-at-analysis-time
-  // figures — see the report for why that's an intentional, documented
-  // difference from this PDF-only copy.
-  const breakEvens = useMemo(
-    () => (analysis ? computeBreakEvens(analysis.people[0].claimingOptions, annualCola) : []),
-    [analysis, annualCola],
-  );
   const ssaSuggested = suggestedLifeExpectancy(form);
 
-  // Both memos below feed only `handleExportPdf` — see `buildLegacyResult`'s
-  // doc comment.
-  const legacyResult = useMemo(
-    () => (analysis ? buildLegacyResult(analysis, breakEvens) : null),
-    [analysis, breakEvens],
-  );
-  const legacyInputs = useMemo(
-    () => (inputsComplete ? buildLegacyInputs(form) : null),
-    [inputsComplete, form],
-  );
-
-  // Feeds the "Spousal benefits" methodology copy below — anchored to A the
-  // same way the PDF's figure is (see `buildLegacySpousal`).
+  // Feeds the "Spousal benefits" methodology copy below — anchored to A (see
+  // `buildLegacySpousal`'s doc comment).
   const spousal = useMemo(() => (analysis ? buildLegacySpousal(analysis) : undefined), [analysis]);
 
   function handlePersonAChange(next: PersonFormFields) {
@@ -228,11 +159,11 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   }
 
   async function handleExportPdf() {
-    if (!legacyInputs || !legacyResult) return;
+    if (!analysis) return;
     setExportError(null);
     setExporting(true);
     try {
-      await downloadPdfReport(legacyInputs, legacyResult);
+      await downloadPdfReport(analysis);
     } catch {
       setExportError('PDF export failed. Please try again.');
     } finally {
