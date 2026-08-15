@@ -88,4 +88,31 @@ describe('HouseholdPanel', () => {
     // break-even age earlier — the two renders must differ.
     expect(highAges).not.toEqual(zeroAges);
   });
+
+  // The section is fed person A's claiming options and life expectancy but
+  // sits under a tab labelled "Household", and its cards speak in the second
+  // person ("you live past break-even"). Without attribution a reader takes
+  // it for a couple-level result, which it is not.
+  it('attributes the break-even section to the person it is actually computed for', () => {
+    const { getByTestId } = render(<HouseholdPanel analysis={buildAnalysis()} annualCola={0} />);
+    const attribution = getByTestId('break-even-attribution');
+    expect(attribution.textContent).toContain('Break-even for Dan');
+    expect(attribution.textContent).toContain('age 85');
+    expect(attribution.textContent).toContain('not modeled');
+  });
+
+  it('falls back to the You/Spouse label when person A is unnamed', () => {
+    const analysis = buildAnalysis();
+    const unnamed = {
+      ...analysis,
+      people: [
+        {
+          ...analysis.people[0],
+          person: { ...analysis.people[0].person, name: undefined },
+        },
+      ],
+    } as HouseholdAnalysis;
+    const { getByTestId } = render(<HouseholdPanel analysis={unnamed} annualCola={0} />);
+    expect(getByTestId('break-even-attribution').textContent).toContain('Break-even for You');
+  });
 });

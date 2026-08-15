@@ -1,5 +1,6 @@
 import type { HouseholdAnalysis } from '../lib/household';
 import { computeBreakEvens } from '../lib/benefitMath';
+import { personLabel } from '../lib/format';
 import { StrategyComparisonTable } from './StrategyComparisonTable';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
 import { BreakEvenSection } from './BreakEvenSection';
@@ -46,7 +47,11 @@ export function HouseholdPanel({ analysis, annualCola }: HouseholdPanelProps) {
 
       <CombinedIncomeChart timeline={analysis.combinedTimeline} people={people} />
 
-      <BreakEvenSection breakEvens={breakEvens} lifeExpectancy={personA.person.lifeExpectancy} />
+      <BreakEvenSection
+        breakEvens={breakEvens}
+        lifeExpectancy={personA.person.lifeExpectancy}
+        attributedTo={personLabel(personA.person.name, 0)}
+      />
     </div>
   );
 }
