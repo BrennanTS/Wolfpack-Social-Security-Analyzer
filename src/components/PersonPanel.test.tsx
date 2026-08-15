@@ -62,6 +62,29 @@ describe('PersonPanel', () => {
     expect(within(row).getByTestId('cell-percent')).toHaveTextContent('124%');
   });
 
+  // The Lifetime column is computed from `person.lifeExpectancy` (see
+  // `analyzePerson`), so the caption must cite that and not
+  // `ssaSuggestedLifeExpectancy`, which is only the slider's default. The
+  // fixture deliberately sets them apart (85 vs 82) — the state an adviser
+  // reaches the moment they move the life-expectancy slider.
+  it('captions the Lifetime column with the planning life expectancy, not SSA suggestion', () => {
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
+    const caption = screen.getByTestId('benefit-table-caption');
+    expect(caption).toHaveTextContent('lifetime total to age 85');
+    expect(caption).not.toHaveTextContent('age 82');
+  });
+
+  it('tracks the life expectancy when the adviser moves the slider', () => {
+    const moved = {
+      ...wholeYearAnalysis,
+      person: { ...wholeYearAnalysis.person, lifeExpectancy: 92 },
+    };
+    render(<PersonPanel analysis={moved} index={0} annualCola={2.5} />);
+    expect(screen.getByTestId('benefit-table-caption')).toHaveTextContent(
+      'lifetime total to age 92',
+    );
+  });
+
   it('marks ages the person has not reached as future', () => {
     render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
     expect(within(screen.getByTestId('claim-row-70')).getByText('Future')).toBeDefined();

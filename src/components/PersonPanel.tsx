@@ -15,8 +15,14 @@ interface PersonPanelProps {
 }
 
 export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
-  const { fra, claimingOptions, recommendedFilingAge, recommendedMonthly, ssaSuggestedLifeExpectancy } =
-    analysis;
+  const { fra, claimingOptions, recommendedFilingAge, recommendedMonthly } = analysis;
+  // The planning horizon the adviser actually set, not SSA's suggestion.
+  // `ssaSuggestedLifeExpectancy` is only ever the slider's *default*; the two
+  // diverge the moment the slider moves, and the Lifetime column below is
+  // computed from `person.lifeExpectancy` (see `analyzePerson`). The PDF has
+  // always cited `person.lifeExpectancy`, so citing the suggestion here made
+  // screen and print disagree about what the same numbers mean.
+  const { lifeExpectancy } = analysis.person;
   const age62 = claimingOptions.find((o) => o.age === 62)!;
   const age70 = claimingOptions.find((o) => o.age === 70)!;
   // The optimizer's recommended filing age is frequently a non-whole-year
@@ -81,8 +87,8 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
 
       <div className="table-section">
         <h3>Benefit by Claiming Age</h3>
-        <p className="table-desc">
-          Monthly benefit (ssa.tools) and lifetime total to age {ssaSuggestedLifeExpectancy} at 0% discount.
+        <p className="table-desc" data-testid="benefit-table-caption">
+          Monthly benefit (ssa.tools) and lifetime total to age {lifeExpectancy} at 0% discount.
           Charts may use {annualCola}% COLA for illustration.
         </p>
         <div className="table-wrap">
