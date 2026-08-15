@@ -867,10 +867,10 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
     ],
     [
       {
-        title: 'Spousal & Survivor',
+        title: 'Spousal Benefit',
         body: hasSpouse
-          ? `Spousal top-up at FRA: ${formatCurrencyPrecise(spousal?.spousalBenefitAtFra ?? 0)}/mo (ssa.tools). Survivor receives the worker's full monthly benefit.`
-          : 'Single claimant — spousal/survivor benefits not modeled.',
+          ? `Spousal top-up at FRA: ${formatCurrencyPrecise(spousal?.spousalBenefitAtFra ?? 0)}/mo (ssa.tools). Survivor benefits are not modeled in this version.`
+          : 'Single claimant — spousal benefits not modeled. Survivor benefits are not modeled in this version.',
       },
       {
         title: 'Break-Even',
@@ -1044,8 +1044,9 @@ export function PdfReportDocument({ inputs, result }: PdfReportDocumentProps) {
             Prepared by {BRAND_NAME} using the open-source ssa.tools engine for educational planning only. Not affiliated with
             the SSA. Benefit amounts reflect SSA cost-of-living adjustments;{' '}
             {hasSpouse
-              ? 'spousal and survivor benefits are modeled via the ssa.tools couple optimizer. '
-              : 'spousal and survivor benefits are not modeled for single claimants. '}
+              ? 'the spousal top-up is modeled via the ssa.tools couple optimizer. '
+              : 'spousal benefits are not modeled for single claimants. '}
+            Survivor benefits are not modeled in this version.{' '}
             Projections exclude taxation, earnings limits, and future rule changes. Data:{' '}
             {BLS_CPI_URL}. Verify at ssa.gov before claiming.
           </Text>

@@ -21,7 +21,7 @@ import { BenefitChart } from './BenefitChart';
 import { BreakEvenSection } from './BreakEvenSection';
 import { OptionalChartsPanel, type ChartKey } from './OptionalChartsPanel';
 import { PersonFields } from './PersonFields';
-import { ResultsPanel } from './ResultsPanel';
+import { PersonPanel } from './PersonPanel';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
 import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
@@ -31,7 +31,6 @@ const DEFAULT_CHART_VISIBILITY: Record<ChartKey, boolean> = {
   monthlyBar: false,
   lifetimeBar: false,
   colaProjection: false,
-  spousalSurvivor: false,
   lifetimeHeatmap: false,
   opportunityCost: false,
   monthlyRamp: false,
@@ -47,8 +46,8 @@ interface AnalyzerProps {
  * The spousal top-up A's spouse receives based on A's PIA — always computed
  * directly from person A and person B rather than reused from the
  * household's `spousalTopUp` (which accrues to whichever person has the
- * lower PIA). `ResultsPanel` frames this card as "your spouse's benefit," so
- * it must stay anchored to A regardless of who earns more.
+ * lower PIA). The PDF report frames this as "your spouse's benefit," so it
+ * must stay anchored to A regardless of who earns more.
  */
 function buildLegacySpousal(analysis: HouseholdAnalysis): SpousalAnalysis | undefined {
   if (analysis.status !== 'married') return undefined;
@@ -73,22 +72,17 @@ function buildLegacySpousal(analysis: HouseholdAnalysis): SpousalAnalysis | unde
       recipientB,
       b.recommendedFilingAge.monthDuration,
     ),
-    // A surviving spouse inherits A's own benefit, so the survivor amount at
-    // each claiming age is just A's benefit at that age.
-    survivorByClaimAge: a.claimingOptions.map((o) => ({
-      age: o.age,
-      survivorMonthly: o.monthlyBenefit,
-    })),
     spouseFilingAge: b.recommendedFilingAge,
   };
 }
 
 /**
  * Adapts a `HouseholdAnalysis` to the single-person `AnalysisResult` shape
- * the existing results components (`ResultsPanel`, `OptionalChartsPanel`,
- * the PDF report) still expect. This is deliberately a thin data adapter,
- * not new UI — Task 19 replaces these components with a household-aware
- * view built directly on `HouseholdAnalysis`.
+ * the remaining legacy results components (`BenefitChart`,
+ * `BreakEvenSection`, `OptionalChartsPanel`, the PDF report) still expect.
+ * This is deliberately a thin data adapter, not new UI — Task 19 replaces
+ * these components with a household-aware view built directly on
+ * `HouseholdAnalysis`.
  */
 function buildLegacyResult(analysis: HouseholdAnalysis, breakEvens: BreakEvenPair[]): AnalysisResult {
   const [personA] = analysis.people;
@@ -395,23 +389,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             </div>
           ) : (
             <>
-              <ResultsPanel
-                fra={legacyResult.fra}
-                currentAge={legacyResult.currentAge}
-                claimingOptions={legacyResult.claimingOptions}
-                optimalAge={legacyResult.optimalAge}
-                optimalFilingAge={legacyResult.optimalFilingAge}
-                optimalMonthly={legacyResult.optimalMonthly}
-                expectedPresentValue={legacyResult.expectedPresentValue}
-                discountRate={legacyResult.discountRate}
-                recommendation={legacyResult.recommendation}
-                recommendationDetail={legacyResult.recommendationDetail}
-                lifeExpectancy={lifeExpectancy!}
-                annualCola={annualCola}
-                gender={legacyInputs.gender}
-                hasSpouse={legacyInputs.hasSpouse}
-                spousal={legacyResult.spousal}
-              />
+              <PersonPanel analysis={analysis!.people[0]} index={0} annualCola={annualCola} />
 
               <div className="output-duo">
                 <BenefitChart
@@ -464,11 +442,11 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                     </p>
                   </div>
                   <div>
-                    <strong>Spousal & survivor benefits</strong>
+                    <strong>Spousal benefits</strong>
                     <p>
                       {legacyInputs.hasSpouse
-                        ? `Spouse may receive up to ${formatCurrency(legacyResult.spousal?.spousalBenefitAtFra ?? 0)}/mo at their FRA (50% of your PIA). Survivor receives your full monthly amount.`
-                        : 'Select Married to model spousal and survivor benefits.'}
+                        ? `Married households are optimized jointly by ssa.tools, including the spousal top-up (spouse may receive up to ${formatCurrency(legacyResult.spousal?.spousalBenefitAtFra ?? 0)}/mo at their FRA, 50% of your PIA). Survivor benefits are not modeled in this version.`
+                        : 'Select Married to model the spousal top-up. Survivor benefits are not modeled in this version.'}
                     </p>
                   </div>
                 </div>

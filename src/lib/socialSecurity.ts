@@ -102,7 +102,6 @@ export interface SpousalAnalysis {
    * engine; it can only be sanity-checked against it.
    */
   spousalTopUpAtFilingAge: number;
-  survivorByClaimAge: { age: number; survivorMonthly: number }[];
   spouseFilingAge?: FilingAgeDisplay;
 }
 
@@ -214,7 +213,6 @@ export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResul
     fra,
     lifeExpectancy,
     currentAge,
-    claimingOptions,
     hasSpouse,
     spouseFilingAge,
   });
@@ -228,12 +226,6 @@ export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResul
           spousalTopUpAtFilingAge: roundCents(
             spousalTopUp(recipient, spouse, spouseFilingAge.monthDuration),
           ),
-          // A surviving spouse inherits the deceased worker's own benefit, so the
-          // survivor amount at each claiming age is that age's worker benefit.
-          survivorByClaimAge: claimingOptions.map((o) => ({
-            age: o.age,
-            survivorMonthly: o.monthlyBenefit,
-          })),
           spouseFilingAge,
         }
       : undefined;
@@ -266,7 +258,6 @@ function buildRecommendation(ctx: {
   fra: FraResult;
   lifeExpectancy: number;
   currentAge: { years: number; months: number };
-  claimingOptions: ClaimingOption[];
   hasSpouse: boolean;
   spouseFilingAge?: FilingAgeDisplay;
 }): { recommendation: string; recommendationDetail: string } {
@@ -279,21 +270,14 @@ function buildRecommendation(ctx: {
     fra,
     lifeExpectancy,
     currentAge,
-    claimingOptions,
     hasSpouse,
     spouseFilingAge,
   } = ctx;
 
-  const age62 = claimingOptions.find((o) => o.age === 62)!;
-  const age70 = claimingOptions.find((o) => o.age === 70)!;
   const fraAge = fra.years + fra.months / 12;
   const discountPct = (discountRate * 100).toFixed(1);
 
-  const spouseNote = hasSpouse
-    ? spouseFilingAge
-      ? ` Spouse optimal filing: age ${spouseFilingAge.label}.`
-      : ` As a married claimant, delaying increases survivor benefits (up to ${formatCurrency(age70.monthlyBenefit)}/mo at 70 vs. ${formatCurrency(age62.monthlyBenefit)}/mo at 62).`
-    : '';
+  const spouseNote = hasSpouse && spouseFilingAge ? ` Spouse optimal filing: age ${spouseFilingAge.label}.` : '';
 
   const ageLabel = optimalFilingAge.label;
 
