@@ -1,94 +1,103 @@
-import type { AnalysisResult, Gender, UserInputs } from './socialSecurity';
-import { analyzeClaiming, getCurrentAge } from './socialSecurity';
-import { getSuggestedLifeExpectancy } from './lifeExpectancy';
 import { CPI_DEFAULT_COLA } from './cpiHistory';
+import { analyzeHousehold, type Household, type HouseholdAnalysis } from './household';
+import { getCurrentAge, type Gender, type Person } from './personAnalysis';
+import { getSuggestedLifeExpectancy } from './lifeExpectancy';
 import { DEFAULT_DISCOUNT_RATE } from './ssaTools';
 
-export type FormGender = Gender | null;
-export type FormMarital = boolean | null;
-
-export interface AnalyzerFormState {
+export interface PersonFormFields {
+  name: string;
   birthYear: number | '';
   birthMonth: number | '';
+  gender: Gender | null;
   monthlyBenefit: number | '';
+}
+
+export interface AnalyzerFormState {
+  personA: PersonFormFields;
+  personB: PersonFormFields;
+  hasSpouse: boolean | null;
   lifeExpectancy: number | null;
   annualCola: number;
   discountRate: number;
-  gender: FormGender;
-  hasSpouse: FormMarital;
-  spouseBirthYear: number | '';
-  spouseBirthMonth: number | '';
-  spouseMonthlyBenefit: number | '';
 }
 
-export const BLANK_FORM: AnalyzerFormState = {
+const BLANK_PERSON: PersonFormFields = {
+  name: '',
   birthYear: '',
   birthMonth: '',
+  gender: null,
   monthlyBenefit: '',
+};
+
+export const BLANK_FORM: AnalyzerFormState = {
+  personA: BLANK_PERSON,
+  personB: BLANK_PERSON,
+  hasSpouse: null,
   lifeExpectancy: null,
   annualCola: CPI_DEFAULT_COLA,
   discountRate: DEFAULT_DISCOUNT_RATE,
-  gender: null,
-  hasSpouse: null,
-  spouseBirthYear: '',
-  spouseBirthMonth: '',
-  spouseMonthlyBenefit: '',
 };
 
-export function isFormComplete(form: AnalyzerFormState): form is AnalyzerFormState & {
-  birthYear: number;
-  birthMonth: number;
-  monthlyBenefit: number;
-  lifeExpectancy: number;
-  gender: Gender;
-  hasSpouse: boolean;
-} {
-  return (
-    form.birthYear !== '' &&
-    form.birthMonth !== '' &&
-    form.monthlyBenefit !== '' &&
-    form.monthlyBenefit > 0 &&
-    form.lifeExpectancy !== null &&
-    form.gender !== null &&
-    form.hasSpouse !== null
-  );
+/**
+ * A person is complete when identity and benefit are all present.
+ * `requirePositiveBenefit` is false for a spouse, where $0 legitimately means
+ * "no work record of their own".
+ */
+function isPersonComplete(p: PersonFormFields, requirePositiveBenefit: boolean): boolean {
+  if (p.birthYear === '' || p.birthMonth === '' || p.gender === null) return false;
+  if (p.monthlyBenefit === '') return false;
+  return requirePositiveBenefit ? p.monthlyBenefit > 0 : p.monthlyBenefit >= 0;
 }
 
-export function toUserInputs(
-  form: AnalyzerFormState & {
-    birthYear: number;
-    birthMonth: number;
-    monthlyBenefit: number;
-    lifeExpectancy: number;
-    gender: Gender;
-    hasSpouse: boolean;
-  },
-): UserInputs {
+export function isFormComplete(form: AnalyzerFormState): boolean {
+  if (form.hasSpouse === null || form.lifeExpectancy === null) return false;
+  if (!isPersonComplete(form.personA, true)) return false;
+  // Married analyses require real spouse data — never defaulted from person A.
+  if (form.hasSpouse && !isPersonComplete(form.personB, false)) return false;
+  return true;
+}
+
+function toPerson(fields: PersonFormFields, id: 'a' | 'b', lifeExpectancy: number): Person {
   return {
-    birthYear: form.birthYear,
-    birthMonth: form.birthMonth,
-    monthlyBenefitAtFra: form.monthlyBenefit,
-    lifeExpectancy: form.lifeExpectancy,
-    annualCola: form.annualCola,
-    gender: form.gender,
-    hasSpouse: form.hasSpouse,
-    discountRate: form.discountRate,
-    spouseBirthYear: form.spouseBirthYear === '' ? form.birthYear : form.spouseBirthYear,
-    spouseBirthMonth: form.spouseBirthMonth === '' ? form.birthMonth : form.spouseBirthMonth,
-    spouseMonthlyBenefitAtFra:
-      form.spouseMonthlyBenefit === '' ? 0 : form.spouseMonthlyBenefit,
+    id,
+    name: fields.name.trim() || undefined,
+    birthYear: fields.birthYear as number,
+    birthMonth: fields.birthMonth as number,
+    gender: fields.gender as Gender,
+    piaMonthly: fields.monthlyBenefit as number,
+    lifeExpectancy,
   };
+}
+
+export function toHousehold(form: AnalyzerFormState): Household {
+  const le = form.lifeExpectancy as number;
+  const personA = toPerson(form.personA, 'a', le);
+
+  if (!form.hasSpouse) return { status: 'single', people: [personA] };
+
+  const spouseAge = getCurrentAge(
+    form.personB.birthYear as number,
+    form.personB.birthMonth as number,
+  ).years;
+  const spouseLe = getSuggestedLifeExpectancy(spouseAge, form.personB.gender as Gender);
+
+  return { status: 'married', people: [personA, toPerson(form.personB, 'b', spouseLe)] };
 }
 
 export async function analyzeIfComplete(
   form: AnalyzerFormState,
-): Promise<AnalysisResult | null> {
+  asOf?: Date,
+): Promise<HouseholdAnalysis | null> {
   if (!isFormComplete(form)) return null;
-  return analyzeClaiming(toUserInputs(form));
+  return analyzeHousehold(
+    toHousehold(form),
+    { annualCola: form.annualCola, discountRate: form.discountRate },
+    asOf,
+  );
 }
 
 export function suggestedLifeExpectancy(form: AnalyzerFormState): number | null {
-  if (form.birthYear === '' || form.birthMonth === '' || form.gender === null) return null;
-  const age = getCurrentAge(form.birthYear, form.birthMonth).years;
-  return getSuggestedLifeExpectancy(age, form.gender);
+  const { birthYear, birthMonth, gender } = form.personA;
+  if (birthYear === '' || birthMonth === '' || gender === null) return null;
+  return getSuggestedLifeExpectancy(getCurrentAge(birthYear, birthMonth).years, gender);
 }
