@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "conventions": "expected.monthly = floor(round_to_cent(PIA * factor)) with whole-dollar PIA, matching the vendored ssa.tools engine (benefitAtAge: PIA.floorToDollar() x factor, then floorToDollar). Values are generated independently from SSA's published rules (gen-fixtures.mjs), not copied from the engine. Early-claim factor: 1 - (min(36,m)*5/900 + max(0,m-36)*5/1200); delayed credits: 1 + m*(2/3 of 1%) per month to age 70. percentOfPia = round(benefit/PIA*1000)/10. Break-evens assume annualCola=0 and are the first 0.1-year grid point where the later strategy's cumulative total catches up. SPOUSAL (two fields, both the amount by which half the worker's PIA exceeds the spouse's own PIA, floored at $0): spousalBenefitAtFra = max(0, workerPIA/2 - spousePIA), evaluated at the spouse's own FRA where no early-filing reduction applies and delayed credits never apply to spousal benefits — independently derivable, and what gen-fixtures.mjs computes. spousalTopUpAtFilingAge = the same top-up reduced by SSA's early-filing schedule (25/36% per month for the first 36 months the spouse files before their own FRA, then 5/12% per month beyond that) at the mortality-weighted couple optimizer's actual chosen spouse filing age, which is frequently before FRA; this depends on the optimizer, so gen-fixtures.mjs cannot derive it and instead preserves the hand-derived value already on record for each scenario id (see each scenario's description for the derivation) rather than silently dropping or reverting it. MODE: 'full' runs the complete analyzeClaiming pipeline and the Playwright UI suite; only valid while the cohort (and spouse) are under 70 (the optimizer needs a prospective filing age). 'factorsOnly' validates the deterministic factor math (FRA, monthly, %PIA, break-evens) without the optimizer and never ages out.",
+  "conventions": "expected.monthly = floor(round_to_cent(PIA * factor)) with whole-dollar PIA, matching the vendored ssa.tools engine (benefitAtAge: PIA.floorToDollar() x factor, then floorToDollar). Values are generated independently from SSA's published rules (gen-fixtures.mjs), not copied from the engine. Early-claim factor: 1 - (min(36,m)*5/900 + max(0,m-36)*5/1200); delayed credits: 1 + m*(2/3 of 1%) per month to age 70. percentOfPia = round(benefit/PIA*1000)/10. Break-evens assume annualCola=0 and are the first 0.1-year grid point where the later strategy's cumulative total catches up. Each scenario pins `asOf` (the date the household is evaluated as-of) so 'full'-mode eligibility and the optimizer's chosen filing ages are deterministic rather than drifting with wall-clock time. SPOUSAL (two fields, both the amount by which half the higher earner's PIA exceeds the lower earner's own PIA, floored at $0): spousalTopUpAtFra = max(0, higherPIA/2 - lowerPIA), evaluated at the lower earner's own FRA where no early-filing reduction applies and delayed credits never apply to spousal benefits — independently derivable, and what gen-fixtures.mjs computes. spousalTopUpAtFilingAge = the same top-up reduced by SSA's early-filing schedule (25/36% per month for the first 36 months the lower earner files before their own FRA, then 5/12% per month beyond that) at the mortality-weighted couple optimizer's actual chosen filing age (given the scenario's pinned `asOf`), which is frequently before FRA; this depends on the optimizer, so gen-fixtures.mjs cannot derive it and instead preserves the hand-derived value already on record for each scenario id (see each scenario's description for the derivation) rather than silently dropping or reverting it. Only the person(s) covered by monthlyByClaimAgeByPerson/percentOfPiaByClaimAgeByPerson/breakEvensByPerson/optimalAgeRangeByPerson (currently always just the first person, historically called the 'worker') are asserted per-claim-age; an unasserted second person (e.g. a spouse with no earnings record) is not checked for monotonicity. MODE: 'full' runs the complete analyzeHousehold pipeline and the Playwright UI suite; only valid while every person in the household is under 70 as of `asOf` (the optimizer needs a prospective filing age for each). 'factorsOnly' validates the deterministic factor math (FRA, monthly, %PIA, break-evens) without the optimizer and never ages out.",
   "tolerances": {
     "monthlyUsd": 1,
     "percentOfPia": 0.1,
@@ -820,7 +820,7 @@
     },
     {
       "id": "married-1960-spouse-no-record",
-      "description": "Worker Jun 1960 male PIA $2,500; spouse Mar 1962 no record ($0). spousalBenefitAtFra: unreduced top-up = 2500/2 - 0 = $1,250, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the mortality-weighted couple optimizer files the spouse at 64y5m, 31 months before that FRA. Early-filing reduction (all 31 months within the first-36-month band): 31 * 25/36% = 21.5278%. Top-up = 1250 * (1 - 775/3600) = $980.90.",
+      "description": "Worker Jun 1960 male PIA $2,500; spouse Mar 1962 no record ($0). spousalTopUpAtFra: unreduced top-up = 2500/2 - 0 = $1,250, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15, the mortality-weighted couple optimizer files the spouse at 63y10m, 38 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 2 months at 5/12% = 25% + 2*5/12% = 25.8333%. Top-up = 1250 * (1 - 0.258333) = $927.08.",
       "mode": "full",
       "inputs": {
         "asOf": "2026-01-15",
@@ -898,7 +898,7 @@
           ]
         ],
         "spousalTopUpAtFra": 1250,
-        "spousalTopUpAtFilingAge": 980.9,
+        "spousalTopUpAtFilingAge": 927.08,
         "optimalAgeRangeByPerson": [
           [
             62,
@@ -917,7 +917,7 @@
     },
     {
       "id": "married-1960-partial-topup",
-      "description": "Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000. spousalBenefitAtFra: unreduced top-up = 2500/2 - 1000 = $250, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 65y3m, 21 months before that FRA. Early-filing reduction (21 months, first-36-month band): 21 * 25/36% = 14.5833%. Top-up = 250 * (1 - 525/3600) = $213.54.",
+      "description": "Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000. spousalTopUpAtFra: unreduced top-up = 2500/2 - 1000 = $250, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15, the couple optimizer files the spouse at 64y9m, 27 months before that FRA. Early-filing reduction (27 months, first-36-month band): 27 * 25/36% = 18.75%. Top-up = 250 * (1 - 0.1875) = $203.13.",
       "mode": "full",
       "inputs": {
         "asOf": "2026-01-15",
@@ -995,7 +995,7 @@
           ]
         ],
         "spousalTopUpAtFra": 250,
-        "spousalTopUpAtFilingAge": 213.54,
+        "spousalTopUpAtFilingAge": 203.13,
         "optimalAgeRangeByPerson": [
           [
             62,
@@ -1208,7 +1208,7 @@
     },
     {
       "id": "married-1965-younger-spouse-no-record",
-      "description": "Worker Mar 1965 M PIA $3,600; younger spouse Sep 1967 no record ($0). spousalBenefitAtFra: unreduced top-up = 3600/2 - 0 = $1,800, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 62y1m, 59 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 23 months at 5/12% = 25% + 23*5/12% = 34.5833%. Top-up = 1800 * (1 - 0.345833) = $1,177.50.",
+      "description": "Worker Mar 1965 M PIA $3,600; younger spouse Sep 1967 no record ($0). spousalTopUpAtFra: unreduced top-up = 3600/2 - 0 = $1,800, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 62y1m, 59 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 23 months at 5/12% = 25% + 23*5/12% = 34.5833%. Top-up = 1800 * (1 - 0.345833) = $1,177.50.",
       "mode": "full",
       "inputs": {
         "asOf": "2026-01-15",
@@ -1492,7 +1492,7 @@
     },
     {
       "id": "sample-hh3-married-1959-reduced-spousal",
-      "description": "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 (FRA 67y0m) below 50% of worker PIA - routed to spousal. spousalBenefitAtFra: unreduced top-up = 3600/2 - 700 = $1,100, evaluated at the spouse's own FRA. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 62y9m, 51 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 15 months at 5/12% = 25% + 15*5/12% = 31.25%. Top-up = 1100 * (1 - 0.3125) = $756.25.",
+      "description": "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 (FRA 67y0m) below 50% of worker PIA - routed to spousal. spousalTopUpAtFra: unreduced top-up = 3600/2 - 700 = $1,100, evaluated at the spouse's own FRA. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15, the couple optimizer files the spouse at 62y2m, 58 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 22 months at 5/12% = 25% + 22*5/12% = 34.1667%. Top-up = 1100 * (1 - 0.341667) = $724.17.",
       "mode": "full",
       "inputs": {
         "asOf": "2026-01-15",
@@ -1570,7 +1570,104 @@
           ]
         ],
         "spousalTopUpAtFra": 1100,
-        "spousalTopUpAtFilingAge": 756.25,
+        "spousalTopUpAtFilingAge": 724.17,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": true,
+        "assertSummaryCards": true
+      }
+    },
+    {
+      "id": "sample-hh4-married-1955-wide-age-gap",
+      "description": "Sample HH4: wide age gap, worker Mar 1955 M PIA $2,800 (FRA 66y2m); spouse Jun 1968 F own PIA $1,900, 13 years younger. asOf pinned to 2024-01-15 so the worker (68, turning 69 in Mar 2024) is still under 70 and eligible for the 'full'-mode optimizer - as of any 2026+ asOf the worker is 71+ and the optimizer has no prospective filing age left, which is why this case was previously marked 'Aged out' in validation/samples/README.md. spousalTopUpAtFra: unreduced top-up = max(0, 2800/2 - 1900) = max(0, -500) = $0 - the spouse's own PIA already exceeds half the worker's, so no top-up applies (independently derivable; no hand-derivation needed for spousalTopUpAtFilingAge either, since a non-positive at-FRA top-up is trivially $0 at any filing age).",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2024-01-15",
+        "status": "married",
+        "people": [
+          {
+            "birthYear": 1955,
+            "birthMonth": 3,
+            "gender": "male",
+            "piaMonthly": 2800,
+            "lifeExpectancy": 85
+          },
+          {
+            "birthYear": 1968,
+            "birthMonth": 6,
+            "gender": "female",
+            "piaMonthly": 1900,
+            "lifeExpectancy": 85
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 66,
+            "months": 2,
+            "label": "66 years, 2 months"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2076,
+            "63": 2216,
+            "64": 2395,
+            "65": 2582,
+            "66": 2768,
+            "67": 2986,
+            "68": 3210,
+            "69": 3434,
+            "70": 3658
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 74.1,
+            "63": 79.1,
+            "64": 85.5,
+            "65": 92.2,
+            "66": 98.9,
+            "67": 106.6,
+            "68": 114.6,
+            "69": 122.6,
+            "70": 130.6
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.5
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.5
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 83.4
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 0,
+        "spousalTopUpAtFilingAge": 0,
         "optimalAgeRangeByPerson": [
           [
             62,

@@ -24,9 +24,8 @@ interface OptionalChartsPanelProps {
 /**
  * Per-person optional chart gallery — takes plain `PersonAnalysis`-derived
  * values (`claimingOptions`, `optimalAge`, `lifeExpectancy`, `annualCola`)
- * rather than the legacy `AnalysisResult`/`UserInputs` shape, so it has no
- * dependency on `socialSecurity.ts`. Rendered once per person, inside
- * `PersonPanel`.
+ * rather than a household-level shape, so it has no dependency on
+ * `household.ts`. Rendered once per person, inside `PersonPanel`.
  */
 export function OptionalChartsPanel({
   claimingOptions,

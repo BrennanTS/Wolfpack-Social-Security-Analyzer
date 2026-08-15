@@ -23,12 +23,19 @@ export { expect };
  * load and the analysis runs reactively once the form is complete — there
  * is no Calculate button, so callers should await the results table after
  * this returns.
+ *
+ * NOTE: these selectors target the pre-household-refactor single-person
+ * form and are expected to be stale against the current two-person UI —
+ * fixing them is Task 23's job. This function only reshapes field access to
+ * the v2 people[]/status fixture schema so the file typechecks.
  */
 export async function fillScenarioForm(page: Page, inputs: ScenarioInputs) {
-  await page.locator('#birth-month').selectOption(String(inputs.birthMonth));
-  await page.locator('#birth').selectOption(String(inputs.birthYear));
+  const [person, spouse] = inputs.people;
 
-  const genderName = inputs.gender === 'male' ? 'Male' : 'Female';
+  await page.locator('#birth-month').selectOption(String(person.birthMonth));
+  await page.locator('#birth').selectOption(String(person.birthYear));
+
+  const genderName = person.gender === 'male' ? 'Male' : 'Female';
   await page
     .getByRole('group', { name: 'Gender' })
     .getByRole('button', { name: genderName, exact: true })
@@ -36,26 +43,20 @@ export async function fillScenarioForm(page: Page, inputs: ScenarioInputs) {
 
   const marital = page.getByRole('group', { name: 'Marital status' });
   await marital
-    .getByRole('button', { name: inputs.hasSpouse ? 'Married' : 'Single' })
+    .getByRole('button', { name: inputs.status === 'married' ? 'Married' : 'Single' })
     .click();
 
-  if (inputs.hasSpouse) {
-    if (inputs.spouseBirthMonth !== undefined) {
-      await page
-        .getByLabel('Spouse birth month')
-        .selectOption(String(inputs.spouseBirthMonth));
-    }
-    if (inputs.spouseBirthYear !== undefined) {
-      await page
-        .getByLabel('Spouse birth year')
-        .selectOption(String(inputs.spouseBirthYear));
-    }
+  if (inputs.status === 'married' && spouse) {
     await page
-      .locator('#spouse-benefit')
-      .fill(String(inputs.spouseMonthlyBenefitAtFra ?? 0));
+      .getByLabel('Spouse birth month')
+      .selectOption(String(spouse.birthMonth));
+    await page
+      .getByLabel('Spouse birth year')
+      .selectOption(String(spouse.birthYear));
+    await page.locator('#spouse-benefit').fill(String(spouse.piaMonthly));
   }
 
-  await page.locator('#benefit').fill(String(inputs.monthlyBenefitAtFra));
+  await page.locator('#benefit').fill(String(person.piaMonthly));
 }
 
 /** Format a whole-dollar amount the way the benefit table renders it ("$1,750.00"). */

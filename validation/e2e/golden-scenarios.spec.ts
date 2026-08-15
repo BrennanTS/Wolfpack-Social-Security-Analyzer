@@ -39,30 +39,33 @@ for (const scenario of uiScenarios) {
     await expect(page.getByTestId('analysis-loading')).toHaveCount(0);
     await expect(page.getByTestId('analysis-error')).toHaveCount(0);
 
-    for (const [age, monthly] of Object.entries(
-      scenario.expected.monthlyByClaimAge,
-    )) {
+    // Only person 0 (the legacy fixtures' "worker") has an asserted
+    // per-claim-age table; see scenarios.ts.
+    const monthlyByClaimAge = scenario.expected.monthlyByClaimAgeByPerson[0];
+    const percentOfPiaByClaimAge = scenario.expected.percentOfPiaByClaimAgeByPerson[0];
+
+    for (const [age, monthly] of Object.entries(monthlyByClaimAge)) {
       const row = page.getByTestId(`claim-row-${age}`);
       await expect(row.getByTestId('cell-monthly')).toHaveText(
         tableCurrency(monthly),
       );
-      const percent = scenario.expected.percentOfPiaByClaimAge[age];
+      const percent = percentOfPiaByClaimAge[age];
       await expect(row.getByTestId('cell-percent')).toHaveText(`${percent}%`);
     }
 
     if (scenario.e2e.assertSummaryCards) {
       await expect(page.getByTestId('summary-fra')).toHaveText(
-        scenario.expected.fra.label,
+        scenario.expected.fraByPerson[0].label,
       );
       await expect(page.getByTestId('summary-age62')).toHaveText(
-        cardCurrency(scenario.expected.monthlyByClaimAge['62']),
+        cardCurrency(monthlyByClaimAge['62']),
       );
       await expect(page.getByTestId('summary-age70')).toHaveText(
-        cardCurrency(scenario.expected.monthlyByClaimAge['70']),
+        cardCurrency(monthlyByClaimAge['70']),
       );
-      if (scenario.expected.spousalBenefitAtFra !== null) {
+      if (scenario.expected.spousalTopUpAtFra !== null) {
         await expect(page.getByTestId('summary-spousal')).toHaveText(
-          `${cardCurrency(scenario.expected.spousalBenefitAtFra)}/mo`,
+          `${cardCurrency(scenario.expected.spousalTopUpAtFra)}/mo`,
         );
       }
     }
