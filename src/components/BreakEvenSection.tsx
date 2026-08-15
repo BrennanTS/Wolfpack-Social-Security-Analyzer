@@ -1,4 +1,4 @@
-import type { BreakEvenPair } from '../lib/socialSecurity';
+import type { BreakEvenPair } from '../lib/benefitMath';
 
 interface BreakEvenSectionProps {
   breakEvens: BreakEvenPair[];

@@ -9,13 +9,10 @@ import {
   Path,
   Rect,
 } from '@react-pdf/renderer';
-import type { AnalysisResult, ClaimingOption, UserInputs } from '../lib/socialSecurity';
-import {
-  formatCurrency,
-  formatCurrencyPrecise,
-  fraLabel,
-  generateCumulativeChartData,
-} from '../lib/socialSecurity';
+import type { AnalysisResult, UserInputs } from '../lib/socialSecurity';
+import type { ClaimingOption } from '../lib/benefitMath';
+import { generateCumulativeChartData } from '../lib/benefitMath';
+import { formatCurrency, formatCurrencyPrecise, fraLabel } from '../lib/format';
 import {
   generateHeatmapData,
   generateOpportunityCostData,

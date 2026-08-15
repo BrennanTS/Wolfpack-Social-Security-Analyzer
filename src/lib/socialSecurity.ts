@@ -1,10 +1,10 @@
-import type { Gender } from './lifeExpectancy';
+import type { Recipient } from '$lib/recipient';
+import { MonthDuration } from '$lib/month-time';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
 import {
   computeOptimalFilingCouple,
   computeOptimalFilingSingle,
   createPiaRecipient,
-  fraFromBirthYear,
   isSsaClaimAgeEligible,
   lifetimeNpvToAge,
   nearestWholeClaimAge,
@@ -13,8 +13,6 @@ import {
   ssaMonthlyBenefitAtFilingAge,
   type FilingAgeDisplay,
 } from './ssaTools';
-import type { Recipient } from '$lib/recipient';
-import { MonthDuration } from '$lib/month-time';
 import { formatCurrency, fraLabel } from './format';
 import {
   computeBreakEvens,
@@ -24,8 +22,28 @@ import {
   type BreakEvenPair,
   type ClaimingOption,
 } from './benefitMath';
+import {
+  ageToMonths,
+  getCurrentAge,
+  getFullRetirementAge,
+  type FraResult,
+  type Gender,
+} from './personAnalysis';
 
-export type { Gender, FilingAgeDisplay };
+/**
+ * Deprecated compatibility module.
+ *
+ * Most of what used to live here now lives in format.ts, benefitMath.ts,
+ * personAnalysis.ts and household.ts — re-exported below so components that
+ * have not migrated yet keep compiling.
+ *
+ * `analyzeClaiming` and its `AnalysisResult` / `UserInputs` / `SpousalAnalysis`
+ * shape are NOT a re-export: they are the legacy single-person pipeline, still
+ * genuinely used by components that haven't migrated to `HouseholdAnalysis`
+ * (Task 19) and by the golden-fixture suite (Task 21). It cannot be reduced to
+ * a pure barrel until those callers move off it. Task 20 deletes this file
+ * once the last importer is gone.
+ */
 
 export { formatAgeDisplay, formatCurrency, formatCurrencyPrecise, fraLabel } from './format';
 
@@ -40,19 +58,15 @@ export {
   type ClaimingOption,
 } from './benefitMath';
 
-/**
- * SSA-aligned Social Security benefit and claiming analysis.
- *
- * All benefit amounts, the full-retirement-age calculation, spousal/survivor
- * rules, and the mortality-weighted optimal filing age come from the vendored
- * ssa.tools engine (see `ssaTools.ts`). This module orchestrates those calls,
- * builds the per-age comparison table, derives break-even ages, and writes the
- * plain-language recommendation shown in the UI.
- *
- * COLA note: the `annualCola` input drives ONLY the illustrative cumulative
- * charts and break-even lines. Every dollar figure sourced from ssa.tools
- * already reflects SSA's historical/scheduled cost-of-living adjustments.
- */
+export {
+  ageToMonths,
+  getCurrentAge,
+  getFullRetirementAge,
+  type FraResult,
+  type Gender,
+} from './personAnalysis';
+
+export type { FilingAgeDisplay };
 
 export interface UserInputs {
   birthYear: number;
@@ -67,13 +81,6 @@ export interface UserInputs {
   spouseBirthYear?: number;
   spouseBirthMonth?: number;
   spouseMonthlyBenefitAtFra?: number;
-}
-
-export interface FraResult {
-  years: number;
-  months: number;
-  totalMonths: number;
-  fraDate: Date;
 }
 
 export interface SpousalAnalysis {
@@ -115,36 +122,6 @@ export interface AnalysisResult {
   recommendationDetail: string;
   ssaSuggestedLifeExpectancy: number;
   spousal?: SpousalAnalysis;
-}
-
-export function getFullRetirementAge(birthYear: number): FraResult {
-  const fra = fraFromBirthYear(birthYear);
-  return {
-    years: fra.years,
-    months: fra.months,
-    totalMonths: fra.totalMonths,
-    fraDate: new Date(birthYear + fra.years, fra.months, 1),
-  };
-}
-
-export function getCurrentAge(
-  birthYear: number,
-  birthMonth: number,
-  asOf: Date = new Date(),
-): { years: number; months: number } {
-  let years = asOf.getFullYear() - birthYear;
-  let months = asOf.getMonth() + 1 - birthMonth;
-
-  if (months < 0) {
-    years -= 1;
-    months += 12;
-  }
-
-  return { years: Math.max(0, years), months: Math.max(0, months) };
-}
-
-export function ageToMonths(years: number, months = 0): number {
-  return years * 12 + months;
 }
 
 export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResult> {

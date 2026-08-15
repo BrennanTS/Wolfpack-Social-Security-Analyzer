@@ -4,7 +4,7 @@ import {
   formatPercent,
   getCpiLast30Years,
 } from '../lib/cpiHistory';
-import type { Gender } from '../lib/socialSecurity';
+import type { Gender } from '../lib/personAnalysis';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
 import { DEFAULT_DISCOUNT_RATE } from '../lib/ssaTools';
 

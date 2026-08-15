@@ -1,15 +1,7 @@
-import type {
-  ClaimingOption,
-  FraResult,
-  Gender,
-  SpousalAnalysis,
-  FilingAgeDisplay,
-} from '../lib/socialSecurity';
-import {
-  formatCurrency,
-  formatCurrencyPrecise,
-  fraLabel,
-} from '../lib/socialSecurity';
+import type { SpousalAnalysis, FilingAgeDisplay } from '../lib/socialSecurity';
+import type { ClaimingOption } from '../lib/benefitMath';
+import type { FraResult, Gender } from '../lib/personAnalysis';
+import { formatCurrency, formatCurrencyPrecise, fraLabel } from '../lib/format';
 import { formatPercent } from '../lib/cpiHistory';
 import { genderLabel } from '../lib/lifeExpectancy';
 

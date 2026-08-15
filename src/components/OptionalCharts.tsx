@@ -12,8 +12,8 @@ import {
   Line,
   CartesianGrid,
 } from 'recharts';
-import type { ClaimingOption } from '../lib/socialSecurity';
-import { formatCurrency } from '../lib/socialSecurity';
+import type { ClaimingOption } from '../lib/benefitMath';
+import { formatCurrency } from '../lib/format';
 import {
   generateHeatmapData,
   generateOpportunityCostData,

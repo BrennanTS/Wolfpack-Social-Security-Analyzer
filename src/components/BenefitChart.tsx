@@ -8,11 +8,9 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import type { ClaimingOption } from '../lib/socialSecurity';
-import {
-  generateCumulativeChartData,
-  formatCurrency,
-} from '../lib/socialSecurity';
+import type { ClaimingOption } from '../lib/benefitMath';
+import { generateCumulativeChartData } from '../lib/benefitMath';
+import { formatCurrency } from '../lib/format';
 import {
   CHART_AXIS_LINE,
   CHART_MUTED,

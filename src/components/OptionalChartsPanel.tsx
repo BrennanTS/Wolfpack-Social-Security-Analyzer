@@ -1,5 +1,5 @@
 import type { AnalysisResult, UserInputs } from '../lib/socialSecurity';
-import { formatCurrency } from '../lib/socialSecurity';
+import { formatCurrency } from '../lib/format';
 import {
   ColaProjectionChart,
   LifetimeBarChart,
