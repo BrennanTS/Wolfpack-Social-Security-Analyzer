@@ -1,9 +1,11 @@
-import { formatCurrency } from './format';
+import { formatCurrency, personLabel } from './format';
 import { analyzePerson, getFullRetirementAge, type Person, type PersonAnalysis } from './personAnalysis';
 import {
   createPiaRecipient,
   findStrategyByAges,
+  rankedCoupleStrategies,
   rankedSingleStrategies,
+  spousalTopUp,
   type FilingAgeDisplay,
   type RankedStrategy,
 } from './ssaTools';
@@ -129,7 +131,67 @@ export async function analyzeHousehold(
   asOf: Date = new Date(),
 ): Promise<HouseholdAnalysis> {
   if (household.status === 'married') {
-    throw new Error('Married households are implemented in Task 12');
+    const [personA, personB] = household.people;
+    const recipientA = createRecipientFor(personA);
+    const recipientB = createRecipientFor(personB);
+
+    const ranked = await rankedCoupleStrategies(
+      recipientA,
+      recipientB,
+      assumptions.discountRate,
+      asOf,
+    );
+    if (ranked.length === 0) {
+      throw new Error('No eligible couple filing strategies');
+    }
+
+    const { optimal, comparisons } = buildComparisons(
+      ranked,
+      ranked[0],
+      household.people,
+      'married',
+    );
+
+    const people = household.people.map((person, i) =>
+      analyzePerson(person, optimal.filingAges[i], assumptions.annualCola, asOf),
+    );
+
+    // The top-up accrues to the lower earner, claimed on the higher earner's
+    // record. On a PIA tie, personA is treated as the higher earner — the
+    // resulting top-up is 0 either way since half of equal PIAs cancels out.
+    const aIsHigher = personA.piaMonthly >= personB.piaMonthly;
+    const higher = aIsHigher ? recipientA : recipientB;
+    const lower = aIsHigher ? recipientB : recipientA;
+    const lowerIndex = aIsHigher ? 1 : 0;
+
+    const labelA = personLabel(personA.name, 0);
+    const labelB = personLabel(personB.name, 1);
+
+    return {
+      status: 'married',
+      people,
+      optimal,
+      comparisons,
+      combinedTimeline: [],
+      spousalTopUp: {
+        atFra: spousalTopUp(higher, lower, lower.normalRetirementAge()),
+        atRecommendedFilingAge: spousalTopUp(
+          higher,
+          lower,
+          optimal.filingAges[lowerIndex].monthDuration,
+        ),
+      },
+      recommendation:
+        `${labelA} files at ${optimal.filingAges[0].label} · ` +
+        `${labelB} files at ${optimal.filingAges[1].label}`,
+      recommendationDetail:
+        `The ssa.tools couple optimizer maximizes combined expected present value at ` +
+        `${formatCurrency(optimal.expectedNpv)} when ${labelA} files at age ` +
+        `${optimal.filingAges[0].label} and ${labelB} files at age ` +
+        `${optimal.filingAges[1].label}.`,
+      assumptions,
+      asOf,
+    };
   }
 
   const [person] = household.people;

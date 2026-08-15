@@ -92,3 +92,62 @@ describe('analyzeHousehold — single', () => {
     expect(latestRows).toHaveLength(0);
   });
 });
+
+const sarah: Person = {
+  id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+  gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
+};
+
+describe('analyzeHousehold — married', () => {
+  const household: Household = { status: 'married', people: [dan, sarah] };
+
+  it('analyzes both people and keeps input order', async () => {
+    const result = await analyzeHousehold(household, assumptions, asOf);
+    expect(result.people.map((p) => p.person.name)).toEqual(['Dan', 'Sarah']);
+  });
+
+  it('gives each comparison one filing age per person', async () => {
+    const { comparisons } = await analyzeHousehold(household, assumptions, asOf);
+    for (const c of comparisons) {
+      expect(c.filingAges).toHaveLength(2);
+    }
+  });
+
+  it('uses married labels', async () => {
+    const { comparisons } = await analyzeHousehold(household, assumptions, asOf);
+    expect(comparisons.map((c) => c.label)).toContain('Both delay to 70');
+  });
+
+  it('assigns each person the filing age from the joint optimum', async () => {
+    const result = await analyzeHousehold(household, assumptions, asOf);
+    expect(result.people[0].recommendedFilingAge).toEqual(result.optimal.filingAges[0]);
+    expect(result.people[1].recommendedFilingAge).toEqual(result.optimal.filingAges[1]);
+  });
+
+  it('reports a spousal top-up for a spouse with no record', async () => {
+    const noRecord: Person = { ...sarah, piaMonthly: 0 };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, noRecord] },
+      assumptions,
+      asOf,
+    );
+    expect(result.spousalTopUp!.atFra).toBeCloseTo(1200, 0); // half of Dan's 2400
+    expect(result.spousalTopUp!.atRecommendedFilingAge).toBeGreaterThanOrEqual(0);
+  });
+
+  it('reports no top-up when both have substantial records', async () => {
+    const result = await analyzeHousehold(household, assumptions, asOf);
+    expect(result.spousalTopUp!.atFra).toBe(0);
+  });
+
+  it('uses each person own gender for mortality, not an assumed opposite', async () => {
+    const bothMale: Household = {
+      status: 'married',
+      people: [dan, { ...sarah, gender: 'male' }],
+    };
+    const mixed = await analyzeHousehold(household, assumptions, asOf);
+    const same = await analyzeHousehold(bothMale, assumptions, asOf);
+    // Different mortality tables must produce a different joint expected NPV.
+    expect(same.optimal.expectedNpv).not.toBe(mixed.optimal.expectedNpv);
+  });
+});
