@@ -24,6 +24,26 @@ export function PageFooter({ text }: { text: string }) {
   );
 }
 
+/**
+ * Lightweight cover treatment for the first page only — document title,
+ * brand name, and report date, styled with the same theme tokens as the
+ * rest of the report. Every page's `PageFooter` already repeats brand +
+ * date, so this isn't duplicated on subsequent pages; it exists so a
+ * printed/downloaded report reads as a finished document rather than
+ * opening on a bare section heading.
+ */
+function ReportHeader({ dateLabel }: { dateLabel: string }) {
+  return (
+    <View style={styles.docHeader}>
+      <View>
+        <Text style={styles.docTitle}>Social Security Claiming Analysis</Text>
+        <Text style={styles.docBrand}>{BRAND_NAME}</Text>
+      </View>
+      <Text style={styles.docDate}>{dateLabel}</Text>
+    </View>
+  );
+}
+
 export function MethodPair({ left, right }: { left: MethodItem; right?: MethodItem }) {
   if (!left.title && !right?.title) return null;
   return (
@@ -151,13 +171,17 @@ function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis }) {
  * page first, then one page per person; for a single claimant, just their
  * page. The shared methodology/disclosures block attaches to whichever
  * section is last in that flow, so it appears exactly once regardless of
- * household shape. Page numbers use react-pdf's own `pageNumber`/`totalPages`
- * (see `PageFooter`) rather than a pre-computed count, so they stay correct
- * even if a section's content wraps onto more than one physical page.
+ * household shape; the cover `ReportHeader` attaches to whichever section is
+ * first, for the same reason. Page numbers use react-pdf's own
+ * `pageNumber`/`totalPages` (see `PageFooter`) rather than a pre-computed
+ * count, so they stay correct even if a section's content wraps onto more
+ * than one physical page.
  */
 export function ReportDocument({ analysis }: { analysis: HouseholdAnalysis }) {
-  const footerText = `${BRAND_NAME} · ${formatVersionLabel()} · Confidential · ${formatReportDate()}`;
+  const reportDate = formatReportDate();
+  const footerText = `${BRAND_NAME} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
   const appendix = <MethodologyAppendix analysis={analysis} />;
+  const leadingHeader = <ReportHeader dateLabel={reportDate} />;
   const isMarried = analysis.status === 'married';
 
   return (
@@ -167,7 +191,12 @@ export function ReportDocument({ analysis }: { analysis: HouseholdAnalysis }) {
       subject="Social Security Claiming Analysis"
     >
       {isMarried && (
-        <HouseholdSection analysis={analysis} footerText={footerText} appendix={appendix} />
+        <HouseholdSection
+          analysis={analysis}
+          footerText={footerText}
+          appendix={appendix}
+          leadingHeader={leadingHeader}
+        />
       )}
       {analysis.people.map((p, i) => (
         <PersonSection
@@ -177,6 +206,7 @@ export function ReportDocument({ analysis }: { analysis: HouseholdAnalysis }) {
           annualCola={analysis.assumptions.annualCola}
           footerText={footerText}
           appendix={isMarried ? undefined : appendix}
+          leadingHeader={!isMarried && i === 0 ? leadingHeader : undefined}
         />
       ))}
     </Document>

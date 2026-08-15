@@ -10,6 +10,7 @@ interface Props {
   analysis: HouseholdAnalysis;
   footerText: string;
   appendix?: ReactNode;
+  leadingHeader?: ReactNode;
 }
 
 /** Household strategy-comparison columns (must sum to CONTENT_W). */
@@ -135,12 +136,13 @@ function CombinedIncomeBars({
  * — the spousal top-up (clearly labeled, since `spousalTopUp` carries two
  * distinct figures), and the combined income timeline.
  */
-export function HouseholdSection({ analysis, footerText, appendix }: Props) {
+export function HouseholdSection({ analysis, footerText, appendix, leadingHeader }: Props) {
   const people = analysis.people.map((p) => p.person);
   const spousal = analysis.spousalTopUp;
 
   return (
     <Page size="LETTER" style={styles.page}>
+      {leadingHeader}
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Household</Text>
 
       <View style={styles.recBox}>

@@ -14,6 +14,7 @@ interface Props {
   annualCola: number;
   footerText: string;
   appendix?: ReactNode;
+  leadingHeader?: ReactNode;
 }
 
 function BenefitTable({
@@ -67,7 +68,7 @@ function BenefitTable({
  * of two per-person pages for a married household — so it stays
  * self-contained rather than assuming a household header already ran.
  */
-export function PersonSection({ analysis, index, annualCola, footerText, appendix }: Props) {
+export function PersonSection({ analysis, index, annualCola, footerText, appendix, leadingHeader }: Props) {
   const { person, fra, currentAge, claimingOptions, recommendedFilingAge, recommendedMonthly, ssaSuggestedLifeExpectancy } =
     analysis;
   const name = personLabel(person.name, index);
@@ -78,6 +79,7 @@ export function PersonSection({ analysis, index, annualCola, footerText, appendi
 
   return (
     <Page size="LETTER" style={styles.page}>
+      {leadingHeader}
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{name}</Text>
 
       <View style={styles.profileGrid}>
