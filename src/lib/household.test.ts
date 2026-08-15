@@ -133,6 +133,31 @@ describe('analyzeHousehold — married', () => {
     );
     expect(result.spousalTopUp!.atFra).toBeCloseTo(1200, 0); // half of Dan's 2400
     expect(result.spousalTopUp!.atRecommendedFilingAge).toBeGreaterThanOrEqual(0);
+    expect(result.spousalTopUp!.lowerEarnerLabel).toBe('Sarah');
+  });
+
+  it('names the lower earner even when person B out-earns person A', async () => {
+    const bigEarnerSpouse: Person = { ...sarah, piaMonthly: 4000 };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [{ ...dan, piaMonthly: 1000 }, bigEarnerSpouse] },
+      assumptions,
+      asOf,
+    );
+    // Half of Sarah's 4000 (2000) less Dan's own 1000.
+    expect(result.spousalTopUp!.atFra).toBeCloseTo(1000, 0);
+    expect(result.spousalTopUp!.lowerEarnerLabel).toBe('Dan');
+  });
+
+  it('falls back to You/Spouse when a person is unnamed', async () => {
+    const result = await analyzeHousehold(
+      {
+        status: 'married',
+        people: [{ ...dan, name: undefined }, { ...sarah, name: undefined, piaMonthly: 0 }],
+      },
+      assumptions,
+      asOf,
+    );
+    expect(result.spousalTopUp!.lowerEarnerLabel).toBe('Spouse');
   });
 
   it('reports no top-up when both have substantial records', async () => {

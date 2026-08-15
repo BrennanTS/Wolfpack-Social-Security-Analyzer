@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { genderLabel, getSuggestedLifeExpectancy } from '../lib/lifeExpectancy';
 import { getCurrentAge } from '../lib/personAnalysis';
 import type { HouseholdAnalysis } from '../lib/household';
-import { createPiaRecipient, spousalTopUp, type FilingAgeDisplay } from '../lib/ssaTools';
-import { formatCurrency } from '../lib/format';
 import { BRAND_NAME } from '../lib/brand';
 import {
   analyzeIfComplete,
@@ -21,54 +19,12 @@ import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
 import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
 import { AppVersion } from './AppVersion';
+import { spousalMethodologyCopy } from './methodologyCopy';
 
 interface AnalyzerProps {
   onLogout: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
-}
-
-interface SpousalDisplay {
-  spousalBenefitAtFra: number;
-  spousalTopUpAtFilingAge: number;
-  spouseFilingAge?: FilingAgeDisplay;
-}
-
-/**
- * The spousal top-up A's spouse receives based on A's PIA — always computed
- * directly from person A and person B rather than reused from the
- * household's `spousalTopUp` (which accrues to whichever person has the
- * lower PIA). The "How This Works" methodology copy frames this as "your
- * spouse's benefit," so it must stay anchored to A regardless of who earns
- * more. (The PDF report, migrated in Task 20, instead states the household's
- * own `spousalTopUp` — anchored to the lower earner and clearly labeled —
- * since it isn't written from A's point of view.)
- */
-function buildLegacySpousal(analysis: HouseholdAnalysis): SpousalDisplay | undefined {
-  if (analysis.status !== 'married') return undefined;
-  const [a, b] = analysis.people;
-  const recipientA = createPiaRecipient(
-    a.person.birthYear,
-    a.person.birthMonth,
-    a.person.piaMonthly,
-    a.person.gender,
-  );
-  const recipientB = createPiaRecipient(
-    b.person.birthYear,
-    b.person.birthMonth,
-    b.person.piaMonthly,
-    b.person.gender,
-  );
-
-  return {
-    spousalBenefitAtFra: spousalTopUp(recipientA, recipientB, recipientB.normalRetirementAge()),
-    spousalTopUpAtFilingAge: spousalTopUp(
-      recipientA,
-      recipientB,
-      b.recommendedFilingAge.monthDuration,
-    ),
-    spouseFilingAge: b.recommendedFilingAge,
-  };
 }
 
 export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps) {
@@ -141,10 +97,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   }, [personA, personB, hasSpouse, lifeExpectancy, discountRate]);
 
   const ssaSuggested = suggestedLifeExpectancy(form);
-
-  // Feeds the "Spousal benefits" methodology copy below — anchored to A (see
-  // `buildLegacySpousal`'s doc comment).
-  const spousal = useMemo(() => (analysis ? buildLegacySpousal(analysis) : undefined), [analysis]);
 
   function handlePersonAChange(next: PersonFormFields) {
     setPersonA(next);
@@ -356,11 +308,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                   </div>
                   <div>
                     <strong>Spousal benefits</strong>
-                    <p>
-                      {analysis.status === 'married'
-                        ? `Married households are optimized jointly by ssa.tools, including the spousal top-up (spouse may receive up to ${formatCurrency(spousal?.spousalBenefitAtFra ?? 0)}/mo at their FRA, 50% of your PIA). Survivor benefits are not modeled in this version.`
-                        : 'Select Married to model the spousal top-up. Survivor benefits are not modeled in this version.'}
-                    </p>
+                    <p data-testid="methodology-spousal">{spousalMethodologyCopy(analysis)}</p>
                   </div>
                 </div>
               </div>

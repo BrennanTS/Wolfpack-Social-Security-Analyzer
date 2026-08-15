@@ -42,7 +42,14 @@ export interface HouseholdAnalysis {
   optimal: HouseholdStrategy;
   comparisons: HouseholdStrategy[];
   combinedTimeline: CombinedTimelinePoint[];
-  spousalTopUp?: { atFra: number; atRecommendedFilingAge: number };
+  /**
+   * The top-up accruing to the *lower earner*, claimed on the higher earner's
+   * record. `lowerEarnerLabel` is carried alongside the amounts so display
+   * layers can attribute them without re-deriving who the lower earner is —
+   * re-deriving it in a component is exactly how the on-screen figure drifted
+   * to being person-A-anchored while the PDF stayed lower-earner-anchored.
+   */
+  spousalTopUp?: { atFra: number; atRecommendedFilingAge: number; lowerEarnerLabel: string };
   recommendation: string;
   recommendationDetail: string;
   assumptions: Assumptions;
@@ -210,6 +217,7 @@ export async function analyzeHousehold(
           lower,
           optimal.filingAges[lowerIndex].monthDuration,
         ),
+        lowerEarnerLabel: lowerIndex === 0 ? labelA : labelB,
       },
       recommendation:
         `${labelA} files at ${optimal.filingAges[0].label} · ` +
