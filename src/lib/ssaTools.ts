@@ -191,7 +191,13 @@ export async function rankedSingleStrategies(
   discountRate: number,
   asOf: Date = new Date(),
 ): Promise<RankedStrategy[]> {
-  const deathDist = await getDeathProbabilityDistribution(recipient);
+  // The survival curve must be conditioned on the same reference date the
+  // optimizer runs from. `getDeathProbabilityDistribution` defaults its
+  // `currentYear` to the wall clock, which would weight every NPV by a
+  // cohort's survival as of *today* while `monthDateFrom(asOf)` below runs the
+  // optimizer from `asOf` — silently making results depend on when they were
+  // computed rather than on `asOf`.
+  const deathDist = await getDeathProbabilityDistribution(recipient, asOf.getFullYear());
   return expectedNPVSingle(recipient, monthDateFrom(asOf), discountRate, deathDist).map((r) => ({
     filingAges: [formatFilingAge(r.filingAge)],
     expectedNpv: r.expectedNPVCents / 100,
@@ -210,9 +216,10 @@ export async function rankedCoupleStrategies(
   discountRate: number,
   asOf: Date = new Date(),
 ): Promise<RankedStrategy[]> {
+  // Conditioned on `asOf`, not the wall clock — see `rankedSingleStrategies`.
   const [distA, distB] = await Promise.all([
-    getDeathProbabilityDistribution(a),
-    getDeathProbabilityDistribution(b),
+    getDeathProbabilityDistribution(a, asOf.getFullYear()),
+    getDeathProbabilityDistribution(b, asOf.getFullYear()),
   ]);
   return expectedNPVCoupleOptimized([a, b], monthDateFrom(asOf), discountRate, [
     distA,

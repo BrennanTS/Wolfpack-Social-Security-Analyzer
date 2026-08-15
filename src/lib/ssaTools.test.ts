@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MonthDuration } from '$lib/month-time';
+import { getDeathProbabilityDistribution } from '$lib/life-tables';
 import {
   createPiaRecipient,
   findStrategyByAges,
@@ -15,6 +16,15 @@ import {
   spousalTopUp,
   ssaMonthlyBenefitAtAge,
 } from './ssaTools';
+
+// Spy on the vendored mortality entry point while still executing the real
+// life tables, so the determinism tests below can assert which reference year
+// the survival curve is conditioned on. Behaviour is unchanged for every other
+// test in this file — the spy just delegates.
+vi.mock('$lib/life-tables', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/life-tables')>();
+  return { ...actual, getDeathProbabilityDistribution: vi.fn(actual.getDeathProbabilityDistribution) };
+});
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
@@ -197,5 +207,51 @@ describe('ranked strategies', () => {
         { years: 61, months: 0 },
       ]),
     ).toBeNull();
+  });
+
+  // Regression: the mortality distribution used to be requested with no
+  // reference year, so `getDeathProbabilityDistribution` fell back to its
+  // `new Date().getFullYear()` default. Every expected NPV was then weighted
+  // by a survival curve conditioned on the wall clock while the optimizer ran
+  // from `asOf` — meaning results silently changed every 1 January and the
+  // one fixture pinned to a past year was never actually evaluated in it.
+  describe('asOf determinism', () => {
+    const distSpy = vi.mocked(getDeathProbabilityDistribution);
+
+    beforeEach(() => {
+      distSpy.mockClear();
+    });
+
+    it('conditions the single survival curve on asOf, not the wall clock', async () => {
+      const r = createPiaRecipient(1962, 6, 2500, 'female');
+      await rankedSingleStrategies(r, 0.025, new Date(2024, 0, 15));
+      expect(distSpy).toHaveBeenCalledWith(r, 2024);
+    });
+
+    it('conditions both couple survival curves on asOf', async () => {
+      const a = createPiaRecipient(1962, 6, 3200, 'male');
+      const b = createPiaRecipient(1964, 2, 2100, 'female');
+      await rankedCoupleStrategies(a, b, 0.025, new Date(2024, 0, 15));
+      expect(distSpy).toHaveBeenCalledWith(a, 2024);
+      expect(distSpy).toHaveBeenCalledWith(b, 2024);
+    });
+
+    it('produces identical rankings for a fixed asOf no matter what year it is run in', async () => {
+      const build = () => createPiaRecipient(1962, 6, 2500, 'female');
+      const pinned = new Date(2026, 0, 15);
+
+      const baseline = await rankedSingleStrategies(build(), 0.025, pinned);
+
+      // Fake only Date, so the async life-table fetch still resolves.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date(2031, 5, 1));
+        const later = await rankedSingleStrategies(build(), 0.025, pinned);
+        expect(later.map((s) => s.expectedNpv)).toEqual(baseline.map((s) => s.expectedNpv));
+        expect(later[0].filingAges[0].label).toBe(baseline[0].filingAges[0].label);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });
