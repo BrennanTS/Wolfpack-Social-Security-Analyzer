@@ -208,6 +208,19 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     if (scenario.expected.invariants.includes('expectedPvPositive')) {
       expect(result.optimal.expectedNpv).toBeGreaterThan(0);
     }
+
+    if (scenario.expected.invariants.includes('spousalTopUpReducedWhenClaimedEarly')) {
+      const lowerIndex =
+        result.people[0].person.piaMonthly >= result.people[1].person.piaMonthly ? 1 : 0;
+      const filedEarly =
+        result.people[lowerIndex].recommendedFilingAge.decimalYears <
+        result.people[lowerIndex].fra.years + result.people[lowerIndex].fra.months / 12;
+      if (filedEarly) {
+        expect(result.spousalTopUp!.atRecommendedFilingAge).toBeLessThan(
+          result.spousalTopUp!.atFra,
+        );
+      }
+    }
   });
 });
 
