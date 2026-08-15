@@ -89,4 +89,18 @@ describe('PersonPanel', () => {
     // 64y5m rounds to 64 — the nearest whole claiming age.
     expect(within(screen.getByTestId('claim-row-64')).getByText('Best')).toBeDefined();
   });
+
+  // Regression coverage for a real bug: after Task 19 first wired HouseholdView
+  // into Analyzer, BenefitChart and OptionalChartsPanel were dropped from every
+  // render path in the app (they only existed inside their own component
+  // tests). These two charts are per-person, so their home is here.
+  it('renders the always-visible cumulative benefit chart', () => {
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
+    expect(screen.getByText('Cumulative Lifetime Benefits')).toBeDefined();
+  });
+
+  it('renders the optional charts gallery', () => {
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
+    expect(screen.getByText('Optional Visualizations')).toBeDefined();
+  });
 });

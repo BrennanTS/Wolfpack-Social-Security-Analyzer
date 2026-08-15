@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { OptionalChartsPanel, type ChartKey } from './OptionalChartsPanel';
-import type { AnalysisResult, UserInputs } from '../lib/socialSecurity';
+import { DEFAULT_CHART_VISIBILITY } from '../lib/chartVisibility';
+import { OptionalChartsPanel } from './OptionalChartsPanel';
 
 /**
  * Regression guard for the deleted `spousalSurvivor` chart (it rendered the
@@ -28,33 +28,38 @@ const claimingOptions = [62, 67, 70].map((age) => ({
   monthsFromFra: 0,
 }));
 
-// OptionalChartsPanel only reads claimingOptions/optimalAge off `result` and
-// lifeExpectancy/annualCola off `inputs` — the rest of the legacy
-// AnalysisResult/UserInputs shape is unused here, so it's cast rather than
-// fully constructed (same pattern as PersonPanel.test.tsx).
-const result = { claimingOptions, optimalAge: 70 } as unknown as AnalysisResult;
-const inputs = { lifeExpectancy: 85, annualCola: 2.5, hasSpouse: true } as unknown as UserInputs;
-
-const visibility: Record<ChartKey, boolean> = {
-  monthlyBar: false,
-  lifetimeBar: false,
-  colaProjection: false,
-  lifetimeHeatmap: false,
-  opportunityCost: false,
-  monthlyRamp: false,
-};
+// As of the Task 19 fix round, OptionalChartsPanel takes plain
+// PersonAnalysis-derived values directly (no legacy AnalysisResult/UserInputs
+// wrapper) — see its own doc comment.
+const optimalAge = 70;
+const lifeExpectancy = 85;
+const annualCola = 2.5;
 
 describe('OptionalChartsPanel', () => {
   it('never offers a survivor chart, even for a married household', () => {
     render(
-      <OptionalChartsPanel result={result} inputs={inputs} visibility={visibility} onToggle={() => {}} />,
+      <OptionalChartsPanel
+        claimingOptions={claimingOptions}
+        optimalAge={optimalAge}
+        lifeExpectancy={lifeExpectancy}
+        annualCola={annualCola}
+        visibility={DEFAULT_CHART_VISIBILITY}
+        onToggle={() => {}}
+      />,
     );
     expect(screen.queryByText(/survivor/i)).toBeNull();
   });
 
   it('renders exactly the six non-survivor optional chart sections', () => {
     render(
-      <OptionalChartsPanel result={result} inputs={inputs} visibility={visibility} onToggle={() => {}} />,
+      <OptionalChartsPanel
+        claimingOptions={claimingOptions}
+        optimalAge={optimalAge}
+        lifeExpectancy={lifeExpectancy}
+        annualCola={annualCola}
+        visibility={DEFAULT_CHART_VISIBILITY}
+        onToggle={() => {}}
+      />,
     );
     // The intro "Optional Visualizations" h3 plus one h3 per ToggleChartSection.
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(7);

@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import type { PersonAnalysis } from '../lib/personAnalysis';
 import { formatCurrency, formatCurrencyPrecise, fraLabel, personLabel } from '../lib/format';
 import { nearestWholeClaimAge } from '../lib/ssaTools';
+import { DEFAULT_CHART_VISIBILITY, type ChartKey } from '../lib/chartVisibility';
+import { BenefitChart } from './BenefitChart';
+import { OptionalChartsPanel } from './OptionalChartsPanel';
 
 interface PersonPanelProps {
   analysis: PersonAnalysis;
@@ -19,6 +23,17 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
   // exactly one row is always marked, the same way the deleted ResultsPanel
   // did via `nearestWholeClaimAge`. A whole-year optimum rounds to itself.
   const recommendedAge = nearestWholeClaimAge(recommendedFilingAge.decimalYears);
+
+  // Chart visibility is per-person state, not lifted to Analyzer/HouseholdView:
+  // each person's charts are toggled independently, and since HouseholdView
+  // only ever mounts the active tab's panel, this naturally resets to the
+  // defaults when you navigate away from a person's tab and back (there's no
+  // hidden panel to preserve state in — see HouseholdView's doc comment on
+  // "only the active panel is rendered").
+  const [chartVisibility, setChartVisibility] = useState(DEFAULT_CHART_VISIBILITY);
+  function toggleChart(key: ChartKey) {
+    setChartVisibility((v) => ({ ...v, [key]: !v[key] }));
+  }
 
   return (
     <div className="results">
@@ -105,6 +120,22 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
           </table>
         </div>
       </div>
+
+      <BenefitChart
+        options={claimingOptions}
+        lifeExpectancy={analysis.person.lifeExpectancy}
+        optimalAge={recommendedAge}
+        annualCola={annualCola}
+      />
+
+      <OptionalChartsPanel
+        claimingOptions={claimingOptions}
+        optimalAge={recommendedAge}
+        lifeExpectancy={analysis.person.lifeExpectancy}
+        annualCola={annualCola}
+        visibility={chartVisibility}
+        onToggle={toggleChart}
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import type { AnalysisResult, UserInputs } from '../lib/socialSecurity';
+import type { ClaimingOption } from '../lib/benefitMath';
+import type { ChartKey } from '../lib/chartVisibility';
 import {
   ColaProjectionChart,
   LifetimeBarChart,
@@ -9,30 +10,33 @@ import {
 } from './OptionalCharts';
 import { ToggleChartSection } from './ToggleChartSection';
 
-export type ChartKey =
-  | 'monthlyBar'
-  | 'lifetimeBar'
-  | 'colaProjection'
-  | 'lifetimeHeatmap'
-  | 'opportunityCost'
-  | 'monthlyRamp';
+export type { ChartKey };
 
 interface OptionalChartsPanelProps {
-  result: AnalysisResult;
-  inputs: UserInputs;
+  claimingOptions: ClaimingOption[];
+  optimalAge: number;
+  lifeExpectancy: number;
+  annualCola: number;
   visibility: Record<ChartKey, boolean>;
   onToggle: (key: ChartKey) => void;
 }
 
+/**
+ * Per-person optional chart gallery — takes plain `PersonAnalysis`-derived
+ * values (`claimingOptions`, `optimalAge`, `lifeExpectancy`, `annualCola`)
+ * rather than the legacy `AnalysisResult`/`UserInputs` shape, so it has no
+ * dependency on `socialSecurity.ts`. Rendered once per person, inside
+ * `PersonPanel`.
+ */
 export function OptionalChartsPanel({
-  result,
-  inputs,
+  claimingOptions,
+  optimalAge,
+  lifeExpectancy,
+  annualCola,
   visibility,
   onToggle,
 }: OptionalChartsPanelProps) {
-  const { claimingOptions, optimalAge } = result;
   const optimal = claimingOptions.find((o) => o.age === optimalAge)!;
-  const { lifeExpectancy, annualCola } = inputs;
 
   return (
     <div className="optional-charts">

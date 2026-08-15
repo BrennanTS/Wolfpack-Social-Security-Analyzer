@@ -86,7 +86,7 @@ export function HouseholdView({ analysis, annualCola }: HouseholdViewProps) {
         className="household-tabpanel"
       >
         {active === 0 ? (
-          <HouseholdPanel analysis={analysis} />
+          <HouseholdPanel analysis={analysis} annualCola={annualCola} />
         ) : (
           <PersonPanel
             analysis={analysis.people[active - 1]}
