@@ -28,6 +28,7 @@ describe('claim age window', () => {
 describe('cumulativeBenefits', () => {
   it('sums flat payments with no COLA', () => {
     expect(cumulativeBenefits(1000, 62, 62)).toBe(0);
+    expect(cumulativeBenefits(1000, 62, 63)).toBe(12_000);
     expect(cumulativeBenefits(1000, 62, 64)).toBe(24_000);
   });
 
@@ -54,8 +55,10 @@ describe('breakEvenAge', () => {
 
 describe('computeBreakEvens', () => {
   it('produces an entry for each canonical pair', () => {
-    const pairs = computeBreakEvens(options, 0).map((r) => `${r.earlierAge}-${r.laterAge}`);
+    const results = computeBreakEvens(options, 0);
+    const pairs = results.map((r) => `${r.earlierAge}-${r.laterAge}`);
     expect(pairs).toEqual(['62-67', '62-70', '67-70']);
+    results.forEach((r) => expect(r.breakEvenAge).toBeGreaterThan(r.laterAge));
   });
 
   it('is pure, so it is safe to recompute whenever COLA changes', () => {
