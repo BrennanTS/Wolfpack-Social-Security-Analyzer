@@ -14,8 +14,11 @@ import {
   type FilingAgeDisplay,
 } from './ssaTools';
 import { MonthDuration } from '$lib/month-time';
+import { formatCurrency, fraLabel } from './format';
 
 export type { Gender, FilingAgeDisplay };
+
+export { formatAgeDisplay, formatCurrency, formatCurrencyPrecise, fraLabel } from './format';
 
 /**
  * SSA-aligned Social Security benefit and claiming analysis.
@@ -121,12 +124,6 @@ export function getCurrentAge(
   }
 
   return { years: Math.max(0, years), months: Math.max(0, months) };
-}
-
-/** Human-readable age for profile badges (e.g. "66 years, 3 months"). */
-export function formatAgeDisplay(age: { years: number; months: number }): string {
-  if (age.months === 0) return `${age.years} years old`;
-  return `${age.years} years, ${age.months} months`;
 }
 
 export function ageToMonths(years: number, months = 0): number {
@@ -424,29 +421,6 @@ function buildRecommendation(ctx: {
     recommendation: `Claim at age ${ageLabel}`,
     recommendationDetail: `ssa.tools recommends filing at age ${ageLabel} for the highest expected present value (${formatCurrency(expectedPresentValue)}) at a ${discountPct}% discount rate. Lifetime to age ${lifeExpectancy}: ${formatCurrency(optimalLifetime)}.${spouseNote}`,
   };
-}
-
-export function fraLabel(fra: FraResult): string {
-  if (fra.months === 0) return `${fra.years}`;
-  return `${fra.years} years, ${fra.months} months`;
-}
-
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-export function formatCurrencyPrecise(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
 }
 
 export function generateCumulativeChartData(
