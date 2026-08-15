@@ -125,6 +125,36 @@ function createRecipientFor(person: Person) {
   return createPiaRecipient(person.birthYear, person.birthMonth, person.piaMonthly, person.gender);
 }
 
+/**
+ * Household income per calendar year under the recommended strategy.
+ *
+ * A person contributes 12 monthly payments in every year after they have
+ * filed and are still within their planning horizon, so the series steps up
+ * as the second person files. Amounts are nominal at the recommended benefit;
+ * the COLA slider is illustrative and applied by the chart layer.
+ */
+function buildCombinedTimeline(people: PersonAnalysis[]): CombinedTimelinePoint[] {
+  const filingYear = (p: PersonAnalysis) => p.person.birthYear + p.recommendedFilingAge.years;
+  const finalYear = (p: PersonAnalysis) => p.person.birthYear + p.person.lifeExpectancy;
+
+  const start = Math.min(...people.map(filingYear));
+  const end = Math.max(...people.map(finalYear));
+
+  const points: CombinedTimelinePoint[] = [];
+  for (let year = start; year <= end; year++) {
+    const byPersonId: Record<string, number> = {};
+    let total = 0;
+    for (const p of people) {
+      const active = year >= filingYear(p) && year <= finalYear(p);
+      const amount = active ? Math.round(p.recommendedMonthly * 12 * 100) / 100 : 0;
+      byPersonId[p.person.id] = amount;
+      total += amount;
+    }
+    points.push({ year, byPersonId, total: Math.round(total * 100) / 100 });
+  }
+  return points;
+}
+
 export async function analyzeHousehold(
   household: Household,
   assumptions: Assumptions,
@@ -172,7 +202,7 @@ export async function analyzeHousehold(
       people,
       optimal,
       comparisons,
-      combinedTimeline: [],
+      combinedTimeline: buildCombinedTimeline(people),
       spousalTopUp: {
         atFra: spousalTopUp(higher, lower, lower.normalRetirementAge()),
         atRecommendedFilingAge: spousalTopUp(
@@ -218,7 +248,7 @@ export async function analyzeHousehold(
     people,
     optimal,
     comparisons,
-    combinedTimeline: [],
+    combinedTimeline: buildCombinedTimeline(people),
     recommendation: `Claim at age ${optimal.filingAges[0].label}`,
     recommendationDetail:
       `ssa.tools recommends filing at age ${optimal.filingAges[0].label} ` +

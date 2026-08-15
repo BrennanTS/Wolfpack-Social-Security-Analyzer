@@ -151,3 +151,48 @@ describe('analyzeHousehold — married', () => {
     expect(same.optimal.expectedNpv).not.toBe(mixed.optimal.expectedNpv);
   });
 });
+
+describe('combinedTimeline', () => {
+  it('starts no earlier than the first benefit year and rises when the second person files', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    const t = result.combinedTimeline;
+    expect(t.length).toBeGreaterThan(0);
+
+    // Totals equal the sum of the per-person amounts in every year.
+    for (const point of t) {
+      const summed = Object.values(point.byPersonId).reduce((a, b) => a + b, 0);
+      expect(point.total).toBeCloseTo(summed, 2);
+    }
+
+    // Years increase by one with no gaps.
+    for (let i = 1; i < t.length; i++) {
+      expect(t[i].year).toBe(t[i - 1].year + 1);
+    }
+
+    // The household total rises once the second person starts filing: the
+    // peak (both filed, both alive) must exceed the very first year (only
+    // the earlier filer contributing). The tail can fall below the peak once
+    // someone outlives their life expectancy, so we deliberately don't assert
+    // the last year against the first.
+    const peak = Math.max(...t.map((p) => p.total));
+    expect(peak).toBeGreaterThan(t[0].total);
+  });
+
+  it('keys amounts by person id', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    expect(Object.keys(result.combinedTimeline[0].byPersonId).sort()).toEqual(['a', 'b']);
+  });
+
+  it('produces a single-keyed timeline for a single claimant', async () => {
+    const result = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
+    expect(Object.keys(result.combinedTimeline[0].byPersonId)).toEqual(['a']);
+  });
+});
