@@ -1,5 +1,6 @@
 import type { PersonAnalysis } from '../lib/personAnalysis';
 import { formatCurrency, formatCurrencyPrecise, fraLabel, personLabel } from '../lib/format';
+import { nearestWholeClaimAge } from '../lib/ssaTools';
 
 interface PersonPanelProps {
   analysis: PersonAnalysis;
@@ -12,6 +13,12 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
     analysis;
   const age62 = claimingOptions.find((o) => o.age === 62)!;
   const age70 = claimingOptions.find((o) => o.age === 70)!;
+  // The optimizer's recommended filing age is frequently a non-whole-year
+  // month (e.g. 64y5m), which never exactly matches a row — every row's
+  // `age` is a whole year (62-70). Round to the nearest whole claiming age so
+  // exactly one row is always marked, the same way the deleted ResultsPanel
+  // did via `nearestWholeClaimAge`. A whole-year optimum rounds to itself.
+  const recommendedAge = nearestWholeClaimAge(recommendedFilingAge.decimalYears);
 
   return (
     <div className="results">
@@ -63,8 +70,7 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
             </thead>
             <tbody>
               {claimingOptions.map((opt) => {
-                const isRecommended =
-                  recommendedFilingAge.years === opt.age && recommendedFilingAge.months === 0;
+                const isRecommended = opt.age === recommendedAge;
                 return (
                   <tr
                     key={opt.age}

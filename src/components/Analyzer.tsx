@@ -325,7 +325,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 </button>
               </div>
               <span className="field-hint">
-                Married uses ssa.tools couple optimizer (spousal + survivor strategies)
+                Married uses ssa.tools couple optimizer (includes the spousal top-up)
               </span>
             </div>
 

@@ -5,47 +5,88 @@ import type { PersonAnalysis } from '../lib/personAnalysis';
 
 // Minimal hand-built analysis — components take data as props and never
 // call the engine, so no mocking or fixture loading is needed here.
-const analysis = {
-  person: { id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
-            gender: 'male', piaMonthly: 2400, lifeExpectancy: 85 },
-  fra: { years: 67, months: 0, totalMonths: 804, fraDate: new Date(2029, 0, 1) },
-  currentAge: { years: 63, months: 9 },
-  claimingOptions: [62, 67, 70].map((age) => ({
-    age,
-    monthlyBenefit: age === 62 ? 1680 : age === 67 ? 2400 : 2976,
-    percentOfPia: age === 62 ? 70 : age === 67 ? 100 : 124,
-    lifetimeBenefits: 100_000,
-    yearsOfPayments: 0,
-    isEligible: age <= 63,
-    monthsFromFra: 0,
-  })),
-  recommendedFilingAge: { years: 70, months: 0, label: '70', decimalYears: 70,
-                          monthDuration: null as never },
-  recommendedMonthly: 2976,
-  breakEvens: [],
-  ssaSuggestedLifeExpectancy: 82,
-} as unknown as PersonAnalysis;
+// `claimingOptions` covers every whole-year age 62-70 (not just a sparse
+// subset) so a rounded, non-whole-year `recommendedFilingAge` always has a
+// real row to land on, matching what `analyzePerson` actually produces.
+function buildAnalysis(recommendedFilingAge: PersonAnalysis['recommendedFilingAge']): PersonAnalysis {
+  return {
+    person: { id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+              gender: 'male', piaMonthly: 2400, lifeExpectancy: 85 },
+    fra: { years: 67, months: 0, totalMonths: 804, fraDate: new Date(2029, 0, 1) },
+    currentAge: { years: 63, months: 9 },
+    claimingOptions: [
+      { age: 62, monthlyBenefit: 1680, percentOfPia: 70 },
+      { age: 63, monthlyBenefit: 1800, percentOfPia: 75 },
+      { age: 64, monthlyBenefit: 1920, percentOfPia: 80 },
+      { age: 65, monthlyBenefit: 2080, percentOfPia: 86.7 },
+      { age: 66, monthlyBenefit: 2240, percentOfPia: 93.3 },
+      { age: 67, monthlyBenefit: 2400, percentOfPia: 100 },
+      { age: 68, monthlyBenefit: 2592, percentOfPia: 108 },
+      { age: 69, monthlyBenefit: 2784, percentOfPia: 116 },
+      { age: 70, monthlyBenefit: 2976, percentOfPia: 124 },
+    ].map(({ age, monthlyBenefit, percentOfPia }) => ({
+      age,
+      monthlyBenefit,
+      percentOfPia,
+      lifetimeBenefits: 100_000,
+      yearsOfPayments: 0,
+      isEligible: age <= 63,
+      monthsFromFra: 0,
+    })),
+    recommendedFilingAge,
+    recommendedMonthly: 2976,
+    breakEvens: [],
+    ssaSuggestedLifeExpectancy: 82,
+  } as unknown as PersonAnalysis;
+}
+
+const wholeYearAnalysis = buildAnalysis({
+  years: 70, months: 0, label: '70', decimalYears: 70,
+  monthDuration: null as never,
+});
+
+// Task 8's fixtures had the couple optimizer choosing spouse filing ages
+// like 64y5m — a non-whole-year age that never exactly equals a table row's
+// integer `age`. Regression coverage for the badge/`isRecommended` logic
+// dropping every row's highlight in that (common) case.
+const nonWholeYearAnalysis = buildAnalysis({
+  years: 64, months: 5, label: '64 years, 5 months', decimalYears: 64.42,
+  monthDuration: null as never,
+});
 
 describe('PersonPanel', () => {
   it('renders one table row per claiming age with monthly and %PIA', () => {
-    render(<PersonPanel analysis={analysis} index={0} annualCola={2.5} />);
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
     const row = screen.getByTestId('claim-row-70');
     expect(within(row).getByTestId('cell-monthly')).toHaveTextContent('$2,976.00');
     expect(within(row).getByTestId('cell-percent')).toHaveTextContent('124%');
   });
 
   it('marks ages the person has not reached as future', () => {
-    render(<PersonPanel analysis={analysis} index={0} annualCola={2.5} />);
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
     expect(within(screen.getByTestId('claim-row-70')).getByText('Future')).toBeDefined();
   });
 
   it('shows no survivor figure anywhere', () => {
-    render(<PersonPanel analysis={analysis} index={0} annualCola={2.5} />);
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
     expect(screen.queryByText(/survivor/i)).toBeNull();
   });
 
   it('uses the person name in the heading', () => {
-    render(<PersonPanel analysis={analysis} index={0} annualCola={2.5} />);
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
     expect(screen.getByRole('heading', { name: /Dan/ })).toBeDefined();
+  });
+
+  it('marks exactly one row Best for a whole-year recommended filing age', () => {
+    render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
+    expect(screen.getAllByText('Best')).toHaveLength(1);
+    expect(within(screen.getByTestId('claim-row-70')).getByText('Best')).toBeDefined();
+  });
+
+  it('marks exactly one row Best for a non-whole-year recommended filing age, rounded to the nearest claiming age', () => {
+    render(<PersonPanel analysis={nonWholeYearAnalysis} index={0} annualCola={2.5} />);
+    expect(screen.getAllByText('Best')).toHaveLength(1);
+    // 64y5m rounds to 64 — the nearest whole claiming age.
+    expect(within(screen.getByTestId('claim-row-64')).getByText('Best')).toBeDefined();
   });
 });
