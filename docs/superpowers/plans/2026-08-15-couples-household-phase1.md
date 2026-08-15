@@ -2375,7 +2375,13 @@ export function suggestedLifeExpectancy(form: AnalyzerFormState): number | null 
 - [ ] **Step 4: Run the tests**
 
 Run: `npm run test -- formState`
-Expected: PASS. `Analyzer.tsx` will not compile yet — that is Task 16.
+Expected: PASS.
+
+> **Tasks 14 and 16 execute as one unit.** `Analyzer.tsx` is the only importer of
+> `formState.ts`, so changing the state shape here breaks it immediately, and the
+> plan's "every task ends green" rule leaves no room for a red window. Rather than
+> shim a single caller, do Task 16's form UI in the same pass and commit them
+> together. `npm run build` must pass before the commit.
 
 - [ ] **Step 5: Commit**
 
