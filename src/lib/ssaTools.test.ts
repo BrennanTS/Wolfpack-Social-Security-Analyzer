@@ -182,12 +182,20 @@ describe('ranked strategies', () => {
     const b = createPiaRecipient(1964, 2, 2100, 'female');
     const ranked = await rankedCoupleStrategies(a, b, 0.025, asOf);
 
-    const both70 = findStrategyByAges(ranked, [70, 70]);
+    const both70 = findStrategyByAges(ranked, [
+      { years: 70, months: 0 },
+      { years: 70, months: 0 },
+    ]);
     expect(both70).not.toBeNull();
     expect(both70!.filingAges[0].years).toBe(70);
     expect(both70!.filingAges[1].years).toBe(70);
 
     // 61 is below the SSA filing window, so no strategy uses it.
-    expect(findStrategyByAges(ranked, [61, 61])).toBeNull();
+    expect(
+      findStrategyByAges(ranked, [
+        { years: 61, months: 0 },
+        { years: 61, months: 0 },
+      ]),
+    ).toBeNull();
   });
 });

@@ -223,16 +223,16 @@ export async function rankedCoupleStrategies(
   }));
 }
 
-/** Exact whole-year match on every person's filing age; null when unavailable. */
+/** Exact year-and-month match on every person's filing age; null when unavailable. */
 export function findStrategyByAges(
   ranked: RankedStrategy[],
-  ages: number[],
+  ages: { years: number; months: number }[],
 ): RankedStrategy | null {
   return (
     ranked.find(
       (s) =>
         s.filingAges.length === ages.length &&
-        s.filingAges.every((f, i) => f.years === ages[i] && f.months === 0),
+        s.filingAges.every((f, i) => f.years === ages[i].years && f.months === ages[i].months),
     ) ?? null
   );
 }

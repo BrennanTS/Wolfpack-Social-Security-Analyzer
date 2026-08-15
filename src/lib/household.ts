@@ -68,14 +68,22 @@ function buildComparisons(
   people: Person[],
   status: Household['status'],
 ): { optimal: HouseholdStrategy; comparisons: HouseholdStrategy[] } {
-  const namedAges: { key: StrategyKey; ages: number[] }[] = [
-    { key: 'earliest', ages: people.map(() => 62) },
-    { key: 'fra', ages: people.map((p) => getFullRetirementAge(p.birthYear).years) },
-    { key: 'latest', ages: people.map(() => 70) },
+  const namedAges: { key: StrategyKey; ages: { years: number; months: number }[] }[] = [
+    { key: 'earliest', ages: people.map(() => ({ years: 62, months: 0 })) },
+    {
+      key: 'fra',
+      ages: people.map((p) => {
+        const fra = getFullRetirementAge(p.birthYear);
+        return { years: fra.years, months: fra.months };
+      }),
+    },
+    { key: 'latest', ages: people.map(() => ({ years: 70, months: 0 })) },
   ];
 
-  const isOptimalAges = (ages: number[]) =>
-    optimalStrategy.filingAges.every((f, i) => f.years === ages[i] && f.months === 0);
+  const isOptimalAges = (ages: { years: number; months: number }[]) =>
+    optimalStrategy.filingAges.every(
+      (f, i) => f.years === ages[i].years && f.months === ages[i].months,
+    );
 
   const key = status === 'married' ? 'married' : 'single';
 

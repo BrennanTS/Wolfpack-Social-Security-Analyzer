@@ -66,4 +66,29 @@ describe('analyzeHousehold — single', () => {
     expect(result.asOf).toEqual(asOf);
     expect(result.assumptions).toEqual(assumptions);
   });
+
+  it('folds a named row into optimal instead of duplicating it when their ages collide', async () => {
+    // At a 0% discount rate, deferred credits dominate and the optimum for
+    // this fixture lands exactly on the `latest` (70) row. That row must be
+    // folded into `optimal`, not duplicated alongside it.
+    const { comparisons } = await analyzeHousehold(
+      household,
+      { annualCola: 2.5, discountRate: 0 },
+      asOf,
+    );
+
+    const seen = new Set<string>();
+    for (const c of comparisons) {
+      const ageKey = c.filingAges.map((f) => `${f.years}y${f.months}m`).join('|');
+      expect(seen.has(ageKey)).toBe(false);
+      seen.add(ageKey);
+    }
+
+    const optimalRows = comparisons.filter((c) => c.isOptimal);
+    expect(optimalRows).toHaveLength(1);
+    expect(optimalRows[0].key).toBe('optimal');
+
+    const latestRows = comparisons.filter((c) => c.key === 'latest');
+    expect(latestRows).toHaveLength(0);
+  });
 });
