@@ -19,6 +19,7 @@ const dan: Person = {
 };
 
 const asOf = new Date(2026, 0, 15);
+const at62 = formatFilingAge(MonthDuration.initFromYearsMonths({ years: 62, months: 0 }));
 const at70 = formatFilingAge(MonthDuration.initFromYearsMonths({ years: 70, months: 0 }));
 
 describe('getFullRetirementAge', () => {
@@ -37,6 +38,13 @@ describe('getCurrentAge', () => {
 
   it('never returns negatives for a future birth date', () => {
     expect(getCurrentAge(2030, 1, new Date(2026, 0, 1))).toEqual({ years: 0, months: 0 });
+  });
+
+  it('clamps on total months, not years and months independently, for a not-yet-born person', () => {
+    // Without clamping the wrap in one step, these would come back as a
+    // plausible-looking non-zero age instead of not-yet-born.
+    expect(getCurrentAge(2030, 6, new Date(2026, 0, 1))).toEqual({ years: 0, months: 0 });
+    expect(getCurrentAge(2026, 6, new Date(2026, 0, 1))).toEqual({ years: 0, months: 0 });
   });
 });
 
@@ -65,8 +73,15 @@ describe('analyzePerson', () => {
   });
 
   it('carries the supplied filing age through as the recommendation', () => {
-    const a = analyzePerson(dan, at70, 2.5, asOf);
-    expect(a.recommendedFilingAge.years).toBe(70);
-    expect(a.recommendedMonthly).toBeCloseTo(2976, 0); // 2400 * 1.24
+    // Two different inputs must produce two distinctly different outputs —
+    // otherwise this could pass by coincidentally recomputing an optimum
+    // that happens to match whatever age was passed in.
+    const early = analyzePerson(dan, at62, 2.5, asOf);
+    expect(early.recommendedFilingAge.years).toBe(62);
+    expect(early.recommendedMonthly).toBeCloseTo(1680, 0); // 2400 * 0.70
+
+    const late = analyzePerson(dan, at70, 2.5, asOf);
+    expect(late.recommendedFilingAge.years).toBe(70);
+    expect(late.recommendedMonthly).toBeCloseTo(2976, 0); // 2400 * 1.24
   });
 });

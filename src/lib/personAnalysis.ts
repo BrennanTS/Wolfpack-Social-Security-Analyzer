@@ -60,13 +60,14 @@ export function getCurrentAge(
   birthMonth: number,
   asOf: Date = new Date(),
 ): { years: number; months: number } {
-  let years = asOf.getFullYear() - birthYear;
-  let months = asOf.getMonth() + 1 - birthMonth;
-  if (months < 0) {
-    years -= 1;
-    months += 12;
-  }
-  return { years: Math.max(0, years), months: Math.max(0, months) };
+  // Total whole months from birth to `asOf`. Clamp the total, not the parts:
+  // clamping years and months independently lets a not-yet-born person come
+  // back as a plausible-looking non-zero age.
+  const totalMonths = Math.max(
+    0,
+    (asOf.getFullYear() - birthYear) * 12 + (asOf.getMonth() + 1 - birthMonth),
+  );
+  return { years: Math.floor(totalMonths / 12), months: totalMonths % 12 };
 }
 
 export function ageToMonths(years: number, months = 0): number {
