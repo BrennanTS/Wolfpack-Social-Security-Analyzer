@@ -116,11 +116,43 @@ export function isSsaClaimAgeEligible(
   return currentAge.greaterThanOrEqual(claimAgeMonths);
 }
 
-export function spousalBenefitAtFra(worker: Recipient, spousePia = 0): number {
-  const spouse = new Recipient();
-  spouse.birthdate = worker.birthdate;
-  spouse.setPia(Money.from(spousePia));
-  return baseSpousalBenefit(worker, spouse).value();
+/**
+ * The spousal top-up the dependent spouse actually receives if they start
+ * spousal benefits at `spouseFilingAge`: the amount by which half of the
+ * worker's PIA exceeds the spouse's own PIA, reduced if the spouse claims
+ * before their own full retirement age. Delayed retirement credits never
+ * apply to spousal benefits, so filing at or after FRA gives the full
+ * (unreduced) amount.
+ *
+ * Replaces the previous FRA-only helper, which fabricated the spouse from the
+ * worker's birthdate and therefore ignored both the spouse's real age and the
+ * reduction for claiming early.
+ *
+ * The vendored engine (src/vendor/ssa-tools/benefit-calculator.ts) has no
+ * age-based spousal export: `baseSpousalBenefit` returns only the unreduced
+ * amount, and `spousalBenefitOnDate` is date-based and requires filing dates
+ * for both members that this function's signature doesn't carry. So this
+ * composes `baseSpousalBenefit` with the SSA early-filing reduction schedule
+ * directly (same formula `spousalBenefitOnDate` uses internally).
+ */
+export function spousalTopUp(
+  worker: Recipient,
+  spouse: Recipient,
+  spouseFilingAge: MonthDuration,
+): number {
+  const base = baseSpousalBenefit(worker, spouse).value();
+  if (base <= 0) return 0;
+
+  const fra = spouse.normalRetirementAge();
+  const monthsEarly = fra.asMonths() - spouseFilingAge.asMonths();
+  if (monthsEarly <= 0) return base; // No delayed credits apply to spousal benefits.
+
+  // SSA spousal reduction: 25/36 of 1% per month for the first 36 months
+  // early, then 5/12 of 1% per month beyond that.
+  const first = Math.min(monthsEarly, 36);
+  const rest = Math.max(0, monthsEarly - 36);
+  const reduction = first * (25 / 36 / 100) + rest * (5 / 12 / 100);
+  return Math.round(base * (1 - reduction) * 100) / 100;
 }
 
 export function lifetimeNpvToAge(

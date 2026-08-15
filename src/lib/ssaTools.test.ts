@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { MonthDuration } from '$lib/month-time';
 import {
   createPiaRecipient,
   fraFromBirthYear,
   isSsaClaimAgeEligible,
   monthDateFrom,
   nearestWholeClaimAge,
-  spousalBenefitAtFra,
+  spousalTopUp,
   ssaMonthlyBenefitAtAge,
 } from './ssaTools';
 
@@ -58,15 +59,45 @@ describe('ssaMonthlyBenefitAtAge (reduction / delayed credits)', () => {
   });
 });
 
-describe('spousalBenefitAtFra', () => {
-  it('tops a no-earnings spouse up to 50% of the worker PIA', () => {
-    const worker = createPiaRecipient(1960, 6, 2500, 'male');
-    expect(spousalBenefitAtFra(worker, 0)).toBeCloseTo(1250, 0);
+describe('spousalTopUp', () => {
+  const worker = createPiaRecipient(1960, 6, 2500, 'male');
+  const fra = MonthDuration.initFromYearsMonths({ years: 67, months: 0 });
+
+  it('tops a no-record spouse up to half the worker PIA at their FRA', () => {
+    const spouse = createPiaRecipient(1962, 3, 0, 'female');
+    expect(spousalTopUp(worker, spouse, fra)).toBeCloseTo(1250, 0);
   });
 
-  it('returns no top-up when the spouse PIA already exceeds half the worker PIA', () => {
-    const worker = createPiaRecipient(1960, 6, 2500, 'male');
-    expect(spousalBenefitAtFra(worker, 2000)).toBe(0);
+  it('pays nothing when the spouse own PIA already exceeds half the worker PIA', () => {
+    const spouse = createPiaRecipient(1962, 3, 2000, 'female');
+    expect(spousalTopUp(worker, spouse, fra)).toBe(0);
+  });
+
+  it('reduces the top-up when the spouse claims before their FRA', () => {
+    const spouse = createPiaRecipient(1962, 3, 0, 'female');
+    const atFra = spousalTopUp(worker, spouse, fra);
+    const atSixtyTwo = spousalTopUp(
+      worker,
+      spouse,
+      MonthDuration.initFromYearsMonths({ years: 62, months: 0 }),
+    );
+    expect(atSixtyTwo).toBeGreaterThan(0);
+    expect(atSixtyTwo).toBeLessThan(atFra);
+  });
+
+  it('uses the spouse own birthdate, not the worker birthdate', () => {
+    // The worker's own FRA is 67 (born 1960). A spouse who shares that
+    // birthdate is a decoy: it can't distinguish "used the spouse's
+    // birthdate" from "used the worker's birthdate" (both give FRA 67). Only
+    // a spouse born before 1960 — with a genuinely different FRA (66) — can
+    // tell the two apart, since post-1960 birth years all plateau at FRA 67.
+    const sameAge = createPiaRecipient(1960, 6, 0, 'female');
+    const olderCohort = createPiaRecipient(1950, 6, 0, 'female');
+    const early = MonthDuration.initFromYearsMonths({ years: 62, months: 0 });
+    // Different FRA schedules produce different early-claim reductions.
+    expect(spousalTopUp(worker, sameAge, early)).not.toBe(
+      spousalTopUp(worker, olderCohort, early),
+    );
   });
 });
 

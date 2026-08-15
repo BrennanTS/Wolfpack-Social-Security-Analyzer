@@ -8,11 +8,12 @@ import {
   isSsaClaimAgeEligible,
   lifetimeNpvToAge,
   nearestWholeClaimAge,
-  spousalBenefitAtFra,
+  spousalTopUp,
   ssaMonthlyBenefitAtAge,
   ssaMonthlyBenefitAtFilingAge,
   type FilingAgeDisplay,
 } from './ssaTools';
+import type { Recipient } from '$lib/recipient';
 import { MonthDuration } from '$lib/month-time';
 import { formatCurrency, fraLabel } from './format';
 import {
@@ -152,10 +153,11 @@ export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResul
 
   let optimalFilingAge: FilingAgeDisplay;
   let expectedPresentValue: number;
+  let spouse: Recipient | undefined;
   let spouseFilingAge: FilingAgeDisplay | undefined;
 
   if (hasSpouse) {
-    const spouse = createPiaRecipient(
+    spouse = createPiaRecipient(
       spouseBirthYear ?? birthYear,
       spouseBirthMonth ?? birthMonth,
       spouseMonthlyBenefitAtFra,
@@ -223,18 +225,21 @@ export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResul
     spouseFilingAge,
   });
 
-  const spousal: SpousalAnalysis | undefined = hasSpouse
-    ? {
-        spousalBenefitAtFra: roundCents(spousalBenefitAtFra(recipient, spouseMonthlyBenefitAtFra)),
-        // A surviving spouse inherits the deceased worker's own benefit, so the
-        // survivor amount at each claiming age is that age's worker benefit.
-        survivorByClaimAge: claimingOptions.map((o) => ({
-          age: o.age,
-          survivorMonthly: o.monthlyBenefit,
-        })),
-        spouseFilingAge,
-      }
-    : undefined;
+  const spousal: SpousalAnalysis | undefined =
+    hasSpouse && spouse && spouseFilingAge
+      ? {
+          spousalBenefitAtFra: roundCents(
+            spousalTopUp(recipient, spouse, spouseFilingAge.monthDuration),
+          ),
+          // A surviving spouse inherits the deceased worker's own benefit, so the
+          // survivor amount at each claiming age is that age's worker benefit.
+          survivorByClaimAge: claimingOptions.map((o) => ({
+            age: o.age,
+            survivorMonthly: o.monthlyBenefit,
+          })),
+          spouseFilingAge,
+        }
+      : undefined;
 
   return {
     fra,
