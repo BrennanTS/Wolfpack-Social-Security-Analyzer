@@ -25,7 +25,7 @@ export default defineConfig({
   workers: 2,
   // Pre-commit must be deterministic, not retried green.
   retries: 0,
-  reporter: [['list']],
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL, trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
