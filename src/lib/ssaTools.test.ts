@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   createPiaRecipient,
   fraFromBirthYear,
+  isSsaClaimAgeEligible,
+  monthDateFrom,
   nearestWholeClaimAge,
   spousalBenefitAtFra,
   ssaMonthlyBenefitAtAge,
@@ -77,5 +79,22 @@ describe('nearestWholeClaimAge (clamps to the 62–70 filing window)', () => {
   it('clamps below 62 and above 70', () => {
     expect(nearestWholeClaimAge(59)).toBe(62);
     expect(nearestWholeClaimAge(73)).toBe(70);
+  });
+});
+
+describe('monthDateFrom', () => {
+  it('converts a JS date to the engine month grid', () => {
+    // MonthDate months are 0-indexed, matching Date.getMonth().
+    const md = monthDateFrom(new Date(2026, 7, 15)); // Aug 2026
+    expect(md.year()).toBe(2026);
+    expect(md.monthIndex()).toBe(7);
+  });
+});
+
+describe('isSsaClaimAgeEligible with an injected date', () => {
+  it('treats a claim age as reached only once the reference date passes it', () => {
+    const r = createPiaRecipient(1960, 6, 2500, 'female'); // born Jun 1960
+    expect(isSsaClaimAgeEligible(r, 65, new Date(2024, 5, 1))).toBe(false);
+    expect(isSsaClaimAgeEligible(r, 65, new Date(2026, 5, 1))).toBe(true);
   });
 });

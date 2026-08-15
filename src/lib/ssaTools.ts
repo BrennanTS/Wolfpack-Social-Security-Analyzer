@@ -21,6 +21,18 @@ export const DEFAULT_BIRTH_DAY = 15;
 /** ssa.tools default — 20-year TIPS yield proxy. */
 export const DEFAULT_DISCOUNT_RATE = 0.025;
 
+/**
+ * Converts a JS Date to the engine's month grid. Every "now" in this adapter
+ * routes through here so callers can pin a reference date, which is what makes
+ * fixtures deterministic and stops cohorts aging out of the optimizer.
+ */
+export function monthDateFrom(asOf: Date): MonthDate {
+  return MonthDate.initFromYearsMonths({
+    years: asOf.getFullYear(),
+    months: asOf.getMonth(),
+  });
+}
+
 export interface FilingAgeDisplay {
   years: number;
   months: number;
@@ -99,11 +111,7 @@ export function isSsaClaimAgeEligible(
   claimAgeYears: number,
   asOf: Date = new Date(),
 ): boolean {
-  const asOfMonth = MonthDate.initFromYearsMonths({
-    years: asOf.getFullYear(),
-    months: asOf.getMonth(),
-  });
-  const currentAge = recipient.birthdate.ageAtSsaDate(asOfMonth);
+  const currentAge = recipient.birthdate.ageAtSsaDate(monthDateFrom(asOf));
   const claimAgeMonths = MonthDuration.initFromYearsMonths({ years: claimAgeYears, months: 0 });
   return currentAge.greaterThanOrEqual(claimAgeMonths);
 }
@@ -120,6 +128,7 @@ export function lifetimeNpvToAge(
   filingAge: MonthDuration,
   lifeExpectancy: number,
   discountRate: number,
+  asOf: Date = new Date(),
 ): number {
   const finalDate = recipient.birthdate.dateAtLayAge(
     MonthDuration.initFromYearsMonths({ years: lifeExpectancy, months: 0 }),
@@ -127,7 +136,7 @@ export function lifetimeNpvToAge(
   const cents = strategySumCentsSingle(
     recipient,
     finalDate,
-    MonthDate.initFromNow(),
+    monthDateFrom(asOf),
     discountRate,
     filingAge,
   );
@@ -137,14 +146,10 @@ export function lifetimeNpvToAge(
 export async function computeOptimalFilingSingle(
   recipient: Recipient,
   discountRate: number,
+  asOf: Date = new Date(),
 ): Promise<{ filingAge: FilingAgeDisplay; expectedNpv: number }> {
   const deathDist = await getDeathProbabilityDistribution(recipient);
-  const results = expectedNPVSingle(
-    recipient,
-    MonthDate.initFromNow(),
-    discountRate,
-    deathDist,
-  );
+  const results = expectedNPVSingle(recipient, monthDateFrom(asOf), discountRate, deathDist);
   if (results.length === 0) {
     throw new Error('No eligible filing ages for this recipient');
   }
@@ -159,6 +164,7 @@ export async function computeOptimalFilingCouple(
   worker: Recipient,
   spouse: Recipient,
   discountRate: number,
+  asOf: Date = new Date(),
 ): Promise<{
   workerFilingAge: FilingAgeDisplay;
   spouseFilingAge: FilingAgeDisplay;
@@ -170,7 +176,7 @@ export async function computeOptimalFilingCouple(
   ]);
   const results = expectedNPVCoupleOptimized(
     [worker, spouse],
-    MonthDate.initFromNow(),
+    monthDateFrom(asOf),
     discountRate,
     [workerDist, spouseDist],
   );
