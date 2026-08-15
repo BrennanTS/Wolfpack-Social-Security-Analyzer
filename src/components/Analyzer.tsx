@@ -17,24 +17,12 @@ import {
 } from '../lib/formState';
 import { downloadPdfReport } from '../lib/printReport';
 import { AssumptionsPanel } from './AssumptionsPanel';
-import { BenefitChart } from './BenefitChart';
-import { BreakEvenSection } from './BreakEvenSection';
-import { OptionalChartsPanel, type ChartKey } from './OptionalChartsPanel';
+import { HouseholdView } from './HouseholdView';
 import { PersonFields } from './PersonFields';
-import { PersonPanel } from './PersonPanel';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
 import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
 import { AppVersion } from './AppVersion';
-
-const DEFAULT_CHART_VISIBILITY: Record<ChartKey, boolean> = {
-  monthlyBar: false,
-  lifetimeBar: false,
-  colaProjection: false,
-  lifetimeHeatmap: false,
-  opportunityCost: false,
-  monthlyRamp: false,
-};
 
 interface AnalyzerProps {
   onLogout: () => void;
@@ -46,8 +34,9 @@ interface AnalyzerProps {
  * The spousal top-up A's spouse receives based on A's PIA — always computed
  * directly from person A and person B rather than reused from the
  * household's `spousalTopUp` (which accrues to whichever person has the
- * lower PIA). The PDF report frames this as "your spouse's benefit," so it
- * must stay anchored to A regardless of who earns more.
+ * lower PIA). Both the "How This Works" methodology copy and the PDF report
+ * frame this as "your spouse's benefit," so it must stay anchored to A
+ * regardless of who earns more.
  */
 function buildLegacySpousal(analysis: HouseholdAnalysis): SpousalAnalysis | undefined {
   if (analysis.status !== 'married') return undefined;
@@ -77,12 +66,17 @@ function buildLegacySpousal(analysis: HouseholdAnalysis): SpousalAnalysis | unde
 }
 
 /**
- * Adapts a `HouseholdAnalysis` to the single-person `AnalysisResult` shape
- * the remaining legacy results components (`BenefitChart`,
- * `BreakEvenSection`, `OptionalChartsPanel`, the PDF report) still expect.
- * This is deliberately a thin data adapter, not new UI — Task 19 replaces
- * these components with a household-aware view built directly on
- * `HouseholdAnalysis`.
+ * Adapts a `HouseholdAnalysis` to the single-person `AnalysisResult` shape.
+ *
+ * As of Task 19, the on-screen results are built directly on
+ * `HouseholdAnalysis` via `HouseholdView` — this adapter's only remaining
+ * caller is `handleExportPdf` below, since `downloadPdfReport` /
+ * `PdfReportDocument` still take the legacy `AnalysisResult`/`UserInputs`
+ * pair from `socialSecurity.ts`. It stays a person-A-only adapter (not
+ * household-aware) because that's what the current PDF report renders.
+ * Task 20 splits the PDF report onto `HouseholdAnalysis` directly, at which
+ * point this function, `buildLegacyInputs`, `buildLegacySpousal`, and the
+ * `socialSecurity.ts` barrel they depend on can all be deleted.
  */
 function buildLegacyResult(analysis: HouseholdAnalysis, breakEvens: BreakEvenPair[]): AnalysisResult {
   const [personA] = analysis.people;
@@ -139,7 +133,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(true);
-  const [chartVisibility, setChartVisibility] = useState(DEFAULT_CHART_VISIBILITY);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -195,14 +188,20 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   }, [personA, personB, hasSpouse, lifeExpectancy, discountRate]);
 
   // Illustrative break-even ages depend on the flat COLA assumption; recompute
-  // them locally so moving the COLA slider updates instantly without re-running
-  // the full mortality-weighted analysis.
+  // them locally so the PDF export reflects the current COLA slider instantly
+  // without re-running the full mortality-weighted analysis. The on-screen
+  // household break-even (in `HouseholdPanel`) instead reads
+  // `analysis.people[0].breakEvens`, the engine's own COLA-at-analysis-time
+  // figures — see the report for why that's an intentional, documented
+  // difference from this PDF-only copy.
   const breakEvens = useMemo(
     () => (analysis ? computeBreakEvens(analysis.people[0].claimingOptions, annualCola) : []),
     [analysis, annualCola],
   );
   const ssaSuggested = suggestedLifeExpectancy(form);
 
+  // Both memos below feed only `handleExportPdf` — see `buildLegacyResult`'s
+  // doc comment.
   const legacyResult = useMemo(
     () => (analysis ? buildLegacyResult(analysis, breakEvens) : null),
     [analysis, breakEvens],
@@ -211,6 +210,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     () => (inputsComplete ? buildLegacyInputs(form) : null),
     [inputsComplete, form],
   );
+
+  // Feeds the "Spousal benefits" methodology copy below — anchored to A the
+  // same way the PDF's figure is (see `buildLegacySpousal`).
+  const spousal = useMemo(() => (analysis ? buildLegacySpousal(analysis) : undefined), [analysis]);
 
   function handlePersonAChange(next: PersonFormFields) {
     setPersonA(next);
@@ -222,10 +225,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
 
   function handleMaritalChange(married: boolean) {
     setHasSpouse(married);
-  }
-
-  function toggleChart(key: ChartKey) {
-    setChartVisibility((v) => ({ ...v, [key]: !v[key] }));
   }
 
   async function handleExportPdf() {
@@ -376,7 +375,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               <h3>Analysis unavailable</h3>
               <p>{analysisError}</p>
             </div>
-          ) : !legacyResult || !legacyInputs ? (
+          ) : !analysis ? (
             <div className="empty-state">
               <div className="empty-state-icon" aria-hidden="true">
                 <span />
@@ -389,25 +388,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             </div>
           ) : (
             <>
-              <PersonPanel analysis={analysis!.people[0]} index={0} annualCola={annualCola} />
-
-              <div className="output-duo">
-                <BenefitChart
-                  options={legacyResult.claimingOptions}
-                  lifeExpectancy={lifeExpectancy!}
-                  optimalAge={legacyResult.optimalAge}
-                  annualCola={annualCola}
-                />
-
-                <BreakEvenSection breakEvens={breakEvens} lifeExpectancy={lifeExpectancy!} />
-              </div>
-
-              <OptionalChartsPanel
-                result={legacyResult}
-                inputs={legacyInputs}
-                visibility={chartVisibility}
-                onToggle={toggleChart}
-              />
+              <HouseholdView analysis={analysis} annualCola={annualCola} />
 
               <div className="methodology">
                 <h3>How This Works</h3>
@@ -437,15 +418,16 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                     <strong>Life expectancy by gender</strong>
                     <p>
                       SSA 2021 period life table suggests planning to age{' '}
-                      {legacyResult.ssaSuggestedLifeExpectancy} for a{' '}
-                      {genderLabel(legacyInputs.gender).toLowerCase()} at age {legacyResult.currentAge.years}. Adjust under Planning assumptions.
+                      {analysis.people[0].ssaSuggestedLifeExpectancy} for a{' '}
+                      {genderLabel(analysis.people[0].person.gender).toLowerCase()} at age{' '}
+                      {analysis.people[0].currentAge.years}. Adjust under Planning assumptions.
                     </p>
                   </div>
                   <div>
                     <strong>Spousal benefits</strong>
                     <p>
-                      {legacyInputs.hasSpouse
-                        ? `Married households are optimized jointly by ssa.tools, including the spousal top-up (spouse may receive up to ${formatCurrency(legacyResult.spousal?.spousalBenefitAtFra ?? 0)}/mo at their FRA, 50% of your PIA). Survivor benefits are not modeled in this version.`
+                      {analysis.status === 'married'
+                        ? `Married households are optimized jointly by ssa.tools, including the spousal top-up (spouse may receive up to ${formatCurrency(spousal?.spousalBenefitAtFra ?? 0)}/mo at their FRA, 50% of your PIA). Survivor benefits are not modeled in this version.`
                         : 'Select Married to model the spousal top-up. Survivor benefits are not modeled in this version.'}
                     </p>
                   </div>
