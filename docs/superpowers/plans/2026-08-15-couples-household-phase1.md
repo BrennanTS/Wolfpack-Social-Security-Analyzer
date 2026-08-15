@@ -3132,7 +3132,15 @@ export interface ScenarioExpected {
   monthlyByClaimAgeByPerson: Record<string, number>[];
   percentOfPiaByClaimAgeByPerson: Record<string, number>[];
   breakEvensByPerson: ExpectedBreakEven[][];
+  /** Unreduced: max(0, higherPIA/2 − lowerPIA). Independently derivable. */
   spousalTopUpAtFra: number | null;
+  /**
+   * The top-up at the filing age the optimizer actually chose, which is usually
+   * before FRA and therefore reduced. NOT independently derivable — it depends
+   * on the optimizer — so `gen-fixtures.mjs` preserves it by scenario id and
+   * throws rather than fabricating one for a new positive-top-up scenario.
+   */
+  spousalTopUpAtFilingAge: number | null;
   optimalAgeRangeByPerson: [number, number][];
   invariants: string[];
 }
