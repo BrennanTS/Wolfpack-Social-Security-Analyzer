@@ -156,14 +156,15 @@ describe('analyzeClaiming (full ssa.tools pipeline)', () => {
     });
 
     expect(result.spousal).toBeDefined();
+    // Unreduced top-up at the spouse's own FRA: 2500/2 - 0 = $1,250.
+    expect(result.spousal!.spousalBenefitAtFra).toBeCloseTo(1250, 0);
     // The mortality-weighted couple optimizer files this spouse (born Mar
     // 1962, FRA 67y0m, $0 own PIA) at 64y5m — 31 months before their own
-    // FRA — not at FRA. Unreduced top-up = 2500/2 - 0 = $1,250, reduced by
-    // 31 * 25/36% = 21.5278% for the early spousal claim: 1250 * (1 -
-    // 775/3600) = $980.90. See the matching golden fixture
-    // "married-1960-spouse-no-record" in validation/fixtures/scenarios.json
-    // for the full derivation.
-    expect(result.spousal!.spousalBenefitAtFra).toBeCloseTo(980.9, 1);
+    // FRA, not at FRA. Reduced by 31 * 25/36% = 21.5278% for the early
+    // spousal claim: 1250 * (1 - 775/3600) = $980.90. See the matching
+    // golden fixture "married-1960-spouse-no-record" in
+    // validation/fixtures/scenarios.json for the full derivation.
+    expect(result.spousal!.spousalTopUpAtFilingAge).toBeCloseTo(980.9, 1);
     expect(result.spousal!.spouseFilingAge).toBeDefined();
   });
 });

@@ -77,7 +77,24 @@ export interface FraResult {
 }
 
 export interface SpousalAnalysis {
+  /**
+   * The unreduced spousal top-up: half the worker's PIA minus the spouse's
+   * own PIA, evaluated at the spouse's own full retirement age. No early
+   * reduction applies at FRA and delayed retirement credits never apply to
+   * spousal benefits, so this is exactly `max(0, workerPIA/2 - spousePIA)` —
+   * independently derivable without the engine.
+   */
   spousalBenefitAtFra: number;
+  /**
+   * The top-up the spouse actually receives given the mortality-weighted
+   * couple optimizer's chosen spouse filing age, which is frequently before
+   * the spouse's own FRA. Reduced by the SSA early-filing schedule (25/36%
+   * per month for the first 36 months early, then 5/12% per month beyond
+   * that) relative to `spousalBenefitAtFra`. Depends on the optimizer, so —
+   * unlike `spousalBenefitAtFra` — it cannot be derived independently of the
+   * engine; it can only be sanity-checked against it.
+   */
+  spousalTopUpAtFilingAge: number;
   survivorByClaimAge: { age: number; survivorMonthly: number }[];
   spouseFilingAge?: FilingAgeDisplay;
 }
@@ -229,6 +246,9 @@ export async function analyzeClaiming(inputs: UserInputs): Promise<AnalysisResul
     hasSpouse && spouse && spouseFilingAge
       ? {
           spousalBenefitAtFra: roundCents(
+            spousalTopUp(recipient, spouse, spouse.normalRetirementAge()),
+          ),
+          spousalTopUpAtFilingAge: roundCents(
             spousalTopUp(recipient, spouse, spouseFilingAge.monthDuration),
           ),
           // A surviving spouse inherits the deceased worker's own benefit, so the

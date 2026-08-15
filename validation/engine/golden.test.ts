@@ -141,6 +141,21 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     }
   });
 
+  it("matches the expected spousal top-up at the optimizer's chosen filing age", async () => {
+    const result = await run();
+    if (scenario.expected.spousalTopUpAtFilingAge === null) {
+      expect(result.spousal?.spousalTopUpAtFilingAge ?? null).toBeNull();
+    } else {
+      expect(result.spousal).toBeDefined();
+      expect(
+        Math.abs(
+          result.spousal!.spousalTopUpAtFilingAge -
+            scenario.expected.spousalTopUpAtFilingAge,
+        ),
+      ).toBeLessThanOrEqual(tolerances.monthlyUsd);
+    }
+  });
+
   it('satisfies structural invariants', async () => {
     const result = await run();
 

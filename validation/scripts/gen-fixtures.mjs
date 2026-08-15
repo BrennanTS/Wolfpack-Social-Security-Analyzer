@@ -3,10 +3,33 @@
  * implementation of SSA's published reduction/credit rules (NOT engine
  * output). The golden test then confirms the vendored ssa.tools engine agrees.
  */
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const CONVENTIONS =
-  "expected.monthly = floor(round_to_cent(PIA * factor)) with whole-dollar PIA, matching the vendored ssa.tools engine (benefitAtAge: PIA.floorToDollar() x factor, then floorToDollar). Values are generated independently from SSA's published rules (gen-fixtures.mjs), not copied from the engine. Early-claim factor: 1 - (min(36,m)*5/900 + max(0,m-36)*5/1200); delayed credits: 1 + m*(2/3 of 1%) per month to age 70. percentOfPia = round(benefit/PIA*1000)/10. Break-evens assume annualCola=0 and are the first 0.1-year grid point where the later strategy's cumulative total catches up. spousalBenefitAtFra = max(0, workerPIA/2 - spousePIA) (the top-up the spouse receives on the worker's record). MODE: 'full' runs the complete analyzeClaiming pipeline and the Playwright UI suite; only valid while the cohort (and spouse) are under 70 (the optimizer needs a prospective filing age). 'factorsOnly' validates the deterministic factor math (FRA, monthly, %PIA, break-evens) without the optimizer and never ages out.";
+  "expected.monthly = floor(round_to_cent(PIA * factor)) with whole-dollar PIA, matching the vendored ssa.tools engine (benefitAtAge: PIA.floorToDollar() x factor, then floorToDollar). Values are generated independently from SSA's published rules (gen-fixtures.mjs), not copied from the engine. Early-claim factor: 1 - (min(36,m)*5/900 + max(0,m-36)*5/1200); delayed credits: 1 + m*(2/3 of 1%) per month to age 70. percentOfPia = round(benefit/PIA*1000)/10. Break-evens assume annualCola=0 and are the first 0.1-year grid point where the later strategy's cumulative total catches up. SPOUSAL (two fields, both the amount by which half the worker's PIA exceeds the spouse's own PIA, floored at $0): spousalBenefitAtFra = max(0, workerPIA/2 - spousePIA), evaluated at the spouse's own FRA where no early-filing reduction applies and delayed credits never apply to spousal benefits — independently derivable, and what gen-fixtures.mjs computes. spousalTopUpAtFilingAge = the same top-up reduced by SSA's early-filing schedule (25/36% per month for the first 36 months the spouse files before their own FRA, then 5/12% per month beyond that) at the mortality-weighted couple optimizer's actual chosen spouse filing age, which is frequently before FRA; this depends on the optimizer, so gen-fixtures.mjs cannot derive it and instead preserves the hand-derived value already on record for each scenario id (see each scenario's description for the derivation) rather than silently dropping or reverting it. MODE: 'full' runs the complete analyzeClaiming pipeline and the Playwright UI suite; only valid while the cohort (and spouse) are under 70 (the optimizer needs a prospective filing age). 'factorsOnly' validates the deterministic factor math (FRA, monthly, %PIA, break-evens) without the optimizer and never ages out.";
+
+// spousalTopUpAtFilingAge depends on the mortality-weighted couple
+// optimizer's output, so — unlike every other expected value in this file —
+// it cannot be derived independently of the engine. Rather than silently
+// dropping or zeroing it (which would erase hand-derived values recorded in
+// scenarios.json, the exact defect this preservation step exists to
+// prevent), carry forward whatever value is already on record for a given
+// scenario id. When the unreduced top-up is <= 0 the reduced value is
+// trivially 0 regardless of filing age (spousalTopUp always returns 0 in
+// that case), so that case IS independently derivable and doesn't need
+// preserving. A new married scenario with a positive top-up that has never
+// been hand-derived is a real gap: fail loudly instead of writing a
+// plausible-looking placeholder.
+const fixturesPath = new URL('../fixtures/scenarios.json', import.meta.url);
+const previousSpousalTopUpAtFilingAge = new Map();
+if (existsSync(fixturesPath)) {
+  const previous = JSON.parse(readFileSync(fixturesPath, 'utf8'));
+  for (const s of previous.scenarios ?? []) {
+    if (typeof s.expected?.spousalTopUpAtFilingAge === 'number') {
+      previousSpousalTopUpAtFilingAge.set(s.id, s.expected.spousalTopUpAtFilingAge);
+    }
+  }
+}
 
 const TOLERANCES = { monthlyUsd: 1, percentOfPia: 0.1, breakEvenYears: 0.1, crosscheckUsd: 1 };
 
@@ -73,6 +96,29 @@ function build(spec) {
   const spousal =
     spec.hasSpouse ? Math.max(0, spec.pia / 2 - (spec.spousePia ?? 0)) : null;
 
+  let spousalTopUpAtFilingAge = null;
+  if (spec.hasSpouse) {
+    if (spousal <= 0) {
+      // Independently derivable: spousalTopUp returns 0 at any filing age
+      // once the unreduced (at-FRA) top-up is non-positive.
+      spousalTopUpAtFilingAge = 0;
+    } else if (previousSpousalTopUpAtFilingAge.has(spec.id)) {
+      spousalTopUpAtFilingAge = previousSpousalTopUpAtFilingAge.get(spec.id);
+    } else {
+      throw new Error(
+        `spousalTopUpAtFilingAge for '${spec.id}' has a positive at-FRA top-up ` +
+          '($' + spousal + ') but no prior hand-derived value on record in ' +
+          'scenarios.json. This value depends on the mortality-weighted couple ' +
+          "optimizer's chosen filing age and cannot be computed independently — " +
+          'run analyzeClaiming() for this scenario, hand-derive the reduced ' +
+          'top-up from the optimizer\'s spouse filing age using the SSA ' +
+          'early-filing schedule, record it (with the derivation) in this ' +
+          "scenario's description, and add it to scenarios.json before " +
+          're-running fixtures:gen.',
+      );
+    }
+  }
+
   const invariants = ['monthlyMonotonicIncreasing'];
   if (spec.mode === 'full') invariants.push('expectedPvPositive');
 
@@ -103,6 +149,7 @@ function build(spec) {
       percentOfPiaByClaimAge,
       breakEvens,
       spousalBenefitAtFra: spousal,
+      spousalTopUpAtFilingAge,
       optimalAgeRange: [62, 70],
       invariants,
     },
@@ -135,10 +182,10 @@ const specs = [
   // FULL mode married (spousal variations) -------------------------------------
   { id: 'married-1960-spouse-no-record', mode: 'full', birthYear: 1960, birthMonth: 6, gender: 'male', hasSpouse: true, pia: 2500,
     spouseBirthYear: 1962, spouseBirthMonth: 3, spousePia: 0,
-    description: 'Worker Jun 1960 male PIA $2,500; spouse Mar 1962 no record ($0) - full 50% top-up ($1,250)' },
+    description: "Worker Jun 1960 male PIA $2,500; spouse Mar 1962 no record ($0). spousalBenefitAtFra: unreduced top-up = 2500/2 - 0 = $1,250, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the mortality-weighted couple optimizer files the spouse at 64y5m, 31 months before that FRA. Early-filing reduction (all 31 months within the first-36-month band): 31 * 25/36% = 21.5278%. Top-up = 1250 * (1 - 775/3600) = $980.90." },
   { id: 'married-1960-partial-topup', mode: 'full', birthYear: 1960, birthMonth: 6, gender: 'male', hasSpouse: true, pia: 2500,
     spouseBirthYear: 1961, spouseBirthMonth: 5, spousePia: 1000,
-    description: 'Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000 - partial top-up (1250-1000=$250)' },
+    description: "Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000. spousalBenefitAtFra: unreduced top-up = 2500/2 - 1000 = $250, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 65y3m, 21 months before that FRA. Early-filing reduction (21 months, first-36-month band): 21 * 25/36% = 14.5833%. Top-up = 250 * (1 - 525/3600) = $213.54." },
   { id: 'married-1964-dual-high-earners', mode: 'full', birthYear: 1964, birthMonth: 7, gender: 'female', hasSpouse: true, pia: 3000,
     spouseBirthYear: 1964, spouseBirthMonth: 2, spousePia: 3000,
     description: 'Worker Jul 1964 F PIA $3,000; spouse Feb 1964 M PIA $3,000 - dual earners, no spousal top-up ($0)' },
@@ -147,7 +194,7 @@ const specs = [
     description: 'Worker Oct 1962 F PIA $2,000; spouse Aug 1960 M PIA $4,000 - spouse is higher earner ($0 top-up on worker record)' },
   { id: 'married-1965-younger-spouse-no-record', mode: 'full', birthYear: 1965, birthMonth: 3, gender: 'male', hasSpouse: true, pia: 3600,
     spouseBirthYear: 1967, spouseBirthMonth: 9, spousePia: 0,
-    description: 'Worker Mar 1965 M PIA $3,600; younger spouse Sep 1967 no record ($0) - 50% top-up ($1,800)' },
+    description: "Worker Mar 1965 M PIA $3,600; younger spouse Sep 1967 no record ($0). spousalBenefitAtFra: unreduced top-up = 3600/2 - 0 = $1,800, evaluated at the spouse's own FRA of 67y0m. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 62y1m, 59 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 23 months at 5/12% = 25% + 23*5/12% = 34.5833%. Top-up = 1800 * (1 - 0.345833) = $1,177.50." },
 
   // Sample cases from validation/samples/sample-cases.csv (expressible subset;
   // the rest need features the engine/UI does not model - see samples/README.md).
@@ -159,7 +206,7 @@ const specs = [
     description: 'Sample HH2: dual high earners, worker Feb 1960 M PIA $3,200; spouse Sep 1961 F PIA $3,000 - similar PIAs, no spousal top-up ($0)' },
   { id: 'sample-hh3-married-1959-reduced-spousal', mode: 'full', birthYear: 1959, birthMonth: 7, gender: 'female', hasSpouse: true, pia: 3600,
     spouseBirthYear: 1963, spouseBirthMonth: 11, spousePia: 700,
-    description: "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 below 50% of worker PIA - routed to spousal, top-up $1,100" },
+    description: "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 (FRA 67y0m) below 50% of worker PIA - routed to spousal. spousalBenefitAtFra: unreduced top-up = 3600/2 - 700 = $1,100, evaluated at the spouse's own FRA. spousalTopUpAtFilingAge: the couple optimizer files the spouse at 62y9m, 51 months before that FRA. Early-filing reduction: first 36 months at 25/36% (=25% flat) plus remaining 15 months at 5/12% = 25% + 15*5/12% = 31.25%. Top-up = 1100 * (1 - 0.3125) = $756.25." },
   { id: 'sample-hh13-married-1962-two-max-earners', mode: 'full', birthYear: 1962, birthMonth: 4, gender: 'male', hasSpouse: true, pia: 4000,
     spouseBirthYear: 1962, spouseBirthMonth: 10, spousePia: 3900,
     description: 'Sample HH13: two near-max earners, worker Apr 1962 M PIA $4,000; spouse Oct 1962 F PIA $3,900 - both delay; exercises the DRC ceiling at 70, no spousal top-up ($0)' },
