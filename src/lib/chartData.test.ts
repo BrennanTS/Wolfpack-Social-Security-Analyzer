@@ -7,7 +7,7 @@ import {
   getLivingAgeTicks,
   heatmapColorWeb,
 } from './chartData';
-import type { ClaimingOption } from './socialSecurity';
+import type { ClaimingOption } from './benefitMath';
 
 const options: ClaimingOption[] = [62, 67, 70].map((age) => ({
   age,
