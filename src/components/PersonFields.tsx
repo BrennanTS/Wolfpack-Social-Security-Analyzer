@@ -12,6 +12,15 @@ const MONTHS = [
 const CURRENT_YEAR = new Date().getFullYear();
 const BIRTH_YEARS = Array.from({ length: 70 }, (_, i) => CURRENT_YEAR - 18 - i);
 
+/**
+ * Benefit guardrails. The primary person needs a real work record (floor
+ * 500); a spouse's own benefit legitimately starts at 0 (see
+ * `formState.ts`'s `isFormComplete`, which accepts a $0 spouse benefit as
+ * "no work record of their own"). Both share the same ceiling.
+ */
+const MAX_BENEFIT = 5000;
+const MIN_BENEFIT_BY_INDEX: Record<0 | 1, number> = { 0: 500, 1: 0 };
+
 interface PersonFieldsProps {
   person: PersonFormFields;
   index: 0 | 1;
@@ -44,6 +53,10 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
     // reset, or switching which person these fields display).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person.monthlyBenefit]);
+
+  const minBenefit = MIN_BENEFIT_BY_INDEX[index];
+  const benefitOutOfRange =
+    benefitText !== '' && (Number(benefitText) < minBenefit || Number(benefitText) > MAX_BENEFIT);
 
   return (
     <fieldset className="person-fields" aria-label={label}>
@@ -109,7 +122,7 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
 
       <div className="field">
         <span className="field-label">Gender</span>
-        <div className="segmented-control" role="group" aria-label="Gender">
+        <div className="segmented-control" role="group" aria-label={`${label} gender`}>
           {(['female', 'male'] as const).map((g) => (
             <button
               key={g}
@@ -135,8 +148,11 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
             id={`${idPrefix}-benefit`}
             type="text"
             inputMode="numeric"
+            maxLength={String(MAX_BENEFIT).length}
             value={benefitText}
             placeholder="0"
+            aria-describedby={`${idPrefix}-benefit-hint`}
+            aria-invalid={benefitOutOfRange || undefined}
             onChange={(e) => {
               const digits = e.target.value.replace(/[^0-9]/g, '');
               setBenefitText(digits);
@@ -144,10 +160,11 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
             }}
           />
         </div>
-        <span className="field-hint">
+        <span className="field-hint" id={`${idPrefix}-benefit-hint`}>
+          ${minBenefit.toLocaleString()}–${MAX_BENEFIT.toLocaleString()}.{' '}
           {index === 0
-            ? 'From your SSA statement or mySocialSecurity.gov estimate'
-            : 'Enter $0 if they have little or no own work record'}
+            ? 'From your SSA statement or mySocialSecurity.gov estimate.'
+            : 'Enter $0 if they have little or no own work record.'}
         </span>
       </div>
     </fieldset>
