@@ -240,10 +240,15 @@ segmented controls already take with `aria-pressed`.
 `PdfReportDocument.tsx` (1,109 lines, layout and styling and content
 interleaved) splits into:
 
-- `pdf/theme.ts` — shared stylesheet
+- `pdf/theme.ts` — shared stylesheet, colors and layout constants
+- `pdf/charts.tsx` — `PdfChart`, `PdfHeatmap`, `PdfOpportunityCost`, `PdfMonthlyRamp`
 - `pdf/HouseholdSection.tsx` — household strategy, comparison table, combined chart
-- `pdf/PersonSection.tsx` — rendered once per person
-- `pdf/ReportDocument.tsx` — thin composition
+- `pdf/PersonSection.tsx` — rendered once per person, including `BenefitTable`
+- `pdf/ReportDocument.tsx` — thin composition, `PageFooter`, `MethodPair`
+
+(The chart components alone are roughly 360 lines, so keeping every file under
+the 300-line limit below requires `charts.tsx` as a fifth module rather than
+the four originally sketched.)
 
 Print has no tabs, so the report linearizes: household section, then one person
 section each. Content is equivalent to today's report apart from the removed
@@ -327,7 +332,7 @@ percentage target invites tests written to move the number.
 8. `npm run lint`, unit + component tests, and e2e all pass in CI on a pull
    request.
 9. `socialSecurity.ts` no longer exists, and every module this spec creates or
-   splits — the five `src/lib` modules and the four `pdf/` modules — is under
+   splits — the five `src/lib` modules and the five `pdf/` modules — is under
    300 lines. Files untouched by this work (for example `OptionalCharts.tsx`)
    are out of scope for that limit.
 
