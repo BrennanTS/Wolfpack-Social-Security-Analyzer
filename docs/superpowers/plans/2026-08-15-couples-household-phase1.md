@@ -15,7 +15,8 @@
 - **Never modify `src/vendor/ssa-tools/`.** It is vendored MIT-licensed upstream code. All date injection and new calculations happen in `src/lib/ssaTools.ts`.
 - **Fixture values are hand-derived from SSA's published rules, never copied from engine output.** If engine and fixture disagree, re-derive by hand before deciding which is wrong.
 - **Fixture tolerances** (from `validation/fixtures/scenarios.json`): `monthlyUsd: 1`, `percentOfPia: 0.1`, `breakEvenYears: 0.1`, `crosscheckUsd: 1`.
-- **No new runtime dependencies.** Only devDependencies may be added (`@testing-library/react`, `@testing-library/user-event`, `jsdom`).
+- **No new runtime dependencies.** Only devDependencies may be added (`@testing-library/react`, `@testing-library/user-event`, `jsdom`, `@testing-library/jest-dom`).
+- **Component tests may use jest-dom matchers** (`toHaveAttribute`, `toHaveTextContent`, …). They are registered by `src/testSetup.ts`, wired through `setupFiles` on the `components` Vitest project only — so that project legitimately differs from `lib` by name, environment, include glob, the React plugin, **and** `setupFiles`.
 - **`npm run lint` (oxlint) must pass with zero warnings** before every commit.
 - **The live ssa.tools cross-check stays on-demand only** (`npm run crosscheck:ssatools`). Never wire it into CI on any schedule.
 - **Claiming age window is 62–70 inclusive.** `MIN_CLAIM_AGE = 62`, `MAX_CLAIM_AGE = 70`.
@@ -145,7 +146,7 @@ export default defineConfig({
 });
 ```
 
-The two projects differ only by name, environment, include glob, and the React plugin.
+The two projects differ by name, environment, include glob, the React plugin, and `setupFiles` — the last registers jest-dom matchers for component tests only.
 
 - [ ] **Step 5: Run the test to verify it passes**
 
