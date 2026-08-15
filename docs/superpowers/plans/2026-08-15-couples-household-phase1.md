@@ -22,6 +22,7 @@
 - **Commit messages** end with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
 - **Branch:** `feat/couples-household`.
 - **Local test runs:** port 4173 may be occupied by unrelated software. Use `PW_PORT=4199 npm run test:e2e` after Task 2.
+- **Every task ends green.** `npm run lint`, `npm run test` and `npm run build` must all pass before each task's commit. No task may leave the build or the test suite red for a later task to repair.
 
 ---
 
@@ -34,7 +35,7 @@
 | `src/lib/personAnalysis.ts` | **Create.** `Person`, `FraResult`, `PersonAnalysis`, `analyzePerson` |
 | `src/lib/household.ts` | **Create.** `Household`, `HouseholdStrategy`, `HouseholdAnalysis`, `analyzeHousehold` |
 | `src/lib/ssaTools.ts` | **Modify.** `asOf` injection, corrected spousal top-up, ranked strategies |
-| `src/lib/socialSecurity.ts` | **Delete** at Task 15 |
+| `src/lib/socialSecurity.ts` | **Barrel** at Task 15, **deleted** at Task 20 |
 | `src/lib/formState.ts` | **Modify.** `toHousehold`, married validation |
 | `src/components/HouseholdView.tsx` | **Create.** Single/married branch + tab strip |
 | `src/components/HouseholdPanel.tsx` | **Create.** Household tab contents |
@@ -1098,7 +1099,15 @@ In `analyzeClaiming`, replace `spousalBenefitAtFra(recipient, spouseMonthlyBenef
 - [ ] **Step 6: Run the tests**
 
 Run: `npm run test`
-Expected: PASS. The golden fixture `married-1960-spouse-no-record` expects a $1,250 top-up; if the recommended spouse filing age is before their FRA the value now differs. **Do not edit the fixture in this task.** If it fails, note the scenario id and expected/actual, and resolve it in Task 21 where fixtures are migrated.
+Expected: PASS.
+
+The golden fixture `married-1960-spouse-no-record` expects a $1,250 top-up. If the corrected calculation changes it, **resolve it in this task** — every task in this plan ends green. Hand-derive the value rather than copying engine output:
+
+- Unreduced top-up = `workerPIA / 2 − spousePIA`.
+- If the spouse starts the spousal benefit before **their own** FRA, reduce by 25/36 of 1% per month for the first 36 months early, then 5/12 of 1% per month beyond that.
+- Delayed retirement credits never apply to spousal benefits, so filing after FRA adds nothing.
+
+Update the expected value only if your hand calculation agrees with the engine, and record the derivation in that scenario's `description`. If they disagree, stop and report it — that is an engine defect, not a stale fixture.
 
 - [ ] **Step 7: Commit**
 
@@ -2378,17 +2387,18 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 15: Delete `socialSecurity.ts`
+### Task 15: Reduce `socialSecurity.ts` to a re-export barrel
 
 **Files:**
-- Delete: `src/lib/socialSecurity.ts`, `src/lib/socialSecurity.test.ts`
-- Modify: every importer — `src/components/Analyzer.tsx`, `ResultsPanel.tsx`, `BenefitChart.tsx`, `BreakEvenSection.tsx`, `OptionalCharts.tsx`, `OptionalChartsPanel.tsx`, `PdfReportDocument.tsx`, `AssumptionsPanel.tsx`, `src/lib/printReport.tsx`, `src/lib/chartData.ts`, `validation/engine/golden.test.ts`
+- Modify: `src/lib/socialSecurity.ts` (becomes a pure re-export barrel)
+- Delete: `src/lib/socialSecurity.test.ts`
+- Modify: `src/lib/chartData.ts`, `src/lib/printReport.tsx`, `validation/engine/golden.test.ts`
 
 **Interfaces:**
 - Consumes: Tasks 5, 6, 10, 11–13
-- Produces: no module imports `socialSecurity` anywhere
+- Produces: `socialSecurity.ts` contains only `export … from` lines — no logic of its own. Components keep compiling against it until they migrate in Tasks 16–20, and Task 20 deletes it once the last importer is gone.
 
-Component bodies still reference the old `AnalysisResult` shape and will not typecheck until Tasks 16–19. Accept that; this task is the mechanical import move, and the build is expected to be red between here and Task 19.
+**Every task in this plan ends with a green build.** The barrel is what makes that possible: deleting the module outright would break every component import until Task 19. Do not delete `socialSecurity.ts` in this task.
 
 - [ ] **Step 1: Find every importer**
 
@@ -2405,28 +2415,54 @@ grep -rln "socialSecurity" src validation
 | `getFullRetirementAge`, `getCurrentAge`, `ageToMonths`, `FraResult`, `Gender` | `./personAnalysis` |
 | `analyzeClaiming`, `AnalysisResult`, `UserInputs` | `./household` (`analyzeHousehold`, `HouseholdAnalysis`, `Household`) |
 
-- [ ] **Step 3: Delete the module and its test**
+- [ ] **Step 3: Reduce the module to a barrel and drop its test**
 
-```bash
-git rm src/lib/socialSecurity.ts src/lib/socialSecurity.test.ts
+`src/lib/socialSecurity.ts` becomes exactly this — no function bodies, no types of its own:
+
+```ts
+/**
+ * Deprecated compatibility barrel.
+ *
+ * The logic that lived here now lives in format.ts, benefitMath.ts,
+ * personAnalysis.ts and household.ts. This file exists only so components
+ * keep compiling while they migrate; Task 20 deletes it.
+ */
+export { formatAgeDisplay, formatCurrency, formatCurrencyPrecise, fraLabel } from './format';
+export {
+  breakEvenAge,
+  computeBreakEvens,
+  cumulativeBenefits,
+  generateCumulativeChartData,
+  MAX_CLAIM_AGE,
+  MIN_CLAIM_AGE,
+  type BreakEvenPair,
+  type ClaimingOption,
+} from './benefitMath';
+export {
+  ageToMonths,
+  getCurrentAge,
+  getFullRetirementAge,
+  type FraResult,
+  type Gender,
+} from './personAnalysis';
 ```
 
-The deleted test's coverage now lives in `format.test.ts`, `benefitMath.test.ts`, `personAnalysis.test.ts` and `household.test.ts`. Before deleting, read through `socialSecurity.test.ts` once and confirm each of its assertions has an equivalent in one of those four files; port anything that does not.
+Then `git rm src/lib/socialSecurity.test.ts`. Its coverage now lives in `format.test.ts`, `benefitMath.test.ts`, `personAnalysis.test.ts` and `household.test.ts` — read it through once first and port any assertion that has no equivalent in those four files.
 
-- [ ] **Step 4: Update the golden engine suite entry point**
+- [ ] **Step 4: Repoint the non-component importers**
 
-In `validation/engine/golden.test.ts`, change `analyzeClaiming(scenario.inputs)` to `analyzeHousehold(...)`. Full fixture migration happens in Task 21 — for now, adapt the call site so the file parses; failing assertions are expected until then.
+Update `src/lib/chartData.ts` and `src/lib/printReport.tsx` to import from the new modules directly. In `validation/engine/golden.test.ts`, change `analyzeClaiming(scenario.inputs)` to `analyzeHousehold(...)` using the mapping in Task 21 Step 3; the fixture schema migration itself is Task 21, so keep the existing v1 fixture fields working by mapping them inline for now.
 
-- [ ] **Step 5: Verify no references remain**
+- [ ] **Step 5: Verify the build is green**
 
-Run: `grep -rn "socialSecurity" src validation`
-Expected: no output.
+Run: `npm run lint && npm run test && npm run build`
+Expected: all pass. If `golden.test.ts` assertions fail because the fixture schema has not migrated yet, mark that file `describe.skip` with a comment pointing at Task 21, and confirm the rest of the suite is green.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add -A
-git commit -m "refactor: remove socialSecurity.ts in favor of focused modules
+git commit -m "refactor: reduce socialSecurity.ts to a compatibility barrel
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -3038,10 +3074,20 @@ export async function downloadPdfReport(analysis: HouseholdAnalysis): Promise<vo
 
 Update the call in `Analyzer.tsx` to `downloadPdfReport(result)`.
 
-- [ ] **Step 7: Verify sizes and build**
+- [ ] **Step 7: Delete the compatibility barrel**
 
-Run: `wc -l src/components/pdf/*.tsx src/components/pdf/*.ts && npm run build && npm run lint`
-Expected: every file under 300 lines; build and lint clean.
+`PdfReportDocument.tsx` was the last importer of `src/lib/socialSecurity.ts`. Confirm and remove it:
+
+```bash
+grep -rn "socialSecurity" src validation
+```
+
+Expected: no output. Then `git rm src/lib/socialSecurity.ts`. If the grep still finds importers, repoint them at `format`, `benefitMath`, `personAnalysis` or `household` per the mapping table in Task 15 before deleting.
+
+- [ ] **Step 8: Verify sizes and build**
+
+Run: `wc -l src/components/pdf/*.tsx src/components/pdf/*.ts && npm run build && npm run lint && npm run test`
+Expected: every `pdf/` file under 300 lines; build, lint and tests clean.
 
 - [ ] **Step 8: Commit**
 
