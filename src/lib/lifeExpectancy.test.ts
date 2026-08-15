@@ -17,18 +17,38 @@ describe('getSuggestedLifeExpectancy', () => {
     }
   });
 
-  it('clamps only the table lookup, not the age added to it', () => {
-    // Below 62: the table lookup clamps to age 62's rate (20.4), but that rate
-    // is added to the real (unclamped) age of 40, not to 62.
-    // 40 + 20.4 = 60.4 -> rounds to 60, not getSuggestedLifeExpectancy(62, 'male') (82).
-    expect(getSuggestedLifeExpectancy(40, 'male')).toBe(60);
-    // Above 95: same story. The lookup clamps to age 95's rate (2.8), added to
-    // the real age of 120: 120 + 2.8 = 122.8 -> 123. That happens to equal
-    // getSuggestedLifeExpectancy(95, 'male') + 25 because 95 + 2.8 = 97.8 -> 98,
-    // and 98 + 25 = 123 too -- a coincidence of the rounding, not clamping of the age.
-    expect(getSuggestedLifeExpectancy(120, 'male')).toBe(
-      getSuggestedLifeExpectancy(95, 'male') + 25,
-    );
+  it('never projects someone under 62 to die before the age-62 projection', () => {
+    // The table starts at 62, so a younger lookup clamps to the age-62 row.
+    // Adding that row's *remaining* years to the person's actual age used to
+    // project a 45-year-old man to 65 and a 40-year-old to 60 — death at or
+    // before the earliest claiming age. The age-62 projection is the floor.
+    for (const age of [18, 30, 40, 45, 55, 61]) {
+      expect(getSuggestedLifeExpectancy(age, 'male')).toBe(82);
+      expect(getSuggestedLifeExpectancy(age, 'female')).toBe(85);
+    }
+  });
+
+  it('never decreases as the person gets older', () => {
+    for (const gender of ['male', 'female'] as const) {
+      for (let age = 18; age < 100; age++) {
+        expect(getSuggestedLifeExpectancy(age + 1, gender)).toBeGreaterThanOrEqual(
+          getSuggestedLifeExpectancy(age, gender),
+        );
+      }
+    }
+  });
+
+  it('leaves in-table ages untouched — the floor never pulls a projection down', () => {
+    // 70 + 14.4 = 84.4 -> 84 for a man; 70 + 16.4 = 86.4 -> 86 for a woman.
+    expect(getSuggestedLifeExpectancy(70, 'male')).toBe(84);
+    expect(getSuggestedLifeExpectancy(70, 'female')).toBe(86);
+  });
+
+  it('still adds the age-95 rate to the real age above the top of the table', () => {
+    // Above 95 the lookup clamps to age 95's remaining (2.8 for a man), added
+    // to the real age: 120 + 2.8 = 122.8 -> 123. The age-62 floor is
+    // irrelevant here, which is the point of applying it as a floor.
+    expect(getSuggestedLifeExpectancy(120, 'male')).toBe(123);
   });
 });
 
