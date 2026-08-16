@@ -165,3 +165,54 @@ test('gates access behind the demo password', async ({ browser }) => {
     await context.close();
   }
 });
+
+test('hydrates the form from a shared link and clears the query string', async ({ page }) => {
+  await page.goto('/?ay=1962&am=4&ag=m&ab=2400&m=0&le=85');
+
+  await expect(page.getByTestId('benefit-table')).toBeVisible();
+  await expect(page.locator('#a-benefit')).toHaveValue('2400');
+  // The address bar must not retain client data after hydration.
+  expect(new URL(page.url()).search).toBe('');
+});
+
+test('ignores an out-of-range parameter rather than clamping it', async ({ page }) => {
+  await page.goto('/?ay=1962&am=4&ag=m&ab=99999&m=0&le=85');
+
+  // The benefit is dropped, so the field is empty and no analysis runs.
+  await expect(page.locator('#a-benefit')).toHaveValue('');
+  await expect(page.getByTestId('benefit-table')).toHaveCount(0);
+});
+
+// The spec calls this out specifically: the gate renders before the analyzer
+// and keys off sessionStorage without navigating, so parameters should survive
+// sign-in. It is exactly the kind of interaction that breaks silently.
+test('a shared link still hydrates after the password gate', async ({ browser }) => {
+  // A fresh context, without the shared fixture's sessionStorage seeding —
+  // see the "gates access" test above for why.
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.goto('/?ay=1962&am=4&ag=m&ab=2400&m=0&le=85');
+
+    await expect(page.locator('#password')).toBeVisible();
+    await page.locator('#password').fill('wolfpack');
+    // The gate's submit button reads "Continue", not "enter/sign in/unlock".
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByTestId('benefit-table')).toBeVisible();
+    await expect(page.locator('#a-benefit')).toHaveValue('2400');
+  } finally {
+    await context.close();
+  }
+});
+
+test('offers to convert a yearly benefit figure', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#a-benefit').fill('36000');
+
+  const nudge = page.getByTestId('yearly-entry-nudge');
+  await expect(nudge).toBeVisible();
+  await page.getByRole('button', { name: /use \$3,000/i }).click();
+  await expect(page.locator('#a-benefit')).toHaveValue('3000');
+  await expect(nudge).toHaveCount(0);
+});
