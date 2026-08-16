@@ -12,6 +12,7 @@ import {
   type PersonFormFields,
 } from '../lib/formState';
 import { downloadPdfReport } from '../lib/printReport';
+import { fromShareParams } from '../lib/shareLink';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { HouseholdView } from './HouseholdView';
 import { PersonFields } from './PersonFields';
@@ -19,6 +20,7 @@ import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
 import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
 import { AppVersion } from './AppVersion';
+import { CopyLinkButton } from './CopyLinkButton';
 import { spousalMethodologyCopy } from './methodologyCopy';
 
 interface AnalyzerProps {
@@ -28,12 +30,39 @@ interface AnalyzerProps {
 }
 
 export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps) {
-  const [personA, setPersonA] = useState<PersonFormFields>(BLANK_FORM.personA);
-  const [personB, setPersonB] = useState<PersonFormFields>(BLANK_FORM.personB);
-  const [hasSpouse, setHasSpouse] = useState<boolean | null>(BLANK_FORM.hasSpouse);
-  const [lifeExpectancy, setLifeExpectancy] = useState<number | null>(BLANK_FORM.lifeExpectancy);
-  const [annualCola, setAnnualCola] = useState(BLANK_FORM.annualCola);
-  const [discountRate, setDiscountRate] = useState(BLANK_FORM.discountRate);
+  // Parse once, before first paint. A lazy initializer rather than an effect:
+  // an effect would paint the blank form first and then replace it, flickering
+  // and briefly running an analysis on empty inputs. Reading `location.search`
+  // is a read, so it's safe under StrictMode's double-invocation.
+  const [initialForm] = useState(() => {
+    if (typeof window === 'undefined') return BLANK_FORM;
+    const params = new URLSearchParams(window.location.search);
+    if ([...params.keys()].length === 0) return BLANK_FORM;
+    return fromShareParams(params);
+  });
+
+  const [personA, setPersonA] = useState<PersonFormFields>(initialForm.personA);
+  const [personB, setPersonB] = useState<PersonFormFields>(initialForm.personB);
+  const [hasSpouse, setHasSpouse] = useState<boolean | null>(initialForm.hasSpouse);
+  const [lifeExpectancy, setLifeExpectancy] = useState<number | null>(initialForm.lifeExpectancy);
+  const [annualCola, setAnnualCola] = useState(initialForm.annualCola);
+  const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
+
+  // Strip the query string separately, because this is a side effect and
+  // StrictMode double-invokes state initializers. replaceState is idempotent,
+  // so running it twice is harmless; parsing after a strip would not be.
+  //
+  // Stripping un-leaks nothing by itself — the recipient already has the URL —
+  // but it keeps a client's date of birth and benefit out of the address bar
+  // for the rest of a meeting, which is the realistic exposure here: a shared
+  // screen or a glance over the shoulder. The cost is that a refresh clears
+  // the form; that trade is deliberate.
+  useEffect(() => {
+    if (window.location.search !== '') {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   const [analysis, setAnalysis] = useState<HouseholdAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -170,6 +199,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             </svg>
             {exporting ? 'Generating…' : 'Export PDF'}
           </button>
+          <CopyLinkButton form={form} disabled={!inputsComplete} />
           {exportError && <span className="export-error">{exportError}</span>}
           <button type="button" className="btn-ghost" onClick={onLogout}>
             Sign out
