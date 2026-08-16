@@ -216,15 +216,24 @@ describe('spousalSummary', () => {
   // sentence must claim only what the guard establishes — an exact PIA
   // match, not "identical records": two people can share a PIA with
   // completely different earnings histories, ages, or genders.
-  it('renders a PIA-scoped, name-agnostic sentence when subject is null, regardless of atFra', () => {
+  //
+  // Asserted as an EXACT match, not a substring check, and independent of
+  // `atFra`: a `subject ?? 'the lower earner'`-style fallback would silently
+  // route this branch through the SAME `atFra`-driven templates the
+  // named-subject tests above exercise (e.g. "does not exceed the lower
+  // earner's own benefit"), which also contain the words "the lower earner"
+  // — a substring check on that phrase cannot tell the real null-branch
+  // sentence apart from that fallback, and would pass either way.
+  it('renders the exact PIA-scoped, name-agnostic sentence when subject is null, regardless of atFra', () => {
     for (const atFra of [0, 1000]) {
       const copy = spousalSummary(
         { ...base, atFra, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: null },
         null,
       );
-      expect(copy).toContain('Primary Insurance Amount');
-      expect(copy).not.toMatch(/identical (social security )?records?/i);
-      expect(copy).not.toContain('Sarah');
+      expect(copy).toBe(
+        `Both spouses have the same Primary Insurance Amount, so neither is the lower earner — ` +
+          `there is no spousal top-up to claim on the other's record.`,
+      );
     }
   });
 });
@@ -408,11 +417,17 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
     expect(swappedCopy).toBe(forwardCopy);
     expect(forwardCopy).not.toContain('Dan');
     expect(forwardCopy).not.toContain('Sarah');
-    expect(forwardCopy).toContain('Primary Insurance Amount');
-    // Overclaim guard: the test fixture pairs a different birth year and a
-    // different gender with only the PIA forced equal, so the sentence must
-    // not claim more than that — "identical records" would be false here.
-    expect(forwardCopy).not.toMatch(/identical (social security )?records?/i);
+    // The exact null-subject sentence, not a substring check on "Primary
+    // Insurance Amount" or "the lower earner" alone: either would also pass
+    // for a `subject ?? 'the lower earner'`-style fallback that silently
+    // routed this branch through the named-subject templates instead (see
+    // `spousalSummary`'s equivalent guard above for the full reasoning), and
+    // this also re-proves the overclaim fix — "identical records" would fail
+    // this exact match too.
+    expect(forwardCopy).toContain(
+      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner — ` +
+        `there is no spousal top-up to claim on the other's record.`,
+    );
   });
 });
 
