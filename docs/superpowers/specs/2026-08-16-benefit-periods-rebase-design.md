@@ -153,7 +153,9 @@ This is the phase's strongest single test. If the periods-derived spousal figure
 
 **Golden:** every recommended filing age unchanged; `spousalTopUpAtFilingAge` and `startsAtSpouseAge` reproduced from periods at their existing hand-derived values.
 
-**Component:** the chart renders a band per benefit type and no band for a zero top-up; the cliff callout's before and after figures; the comparison table's survivor column; the toggle switching both.
+**Component:** the chart renders a band per benefit type and no band for a zero-amount band; the cliff callout's before and after figures; the comparison table's survivor column; the toggle switching both.
+
+**Real/nominal, corrected after reading the engine.** `PersonalBenefitPeriods` (`recipient-personal-benefits.ts:40`) emits at most two periods per person, each at a fixed amount, and applies no COLA — the engine handles time value through the discount rate. **The periods are already in constant dollars, and so is today's combined chart.** Real is therefore the untouched output and nominal is the transform, compounding `annualCola` forward from `asOf`. That is the reverse of the usual arrangement and the safer one: the honest view needs no arithmetic of ours, and the flattering one has to justify itself.
 
 **End-to-end:** the survivor step-up is visible in the chart for the recommended strategy — the bug that started this phase.
 
@@ -163,7 +165,7 @@ This is the phase's strongest single test. If the periods-derived spousal figure
 2. Every recommended filing age is unchanged across every golden scenario.
 3. `spousalTopUpAtFilingAge` and `startsAtSpouseAge` are reproduced from the periods at their existing hand-derived values.
 4. The chart shows a band per benefit type, with the survivor band stacked on a continuing personal band.
-5. A zero survivor top-up renders no band and no legend entry.
+5. A zero-amount band renders no band and no legend entry. **Amended 2026-08-16, after 2b-i.** This originally read "a zero survivor top-up", which turned out to be unreachable: across 201,141 sampled households the split's `topUp > 0` guard (`benefitPeriods.ts:176`) dropped a band **zero times**, because the engine only emits a Survivor period when the survivor benefit strictly exceeds the personal one. The reachable zero case is a **`$0.00` Spousal band**, which the engine does emit — `eligibleForSpousalBenefit` tests against the PIA while `spousalBenefitOnDate` re-tests against a DRC-inflated personal benefit and returns zero, and `strategy-calc.ts:158` pushes the period on date validity alone. The criterion is therefore stated over any zero-amount band, and the spousal case is the one a test can reach.
 6. Where the engine cannot model the survivor direction, the UI states the limitation instead of printing an unqualified figure.
 7. The dollars toggle defaults to real, travels in the share link, and the PDF prints real with the nominal first-death figure in prose.
 8. The comparison table shows survivor income per strategy.
