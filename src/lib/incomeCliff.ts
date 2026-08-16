@@ -42,7 +42,13 @@ export interface FirstDeath {
  * Takes the two ids directly rather than a `HouseholdAnalysis`, so
  * `household.ts` can call it mid-analysis, before it has assembled one.
  *
- * Null when either person's final index is missing.
+ * Null when either person's final index is missing, and also on an exact
+ * tie (identical final months for both people). A tie-break there would pick
+ * a "first to die" and a "survivor" that the household does not actually
+ * have — two independent mortality draws landing on the same month is not
+ * evidence either person outlives the other, and entry order must not be
+ * able to decide it. `detectSurvivorGap` in `benefitPeriods.ts` already
+ * treats an exact tie the same way, for the same reason.
  */
 export function firstDeath(
   personIds: readonly [string, string],
@@ -50,13 +56,11 @@ export function firstDeath(
 ): FirstDeath | null {
   const finalIndexes = personIds.map((id) => finalIndexByPersonId[id]);
   if (finalIndexes.some((idx) => idx === undefined)) return null;
+  if (finalIndexes[0] === finalIndexes[1]) return null;
 
   // The first-to-die is whichever person's inclusive final month comes
-  // first. On an exact tie (simultaneous final month) person 0 is treated as
-  // first — an edge case with no real-world meaning for two independent
-  // mortality draws, not one this function needs to break in a particular
-  // direction.
-  const firstIndex = finalIndexes[0] <= finalIndexes[1] ? 0 : 1;
+  // first.
+  const firstIndex = finalIndexes[0] < finalIndexes[1] ? 0 : 1;
   const survivorIndex: 0 | 1 = firstIndex === 0 ? 1 : 0;
   const deathYear = Math.floor(finalIndexes[firstIndex] / 12);
 
@@ -64,9 +68,10 @@ export function firstDeath(
 }
 
 /**
- * Null for a single claimant (there is no "first" death to speak of) and for
- * a couple whose first death falls in the timeline's first or last year — the
- * full year on the missing side does not exist to compare against.
+ * Null for a single claimant (there is no "first" death to speak of), for a
+ * couple whose first death falls in the timeline's first or last year — the
+ * full year on the missing side does not exist to compare against — and for
+ * a couple whose final months tie exactly, via `firstDeath` (see there).
  *
  * Deliberately measures full calendar years either side of the death year,
  * never the death year itself: the deceased is paid for only part of it by

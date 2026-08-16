@@ -1,4 +1,5 @@
 import { baseSpousalBenefit } from '$lib/benefit-calculator';
+import { classifyEarnerDependent } from '$lib/strategy/calculations/earner-dependent';
 import { MonthDate } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
 import { roundCents } from './benefitMath';
@@ -412,10 +413,10 @@ function spousalFiguresFrom(
     atFra: roundCents(baseSpousalBenefit(higher, lower).value()),
     atRecommendedFilingAge: band?.monthlyAmount ?? 0,
     // Aged against the band's OWN recipient rather than against whoever this
-    // module picked as the lower earner. The engine classifies earner and
-    // dependent with a strict PIA comparison and this module uses `>=`, so
-    // the two disagree on an exact PIA tie; reading the recipient off the
-    // band makes that disagreement unable to reach a date.
+    // module picked as the lower earner. `higher`/`lower` are now classified
+    // via the engine's own `classifyEarnerDependent`, so the two cannot
+    // disagree — but reading the date off the band's own `personId` keeps
+    // this figure correct independent of that classification too.
     startsAtSpouseAge:
       band === undefined
         ? null
@@ -458,9 +459,13 @@ export async function analyzeHousehold(
     );
 
     // The top-up accrues to the lower earner, claimed on the higher earner's
-    // record. On a PIA tie, personA is treated as the higher earner — the
-    // resulting top-up is 0 either way since half of equal PIAs cancels out.
-    const aIsHigher = personA.piaMonthly >= personB.piaMonthly;
+    // record. Classified via the engine's own `classifyEarnerDependent`
+    // (strict `>` on PIA) rather than a local comparison, so this module
+    // cannot disagree with the engine about who is the higher earner. On an
+    // exact PIA tie the classifier still has to pick a slot — but the
+    // resulting top-up is 0 either way, since half of equal PIAs cancels out.
+    const { earnerIndex } = classifyEarnerDependent([recipientA, recipientB]);
+    const aIsHigher = earnerIndex === 0;
     const higher = aIsHigher ? recipientA : recipientB;
     const lower = aIsHigher ? recipientB : recipientA;
     const lowerIndex = aIsHigher ? 1 : 0;

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { incomeCliff } from './incomeCliff';
+import { firstDeath, incomeCliff } from './incomeCliff';
 import { analyzeHousehold, type HouseholdAnalysis } from './household';
 import type { Person } from './personAnalysis';
 
@@ -162,14 +162,13 @@ describe('incomeCliff', () => {
     expect(cliff.dropPercent).toBe(100);
   });
 
-  // Code-review finding: pin the tie-break rather than leaving it
-  // "arbitrary and untested". On an exact tie, person 0 is treated as first
-  // to die and person 1 as the survivor — the same direction
-  // `detectSurvivorGap` in `benefitPeriods.ts` uses for its own
-  // `finalIndexes[0] > finalIndexes[1] ? 0 : 1` comparison, so the two stay
-  // consistent with each other on this edge case even though neither
-  // ascribes it any real-world meaning.
-  it('breaks an exact tie in finalIndexByPersonId toward person 0 dying first', () => {
+  // An exact tie (simultaneous final month) means the concept of "who dies
+  // first" does not apply to this household at all — there is no survivor to
+  // name and no cliff to state. Order of entry must not be able to invent
+  // one: whichever person happens to land in slot 0 is not evidence they die
+  // first. `detectSurvivorGap` in `benefitPeriods.ts` already treats an exact
+  // tie the same way, for the same reason.
+  it('returns null on an exact tie in finalIndexByPersonId, rather than picking a survivor', () => {
     const analysis = analysisWith(
       { a: 2040 * 12 + 3, b: 2040 * 12 + 3 },
       [
@@ -178,8 +177,21 @@ describe('incomeCliff', () => {
         { year: 2041, bySeries: {}, byPersonId: {}, total: 20000 },
       ],
     );
-    const cliff = incomeCliff(analysis)!;
-    expect(cliff.deathYear).toBe(2040);
-    expect(cliff.survivorLabel).toBe('Sarah'); // person 1 — Dan (person 0) is first.
+    expect(incomeCliff(analysis)).toBeNull();
+  });
+
+  it('firstDeath itself returns null on an exact tie', () => {
+    expect(firstDeath(['a', 'b'], { a: 500, b: 500 })).toBeNull();
+  });
+
+  it('firstDeath still resolves a genuine (non-tied) difference either way round', () => {
+    expect(firstDeath(['a', 'b'], { a: 500, b: 600 })).toEqual({
+      deathYear: Math.floor(500 / 12),
+      survivorIndex: 1,
+    });
+    expect(firstDeath(['a', 'b'], { a: 600, b: 500 })).toEqual({
+      deathYear: Math.floor(500 / 12),
+      survivorIndex: 0,
+    });
   });
 });

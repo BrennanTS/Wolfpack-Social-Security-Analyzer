@@ -2,8 +2,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { classifyEarnerDependent } from '$lib/strategy/calculations/earner-dependent';
 import { analyzeHousehold, visibleBenefitSeries, type Household } from './household';
+import { incomeCliff } from './incomeCliff';
 import type { Person } from './personAnalysis';
+import { createPiaRecipient } from './ssaTools';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
@@ -659,5 +662,131 @@ describe('analyzeHousehold — survivor income per strategy', () => {
   it('leaves survivor income null for a single claimant', async () => {
     const result = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
     expect(result.comparisons.every((s) => s.survivorIncome === null)).toBe(true);
+  });
+});
+
+describe('analyzeHousehold — entry order', () => {
+  /**
+   * Entry order is a data-entry accident, not a fact about the household. An
+   * adviser must not have to put the older, younger, higher- or lower-earning
+   * person first.
+   *
+   * Dan (PIA 2400) and Sarah (PIA 2100) have unequal PIAs, so this does NOT
+   * exercise the `personA.piaMonthly >= personB.piaMonthly` seam at
+   * `household.ts` — a strict `>` and a `>=` agree whenever the two values
+   * differ. It only proves that a REAL asymmetry (an actual higher/lower
+   * earner) survives a swap. The equal-PIA case below is what exercises the
+   * seam itself.
+   */
+  it('produces the same analysis whichever person is entered first', async () => {
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...sarah, id: 'a' }, { ...dan, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+
+    // The optimum is a property of the household, so the same two ages come
+    // back — attached to the other slot.
+    expect(swapped.optimal.filingAges[0].label).toBe(forward.optimal.filingAges[1].label);
+    expect(swapped.optimal.filingAges[1].label).toBe(forward.optimal.filingAges[0].label);
+    expect(swapped.optimal.expectedNpv).toBeCloseTo(forward.optimal.expectedNpv, 2);
+
+    // Same money, same years, whichever way round.
+    expect(swapped.combinedTimeline.map((p) => p.total)).toEqual(
+      forward.combinedTimeline.map((p) => p.total),
+    );
+
+    // The spousal top-up accrues to a person, not to a slot.
+    expect(swapped.spousalTopUp?.atRecommendedFilingAge).toBe(
+      forward.spousalTopUp?.atRecommendedFilingAge,
+    );
+    expect(swapped.spousalTopUp?.lowerEarnerLabel).toBe(forward.spousalTopUp?.lowerEarnerLabel);
+  });
+
+  it('names the same survivor whichever person is entered first', async () => {
+    // Same birth month, same plan-to age: their final months are identical, so
+    // the old tie-break picked whoever happened to be entered first.
+    const twinA = { ...dan, id: 'a' as const, lifeExpectancy: 85 };
+    const twinB = {
+      ...sarah,
+      id: 'b' as const,
+      birthYear: dan.birthYear,
+      birthMonth: dan.birthMonth,
+      lifeExpectancy: 85,
+    };
+
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [twinA, twinB] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...twinB, id: 'a' }, { ...twinA, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+    expect(incomeCliff(swapped)).toEqual(incomeCliff(forward));
+  });
+
+  // Dan and Sarah's PIAs above differ, so neither test above can exercise
+  // `household.ts`'s `personA.piaMonthly >= personB.piaMonthly` seam — a
+  // strict `>` and a non-strict `>=` never disagree except on an exact tie.
+  // This pair is identical in PIA (and otherwise arbitrary) to force that
+  // tie.
+  describe('equal-PIA tie', () => {
+    const equalA: Person = { ...dan, id: 'a', piaMonthly: 2200 };
+    const equalB: Person = { ...sarah, id: 'b', piaMonthly: 2200 };
+
+    it('agrees with the engine`s own classifyEarnerDependent about who is the higher earner', async () => {
+      const result = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+
+      // Half of equal PIAs cancels out, so this is a genuine tie: no amount
+      // changes whichever way the classifier breaks it.
+      expect(result.spousalTopUp!.atFra).toBe(0);
+
+      // The engine's own classifier is the arbiter of who is "higher" on a
+      // tie. household.ts must land on the SAME person, not decide
+      // independently via its own comparison — a local `>=` and the engine's
+      // strict `>` disagree on an exact tie, which is exactly the seam this
+      // pins shut.
+      const recipientA = createPiaRecipient(
+        equalA.birthYear,
+        equalA.birthMonth,
+        equalA.piaMonthly,
+        equalA.gender,
+      );
+      const recipientB = createPiaRecipient(
+        equalB.birthYear,
+        equalB.birthMonth,
+        equalB.piaMonthly,
+        equalB.gender,
+      );
+      const { earnerIndex } = classifyEarnerDependent([recipientA, recipientB]);
+      const expectedLowerLabel = earnerIndex === 0 ? 'Sarah' : 'Dan';
+      expect(result.spousalTopUp!.lowerEarnerLabel).toBe(expectedLowerLabel);
+    });
+
+    it('reports the zero-entitlement sentence path, not a person-specific dollar figure', async () => {
+      // Guards the copy side of the same tie: `spousalSummary` must take its
+      // `atFra <= 0` branch (see `methodologyCopy.ts`), which states no
+      // top-up applies rather than attributing a specific paid amount to
+      // whichever name landed in the "lower earner" slot.
+      const result = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+      expect(result.spousalTopUp!.atFra).toBe(0);
+      expect(result.spousalTopUp!.atRecommendedFilingAge).toBe(0);
+    });
   });
 });
