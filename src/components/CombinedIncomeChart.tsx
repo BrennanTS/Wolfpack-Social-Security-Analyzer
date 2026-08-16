@@ -49,13 +49,10 @@ export function CombinedIncomeChart({ timeline, people }: CombinedIncomeChartPro
         <p>Annual Social Security income by year under the recommended filing strategy</p>
         {people.length > 1 && (
           <p className="chart-caveat" data-testid="combined-income-caveat">
-            Each band is that person&rsquo;s own benefit only, and excludes any spousal
-            top-up. Someone with little or no work record of their own shows here as $0
-            even when the recommended strategy pays them a spousal benefit, so this chart
-            understates the household in that case. The recommendation and the strategy
-            comparison above do include the spousal benefit. Survivor benefits are not
-            modeled in this version, so the drop after the first death is overstated — in
-            practice the survivor receives the greater of the two benefits.
+            Each person&rsquo;s band is everything they are paid that year — their own
+            benefit plus any spousal or survivor benefit — counting only the months
+            actually paid, so a filing year or a final year is shorter than a full one.
+            Amounts are in today&rsquo;s dollars, before any cost-of-living adjustment.
           </p>
         )}
         <div className="chart-legend-row" aria-hidden="true">

@@ -1,10 +1,11 @@
 import { Document, Text, View } from '@react-pdf/renderer';
 import { BRAND_NAME } from '../../lib/brand';
 import { BLS_CPI_URL, formatPercent, getCpiLast30Years } from '../../lib/cpiHistory';
-import { formatCurrencyPrecise, fraLabel } from '../../lib/format';
+import { fraLabel } from '../../lib/format';
 import type { HouseholdAnalysis } from '../../lib/household';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../../lib/lifeExpectancy';
 import { formatVersionLabel } from '../../lib/version';
+import { spousalSummary } from '../methodologyCopy';
 import { HouseholdSection } from './HouseholdSection';
 import { PersonSection } from './PersonSection';
 import { styles } from './theme';
@@ -126,8 +127,10 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
     [
       {
         title: 'Spousal Benefit',
+        // Same function as the household page and the on-screen panel, so the
+        // three cannot branch differently on an absent start date again.
         body: spousal
-          ? `The lower earner's spousal top-up is ${formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo under the recommended strategy, beginning at age ${spousal.startsAtSpouseAge} — the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed (unreduced amount at the lower earner's own FRA: ${formatCurrencyPrecise(spousal.atFra)}/mo).`
+          ? spousalSummary(spousal, 'the lower earner')
           : 'Single claimant — spousal benefits not modeled.',
       },
       {

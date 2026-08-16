@@ -207,14 +207,16 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
   it('starts the spousal benefit at the expected age', async () => {
     const result = await run(scenario);
     if (scenario.expected.startsAtSpouseAge === null) {
-      // Nothing payable in this scenario, so no start to assert. For a
-      // single claimant there is no spousalTopUp at all; for a married
-      // scenario with a zero top-up the field is still populated, so guard
-      // that its label wasn't silently left empty.
+      // The fixture's null means "this household has no spousal start date".
+      // For a single claimant there is no spousalTopUp at all; for a married
+      // scenario the field is populated and must itself be null. Asserting
+      // that exactly — rather than the old "not the empty string" — makes the
+      // fixture's null load-bearing, and would have caught the '—' sentinel
+      // that reached the PDF.
       if (!result.spousalTopUp) {
         expect(scenario.inputs.status).toBe('single');
       } else {
-        expect(result.spousalTopUp.startsAtSpouseAge).not.toBe('');
+        expect(result.spousalTopUp.startsAtSpouseAge).toBeNull();
       }
     } else {
       expect(result.spousalTopUp).toBeDefined();

@@ -64,8 +64,19 @@ export interface HouseholdAnalysis {
     atFra: number;
     /** What is actually paid under the recommended strategy. */
     atRecommendedFilingAge: number;
-    /** The lower earner's age when the benefit begins, e.g. "68 years, 3 months". */
-    startsAtSpouseAge: string;
+    /**
+     * The lower earner's age when the benefit begins, e.g. "68 years, 3
+     * months". **Null when the engine emits no Spousal band at all** — there
+     * is then no date to state, and every display layer must say so rather
+     * than print a placeholder. Modelled as `null` rather than a sentinel
+     * string precisely so the type system forces that decision at each call
+     * site: a `'—'` sentinel chosen here once escaped into the PDF unguarded.
+     *
+     * A band with a `$0.00` amount is a different case and keeps its date:
+     * the entitlement exists and does begin, it is just fully absorbed by the
+     * lower earner's own delayed credits.
+     */
+    startsAtSpouseAge: string | null;
     lowerEarnerLabel: string;
   };
   /**
@@ -175,8 +186,10 @@ function monthDateAt(index: number): MonthDate {
  * Every figure is the engine's: each band contributes
  * `monthsInYear × monthlyAmount`, so a filing year, a death year and a
  * mid-year survivor step-up all carry their true number of payments rather
- * than a flat twelve. The bands carry no COLA, so these are constant dollars;
- * the COLA slider is illustrative and applied by the chart layer.
+ * than a flat twelve. The bands carry no COLA and no consumer applies one, so
+ * these are constant (real) dollars. (The previous comment here claimed the
+ * chart layer applied the COLA slider; `HouseholdPanel` passes the timeline
+ * straight through, so it never did.)
  *
  * `byPersonId` sums all of a person's bands — personal, spousal and survivor
  * — into one figure per year. Splitting the series by benefit type is a
@@ -223,8 +236,12 @@ function buildCombinedTimeline(
  * date, and $0.00 is what is payable. Reporting the start alongside a $0
  * amount is also what the previous hand-rebuilt `spousalTopUp` did.
  *
- * When there is no band at all there is no start to report, and the em dash
- * says so rather than inventing a date for a benefit that never begins.
+ * When there is no band at all `startsAtSpouseAge` is null. That covers more
+ * than the zero-entitlement case: `strategy-calc.ts:158` pushes the period
+ * only when `endDate >= startDate`, so a lower earner who dies before the
+ * higher earner files is eligible — `atFra` is positive — and still bandless.
+ * Absence is modelled on the type rather than as a display glyph so no caller
+ * can print it by accident.
  */
 function spousalFiguresFrom(
   bands: BenefitBand[],
@@ -251,7 +268,7 @@ function spousalFiguresFrom(
     // band makes that disagreement unable to reach a date.
     startsAtSpouseAge:
       band === undefined
-        ? '—'
+        ? null
         : formatFilingAge(
             recipientById[band.personId].birthdate.ageAtSsaDate(monthDateAt(band.startIndex)),
           ).label,

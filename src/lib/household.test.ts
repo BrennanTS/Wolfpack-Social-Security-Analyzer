@@ -183,9 +183,12 @@ describe('analyzeHousehold — married', () => {
       result.optimal.filingAges[higherIndex].years;
     const spouseAgeThen = higherFilesAtYear - result.people[lowerIndex].person.birthYear;
 
-    const startYears = Number(spousal.startsAtSpouseAge.split(' ')[0]);
+    // This household genuinely has a spousal band, so a start date must be
+    // present — asserting that before parsing it, rather than letting a null
+    // fall through into the numeric comparison as NaN.
+    expect(spousal.startsAtSpouseAge).not.toBeNull();
+    const startYears = Number(spousal.startsAtSpouseAge!.split(' ')[0]);
     expect(startYears).toBeGreaterThanOrEqual(spouseAgeThen - 1);
-    expect(spousal.startsAtSpouseAge).not.toBe('');
 
     // And it must be at least her own filing age too — the start is the later
     // of the two, never the earlier.
@@ -405,6 +408,32 @@ describe('engine periods', () => {
     expect(result.periods.some((b) => b.type === 'spousal')).toBe(false);
     expect(result.spousalTopUp!.atFra).toBe(0);
     expect(result.spousalTopUp!.atRecommendedFilingAge).toBe(0);
-    expect(result.spousalTopUp!.startsAtSpouseAge).toBe('—');
+    // Null, not a placeholder string. A display glyph chosen here escaped
+    // into the PDF unguarded; the type now forces each surface to decide.
+    expect(result.spousalTopUp!.startsAtSpouseAge).toBeNull();
+  });
+
+  it('reports no spousal start when the lower earner dies before the higher earner files', async () => {
+    // A positive entitlement with no band at all. `strategy-calc.ts:158`
+    // pushes the Spousal period only when `endDate >= startDate`, and here
+    // Blythe's plan-to age of 75 (Jun 2033) precedes Avery's filing, so she
+    // is eligible and never collects. This is why `atFra > 0` cannot be used
+    // as a proxy for "there is a start date".
+    const avery: Person = {
+      id: 'a', name: 'Avery', birthYear: 1976, birthMonth: 6,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 85,
+    };
+    const blythe: Person = {
+      id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 6,
+      gender: 'female', piaMonthly: 500, lifeExpectancy: 75,
+    };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [avery, blythe] },
+      assumptions,
+      asOf,
+    );
+    expect(result.spousalTopUp!.atFra).toBeCloseTo(1000, 2); // 3000/2 − 500
+    expect(result.periods.some((b) => b.type === 'spousal')).toBe(false);
+    expect(result.spousalTopUp!.startsAtSpouseAge).toBeNull();
   });
 });
