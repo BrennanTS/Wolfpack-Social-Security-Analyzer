@@ -6,9 +6,27 @@ describe('detectYearlyEntry', () => {
     expect(detectYearlyEntry(36_000)).toEqual({ entered: 36_000, monthly: 3000 });
   });
 
-  it('flags a yearly figure that divides to a non-round monthly amount', () => {
-    // 30,000 / 12 = 2,500 exactly; 31,000 / 12 = 2,583.33 -> rounded to the cent.
-    expect(detectYearlyEntry(31_000)?.monthly).toBeCloseTo(2583.33, 2);
+  // Whole dollars, not cents: the nudge button is labelled with the
+  // zero-decimal `formatCurrency`, so a cent-precise suggestion made the
+  // control read "Use $2,583/month" while entering 2583.33. The benefit field
+  // is digits-only by construction too, so cents could only ever get in
+  // through this button.
+  it('rounds a figure that does not divide evenly to a whole dollar', () => {
+    // 31,000 / 12 = 2,583.33...
+    expect(detectYearlyEntry(31_000)?.monthly).toBe(2583);
+  });
+
+  it('rounds up when the remainder warrants it', () => {
+    // 31,400 / 12 = 2,616.67 -> 2,617
+    expect(detectYearlyEntry(31_400)?.monthly).toBe(2617);
+  });
+
+  it('always suggests a whole number of dollars', () => {
+    for (const entered of [31_000, 31_400, 5001, 5555, 47_999, 60_000]) {
+      const monthly = detectYearlyEntry(entered)?.monthly;
+      expect(monthly).toBeDefined();
+      expect(Number.isInteger(monthly)).toBe(true);
+    }
   });
 
   it('says nothing about a plausible monthly benefit', () => {
@@ -28,10 +46,10 @@ describe('detectYearlyEntry', () => {
   });
 
   it('flags when the monthly equivalent is plausible even if barely', () => {
-    // 5,001 is barely over the ceiling; 5,001/12 = 416.75 is plausible, so this
-    // IS flagged. Documented deliberately: a near-ceiling typo is rare, and a
-    // dismissible suggestion costs the user nothing.
-    expect(detectYearlyEntry(5001)).not.toBeNull();
+    // 5,001 is barely over the ceiling; 5,001/12 = 416.75 -> $417 is
+    // plausible, so this IS flagged. Documented deliberately: a near-ceiling
+    // typo is rare, and a dismissible suggestion costs the user nothing.
+    expect(detectYearlyEntry(5001)?.monthly).toBe(417);
   });
 
   it('ignores non-finite input', () => {

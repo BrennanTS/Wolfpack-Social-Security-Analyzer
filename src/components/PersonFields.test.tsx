@@ -117,6 +117,30 @@ describe('yearly-entry nudge', () => {
     expect(nudge.textContent).toMatch(/3,000/);
   });
 
+  // The button is labelled with the zero-decimal `formatCurrency` but applied
+  // `yearlySuspicion.monthly`, which used to be cent-precise. 36,000 divides
+  // evenly so the tests above never caught it; 31,000 produced a control
+  // reading "Use $2,583/month" that entered 2583.33. In a feature whose whole
+  // point is not silently substituting numbers, the label and the value it
+  // enters must be the same number.
+  it('enters exactly the amount its label promises, for a figure that does not divide evenly', async () => {
+    const onChange = vi.fn();
+    render(
+      <PersonFields person={{ ...blank, monthlyBenefit: 31000 }} index={0} onChange={onChange} />,
+    );
+    const button = screen.getByRole('button', { name: /use \$/i });
+    // Read the number the button actually advertises, rather than hard-coding
+    // it, so the assertion is "label equals value" and not "both equal 2583".
+    const advertised = Number(button.textContent!.replace(/[^0-9.]/g, ''));
+    await userEvent.click(button);
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ monthlyBenefit: advertised }),
+    );
+    expect(advertised).toBe(2583);
+    // And the field shows that same number, with no stray cents.
+    expect((screen.getByLabelText(/monthly benefit/i) as HTMLInputElement).value).toBe('2583');
+  });
+
   it('applies the conversion when the suggestion is accepted', async () => {
     const onChange = vi.fn();
     render(

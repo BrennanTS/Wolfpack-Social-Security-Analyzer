@@ -3,7 +3,21 @@ import { isBenefitInRange } from './formBounds';
 export interface YearlySuspicion {
   /** What the user typed. */
   entered: number;
-  /** The monthly equivalent to offer them, rounded to the cent. */
+  /**
+   * The monthly equivalent to offer them, rounded to a WHOLE DOLLAR.
+   *
+   * Whole dollars rather than cents, for two reasons. The button is labelled
+   * with `formatCurrency`, which is zero-decimal, so a cent-precise suggestion
+   * produced a control reading "Use $2,583/month" that entered 2583.33 — in a
+   * feature whose entire justification is not silently substituting numbers,
+   * saying one number and entering another is the wrong shape. And the benefit
+   * field itself is digits-only by construction (its onChange strips
+   * non-digits), so a cent-precise value cannot be typed by hand and would
+   * only ever arrive via this button.
+   *
+   * The precision is immaterial to the decision: the input is an estimate off
+   * an SSA statement, and $0.33/month does not move a claiming recommendation.
+   */
   monthly: number;
 }
 
@@ -24,7 +38,7 @@ export function detectYearlyEntry(entered: number): YearlySuspicion | null {
   if (!Number.isFinite(entered) || entered <= 0) return null;
   if (isBenefitInRange(entered)) return null;
 
-  const monthly = Math.round((entered / 12) * 100) / 100;
+  const monthly = Math.round(entered / 12);
   if (!isBenefitInRange(monthly) || monthly <= 0) return null;
 
   return { entered, monthly };
