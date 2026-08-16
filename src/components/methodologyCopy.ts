@@ -41,8 +41,10 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
   }
 
   return (
-    `${lead} Spousal top-up at ${spousal.lowerEarnerLabel}'s recommended filing age: ` +
-    `${formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo. Unreduced amount at that ` +
-    `person's FRA: ${formatCurrencyPrecise(spousal.atFra)}/mo. ${survivorNote}`
+    `${lead} ${spousal.lowerEarnerLabel}'s spousal top-up is ` +
+    `${formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo under the recommended ` +
+    `strategy, beginning at ${spousal.lowerEarnerLabel}'s age ${spousal.startsAtSpouseAge} — a ` +
+    `spousal benefit cannot start before the other spouse has filed. The unreduced amount at ` +
+    `${spousal.lowerEarnerLabel}'s own FRA is ${formatCurrencyPrecise(spousal.atFra)}/mo. ${survivorNote}`
   );
 }

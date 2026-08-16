@@ -151,9 +151,11 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
         <Text style={styles.recBody}>{analysis.recommendationDetail}</Text>
         {spousal && (
           <Text style={styles.recBody}>
-            Spousal top-up at the lower earner&apos;s recommended filing age:{' '}
-            {formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo. Unreduced amount at that
-            person&apos;s FRA: {formatCurrencyPrecise(spousal.atFra)}/mo.
+            The lower earner&apos;s spousal top-up is{' '}
+            {formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo under the recommended
+            strategy, beginning at age {spousal.startsAtSpouseAge} — a spousal benefit cannot
+            start before the other spouse has filed. The unreduced amount at the lower
+            earner&apos;s own FRA is {formatCurrencyPrecise(spousal.atFra)}/mo.
           </Text>
         )}
       </View>

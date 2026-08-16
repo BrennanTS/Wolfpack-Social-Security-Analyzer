@@ -21,10 +21,16 @@ describe('spousalMethodologyCopy', () => {
 
   it('states both the reduced and unreduced amounts, attributed to the lower earner', () => {
     const copy = spousalMethodologyCopy(
-      analysisWith({ atFra: 1200, atRecommendedFilingAge: 790, lowerEarnerLabel: 'Sarah' }),
+      analysisWith({
+        atFra: 1200,
+        atRecommendedFilingAge: 790,
+        startsAtSpouseAge: '67',
+        lowerEarnerLabel: 'Sarah',
+      }),
     );
-    expect(copy).toContain("Spousal top-up at Sarah's recommended filing age: $790.00/mo");
-    expect(copy).toContain("Unreduced amount at that person's FRA: $1,200.00/mo");
+    expect(copy).toContain("Sarah's spousal top-up is $790.00/mo under the recommended strategy");
+    expect(copy).toContain("beginning at Sarah's age 67");
+    expect(copy).toContain("The unreduced amount at Sarah's own FRA is $1,200.00/mo");
   });
 
   it('never describes the top-up as 50% of the other person PIA', () => {
@@ -32,7 +38,12 @@ describe('spousalMethodologyCopy', () => {
     // household it is $500 while 50% of the PIA is $1,500 — the old copy
     // printed the first number under the second's label.
     const copy = spousalMethodologyCopy(
-      analysisWith({ atFra: 500, atRecommendedFilingAge: 500, lowerEarnerLabel: 'You' }),
+      analysisWith({
+        atFra: 500,
+        atRecommendedFilingAge: 500,
+        startsAtSpouseAge: '67',
+        lowerEarnerLabel: 'You',
+      }),
     );
     expect(copy).not.toContain('50%');
     expect(copy).toContain('$500.00/mo');
@@ -40,7 +51,12 @@ describe('spousalMethodologyCopy', () => {
 
   it('says plainly that no top-up applies rather than printing $0.00', () => {
     const copy = spousalMethodologyCopy(
-      analysisWith({ atFra: 0, atRecommendedFilingAge: 0, lowerEarnerLabel: 'You' }),
+      analysisWith({
+        atFra: 0,
+        atRecommendedFilingAge: 0,
+        startsAtSpouseAge: '67',
+        lowerEarnerLabel: 'You',
+      }),
     );
     expect(copy).toContain('No top-up applies');
     expect(copy).toContain("does not exceed You's own benefit");
@@ -49,12 +65,38 @@ describe('spousalMethodologyCopy', () => {
   it('always notes that survivor benefits are out of scope', () => {
     for (const analysis of [
       analysisWith(),
-      analysisWith({ atFra: 0, atRecommendedFilingAge: 0, lowerEarnerLabel: 'You' }),
-      analysisWith({ atFra: 250, atRecommendedFilingAge: 200, lowerEarnerLabel: 'Spouse' }),
+      analysisWith({
+        atFra: 0,
+        atRecommendedFilingAge: 0,
+        startsAtSpouseAge: '67',
+        lowerEarnerLabel: 'You',
+      }),
+      analysisWith({
+        atFra: 250,
+        atRecommendedFilingAge: 200,
+        startsAtSpouseAge: '69 years, 1 months',
+        lowerEarnerLabel: 'Spouse',
+      }),
     ]) {
       expect(spousalMethodologyCopy(analysis)).toContain(
         'Survivor benefits are not modeled in this version.',
       );
     }
+  });
+
+  it('states when the spousal benefit begins', () => {
+    const analysis = {
+      status: 'married',
+      spousalTopUp: {
+        atFra: 1250,
+        atRecommendedFilingAge: 1250,
+        startsAtSpouseAge: '68 years, 3 months',
+        lowerEarnerLabel: 'Sarah',
+      },
+    } as unknown as HouseholdAnalysis;
+
+    const copy = spousalMethodologyCopy(analysis);
+    expect(copy).toMatch(/68 years, 3 months/);
+    expect(copy).toMatch(/Sarah/);
   });
 });
