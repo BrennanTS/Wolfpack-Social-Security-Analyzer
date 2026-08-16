@@ -430,14 +430,20 @@ describe('survivorGapNote', () => {
  * It was a verbatim duplicate across those two files, and both copies claimed
  * unconditionally that a band includes "any spousal or survivor benefit" —
  * contradicting the gap note directly beneath them.
+ *
+ * Rewritten a second time once the chart stopped drawing one band per person:
+ * "each person's band is everything they are paid" became false the moment a
+ * person could hold an own-benefit segment alongside a separate spousal or
+ * survivor segment. These tests pin the corrected "segments sum to" wording
+ * and the new survivor-increment explanation against drifting back.
  */
 describe('combinedIncomeCaption', () => {
-  it('claims spousal and survivor benefits are included when they are', () => {
+  it('claims spousal and survivor segments are included when they are', () => {
     const caption = combinedIncomeCaption(null);
-    expect(caption).toContain('their own benefit plus any spousal or survivor benefit');
+    expect(caption).toContain('their own benefit, plus any spousal or survivor segment');
     expect(caption).toContain('only the months actually paid');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
-    expect(caption).not.toContain('No survivor benefit is included');
+    expect(caption).not.toContain('No survivor segment is included');
   });
 
   it('drops the survivor claim for a household whose survivor benefit is unmodeled', () => {
@@ -447,9 +453,9 @@ describe('combinedIncomeCaption', () => {
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
     });
-    expect(caption).not.toContain('or survivor benefit');
-    expect(caption).toContain('their own benefit plus any spousal benefit');
-    expect(caption).toContain('No survivor benefit is included for this household');
+    expect(caption).not.toContain('or survivor segment is included');
+    expect(caption).toContain('their own benefit, plus any spousal segment');
+    expect(caption).toContain('No survivor segment is included for this household');
     // The parts that stay true either way.
     expect(caption).toContain('only the months actually paid');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
@@ -464,9 +470,28 @@ describe('combinedIncomeCaption', () => {
     // that still does — the PDF disclaimer's "today’s dollars" shares its
     // page — so ASCII here renders straight quotes next to curly ones.
     const caption = combinedIncomeCaption(null);
-    expect(caption).toContain('Each person’s band');
+    expect(caption).toContain('Each person’s segments');
     expect(caption).toContain('today’s dollars');
     expect(caption).not.toContain("'");
+  });
+
+  // The one fact a reader needs to parse the chart at all: a survivor
+  // segment is stacked ON TOP of the personal band, not a replacement for
+  // it. Asserted for both the modeled and the unmodeled-direction household,
+  // since it's a general statement about how the chart works, not a claim
+  // about this particular household's bands.
+  it('explains that a survivor segment is the increment above the personal band, not a replacement', () => {
+    const noGap = combinedIncomeCaption(null);
+    expect(noGap).toMatch(/survivor segment is the increment above the personal band/i);
+    expect(noGap).toMatch(/personal band keeps paying what it already was/i);
+
+    const gap = combinedIncomeCaption({
+      survivorLabel: 'Blake',
+      deceasedMonthly: 1780,
+      survivorOwnMonthly: 1760,
+      survivorUnder60: false,
+    });
+    expect(gap).toMatch(/survivor segment is the increment above the personal band/i);
   });
 });
 

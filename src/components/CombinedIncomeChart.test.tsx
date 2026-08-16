@@ -114,6 +114,15 @@ const timeline: CombinedTimelinePoint[] = [
   },
 ];
 
+// For the single-claimant tests below: `visibleBenefitSeries` now throws if
+// a `bySeries` key names someone absent from `people` (see household.ts —
+// that used to default silently to person 0, drawing a wrong label with no
+// visible error), so a single-person `people` array needs a timeline whose
+// series only ever name that one person, not the two-person `timeline` above.
+const singleTimeline: CombinedTimelinePoint[] = [
+  { year: 2030, bySeries: { 'a:personal': 24000 }, byPersonId: { a: 24000 }, total: 24000 },
+];
+
 /**
  * `ResponsiveContainer` measures its parent via a resize observer, and
  * jsdom reports zero size for that parent — Recharts intentionally renders
@@ -133,7 +142,7 @@ describe('CombinedIncomeChart', () => {
 
   it('renders without throwing for a single-person household', () => {
     expect(() =>
-      render(<CombinedIncomeChart timeline={timeline} people={[people[0]]} />),
+      render(<CombinedIncomeChart timeline={singleTimeline} people={[people[0]]} />),
     ).not.toThrow();
   });
 
@@ -159,11 +168,29 @@ describe('CombinedIncomeChart', () => {
   it('says the bands include spousal and survivor benefits, for a couple', () => {
     render(<CombinedIncomeChart timeline={timeline} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
-    expect(caveat.textContent).toMatch(/spousal or survivor benefit/i);
+    expect(caveat.textContent).toMatch(/spousal or survivor segment/i);
     // The claims the rebase falsified must not come back.
     expect(caveat.textContent).not.toMatch(/excludes any spousal/i);
     expect(caveat.textContent).not.toMatch(/survivor benefits are not\s+modeled/i);
     expect(caveat.textContent).not.toMatch(/shows here as \$0/i);
+  });
+
+  // The chart now draws one segment per person per benefit type rather than
+  // one band per person, so the old "each person's band is everything they
+  // are paid" claim became false the moment a spousal or survivor segment
+  // could sit beside the personal one. This is the caption's second
+  // rewrite — guarding the corrected "segments sum to" wording, and the new
+  // explanation that a survivor segment is stacked ON the personal band
+  // rather than replacing it, against drifting back to either the old
+  // wording or silence.
+  it("says each person's segments sum to what they were paid, and explains the survivor increment", () => {
+    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    const caveat = screen.getByTestId('combined-income-caveat');
+    expect(caveat.textContent).toMatch(/segments for the year sum to what they were actually paid/i);
+    expect(caveat.textContent).toMatch(/survivor segment is the increment above the personal band/i);
+    expect(caveat.textContent).toMatch(/personal band keeps paying what it already was/i);
+    // The old, now-false claim.
+    expect(caveat.textContent).not.toMatch(/band is everything they are paid/i);
   });
 
   it('says partial years are credited only the months actually paid', () => {
@@ -181,7 +208,7 @@ describe('CombinedIncomeChart', () => {
   });
 
   it('omits the caveat for a single claimant, who has no second band', () => {
-    render(<CombinedIncomeChart timeline={timeline} people={[people[0]]} />);
+    render(<CombinedIncomeChart timeline={singleTimeline} people={[people[0]]} />);
     expect(screen.queryByTestId('combined-income-caveat')).toBeNull();
   });
 
@@ -229,8 +256,8 @@ describe('CombinedIncomeChart', () => {
       <CombinedIncomeChart timeline={timeline} people={people} survivorGap={contemporaneous} />,
     );
     const caveat = screen.getByTestId('combined-income-caveat');
-    expect(caveat.textContent).not.toMatch(/or survivor benefit/i);
-    expect(caveat.textContent).toMatch(/No survivor benefit is included for this household/i);
+    expect(caveat.textContent).not.toMatch(/or survivor segment is included/i);
+    expect(caveat.textContent).toMatch(/No survivor segment is included for this household/i);
   });
 
   it('quotes no figure on screen for a survivor who has not filed at the death', () => {
@@ -272,7 +299,7 @@ describe('CombinedIncomeChart', () => {
     it('omits a band and its legend entry when every year of it is zero', () => {
       // Scoped to the legend row, not the whole document: the caveat
       // paragraph above unconditionally says "any spousal or survivor
-      // benefit" — that's a statement about what the chart is capable of
+      // segment" — that's a statement about what the chart is capable of
       // showing, true regardless of this household, so it would false-match
       // a document-wide query for /spousal/i even once the zero band is
       // correctly dropped.
@@ -281,6 +308,10 @@ describe('CombinedIncomeChart', () => {
       );
       const legend = container.querySelector('.chart-legend-row');
       expect(legend?.textContent).not.toMatch(/spousal/i);
+      // Self-sufficient against a `visibleBenefitSeries` that returned `[]`
+      // unconditionally: that would also make the assertion above pass, so
+      // this also pins that a real, surviving series is still there.
+      expect(legend?.textContent).toMatch(/Avery — own benefit/);
     });
   });
 
@@ -344,10 +375,40 @@ describe('CombinedIncomeChart', () => {
     });
 
     it('omits the death marker for a single claimant', () => {
+      // `timelineWithSurvivor` is dan/sarah's real 2-person timeline, whose
+      // `bySeries` names both `a` and `b` — inconsistent with a single-person
+      // `people` array now that `visibleBenefitSeries` throws on that
+      // mismatch (see household.ts). `singleTimeline` names only `a`.
       const tree = CombinedIncomeChart({
-        timeline: timelineWithSurvivor,
+        timeline: singleTimeline,
         people: [dan],
         finalIndexByPersonId: { a: 2046 * 12 + 2 },
+      });
+      const lines = collectReferenceLines(tree);
+      expect(lines.some((rl) => rl.props.label === 'First death')).toBe(false);
+    });
+
+    // `XAxis` has no `type="number"`, so it's a category axis: a
+    // `ReferenceLine` whose `x` isn't one of the chart's own year categories
+    // renders nothing at all — reachable when the first death precedes the
+    // timeline's first year (a person who dies having never held a band).
+    // The component must recognize that case and skip constructing the
+    // marker, rather than build one that Recharts would have silently
+    // dropped anyway.
+    it('omits the death marker when the first death precedes the timeline, rather than silently vanishing', () => {
+      const isolatedTimeline: CombinedTimelinePoint[] = [
+        {
+          year: 2030,
+          bySeries: { 'a:personal': 24000, 'b:personal': 18000 },
+          byPersonId: { a: 24000, b: 18000 },
+          total: 42000,
+        },
+      ];
+      const tree = CombinedIncomeChart({
+        timeline: isolatedTimeline,
+        people: [dan, sarah],
+        // a's death (2010) precedes the timeline's first year (2030).
+        finalIndexByPersonId: { a: 2010 * 12 + 2, b: 2040 * 12 + 8 },
       });
       const lines = collectReferenceLines(tree);
       expect(lines.some((rl) => rl.props.label === 'First death')).toBe(false);

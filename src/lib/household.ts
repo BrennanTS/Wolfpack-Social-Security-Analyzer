@@ -272,9 +272,9 @@ export function visibleBenefitSeries(
   timeline: CombinedTimelinePoint[],
   people: Person[],
 ): VisibleBenefitSeries[] {
-  const personIndexById: Record<string, number> = {};
+  const personIndexById = new Map<string, number>();
   people.forEach((p, i) => {
-    personIndexById[p.id] = i;
+    personIndexById.set(p.id, i);
   });
 
   const seen = new Map<string, { personId: string; type: BandType }>();
@@ -290,7 +290,21 @@ export function visibleBenefitSeries(
   for (const [key, { personId, type }] of seen) {
     const isAllZero = timeline.every((point) => (point.bySeries[key] ?? 0) === 0);
     if (isAllZero) continue;
-    defs.push({ key, personId, personIndex: personIndexById[personId] ?? 0, type });
+    // A `bySeries` key naming someone absent from `people` indicates the two
+    // arguments are inconsistent with each other — a caller bug, not a data
+    // shape to degrade gracefully on. Defaulting to person 0 used to draw
+    // this series in person 0's colour under person 0's name: a wrong label
+    // with no visible error, the worst failure shape on this project. Throw
+    // instead, so it surfaces as a crash a caller can trace, not a chart that
+    // quietly lies about whose money is whose.
+    const personIndex = personIndexById.get(personId);
+    if (personIndex === undefined) {
+      throw new Error(
+        `visibleBenefitSeries: series "${key}" names person "${personId}", who is not in ` +
+          `the "people" array passed in`,
+      );
+    }
+    defs.push({ key, personId, personIndex, type });
   }
 
   defs.sort(

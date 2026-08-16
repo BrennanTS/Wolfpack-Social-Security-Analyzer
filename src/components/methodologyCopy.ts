@@ -99,23 +99,40 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * survivor benefit". For a survivor-gap household that is false — and the gap
  * note rendered directly beneath said so, on both surfaces. One function with
  * one set of branches is what stops that, exactly as for `spousalSummary`.
+ *
+ * Rewritten again once the chart stopped drawing one band per person and
+ * started drawing one segment per person per benefit type: the original
+ * wording ("each person's band is everything they are paid") described the
+ * old one-band layout and became false the moment a person could hold up to
+ * three segments beside each other — the segment labelled "own benefit" is
+ * specifically NOT everything they are paid once a spousal or survivor
+ * segment sits next to it. This is the sixth instance on this project of a
+ * right number with wrong text beside it, and the lesson generalizes:
+ * inherited copy is not neutral when the thing it describes has changed
+ * underneath it. This version also states the one fact a reader needs to
+ * parse the chart at all — that a survivor segment is the increment above
+ * the personal band beneath it, not a replacement for it — since that is the
+ * exact misconception this whole display phase exists to correct.
  */
 export function combinedIncomeCaption(gap: SurvivorGap | null | undefined): string {
   const included = gap
-    ? 'their own benefit plus any spousal benefit'
-    : 'their own benefit plus any spousal or survivor benefit';
+    ? 'their own benefit, plus any spousal segment'
+    : 'their own benefit, plus any spousal or survivor segment';
   const survivorCaveat = gap
-    ? ' No survivor benefit is included for this household — see the note below.'
+    ? ' No survivor segment is included for this household — see the note below.'
     : '';
   // Typographic apostrophes, matching the `&rsquo;` the two duplicated copies
   // carried before extraction. This sentence prints beside copy that uses
   // them — the PDF disclaimer's "today’s dollars" is on the same page — so
   // ASCII here renders straight quotes next to curly ones.
   return (
-    `Each person’s band is everything they are paid that year — ${included} — counting ` +
-    'only the months actually paid, so a filing year or a final year is shorter than a ' +
-    'full one.' +
+    `Each person’s segments for the year sum to what they were actually paid — ${included} ` +
+    '— counting only the months actually paid, so a filing year or a final year is ' +
+    'shorter than a full one.' +
     survivorCaveat +
+    ' A survivor segment is the increment above the personal band beneath it: that ' +
+    'personal band keeps paying what it already was, and the survivor segment stacked on ' +
+    'top of it is only the increase.' +
     ' Amounts are in today’s dollars, before any cost-of-living adjustment.'
   );
 }

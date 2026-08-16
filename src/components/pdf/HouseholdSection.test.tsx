@@ -92,11 +92,11 @@ const printedWithAppendix = (survivorGap: SurvivorGap | null) => {
 };
 
 describe('HouseholdSection — the printed combined-income caption', () => {
-  it('claims spousal and survivor benefits are included when they are', () => {
+  it('claims spousal and survivor segments are included when they are', () => {
     const text = printed(null);
-    expect(text).toContain('their own benefit plus any spousal or survivor benefit');
+    expect(text).toContain('their own benefit, plus any spousal or survivor segment');
     expect(text).toContain("today’s dollars, before any cost-of-living adjustment");
-    expect(text).not.toContain('No survivor benefit is included');
+    expect(text).not.toContain('No survivor segment is included');
   });
 
   it('drops the survivor claim for a gap household, as the screen caption does', () => {
@@ -108,8 +108,20 @@ describe('HouseholdSection — the printed combined-income caption', () => {
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
     });
-    expect(text).not.toContain('or survivor benefit');
-    expect(text).toContain('No survivor benefit is included for this household');
+    expect(text).not.toContain('or survivor segment is included');
+    expect(text).toContain('No survivor segment is included for this household');
+  });
+
+  // The caption's second rewrite: the chart now draws one segment per person
+  // per benefit type, so "each person's band is everything they are paid"
+  // became false the moment a spousal or survivor segment could sit beside
+  // the personal one. Printed unconditionally — it's a statement about how
+  // the chart works, not a claim about this particular household's bands.
+  it("prints that each person's segments sum to what they were paid, and explains the survivor increment", () => {
+    const text = printed(null);
+    expect(text).toContain('Each person’s segments for the year sum to what they were actually paid');
+    expect(text).toMatch(/survivor segment is the increment above the personal band/i);
+    expect(text).not.toMatch(/band is everything they are paid/i);
   });
 });
 
@@ -181,7 +193,7 @@ describe('HouseholdSection — the household page as the report composes it', ()
     const page = printedWithAppendix(gap);
     // Guard: the caption and note really are on this page, so the absence
     // below is a contradiction removed, not a page that says nothing.
-    expect(page).toContain('No survivor benefit is included for this household');
+    expect(page).toContain('No survivor segment is included for this household');
     expect(page).toContain('no step-up is shown for Blake');
     // The reintroduced claim, in either of its wordings.
     expect(page).not.toMatch(/survivor benefits are (both )?modeled/);
@@ -191,8 +203,8 @@ describe('HouseholdSection — the household page as the report composes it', ()
   it('does claim survivor benefits are modeled when the household has no gap', () => {
     const page = printedWithAppendix(null);
     expect(page).toContain('The spousal top-up and survivor benefits are both modeled');
-    expect(page).toContain('their own benefit plus any spousal or survivor benefit');
-    expect(page).not.toContain('No survivor benefit is included');
+    expect(page).toContain('their own benefit, plus any spousal or survivor segment');
+    expect(page).not.toContain('No survivor segment is included');
   });
 
   it('keeps one apostrophe style across the page', () => {
@@ -202,7 +214,7 @@ describe('HouseholdSection — the household page as the report composes it', ()
     // styles collided. The `MethodPair` bodies are behind an uncalled
     // component element, so this walk does not see them.
     const page = printedWithAppendix(null);
-    expect(page).toContain('Each person’s band');
+    expect(page).toContain('Each person’s segments');
     expect(page).toContain('today’s dollars, before any cost-of-living adjustment');
     expect(page).toContain('Benefit amounts are in today’s dollars');
   });
@@ -217,7 +229,7 @@ describe('HouseholdSection — the household page as the report composes it', ()
  * ever diverge, not just if the PDF renders nothing at all.
  *
  * Called directly rather than through `HouseholdSection`/`printed`: the
- * household page's caption says "any spousal or survivor benefit"
+ * household page's caption says "any spousal or survivor segment"
  * unconditionally for every married household (a statement about what the
  * chart is capable of showing), which would false-match a page-wide
  * /spousal/i query regardless of whether this component correctly drops a
@@ -261,5 +273,9 @@ describe('CombinedIncomeBars — the printed combined-income decomposition', () 
     ];
     const text = collectText(CombinedIncomeBars({ timeline, people })).join(' ');
     expect(text).not.toMatch(/spousal/i);
+    // Self-sufficient against a `visibleBenefitSeries` that returned `[]`
+    // unconditionally: that would also make the assertion above pass, so
+    // this also pins that a real, surviving series is still printed.
+    expect(text).toContain(benefitSeriesLabel('Avery', 'personal'));
   });
 });

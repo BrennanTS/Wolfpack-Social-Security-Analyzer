@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { analyzeHousehold, type Household } from './household';
+import { analyzeHousehold, visibleBenefitSeries, type Household } from './household';
 import type { Person } from './personAnalysis';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -318,6 +318,58 @@ describe('combinedTimeline', () => {
         expect(point.byPersonId[id]).toBeCloseTo(summed, 2);
       }
     }
+  });
+});
+
+describe('visibleBenefitSeries', () => {
+  const a: Person = { ...dan };
+  const b: Person = { ...sarah };
+
+  it('drops a series that is zero at every point', () => {
+    const timeline = [
+      { year: 2030, bySeries: { 'a:personal': 12000, 'b:spousal': 0 }, byPersonId: { a: 12000, b: 0 }, total: 12000 },
+      { year: 2031, bySeries: { 'a:personal': 12000, 'b:spousal': 0 }, byPersonId: { a: 12000, b: 0 }, total: 12000 },
+    ];
+    const series = visibleBenefitSeries(timeline, [a, b]);
+    expect(series.map((s) => s.key)).toEqual(['a:personal']);
+  });
+
+  it('keeps a series that is nonzero in at least one point', () => {
+    const timeline = [
+      { year: 2030, bySeries: { 'a:personal': 12000, 'b:spousal': 0 }, byPersonId: { a: 12000, b: 0 }, total: 12000 },
+      { year: 2031, bySeries: { 'a:personal': 12000, 'b:spousal': 400 }, byPersonId: { a: 12000, b: 400 }, total: 12400 },
+    ];
+    const series = visibleBenefitSeries(timeline, [a, b]);
+    expect(series.map((s) => s.key).sort()).toEqual(['a:personal', 'b:spousal']);
+  });
+
+  it('orders each person own-band first, then spousal, then survivor', () => {
+    const timeline = [
+      {
+        year: 2030,
+        bySeries: { 'b:survivor': 500, 'a:personal': 12000, 'b:spousal': 200, 'b:personal': 100 },
+        byPersonId: { a: 12000, b: 800 },
+        total: 12800,
+      },
+    ];
+    const series = visibleBenefitSeries(timeline, [a, b]);
+    expect(series.map((s) => s.key)).toEqual([
+      'a:personal',
+      'b:personal',
+      'b:spousal',
+      'b:survivor',
+    ]);
+  });
+
+  // A `bySeries` key naming someone absent from `people` means the two
+  // arguments are inconsistent with each other. Defaulting that series to
+  // person 0 used to draw it in person 0's colour under person 0's name — a
+  // wrong label with no visible error. This must fail loudly instead.
+  it('throws rather than silently attributing an unrecognized personId to person 0', () => {
+    const timeline = [
+      { year: 2030, bySeries: { 'c:personal': 1000 }, byPersonId: { c: 1000 }, total: 1000 },
+    ];
+    expect(() => visibleBenefitSeries(timeline, [a, b])).toThrow(/c/);
   });
 });
 

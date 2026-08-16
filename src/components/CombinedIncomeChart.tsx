@@ -74,8 +74,19 @@ export function CombinedIncomeChart({
   const finalIndexes = people
     .map((p) => finalIndexByPersonId[p.id])
     .filter((v): v is number => v !== undefined);
-  const deathYear =
+  const rawDeathYear =
     people.length > 1 && finalIndexes.length > 1 ? Math.floor(Math.min(...finalIndexes) / 12) : null;
+  // `XAxis` below has no `type="number"`, so it's a category axis: a
+  // `ReferenceLine` whose `x` isn't one of the chart's actual year
+  // categories renders nothing at all, silently. Every filing-marker year is
+  // guaranteed to be a real category (it's read directly off `timeline`), but
+  // the death year is computed independently from `finalIndexByPersonId` and
+  // can precede the timeline's first year — reachable for a person who dies
+  // having never held a band. Checking membership here turns that into a
+  // deliberate omission instead of a marker that was built but silently
+  // never appeared.
+  const deathYear =
+    rawDeathYear !== null && timeline.some((p) => p.year === rawDeathYear) ? rawDeathYear : null;
 
   return (
     <div className="chart-container">
