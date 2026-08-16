@@ -35,6 +35,26 @@ describe('PersonFields', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ gender: 'female' }));
   });
 
+  // The red ring and the "will this analyze?" gate now share one predicate
+  // (`isBenefitInRange`), so this asserts the UI half against the same cases
+  // formState.test.ts asserts the gate half against.
+  it.each([
+    { index: 0 as const, benefit: 499, invalid: true },
+    { index: 0 as const, benefit: 500, invalid: false },
+    { index: 0 as const, benefit: 250, invalid: true },
+    { index: 0 as const, benefit: 5000, invalid: false },
+    { index: 0 as const, benefit: 9999, invalid: true },
+    { index: 1 as const, benefit: 0, invalid: false },
+    { index: 1 as const, benefit: 250, invalid: false },
+    { index: 1 as const, benefit: 9999, invalid: true },
+  ])('marks $benefit for person $index invalid=$invalid', ({ index, benefit, invalid }) => {
+    render(
+      <PersonFields person={{ ...blank, monthlyBenefit: benefit }} index={index} onChange={vi.fn()} />,
+    );
+    const field = screen.getByLabelText(/benefit at full retirement age/i);
+    expect(field.getAttribute('aria-invalid')).toBe(invalid ? 'true' : null);
+  });
+
   it('reports the benefit amount as a number', async () => {
     const onChange = vi.fn();
     render(<PersonFields person={blank} index={0} onChange={onChange} />);

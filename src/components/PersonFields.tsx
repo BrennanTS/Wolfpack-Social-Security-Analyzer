@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { formatAgeDisplay, fraLabel, personLabel } from '../lib/format';
 import { genderLabel } from '../lib/lifeExpectancy';
 import { getCurrentAge, getFullRetirementAge } from '../lib/personAnalysis';
-import type { PersonFormFields } from '../lib/formState';
+import {
+  isBenefitInRange,
+  MAX_BENEFIT,
+  MIN_BENEFIT_BY_INDEX,
+  type PersonFormFields,
+} from '../lib/formState';
 
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -11,15 +16,6 @@ const MONTHS = [
 
 const CURRENT_YEAR = new Date().getFullYear();
 const BIRTH_YEARS = Array.from({ length: 70 }, (_, i) => CURRENT_YEAR - 18 - i);
-
-/**
- * Benefit guardrails. The primary person needs a real work record (floor
- * 500); a spouse's own benefit legitimately starts at 0 (see
- * `formState.ts`'s `isFormComplete`, which accepts a $0 spouse benefit as
- * "no work record of their own"). Both share the same ceiling.
- */
-const MAX_BENEFIT = 5000;
-const MIN_BENEFIT_BY_INDEX: Record<0 | 1, number> = { 0: 500, 1: 0 };
 
 interface PersonFieldsProps {
   person: PersonFormFields;
@@ -55,8 +51,9 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
   }, [person.monthlyBenefit]);
 
   const minBenefit = MIN_BENEFIT_BY_INDEX[index];
-  const benefitOutOfRange =
-    benefitText !== '' && (Number(benefitText) < minBenefit || Number(benefitText) > MAX_BENEFIT);
+  // Same predicate the submission gate uses (`formState.isFormComplete`), so
+  // a field marked invalid can never also produce an analysis.
+  const benefitOutOfRange = benefitText !== '' && !isBenefitInRange(Number(benefitText), index);
 
   return (
     <fieldset className="person-fields" aria-label={label}>
@@ -148,6 +145,9 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
             id={`${idPrefix}-benefit`}
             type="text"
             inputMode="numeric"
+            // A paste/fat-finger guard only — it does NOT enforce the $5,000
+            // ceiling (4 digits still admits 9999). `isBenefitInRange` does,
+            // in both the aria-invalid state above and the submission gate.
             maxLength={String(MAX_BENEFIT).length}
             value={benefitText}
             placeholder="0"

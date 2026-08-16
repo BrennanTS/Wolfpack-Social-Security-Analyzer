@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { BLANK_FORM, isFormComplete, toHousehold, type AnalyzerFormState } from './formState';
+import {
+  BLANK_FORM,
+  isBenefitInRange,
+  isFormComplete,
+  MAX_BENEFIT,
+  MIN_BENEFIT_BY_INDEX,
+  toHousehold,
+  type AnalyzerFormState,
+} from './formState';
 
 const completeA = {
   name: 'Dan',
@@ -58,6 +66,40 @@ describe('isFormComplete', () => {
       personB: { ...completeB, monthlyBenefit: 0 },
     };
     expect(isFormComplete(married)).toBe(true);
+  });
+
+  // The gate used to require only `> 0` while the field marked anything under
+  // $500 (or over $5,000) invalid, so a $250 or $9,999 entry showed a red
+  // field and still produced a confident analysis.
+  it('agrees with the field-level guardrails the UI declares', () => {
+    const withBenefitA = (monthlyBenefit: number) =>
+      isFormComplete({ ...single, personA: { ...completeA, monthlyBenefit } });
+
+    expect(withBenefitA(MIN_BENEFIT_BY_INDEX[0] - 1)).toBe(false); // $499
+    expect(withBenefitA(MIN_BENEFIT_BY_INDEX[0])).toBe(true); // $500, on the floor
+    expect(withBenefitA(250)).toBe(false);
+    expect(withBenefitA(MAX_BENEFIT)).toBe(true); // $5,000, on the ceiling
+    expect(withBenefitA(MAX_BENEFIT + 1)).toBe(false);
+    expect(withBenefitA(9999)).toBe(false); // reachable past maxLength=4
+  });
+
+  it('applies the ceiling but not the $500 floor to a spouse', () => {
+    const withBenefitB = (monthlyBenefit: number) =>
+      isFormComplete({ ...single, hasSpouse: true, personB: { ...completeB, monthlyBenefit } });
+
+    expect(withBenefitB(0)).toBe(true);
+    expect(withBenefitB(250)).toBe(true);
+    expect(withBenefitB(-1)).toBe(false);
+    expect(withBenefitB(MAX_BENEFIT + 1)).toBe(false);
+  });
+});
+
+describe('isBenefitInRange', () => {
+  it('is the single predicate behind both the aria-invalid ring and the gate', () => {
+    expect(isBenefitInRange(500, 0)).toBe(true);
+    expect(isBenefitInRange(499, 0)).toBe(false);
+    expect(isBenefitInRange(0, 1)).toBe(true);
+    expect(isBenefitInRange(5001, 1)).toBe(false);
   });
 });
 

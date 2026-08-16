@@ -39,21 +39,39 @@ export const BLANK_FORM: AnalyzerFormState = {
 };
 
 /**
- * A person is complete when identity and benefit are all present.
- * `requirePositiveBenefit` is false for a spouse, where $0 legitimately means
- * "no work record of their own".
+ * Benefit guardrails — the single source of truth for both the form UI's
+ * `aria-invalid` state (`PersonFields`) and the submission gate below.
+ *
+ * They used to be two different rules: the field marked anything under $500
+ * invalid while the gate only required `> 0`, so a $250 entry showed a red
+ * field *and* produced a confident analysis. Declared validity and the gate
+ * now agree, and the gate is the stricter of the two directions — the app is
+ * client-facing, so it should not put a number it has itself flagged as
+ * implausible in front of an adviser's client.
+ *
+ * The primary person needs a real work record; a spouse's own benefit
+ * legitimately starts at $0 ("no work record of their own"). $5,000 sits
+ * above the maximum PIA attainable at FRA, so anything higher is a typo.
  */
-function isPersonComplete(p: PersonFormFields, requirePositiveBenefit: boolean): boolean {
+export const MAX_BENEFIT = 5000;
+export const MIN_BENEFIT_BY_INDEX: Record<0 | 1, number> = { 0: 500, 1: 0 };
+
+export function isBenefitInRange(benefit: number, index: 0 | 1): boolean {
+  return benefit >= MIN_BENEFIT_BY_INDEX[index] && benefit <= MAX_BENEFIT;
+}
+
+/** A person is complete when identity is present and the benefit is in range. */
+function isPersonComplete(p: PersonFormFields, index: 0 | 1): boolean {
   if (p.birthYear === '' || p.birthMonth === '' || p.gender === null) return false;
   if (p.monthlyBenefit === '') return false;
-  return requirePositiveBenefit ? p.monthlyBenefit > 0 : p.monthlyBenefit >= 0;
+  return isBenefitInRange(p.monthlyBenefit, index);
 }
 
 export function isFormComplete(form: AnalyzerFormState): boolean {
   if (form.hasSpouse === null || form.lifeExpectancy === null) return false;
-  if (!isPersonComplete(form.personA, true)) return false;
+  if (!isPersonComplete(form.personA, 0)) return false;
   // Married analyses require real spouse data — never defaulted from person A.
-  if (form.hasSpouse && !isPersonComplete(form.personB, false)) return false;
+  if (form.hasSpouse && !isPersonComplete(form.personB, 1)) return false;
   return true;
 }
 
