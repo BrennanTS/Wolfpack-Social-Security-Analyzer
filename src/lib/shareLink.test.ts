@@ -4,10 +4,15 @@ import { buildShareUrl, fromShareParams, toShareParams } from './shareLink';
 
 const married: AnalyzerFormState = {
   ...BLANK_FORM,
-  personA: { name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male', monthlyBenefit: 2400 },
-  personB: { name: 'Sarah', birthYear: 1964, birthMonth: 2, gender: 'female', monthlyBenefit: 2100 },
+  personA: {
+    name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male',
+    monthlyBenefit: 2400, lifeExpectancy: 85,
+  },
+  personB: {
+    name: 'Sarah', birthYear: 1964, birthMonth: 2, gender: 'female',
+    monthlyBenefit: 2100, lifeExpectancy: null,
+  },
   hasSpouse: true,
-  lifeExpectancy: 85,
   annualCola: 2.5,
   // A FRACTION (0.025 = 2.5%), unlike annualCola above — see the module
   // comment. A value of `2.5` here would mean 250%, fail the dr bounds check
@@ -18,9 +23,11 @@ const married: AnalyzerFormState = {
 
 const single: AnalyzerFormState = {
   ...BLANK_FORM,
-  personA: { name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male', monthlyBenefit: 2400 },
+  personA: {
+    name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male',
+    monthlyBenefit: 2400, lifeExpectancy: 85,
+  },
   hasSpouse: false,
-  lifeExpectancy: 85,
 };
 
 describe('round trip', () => {
@@ -81,13 +88,13 @@ describe('invalid parameters are dropped, never clamped', () => {
 
   it('drops non-numeric junk', () => {
     expect(parse('ab=abc').personA.monthlyBenefit).toBe('');
-    expect(parse('le=soon').lifeExpectancy).toBeNull();
+    expect(parse('le=soon').personA.lifeExpectancy).toBeNull();
   });
 
   it('drops assumptions outside their slider bounds', () => {
     expect(parse('cola=99').annualCola).toBe(BLANK_FORM.annualCola);
     expect(parse('dr=99').discountRate).toBe(BLANK_FORM.discountRate);
-    expect(parse('le=200').lifeExpectancy).toBeNull();
+    expect(parse('le=200').personA.lifeExpectancy).toBeNull();
   });
 
   // `dr` travels as a percent and is stored as a fraction. Without the

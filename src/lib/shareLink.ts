@@ -69,6 +69,9 @@ function readPerson(params: URLSearchParams, prefix: 'a' | 'b'): PersonFormField
     birthMonth: intInBounds(params, `${prefix}m`, { min: 1, max: 12 }),
     gender: readGender(params, `${prefix}g`),
     monthlyBenefit: readBenefit(params, `${prefix}b`),
+    // Per-person parsing arrives in a later task; for now every person reads
+    // back with no explicit life expectancy of their own.
+    lifeExpectancy: null,
   };
 }
 
@@ -88,7 +91,7 @@ export function toShareParams(form: AnalyzerFormState): URLSearchParams {
   writePerson(params, 'a', form.personA);
   if (form.hasSpouse !== null) params.set('m', form.hasSpouse ? '1' : '0');
   if (form.hasSpouse) writePerson(params, 'b', form.personB);
-  if (form.lifeExpectancy !== null) params.set('le', String(form.lifeExpectancy));
+  if (form.personA.lifeExpectancy !== null) params.set('le', String(form.personA.lifeExpectancy));
   params.set('cola', String(form.annualCola));
   // `dr` travels as a PERCENT so the link is human-readable and matches the
   // slider; the form stores a fraction. Convert on both sides.
@@ -113,12 +116,14 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
   const dr = num(params, 'dr');
   const discountFraction = dr === null ? null : dr / 100;
 
+  const personA = readPerson(params, 'a');
+  personA.lifeExpectancy =
+    le !== null && isInBounds(le, LIFE_EXPECTANCY_BOUNDS) ? le : null;
+
   return {
-    personA: readPerson(params, 'a'),
+    personA,
     personB: hasSpouse ? readPerson(params, 'b') : BLANK_FORM.personB,
     hasSpouse,
-    lifeExpectancy:
-      le !== null && isInBounds(le, LIFE_EXPECTANCY_BOUNDS) ? le : BLANK_FORM.lifeExpectancy,
     annualCola: cola !== null && isInBounds(cola, COLA_BOUNDS) ? cola : BLANK_FORM.annualCola,
     discountRate:
       discountFraction !== null && isDiscountRateInBounds(discountFraction)

@@ -7,7 +7,7 @@ import {
   analyzeIfComplete,
   BLANK_FORM,
   isFormComplete,
-  suggestedLifeExpectancy,
+  suggestedLifeExpectancyFor,
   type AnalyzerFormState,
   type PersonFormFields,
 } from '../lib/formState';
@@ -44,7 +44,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [personA, setPersonA] = useState<PersonFormFields>(initialForm.personA);
   const [personB, setPersonB] = useState<PersonFormFields>(initialForm.personB);
   const [hasSpouse, setHasSpouse] = useState<boolean | null>(initialForm.hasSpouse);
-  const [lifeExpectancy, setLifeExpectancy] = useState<number | null>(initialForm.lifeExpectancy);
   const [annualCola, setAnnualCola] = useState(initialForm.annualCola);
   const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
 
@@ -77,11 +76,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       personA,
       personB,
       hasSpouse,
-      lifeExpectancy,
       annualCola,
       discountRate,
     }),
-    [personA, personB, hasSpouse, lifeExpectancy, annualCola, discountRate],
+    [personA, personB, hasSpouse, annualCola, discountRate],
   );
 
   const inputsComplete = isFormComplete(form);
@@ -123,16 +121,17 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personA, personB, hasSpouse, lifeExpectancy, discountRate]);
+  }, [personA, personB, hasSpouse, discountRate]);
 
-  const ssaSuggested = suggestedLifeExpectancy(form);
+  const ssaSuggested = suggestedLifeExpectancyFor(personA);
 
   function handlePersonAChange(next: PersonFormFields) {
-    setPersonA(next);
     if (next.birthYear !== '' && next.birthMonth !== '' && next.gender !== null) {
       const age = getCurrentAge(next.birthYear, next.birthMonth).years;
-      setLifeExpectancy(getSuggestedLifeExpectancy(age, next.gender));
+      setPersonA({ ...next, lifeExpectancy: getSuggestedLifeExpectancy(age, next.gender) });
+      return;
     }
+    setPersonA(next);
   }
 
   function handleMaritalChange(married: boolean) {
@@ -244,8 +243,8 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             {hasSpouse && <PersonFields person={personB} index={1} onChange={setPersonB} />}
 
             <AssumptionsPanel
-              lifeExpectancy={lifeExpectancy}
-              onLifeExpectancyChange={setLifeExpectancy}
+              lifeExpectancy={personA.lifeExpectancy}
+              onLifeExpectancyChange={(v) => setPersonA({ ...personA, lifeExpectancy: v })}
               annualCola={annualCola}
               onAnnualColaChange={setAnnualCola}
               discountRate={discountRate}

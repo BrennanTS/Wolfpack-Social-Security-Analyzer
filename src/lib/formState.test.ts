@@ -5,8 +5,10 @@ import {
   isFormComplete,
   MAX_BENEFIT,
   MIN_BENEFIT,
+  suggestedLifeExpectancyFor,
   toHousehold,
   type AnalyzerFormState,
+  type PersonFormFields,
 } from './formState';
 
 const completeA = {
@@ -15,6 +17,7 @@ const completeA = {
   birthMonth: 4,
   gender: 'male' as const,
   monthlyBenefit: 2400,
+  lifeExpectancy: 85,
 };
 const completeB = {
   name: '',
@@ -22,13 +25,13 @@ const completeB = {
   birthMonth: 2,
   gender: 'female' as const,
   monthlyBenefit: 2100,
+  lifeExpectancy: null,
 };
 
 const single: AnalyzerFormState = {
   ...BLANK_FORM,
   personA: completeA,
   hasSpouse: false,
-  lifeExpectancy: 85,
 };
 
 describe('isFormComplete', () => {
@@ -116,13 +119,13 @@ describe('isBenefitInRange', () => {
 describe('at least one person must have a positive benefit', () => {
   const earner = {
     name: '', birthYear: 1962, birthMonth: 4,
-    gender: 'male' as const, monthlyBenefit: 2400,
+    gender: 'male' as const, monthlyBenefit: 2400, lifeExpectancy: 85,
   };
   const noRecord = {
     name: '', birthYear: 1964, birthMonth: 2,
-    gender: 'female' as const, monthlyBenefit: 0,
+    gender: 'female' as const, monthlyBenefit: 0, lifeExpectancy: 85,
   };
-  const base = { ...BLANK_FORM, lifeExpectancy: 85 };
+  const base = BLANK_FORM;
 
   it('accepts a married household where person A has no work record', () => {
     expect(
@@ -180,5 +183,60 @@ describe('toHousehold', () => {
     const h = toHousehold({ ...single, hasSpouse: true, personB: completeB });
     expect(h.people[1].birthYear).toBe(1964);
     expect(h.people[1].birthYear).not.toBe(h.people[0].birthYear);
+  });
+});
+
+describe('per-person life expectancy', () => {
+  // Both born 1960, so both are the same age — gender is the only variable.
+  // Absolute values are deliberately not asserted: getCurrentAge reads the
+  // wall clock, so an exact expectation would rot. See the plan's note.
+  const male: PersonFormFields = {
+    name: '', birthYear: 1960, birthMonth: 6, gender: 'male',
+    monthlyBenefit: 2500, lifeExpectancy: null,
+  };
+  const female: PersonFormFields = {
+    name: '', birthYear: 1960, birthMonth: 6, gender: 'female',
+    monthlyBenefit: 1200, lifeExpectancy: null,
+  };
+
+  it('gives each person their own suggested value when neither is set', () => {
+    const household = toHousehold({
+      ...BLANK_FORM,
+      personA: { ...male, lifeExpectancy: 85 },
+      personB: female,
+      hasSpouse: true,
+    });
+    // Same age, different gender: SSA's table gives women more remaining years,
+    // so B's fallback must exceed what a male of the same age would receive.
+    expect(household.people[1].lifeExpectancy).toBeGreaterThan(
+      suggestedLifeExpectancyFor(male)!,
+    );
+  });
+
+  it('uses an explicit value for person B rather than the fallback', () => {
+    const household = toHousehold({
+      ...BLANK_FORM,
+      personA: { ...male, lifeExpectancy: 85 },
+      personB: { ...female, lifeExpectancy: 92 },
+      hasSpouse: true,
+    });
+    expect(household.people[1].lifeExpectancy).toBe(92);
+    expect(household.people[0].lifeExpectancy).toBe(85);
+  });
+
+  it('requires person A life expectancy but not person B', () => {
+    const base = {
+      ...BLANK_FORM,
+      personA: { ...male, lifeExpectancy: 85 },
+      personB: female,
+      hasSpouse: true,
+    };
+    expect(isFormComplete(base)).toBe(true);
+    expect(isFormComplete({ ...base, personA: { ...male, lifeExpectancy: null } })).toBe(false);
+  });
+
+  it('returns null from the suggestion helper when identity is incomplete', () => {
+    expect(suggestedLifeExpectancyFor({ ...male, gender: null })).toBeNull();
+    expect(suggestedLifeExpectancyFor({ ...male, birthYear: '' })).toBeNull();
   });
 });
