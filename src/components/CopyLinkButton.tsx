@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { buildShareUrl } from '../lib/shareLink';
 import type { AnalyzerFormState } from '../lib/formState';
 
@@ -16,10 +16,24 @@ interface CopyLinkButtonProps {
  * adviser who thinks they copied a link may paste stale clipboard contents
  * into an email instead. On failure, the URL is shown in a read-only,
  * pre-selected input so it can still be copied by hand.
+ *
+ * That panel is captured at click time, so it must not outlive the state it
+ * encodes. It is cleared whenever the form changes and can be dismissed by
+ * hand — otherwise a URL carrying the client's date of birth and benefit sits
+ * in the header for the rest of the session, and goes stale the moment the
+ * adviser edits anything, showing a scenario that no longer exists.
  */
 export function CopyLinkButton({ form, disabled }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
+
+  // `form` is a `useMemo` over the individual fields in `Analyzer`, so its
+  // identity changes exactly when the scenario does — never on an unrelated
+  // re-render.
+  useEffect(() => {
+    setFallbackUrl(null);
+    setCopied(false);
+  }, [form]);
 
   async function handleCopy() {
     const url = buildShareUrl(form, window.location.origin, window.location.pathname);
@@ -59,9 +73,20 @@ export function CopyLinkButton({ form, disabled }: CopyLinkButtonProps) {
       </span>
       {fallbackUrl && (
         <div className="share-link-fallback">
-          <label htmlFor="share-link-fallback-input" className="field-hint">
-            Clipboard unavailable — copy this link manually:
-          </label>
+          <div className="share-link-fallback-head">
+            <label htmlFor="share-link-fallback-input" className="field-hint">
+              Clipboard unavailable — copy this link manually:
+            </label>
+            <button
+              type="button"
+              className="share-link-fallback-dismiss"
+              data-testid="share-link-fallback-dismiss"
+              onClick={() => setFallbackUrl(null)}
+              aria-label="Dismiss link"
+            >
+              ×
+            </button>
+          </div>
           <input
             id="share-link-fallback-input"
             data-testid="share-link-fallback"

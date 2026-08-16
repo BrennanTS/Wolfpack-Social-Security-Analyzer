@@ -665,9 +665,45 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
+.share-link-fallback-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .share-link-fallback .field-hint {
   margin-top: 0;
   margin-bottom: 6px;
+}
+
+.share-link-fallback-dismiss {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: -2px -4px 0 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.share-link-fallback-dismiss:hover {
+  color: var(--text);
+  background: var(--fill);
+}
+
+.share-link-fallback-dismiss:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
 }
 
 .share-link-fallback input {
