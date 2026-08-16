@@ -53,7 +53,14 @@ export function isFormComplete(form: AnalyzerFormState): boolean {
   if (!isPersonComplete(form.personA)) return false;
   // Married analyses require real spouse data — never defaulted from person A.
   if (form.hasSpouse && !isPersonComplete(form.personB)) return false;
-  return true;
+
+  // A person with no work record of their own is legitimate — they may draw a
+  // spousal benefit on their partner's record. A household where *nobody*
+  // earns has nothing to analyze.
+  const benefits = form.hasSpouse
+    ? [form.personA.monthlyBenefit, form.personB.monthlyBenefit]
+    : [form.personA.monthlyBenefit];
+  return benefits.some((b) => b !== '' && b > 0);
 }
 
 function toPerson(fields: PersonFormFields, id: 'a' | 'b', lifeExpectancy: number): Person {

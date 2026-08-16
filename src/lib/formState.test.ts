@@ -74,12 +74,19 @@ describe('isFormComplete', () => {
   // the old $500 floor (or over $5,000) invalid, so a $250 entry showed a red
   // field and still produced a confident analysis. Both people now share one
   // range (MIN_BENEFIT-MAX_BENEFIT), so the same values are asserted for A.
+  //
+  // This is a field-range test, not an earner test: it holds personB as a
+  // real earner throughout, so varying A's benefit down to $0 (a no-work-
+  // record spouse) never trips the separate "at least one earner" rule
+  // exercised below. A $0 A in a *single* household is covered there instead
+  // (nothing to analyze with no spouse to draw a benefit from).
   it('agrees with the field-level guardrails the UI declares', () => {
+    const marriedEarningSpouse = { ...single, hasSpouse: true, personB: completeB };
     const withBenefitA = (monthlyBenefit: number) =>
-      isFormComplete({ ...single, personA: { ...completeA, monthlyBenefit } });
+      isFormComplete({ ...marriedEarningSpouse, personA: { ...completeA, monthlyBenefit } });
 
     expect(withBenefitA(MIN_BENEFIT - 1)).toBe(false); // -$1
-    expect(withBenefitA(MIN_BENEFIT)).toBe(true); // $0, a genuine low-earner PIA
+    expect(withBenefitA(MIN_BENEFIT)).toBe(true); // $0, a no-work-record A; B still earns
     expect(withBenefitA(250)).toBe(true); // the old $500 floor used to reject this
     expect(withBenefitA(MAX_BENEFIT)).toBe(true); // $5,000, on the ceiling
     expect(withBenefitA(MAX_BENEFIT + 1)).toBe(false);
@@ -103,6 +110,52 @@ describe('isBenefitInRange', () => {
     expect(isBenefitInRange(-1)).toBe(false);
     expect(isBenefitInRange(0)).toBe(true);
     expect(isBenefitInRange(5001)).toBe(false);
+  });
+});
+
+describe('at least one person must have a positive benefit', () => {
+  const earner = {
+    name: '', birthYear: 1962, birthMonth: 4,
+    gender: 'male' as const, monthlyBenefit: 2400,
+  };
+  const noRecord = {
+    name: '', birthYear: 1964, birthMonth: 2,
+    gender: 'female' as const, monthlyBenefit: 0,
+  };
+  const base = { ...BLANK_FORM, lifeExpectancy: 85 };
+
+  it('accepts a married household where person A has no work record', () => {
+    expect(
+      isFormComplete({ ...base, hasSpouse: true, personA: noRecord, personB: earner }),
+    ).toBe(true);
+  });
+
+  it('accepts a married household where person B has no work record', () => {
+    expect(
+      isFormComplete({ ...base, hasSpouse: true, personA: earner, personB: noRecord }),
+    ).toBe(true);
+  });
+
+  it('rejects a household where neither person earns', () => {
+    expect(
+      isFormComplete({
+        ...base, hasSpouse: true,
+        personA: noRecord, personB: { ...noRecord, birthYear: 1966 },
+      }),
+    ).toBe(false);
+  });
+
+  it('rejects a single claimant with no benefit — nothing to analyze', () => {
+    expect(isFormComplete({ ...base, hasSpouse: false, personA: noRecord })).toBe(false);
+  });
+
+  it('accepts a genuine low-earner PIA the old $500 floor rejected', () => {
+    expect(
+      isFormComplete({
+        ...base, hasSpouse: false,
+        personA: { ...earner, monthlyBenefit: 250 },
+      }),
+    ).toBe(true);
   });
 });
 
