@@ -13,7 +13,7 @@
 import type { MonthDate } from '$lib/month-time';
 import { MonthDuration } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
-import type { BenefitPeriod } from '$lib/strategy/calculations/benefit-period';
+import { type BenefitPeriod, BenefitType } from '$lib/strategy/calculations/benefit-period';
 import {
   strategySumPeriodsCouple,
   strategySumPeriodsSingle,
@@ -64,10 +64,12 @@ function monthIndexOf(date: MonthDate): number {
   return date.year() * 12 + date.monthIndex();
 }
 
-const BAND_TYPE: Record<string, BandType> = {
-  Personal: 'personal',
-  Spousal: 'spousal',
-  Survivor: 'survivor',
+// Keyed on the engine's enum rather than `string`, so a new BenefitType member
+// becomes a type error here instead of an `undefined` band type at runtime.
+const BAND_TYPE: Record<BenefitType, BandType> = {
+  [BenefitType.Personal]: 'personal',
+  [BenefitType.Spousal]: 'spousal',
+  [BenefitType.Survivor]: 'survivor',
 };
 
 function toBand(period: BenefitPeriod, people: Person[]): BenefitBand {
@@ -89,6 +91,16 @@ function toBand(period: BenefitPeriod, people: Person[]): BenefitBand {
  * has no personal band at all, which happens when the engine truncates their
  * personal entitlement to nothing (survivor benefits starting the month they
  * would have filed).
+ *
+ * Known imprecision, deliberately not fixed: when the engine truncates the
+ * dependent's personal entitlement *inside* their filing calendar year, only
+ * the pre-January-bump band exists, so the split carries that lower figure
+ * forward and the survivor top-up absorbs the difference. The household total
+ * stays exactly right — it is the engine's own survivor amount either way —
+ * and only the personal/survivor composition is off by the bump. The
+ * post-bump figure is not exposed on that path, so recovering it would mean
+ * recomputing a benefit rule, which is precisely what this module exists to
+ * avoid.
  */
 function latestPersonalBand(bands: BenefitBand[], personId: string): BenefitBand | undefined {
   return bands
@@ -149,23 +161,28 @@ function splitDualEntitlement(bands: BenefitBand[]): BenefitBand[] {
  *
  * This detects that case rather than computing it: it compares two figures the
  * engine already produced and adds no benefit rule of its own.
+ *
+ * Takes the NORMALIZED bands, before the dual-entitlement split — the split is
+ * allowed to drop a survivor band and must not be able to turn that into a
+ * disclosure. Only `monthlyAmount` is read, which the split leaves untouched
+ * on personal bands.
  */
 function detectSurvivorGap(
-  bands: BenefitBand[],
+  normalized: BenefitBand[],
   people: Person[],
   finalIndexes: number[],
   labels: string[],
 ): SurvivorGap | null {
   if (people.length !== 2) return null;
-  if (bands.some((b) => b.type === 'survivor')) return null;
+  if (normalized.some((b) => b.type === 'survivor')) return null;
 
   // Whoever outlives the other is the person the engine left unmodelled.
   const survivorIdx = finalIndexes[0] > finalIndexes[1] ? 0 : 1;
   const deceasedIdx = 1 - survivorIdx;
   if (finalIndexes[survivorIdx] === finalIndexes[deceasedIdx]) return null;
 
-  const survivorOwn = latestPersonalBand(bands, people[survivorIdx].id);
-  const deceased = latestPersonalBand(bands, people[deceasedIdx].id);
+  const survivorOwn = latestPersonalBand(normalized, people[survivorIdx].id);
+  const deceased = latestPersonalBand(normalized, people[deceasedIdx].id);
   if (survivorOwn === undefined || deceased === undefined) return null;
 
   // A survivor benefit derives from the deceased's own retirement benefit;
@@ -203,10 +220,12 @@ export function householdPeriods(
         );
 
   const normalized = periods.map((p) => toBand(p, people));
-  const bands = splitDualEntitlement(normalized);
-  const survivorGap = detectSurvivorGap(bands, people, finalDates.map(monthIndexOf), labels);
+  // Gap detection reads the engine's own output, not the split's. The split
+  // can drop a survivor band whose top-up is not positive, and that is a
+  // display decision — it must not be able to manufacture a disclosure.
+  const survivorGap = detectSurvivorGap(normalized, people, finalDates.map(monthIndexOf), labels);
 
-  return { bands, survivorGap };
+  return { bands: splitDualEntitlement(normalized), survivorGap };
 }
 
 /** Payment months this band contributes to a given calendar year. */

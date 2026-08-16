@@ -23,6 +23,11 @@ describe('householdPeriods — single', () => {
   it('produces personal bands only', () => {
     const p = person('a', 1960, 6, 2500, 'male', 85);
     const { bands, survivorGap } = householdPeriods([p], [recipientFor(p)], [age(67)], ['You']);
+    // Guard: `every` is vacuously true on an empty array, and an empty result
+    // is exactly what a broken finalDate would produce — PersonalBenefitPeriods
+    // emits zero periods, without erroring, when finalDate is at or before the
+    // filing date. Without this the whole block passes on a dead dispatch.
+    expect(bands.length).toBeGreaterThan(0);
     expect(bands.every((b) => b.type === 'personal')).toBe(true);
     expect(bands.every((b) => b.personId === 'a')).toBe(true);
     expect(survivorGap).toBeNull();
@@ -50,6 +55,27 @@ describe('householdPeriods — dual entitlement', () => {
     // Guards every assertion below: without this the others can pass
     // vacuously on an empty band list.
     expect(run().bands.filter((b) => b.type === 'survivor')).toHaveLength(1);
+  });
+
+  it('places the bands on absolute calendar months', () => {
+    // Every other assertion here is relational, so a wrong epoch or offset in
+    // the MonthDate -> index conversion would pass the whole suite while
+    // shifting Task 2's calendar-year bucketing. These are dates, not benefit
+    // amounts, so they can be hand-derived and pinned.
+    //
+    // John is born Mar 1958 and files at SSA age 62: Mar 1958 + 62y = Mar 2020.
+    // Jane is born Sep 1960 with a plan-to age of 80, so her final month is
+    // Sep 2040 inclusive, and survivor benefits begin the month after.
+    // John's plan-to age of 88 puts his final month at Mar 2046.
+    const { bands } = run();
+    const survivor = bands.find((b) => b.type === 'survivor')!;
+    const johnFirst = bands
+      .filter((b) => b.personId === 'a' && b.type === 'personal')
+      .reduce((first, b) => (b.startIndex < first.startIndex ? b : first));
+
+    expect(johnFirst.startIndex).toBe(2020 * 12 + 2); // Mar 2020
+    expect(survivor.startIndex).toBe(2040 * 12 + 9); // Oct 2040
+    expect(survivor.endIndex).toBe(2046 * 12 + 2); // Mar 2046
   });
 
   it("continues the survivor's own personal band past the first death", () => {
