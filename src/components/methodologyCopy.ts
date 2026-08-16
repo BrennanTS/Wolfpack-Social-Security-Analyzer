@@ -6,11 +6,30 @@
  * `Analyzer.tsx` so it can be unit-tested without mounting the page (and so
  * the component file keeps exporting only components).
  */
-import type { SurvivorGap } from '../lib/benefitPeriods';
+import type { BandType, SurvivorGap } from '../lib/benefitPeriods';
 import type { HouseholdAnalysis } from '../lib/household';
 import { formatCurrencyPrecise } from '../lib/format';
 
 type SpousalTopUp = NonNullable<HouseholdAnalysis['spousalTopUp']>;
+
+const BAND_TYPE_LABEL: Record<BandType, string> = {
+  personal: 'own benefit',
+  spousal: 'spousal',
+  survivor: 'survivor',
+};
+
+/**
+ * The legend label for one person's one benefit-type band — "Sarah —
+ * spousal", "Dan — own benefit". Shared by the on-screen chart legend
+ * (`CombinedIncomeChart`) and the PDF's combined-income bars
+ * (`pdf/HouseholdSection`) so the two cannot drift, for the same reason
+ * `combinedIncomeCaption` and `survivorGapNote` are centralized here: three
+ * of five prior defects existed because a sentence was hand-maintained in
+ * more than one file.
+ */
+export function benefitSeriesLabel(personName: string, type: BandType): string {
+  return `${personName} — ${BAND_TYPE_LABEL[type]}`;
+}
 
 /**
  * The disclosure for the one survivor direction the engine does not model.

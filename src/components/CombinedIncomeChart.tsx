@@ -1,17 +1,15 @@
-import { useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { SurvivorGap } from '../lib/benefitPeriods';
-import type { CombinedTimelinePoint } from '../lib/household';
+import { visibleBenefitSeries, type CombinedTimelinePoint } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../lib/format';
-import { combinedIncomeCaption, survivorGapNote } from './methodologyCopy';
+import { benefitSeriesLabel, combinedIncomeCaption, survivorGapNote } from './methodologyCopy';
 import {
   CHART_AXIS_LINE,
-  CHART_GOLD,
-  CHART_GREY_MID,
-  CHART_INK,
   CHART_MUTED,
+  CHART_RED,
   CHART_TOOLTIP_STYLE,
+  seriesColor,
 } from '../lib/chartTheme';
 
 interface CombinedIncomeChartProps {
@@ -23,34 +21,61 @@ interface CombinedIncomeChartProps {
    * below says so. Optional so the single-claimant call site need not pass it.
    */
   survivorGap?: SurvivorGap | null;
+  /**
+   * Each person's inclusive final month index, for the first-death marker —
+   * `Math.min` of these, converted to a calendar year. Optional so the
+   * single-claimant call site need not pass it; the marker only ever appears
+   * for a couple regardless, since one person alone has no "first" death.
+   */
+  finalIndexByPersonId?: Record<string, number>;
 }
 
 /**
- * Stacked-series palette, gold-forward like the rest of the app. A household
- * only ever has one or two people, but this stays a ramp rather than a fixed
- * pair so a third series would degrade gracefully instead of colliding.
+ * The combined household income timeline: one stacked area per person PER
+ * BENEFIT TYPE (own benefit, spousal, survivor), summing to total annual
+ * Social Security income under the recommended strategy. Mirrors
+ * `BenefitChart`'s Recharts conventions (same `chartTheme` tokens,
+ * `ResponsiveContainer` wrapper, axis/tooltip styling) so the household tab
+ * doesn't look like a different app.
+ *
+ * Deliberately holds no React hooks: `pdf/HouseholdSection.test.tsx`
+ * established the pattern this file's own tests reuse for the parts Recharts
+ * never mounts in jsdom — call the component directly and walk the JSX tree
+ * it returns — and that only works on a component that is safe to call
+ * outside a render pass.
  */
-const PERSON_COLORS = [CHART_GOLD, CHART_INK, CHART_GREY_MID];
-
-/**
- * The combined household income timeline: one stacked area per person,
- * summing to total annual Social Security income under the recommended
- * strategy. Mirrors `BenefitChart`'s Recharts conventions (same
- * `chartTheme` tokens, `ResponsiveContainer` wrapper, axis/tooltip styling)
- * so the household tab doesn't look like a different app.
- */
-export function CombinedIncomeChart({ timeline, people, survivorGap }: CombinedIncomeChartProps) {
+export function CombinedIncomeChart({
+  timeline,
+  people,
+  survivorGap,
+  finalIndexByPersonId = {},
+}: CombinedIncomeChartProps) {
   const gap = survivorGap ?? null;
   const gapNote = survivorGapNote(gap);
-  const series = useMemo(
-    () =>
-      people.map((p, i) => ({
-        id: p.id,
-        name: personLabel(p.name, i),
-        color: PERSON_COLORS[i % PERSON_COLORS.length],
-      })),
-    [people],
-  );
+
+  const series = visibleBenefitSeries(timeline, people).map((s) => ({
+    ...s,
+    name: benefitSeriesLabel(personLabel(people[s.personIndex]?.name, s.personIndex), s.type),
+    color: seriesColor(s.personIndex, s.type),
+  }));
+
+  // The year each person first appears with a positive total — read off the
+  // same `byPersonId` roll-up the tooltip uses, so "when the benefit was
+  // claimed" is exactly the data already on screen, not a second computation
+  // of a benefit rule.
+  const filingYearByPersonId: Record<string, number> = {};
+  for (const p of people) {
+    const point = timeline.find((pt) => (pt.byPersonId[p.id] ?? 0) > 0);
+    if (point) filingYearByPersonId[p.id] = point.year;
+  }
+
+  // First death, for a couple only. `Math.min` of the two final month
+  // indexes, converted from the absolute month convention to a calendar year.
+  const finalIndexes = people
+    .map((p) => finalIndexByPersonId[p.id])
+    .filter((v): v is number => v !== undefined);
+  const deathYear =
+    people.length > 1 && finalIndexes.length > 1 ? Math.floor(Math.min(...finalIndexes) / 12) : null;
 
   return (
     <div className="chart-container">
@@ -69,7 +94,7 @@ export function CombinedIncomeChart({ timeline, people, survivorGap }: CombinedI
         )}
         <div className="chart-legend-row" aria-hidden="true">
           {series.map((s) => (
-            <span key={s.id} className="chart-legend-item">
+            <span key={s.key} className="chart-legend-item">
               <span className="chart-legend-swatch" style={{ background: s.color }} />
               {s.name}
             </span>
@@ -104,9 +129,9 @@ export function CombinedIncomeChart({ timeline, people, survivorGap }: CombinedI
             />
             {series.map((s) => (
               <Area
-                key={s.id}
+                key={s.key}
                 type="monotone"
-                dataKey={(point: CombinedTimelinePoint) => point.byPersonId[s.id] ?? 0}
+                dataKey={(point: CombinedTimelinePoint) => point.bySeries[s.key] ?? 0}
                 name={s.name}
                 stackId="household"
                 stroke={s.color}
@@ -114,6 +139,22 @@ export function CombinedIncomeChart({ timeline, people, survivorGap }: CombinedI
                 fillOpacity={0.35}
               />
             ))}
+            {people.map((p, i) => {
+              const year = filingYearByPersonId[p.id];
+              if (year === undefined) return null;
+              return (
+                <ReferenceLine
+                  key={`filing-${p.id}`}
+                  x={year}
+                  stroke={CHART_MUTED}
+                  strokeDasharray="4 4"
+                  label={`${personLabel(p.name, i)} files`}
+                />
+              );
+            })}
+            {deathYear !== null && (
+              <ReferenceLine x={deathYear} stroke={CHART_RED} strokeDasharray="3 3" label="First death" />
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>

@@ -4,6 +4,7 @@
  * Kept in one place so every chart matches the app's quiet-luxury palette
  * (ink + gold on cream) and so the tooltip styling stays consistent.
  */
+import type { BandType } from './benefitPeriods';
 
 /** Gold accent — used for the optimal / highlighted series. */
 export const CHART_GOLD = '#b8965a';
@@ -17,6 +18,30 @@ export const CHART_GREY_MID = '#b0b0b0';
 export const CHART_AXIS_LINE = '#e8e8ed';
 /** Muted red used to flag shortfalls / life-expectancy markers. */
 export const CHART_RED = '#9a4a44';
+/** Sage — a spousal band drawn on the OTHER spouse's record. */
+export const CHART_SAGE = '#7d9b76';
+/** Slate — a survivor band, drawn once the earner they depended on has died. */
+export const CHART_SLATE = '#6f8ba3';
+
+/** A person's own record, indexed by their position in the household. */
+const OWN_BENEFIT_COLORS = [CHART_GOLD, CHART_INK, CHART_GREY_MID];
+
+/**
+ * A person's own record keeps their identity colour; benefits drawn on the
+ * OTHER person's record get their own. Only the dependent ever holds a
+ * spousal or survivor band, so at most four series exist and none collide.
+ */
+export function seriesColor(personIndex: number, type: BandType): string {
+  switch (type) {
+    case 'spousal':
+      return CHART_SAGE;
+    case 'survivor':
+      return CHART_SLATE;
+    case 'personal':
+    default:
+      return OWN_BENEFIT_COLORS[personIndex % OWN_BENEFIT_COLORS.length];
+  }
+}
 
 /** Dark, rounded tooltip shared by every chart. */
 export const CHART_TOOLTIP_STYLE = {

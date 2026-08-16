@@ -54,7 +54,9 @@ function buildAnalysis(): HouseholdAnalysis {
     people: [personA],
     optimal,
     comparisons: [optimal],
-    combinedTimeline: [{ year: 2032, byPersonId: { a: 35_712 }, total: 35_712 }],
+    combinedTimeline: [
+      { year: 2032, bySeries: { 'a:personal': 35_712 }, byPersonId: { a: 35_712 }, total: 35_712 },
+    ],
     recommendation: 'Claim at age 70',
     recommendationDetail: 'ssa.tools recommends filing at age 70.',
     assumptions: { annualCola: 0, discountRate: 3 },

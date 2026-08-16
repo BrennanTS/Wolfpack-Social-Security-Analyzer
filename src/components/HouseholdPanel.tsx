@@ -49,6 +49,7 @@ export function HouseholdPanel({ analysis, annualCola }: HouseholdPanelProps) {
         timeline={analysis.combinedTimeline}
         people={people}
         survivorGap={analysis.survivorGap}
+        finalIndexByPersonId={analysis.finalIndexByPersonId}
       />
 
       <BreakEvenSection

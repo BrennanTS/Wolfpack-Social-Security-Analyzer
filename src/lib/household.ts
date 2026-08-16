@@ -5,6 +5,7 @@ import { roundCents } from './benefitMath';
 import {
   householdPeriods,
   monthsInYear,
+  type BandType,
   type BenefitBand,
   type SurvivorGap,
 } from './benefitPeriods';
@@ -242,6 +243,60 @@ function buildCombinedTimeline(
     points.push({ year, bySeries, byPersonId, total: roundCents(total) });
   }
   return points;
+}
+
+export interface VisibleBenefitSeries {
+  /** `${personId}:${type}` — matches `CombinedTimelinePoint.bySeries`'s keys. */
+  key: string;
+  personId: string;
+  /** The person's position in the `people` array passed in — for colour and label. */
+  personIndex: number;
+  type: BandType;
+}
+
+const BAND_TYPE_ORDER: Record<BandType, number> = { personal: 0, spousal: 1, survivor: 2 };
+
+/**
+ * The distinct benefit series actually present in a timeline, in stacking and
+ * legend order — each person's own band first, then spousal, then survivor —
+ * with any series that is zero at every point dropped.
+ *
+ * Both `CombinedIncomeChart` (screen) and `CombinedIncomeBars` (PDF) call
+ * this rather than each deriving their own list, so a `$0.00` spousal band
+ * (the engine emits one when a DRC-inflated personal benefit already exceeds
+ * the combined cap — see `spousalFiguresFrom` above) disappears from both
+ * surfaces identically instead of one of them drifting into rendering an
+ * invisible band with a legend entry.
+ */
+export function visibleBenefitSeries(
+  timeline: CombinedTimelinePoint[],
+  people: Person[],
+): VisibleBenefitSeries[] {
+  const personIndexById: Record<string, number> = {};
+  people.forEach((p, i) => {
+    personIndexById[p.id] = i;
+  });
+
+  const seen = new Map<string, { personId: string; type: BandType }>();
+  for (const point of timeline) {
+    for (const key of Object.keys(point.bySeries)) {
+      if (seen.has(key)) continue;
+      const idx = key.lastIndexOf(':');
+      seen.set(key, { personId: key.slice(0, idx), type: key.slice(idx + 1) as BandType });
+    }
+  }
+
+  const defs: VisibleBenefitSeries[] = [];
+  for (const [key, { personId, type }] of seen) {
+    const isAllZero = timeline.every((point) => (point.bySeries[key] ?? 0) === 0);
+    if (isAllZero) continue;
+    defs.push({ key, personId, personIndex: personIndexById[personId] ?? 0, type });
+  }
+
+  defs.sort(
+    (a, b) => a.personIndex - b.personIndex || BAND_TYPE_ORDER[a.type] - BAND_TYPE_ORDER[b.type],
+  );
+  return defs;
 }
 
 /**

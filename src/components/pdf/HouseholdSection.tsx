@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
 import { Page, Text, View, Svg, Line, Rect } from '@react-pdf/renderer';
-import type { CombinedTimelinePoint, HouseholdAnalysis, HouseholdStrategy } from '../../lib/household';
+import {
+  visibleBenefitSeries,
+  type CombinedTimelinePoint,
+  type HouseholdAnalysis,
+  type HouseholdStrategy,
+} from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
+import { seriesColor } from '../../lib/chartTheme';
 import { formatCurrency, personLabel } from '../../lib/format';
-import { combinedIncomeCaption, spousalSummary, survivorGapNote } from '../methodologyCopy';
-import { BORDER, CONTENT_W, GOLD, INK, MUTED, styles } from './theme';
+import { benefitSeriesLabel, combinedIncomeCaption, spousalSummary, survivorGapNote } from '../methodologyCopy';
+import { BORDER, CONTENT_W, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
 
 interface Props {
@@ -57,8 +63,16 @@ function StrategyTable({
   );
 }
 
-/** Compact stacked bar chart of combined annual household income by year. */
-function CombinedIncomeBars({
+/**
+ * Compact stacked bar chart of combined annual household income by year, one
+ * segment per benefit type (own benefit, spousal, survivor) — the same
+ * decomposition `CombinedIncomeChart` draws on screen, from the same
+ * `visibleBenefitSeries` selection, the same `seriesColor` palette and the
+ * same `benefitSeriesLabel` legend text. Exported so `HouseholdSection.test.tsx`
+ * can assert on its decomposition in isolation from the household page's own
+ * caption text.
+ */
+export function CombinedIncomeBars({
   timeline,
   people,
 }: {
@@ -75,8 +89,13 @@ function CombinedIncomeBars({
   const plotH = H - padT - padB;
   const maxTotal = Math.max(...timeline.map((t) => t.total), 1);
   const barW = plotW / timeline.length;
-  const colors = [GOLD, INK];
   const labelStep = Math.max(1, Math.ceil(timeline.length / 8));
+
+  const series = visibleBenefitSeries(timeline, people).map((s) => ({
+    ...s,
+    name: benefitSeriesLabel(personLabel(people[s.personIndex]?.name, s.personIndex), s.type),
+    color: seriesColor(s.personIndex, s.type),
+  }));
 
   return (
     <View>
@@ -84,19 +103,19 @@ function CombinedIncomeBars({
         <Line x1={padL} y1={padT + plotH} x2={W - padR} y2={padT + plotH} stroke={BORDER} strokeWidth={0.5} />
         {timeline.map((point, i) => {
           let yTop = padT + plotH;
-          return people.map((p, pi) => {
-            const amount = point.byPersonId[p.id] ?? 0;
+          return series.map((s) => {
+            const amount = point.bySeries[s.key] ?? 0;
             const h = (amount / maxTotal) * plotH;
             const y = yTop - h;
             yTop = y;
             return (
               <Rect
-                key={`${point.year}-${p.id}`}
+                key={`${point.year}-${s.key}`}
                 x={padL + i * barW + 0.5}
                 y={y}
                 width={Math.max(barW - 1, 0.5)}
                 height={h}
-                fill={colors[pi % colors.length]}
+                fill={s.color}
               />
             );
           });
@@ -119,10 +138,10 @@ function CombinedIncomeBars({
         </Text>
       </Svg>
       <View style={styles.chartLegend}>
-        {people.map((p, i) => (
-          <View key={p.id} style={styles.legendItem}>
-            <View style={[styles.legendLine, { backgroundColor: colors[i % colors.length] }]} />
-            <Text style={styles.legendText}>{personLabel(p.name, i)}</Text>
+        {series.map((s) => (
+          <View key={s.key} style={styles.legendItem}>
+            <View style={[styles.legendLine, { backgroundColor: s.color }]} />
+            <Text style={styles.legendText}>{s.name}</Text>
           </View>
         ))}
       </View>

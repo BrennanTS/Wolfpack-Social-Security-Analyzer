@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ReactElement } from 'react';
 import type { SurvivorGap } from '../../lib/benefitPeriods';
-import type { HouseholdAnalysis } from '../../lib/household';
-import { HouseholdSection } from './HouseholdSection';
+import type { CombinedTimelinePoint, HouseholdAnalysis } from '../../lib/household';
+import type { Person } from '../../lib/personAnalysis';
+import { CombinedIncomeBars, HouseholdSection } from './HouseholdSection';
 import { MethodologyAppendix } from './ReportDocument';
+import { benefitSeriesLabel } from '../methodologyCopy';
 
 /**
  * The PDF's half of the survivor-gap disclosure and the combined-income
@@ -52,7 +54,9 @@ function analysisWith(survivorGap: SurvivorGap | null): HouseholdAnalysis {
     status: 'married',
     people: [rep, { person: { id: 'b', name: 'Blake' } }],
     comparisons: [],
-    combinedTimeline: [{ year: 2030, byPersonId: { a: 12000, b: 0 }, total: 12000 }],
+    combinedTimeline: [
+      { year: 2030, bySeries: { 'a:personal': 12000 }, byPersonId: { a: 12000, b: 0 }, total: 12000 },
+    ],
     periods: [],
     survivorGap,
     spousalTopUp: {
@@ -201,5 +205,61 @@ describe('HouseholdSection — the household page as the report composes it', ()
     expect(page).toContain('Each person’s band');
     expect(page).toContain('today’s dollars, before any cost-of-living adjustment');
     expect(page).toContain('Benefit amounts are in today’s dollars');
+  });
+});
+
+/**
+ * `CombinedIncomeBars`' own decomposition — one legend entry per benefit
+ * type, sourced from `benefitSeriesLabel`, the exact same function
+ * `CombinedIncomeChart` calls on screen. Retyping the label here (rather than
+ * calling the shared function) is precisely the mechanism behind three prior
+ * defects; these tests fail if the printed text and the function's output
+ * ever diverge, not just if the PDF renders nothing at all.
+ *
+ * Called directly rather than through `HouseholdSection`/`printed`: the
+ * household page's caption says "any spousal or survivor benefit"
+ * unconditionally for every married household (a statement about what the
+ * chart is capable of showing), which would false-match a page-wide
+ * /spousal/i query regardless of whether this component correctly drops a
+ * zero band. Isolating the bars avoids that collision.
+ */
+describe('CombinedIncomeBars — the printed combined-income decomposition', () => {
+  const people: Person[] = [
+    { id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3, gender: 'female', piaMonthly: 1500, lifeExpectancy: 85 },
+    { id: 'b', name: 'Blake', birthYear: 1959, birthMonth: 7, gender: 'male', piaMonthly: 1000, lifeExpectancy: 85 },
+  ];
+
+  it('prints a legend entry per benefit type, not per person', () => {
+    const timeline: CombinedTimelinePoint[] = [
+      {
+        year: 2030,
+        bySeries: { 'a:personal': 12000, 'b:spousal': 6000 },
+        byPersonId: { a: 12000, b: 6000 },
+        total: 18000,
+      },
+    ];
+    const text = collectText(CombinedIncomeBars({ timeline, people })).join(' ');
+    expect(text).toContain(benefitSeriesLabel('Avery', 'personal'));
+    expect(text).toContain(benefitSeriesLabel('Blake', 'spousal'));
+  });
+
+  it('omits a band and its legend entry when every year of it is zero', () => {
+    // A $0.00 spousal band — reachable, not invented; see
+    // `household.test.ts` ("keeps the start date of a spousal entitlement
+    // that is fully absorbed") and `CombinedIncomeChart.test.tsx`'s
+    // `timelineWithZeroSpousal`, which pins this against real
+    // `analyzeHousehold` output. Hand-built here only to isolate this
+    // component's own zero-dropping wiring from the pipeline coverage those
+    // files own.
+    const timeline: CombinedTimelinePoint[] = [
+      {
+        year: 2030,
+        bySeries: { 'a:personal': 12000, 'b:spousal': 0 },
+        byPersonId: { a: 12000, b: 0 },
+        total: 12000,
+      },
+    ];
+    const text = collectText(CombinedIncomeBars({ timeline, people })).join(' ');
+    expect(text).not.toMatch(/spousal/i);
   });
 });

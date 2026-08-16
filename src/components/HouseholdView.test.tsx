@@ -74,7 +74,15 @@ function buildAnalysis(status: 'single' | 'married'): HouseholdAnalysis {
     optimal,
     comparisons: [earliest, optimal],
     combinedTimeline: [
-      { year: 2032, byPersonId: { a: 35_712, b: status === 'married' ? 23_040 : 0 }, total: status === 'married' ? 58_752 : 35_712 },
+      {
+        year: 2032,
+        bySeries: {
+          'a:personal': 35_712,
+          ...(status === 'married' ? { 'b:personal': 23_040 } : {}),
+        },
+        byPersonId: { a: 35_712, b: status === 'married' ? 23_040 : 0 },
+        total: status === 'married' ? 58_752 : 35_712,
+      },
     ],
     recommendation: status === 'married'
       ? 'Dan files at 70 · Sarah files at 64'
