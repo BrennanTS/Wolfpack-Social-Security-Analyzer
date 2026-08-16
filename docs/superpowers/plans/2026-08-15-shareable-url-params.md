@@ -1072,28 +1072,42 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Hydrate once on mount**
 
-In `Analyzer.tsx`, seed the person and assumption state from the query string, then clear it:
+**Keep the parse pure and the stripping in an effect.** `src/main.tsx` wraps the
+app in `<StrictMode>`, which deliberately invokes `useState` initializers twice
+in development to surface impure ones. Putting `history.replaceState` inside the
+initializer means the second invocation reads an already-stripped URL and returns
+a blank form — the feature would appear broken in dev and work in production, or
+vice versa depending on which result React keeps. Reading `location.search` is a
+read and is fine in the initializer; mutating history is not.
 
 ```tsx
-// Hydrate from a shared link exactly once, before first paint, then strip the
-// query string. Stripping un-leaks nothing by itself — the recipient already
-// has the URL — but it keeps a client's date of birth and benefit out of the
-// address bar for the rest of a meeting, which is the realistic exposure here:
-// a shared screen or a glance over the shoulder. The cost is that a refresh
-// clears the form; that trade is deliberate.
+// Parse once, before first paint. A lazy initializer rather than an effect:
+// an effect would paint the blank form first and then replace it, flickering
+// and briefly running an analysis on empty inputs.
 const [initialForm] = useState(() => {
   if (typeof window === 'undefined') return BLANK_FORM;
   const params = new URLSearchParams(window.location.search);
   if ([...params.keys()].length === 0) return BLANK_FORM;
-  const hydrated = fromShareParams(params);
-  window.history.replaceState({}, '', window.location.pathname);
-  return hydrated;
+  return fromShareParams(params);
 });
+
+// Strip the query string separately, because this is a side effect and
+// StrictMode double-invokes state initializers. replaceState is idempotent,
+// so running it twice is harmless; parsing after a strip would not be.
+//
+// Stripping un-leaks nothing by itself — the recipient already has the URL —
+// but it keeps a client's date of birth and benefit out of the address bar for
+// the rest of a meeting, which is the realistic exposure here: a shared screen
+// or a glance over the shoulder. The cost is that a refresh clears the form;
+// that trade is deliberate.
+useEffect(() => {
+  if (window.location.search !== '') {
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+}, []);
 ```
 
 Initialize each piece of form state from `initialForm` instead of `BLANK_FORM`.
-
-Use a lazy `useState` initializer rather than an effect: an effect would paint the blank form first and then replace it, which flickers and briefly runs an analysis on empty inputs.
 
 - [ ] **Step 2: Render the button**
 
