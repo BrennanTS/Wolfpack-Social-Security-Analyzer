@@ -340,3 +340,43 @@ export function incomeCliffSentence(cliff: IncomeCliff): string {
  * added a second instance of on first pass.
  */
 export const INCOME_CLIFF_HEADING = 'Income at the First Death';
+
+/**
+ * The "Survivor income" column header on the strategy comparison table,
+ * shared by the on-screen table and its PDF twin so the word is not
+ * hand-retyped into each.
+ */
+export const SURVIVOR_INCOME_COLUMN_HEADER = 'Survivor income';
+
+/**
+ * The caption under the strategy table's survivor-income column — the
+ * argument for delaying that a single lifetime PV figure cannot show:
+ * delaying raises the survivor's income for every year they outlive their
+ * spouse. Shared by the on-screen table and the PDF's twin so the sentence
+ * cannot be hand-retyped into one and drift from the other.
+ *
+ * States that the figure assumes the death direction the engine models —
+ * the lower-earning spouse outliving the higher earner, the only direction
+ * `strategy-calc.ts:104` pays a survivor benefit for. True regardless of
+ * `survivorGap`: even when the gap note below says the engine cannot model
+ * *this* household's actual direction, the figures in the column were still
+ * computed assuming the modeled one, which is exactly why they understate.
+ *
+ * When `survivorGap` is set, this points at the note that already explains
+ * the shortfall in figures — `survivorGapNote`, rendered once already on
+ * this page (`CombinedIncomeChart` on screen, the gap note under "Combined
+ * Household Income" in print) — rather than restating its numbers here.
+ * Three renderings of the same disclosure on one page is precisely the
+ * defect that note's own history exists to prevent.
+ */
+export function survivorIncomeCaption(gap: SurvivorGap | null | undefined): string {
+  const base =
+    "Household income in the first full year after the first spouse's death, under each " +
+    'strategy — delaying raises this every year the survivor lives through it, which the ' +
+    "Combined PV column alone cannot show. Assumes the death direction the ssa.tools " +
+    'engine models: the lower-earning spouse outliving the higher earner.';
+  return gap
+    ? `${base} This household's modeled direction runs the other way, so these figures ` +
+        'understate what the survivor would actually receive — see the note below.'
+    : base;
+}

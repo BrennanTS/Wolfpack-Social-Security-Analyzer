@@ -10,6 +10,7 @@ import {
   spousalMethodologyCopy,
   spousalSummary,
   survivorGapNote,
+  survivorIncomeCaption,
 } from './methodologyCopy';
 import { analyzeHousehold, type HouseholdAnalysis } from '../lib/household';
 import type { IncomeCliff } from '../lib/incomeCliff';
@@ -424,6 +425,38 @@ describe('survivorGapNote', () => {
     );
     expect(copy).toContain('Survivor benefits are included');
     expect(copy).not.toContain('no step-up is shown');
+  });
+});
+
+describe('survivorIncomeCaption', () => {
+  it('states the figure assumes the modeled death direction, for a household with no gap', () => {
+    const caption = survivorIncomeCaption(null);
+    expect(caption).toContain('ssa.tools engine models');
+    expect(caption).toContain('lower-earning spouse outliving the higher earner');
+    // Nothing here claims this household's gap is unmodeled — there is none.
+    expect(caption).not.toContain('modeled direction runs the other way');
+  });
+
+  it('renders the same for undefined as for null, so a caller need not pass the field', () => {
+    expect(survivorIncomeCaption(undefined)).toBe(survivorIncomeCaption(null));
+  });
+
+  it('points at the existing gap note rather than restating its figures', () => {
+    const gap = {
+      survivorLabel: 'Blake',
+      deceasedMonthly: 1780,
+      survivorOwnMonthly: 1760,
+      survivorUnder60: false,
+    };
+    const caption = survivorIncomeCaption(gap);
+    expect(caption).toContain('understate what the survivor would actually receive');
+    expect(caption).toContain('see the note below');
+    // The gap note's own figures belong to `survivorGapNote`, not here — a
+    // second rendering of them is the exact duplication three of this
+    // project's prior defects were made of.
+    expect(caption).not.toContain('1,780');
+    expect(caption).not.toContain('1,760');
+    expect(caption).not.toContain('Blake');
   });
 });
 

@@ -44,7 +44,11 @@ export function HouseholdPanel({ analysis, annualCola }: HouseholdPanelProps) {
         <p>{analysis.recommendationDetail}</p>
       </div>
 
-      <StrategyComparisonTable comparisons={analysis.comparisons} people={people} />
+      <StrategyComparisonTable
+        comparisons={analysis.comparisons}
+        people={people}
+        survivorGap={analysis.survivorGap}
+      />
 
       <CombinedIncomeChart
         timeline={analysis.combinedTimeline}

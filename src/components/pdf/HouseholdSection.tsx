@@ -17,6 +17,8 @@ import {
   INCOME_CLIFF_HEADING,
   spousalSummary,
   survivorGapNote,
+  survivorIncomeCaption,
+  SURVIVOR_INCOME_COLUMN_HEADER,
 } from '../methodologyCopy';
 import { BORDER, CONTENT_W, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
@@ -29,7 +31,7 @@ interface Props {
 }
 
 /** Household strategy-comparison columns (must sum to CONTENT_W). */
-const HCOL = { label: 160, person: 90, npv: 100, delta: 76 };
+const HCOL = { label: 130, person: 80, npv: 90, delta: 66, survivor: 70 };
 
 function StrategyTable({
   comparisons,
@@ -38,6 +40,12 @@ function StrategyTable({
   comparisons: HouseholdStrategy[];
   people: Person[];
 }) {
+  // Married-only, same test the screen table uses — `household.ts` sets
+  // `survivorIncome: null` for a single claimant, so gating on `people.length`
+  // rather than reading the field keeps the column hidden even if a future
+  // single-claimant row ever carried a non-null value by mistake.
+  const showSurvivorIncome = people.length === 2;
+
   return (
     <View>
       <View style={styles.tableHeader}>
@@ -49,6 +57,9 @@ function StrategyTable({
         ))}
         <Text style={[styles.th, { width: HCOL.npv }]}>Combined PV</Text>
         <Text style={[styles.th, { width: HCOL.delta }]}>vs. best</Text>
+        {showSurvivorIncome && (
+          <Text style={[styles.th, { width: HCOL.survivor }]}>{SURVIVOR_INCOME_COLUMN_HEADER}</Text>
+        )}
       </View>
       {comparisons.map((s) => (
         <View key={s.key} style={[styles.tableRow, s.isOptimal ? styles.tableRowOptimal : {}]}>
@@ -65,6 +76,11 @@ function StrategyTable({
           <Text style={[styles.td, { width: HCOL.delta }, s.deltaVsOptimal < 0 ? styles.negative : {}]}>
             {s.deltaVsOptimal === 0 ? '—' : formatCurrency(s.deltaVsOptimal)}
           </Text>
+          {showSurvivorIncome && (
+            <Text style={[styles.td, { width: HCOL.survivor }]}>
+              {s.survivorIncome == null ? '—' : formatCurrency(s.survivorIncome)}
+            </Text>
+          )}
         </View>
       ))}
     </View>
@@ -193,6 +209,9 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
         optimizer rejected and by how much.
       </Text>
       <StrategyTable comparisons={analysis.comparisons} people={people} />
+      {people.length === 2 && (
+        <Text style={styles.sectionDesc}>{survivorIncomeCaption(analysis.survivorGap)}</Text>
+      )}
 
       <Text style={styles.sectionTitle}>Combined Household Income</Text>
       {/* Same function as the on-screen chart caption: the two were a verbatim

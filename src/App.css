@@ -2259,7 +2259,8 @@ tbody tr:hover {
      `.table-wrap table` selector also matched the strategy comparison table,
      where a married household's 5th column is "vs. best" — the entire point
      of that table — so it silently vanished on phones and portrait tablets.
-     No table in the app has a 6th column. */
+     The strategy table now has a 6th column too (survivor income, married
+     only), untouched by this `nth-child(5)` rule for the same reason. */
   [data-testid='benefit-table'] th:nth-child(5),
   [data-testid='benefit-table'] td:nth-child(5) {
     display: none;

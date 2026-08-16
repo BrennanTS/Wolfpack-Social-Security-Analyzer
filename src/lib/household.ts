@@ -10,6 +10,7 @@ import {
   type SurvivorGap,
 } from './benefitPeriods';
 import { formatCurrency, personLabel } from './format';
+import { firstDeath } from './incomeCliff';
 import { analyzePerson, getFullRetirementAge, type Person, type PersonAnalysis } from './personAnalysis';
 import {
   createPiaRecipient,
@@ -39,6 +40,13 @@ export interface HouseholdStrategy {
   expectedNpv: number;
   deltaVsOptimal: number;
   isOptimal: boolean;
+  /**
+   * Annual household income in the first full year after the first death,
+   * under THIS strategy. Null for a single claimant. This is the argument for
+   * delaying that lifetime PV cannot show: delaying raises the survivor's
+   * income for every year they outlive their spouse.
+   */
+  survivorIncome: number | null;
 }
 
 export interface CombinedTimelinePoint {
@@ -154,6 +162,9 @@ function buildComparisons(
     expectedNpv: optimalStrategy.expectedNpv,
     deltaVsOptimal: 0,
     isOptimal: true,
+    // Filled in by `withSurvivorIncome` once bands exist to compute it from —
+    // `buildComparisons` runs before this household's `householdPeriods` call.
+    survivorIncome: null,
   };
 
   const rows: HouseholdStrategy[] = [];
@@ -168,6 +179,7 @@ function buildComparisons(
       expectedNpv: match.expectedNpv,
       deltaVsOptimal: Math.round((match.expectedNpv - optimal.expectedNpv) * 100) / 100,
       isOptimal: false,
+      survivorIncome: null,
     });
   }
 
@@ -177,6 +189,45 @@ function buildComparisons(
     (a, b) => a.filingAges[0].decimalYears - b.filingAges[0].decimalYears,
   );
   return { optimal, comparisons: ordered };
+}
+
+/**
+ * Attaches `survivorIncome` to each comparison row: household income in the
+ * first full year after the first death, computed under THAT row's own
+ * filing ages — a fresh `householdPeriods`/`buildCombinedTimeline` pair per
+ * row, not the optimal strategy's bands re-read. Null for a single claimant
+ * (`rawPeople.length !== 2`) and for the same edge case `incomeCliff` returns
+ * null for: the first death falling outside a row's own modeled timeline.
+ *
+ * The death year is computed once, via `firstDeath` — the same arithmetic
+ * `incomeCliff` uses, reused rather than re-derived. The death months are
+ * fixed by each person's plan-to age and do not vary by filing strategy, even
+ * though the bands and totals around them do.
+ */
+function withSurvivorIncome(
+  comparisons: HouseholdStrategy[],
+  rawPeople: Person[],
+  recipients: Recipient[],
+  labels: string[],
+  finalIndexByPersonId: Record<string, number>,
+  peopleAnalysis: PersonAnalysis[],
+): HouseholdStrategy[] {
+  if (rawPeople.length !== 2) return comparisons.map((c) => ({ ...c, survivorIncome: null }));
+
+  const death = firstDeath([rawPeople[0].id, rawPeople[1].id], finalIndexByPersonId);
+  if (death === null) return comparisons.map((c) => ({ ...c, survivorIncome: null }));
+
+  return comparisons.map((c) => {
+    const { bands } = householdPeriods(
+      rawPeople,
+      recipients,
+      c.filingAges.map((f) => f.monthDuration),
+      labels,
+    );
+    const timeline = buildCombinedTimeline(bands, peopleAnalysis);
+    const point = timeline.find((p) => p.year === death.deathYear + 1);
+    return { ...c, survivorIncome: point ? point.total : null };
+  });
 }
 
 function createRecipientFor(person: Person) {
@@ -413,11 +464,21 @@ export async function analyzeHousehold(
       [labelA, labelB],
     );
 
+    const comparisonsWithSurvivor = withSurvivorIncome(
+      comparisons,
+      household.people,
+      [recipientA, recipientB],
+      [labelA, labelB],
+      finalIndexByPersonId,
+      people,
+    );
+    const optimalWithSurvivor = comparisonsWithSurvivor.find((c) => c.isOptimal) ?? optimal;
+
     return {
       status: 'married',
       people,
-      optimal,
-      comparisons,
+      optimal: optimalWithSurvivor,
+      comparisons: comparisonsWithSurvivor,
       combinedTimeline: buildCombinedTimeline(bands, people),
       periods: bands,
       survivorGap,
@@ -469,11 +530,25 @@ export async function analyzeHousehold(
     [personLabel(person.name, 0)],
   );
 
+  // A single claimant has no "first death" to speak of — `withSurvivorIncome`
+  // short-circuits on the one-person `rawPeople` array without calling
+  // `householdPeriods` again, so this is just the null-filling branch, called
+  // here rather than duplicated so both branches use the same rule.
+  const comparisonsWithSurvivor = withSurvivorIncome(
+    comparisons,
+    household.people,
+    [recipient],
+    [personLabel(person.name, 0)],
+    finalIndexByPersonId,
+    people,
+  );
+  const optimalWithSurvivor = comparisonsWithSurvivor.find((c) => c.isOptimal) ?? optimal;
+
   return {
     status: 'single',
     people,
-    optimal,
-    comparisons,
+    optimal: optimalWithSurvivor,
+    comparisons: comparisonsWithSurvivor,
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap,
