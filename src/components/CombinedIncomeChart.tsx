@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { CombinedTimelinePoint } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../lib/format';
+import { survivorGapNote } from './methodologyCopy';
 import {
   CHART_AXIS_LINE,
   CHART_GOLD,
@@ -15,6 +17,12 @@ import {
 interface CombinedIncomeChartProps {
   timeline: CombinedTimelinePoint[];
   people: Person[];
+  /**
+   * The one survivor direction the engine does not model. When set, the bands
+   * understate the survivor's income after the first death, and the caption
+   * below says so. Optional so the single-claimant call site need not pass it.
+   */
+  survivorGap?: SurvivorGap | null;
 }
 
 /**
@@ -31,7 +39,8 @@ const PERSON_COLORS = [CHART_GOLD, CHART_INK, CHART_GREY_MID];
  * `chartTheme` tokens, `ResponsiveContainer` wrapper, axis/tooltip styling)
  * so the household tab doesn't look like a different app.
  */
-export function CombinedIncomeChart({ timeline, people }: CombinedIncomeChartProps) {
+export function CombinedIncomeChart({ timeline, people, survivorGap }: CombinedIncomeChartProps) {
+  const gapNote = survivorGapNote(survivorGap ?? null);
   const series = useMemo(
     () =>
       people.map((p, i) => ({
@@ -53,6 +62,11 @@ export function CombinedIncomeChart({ timeline, people }: CombinedIncomeChartPro
             benefit plus any spousal or survivor benefit — counting only the months
             actually paid, so a filing year or a final year is shorter than a full one.
             Amounts are in today&rsquo;s dollars, before any cost-of-living adjustment.
+          </p>
+        )}
+        {gapNote && (
+          <p className="chart-caveat" data-testid="survivor-gap-note">
+            {gapNote}
           </p>
         )}
         <div className="chart-legend-row" aria-hidden="true">

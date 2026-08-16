@@ -6,10 +6,40 @@
  * `Analyzer.tsx` so it can be unit-tested without mounting the page (and so
  * the component file keeps exporting only components).
  */
+import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { HouseholdAnalysis } from '../lib/household';
 import { formatCurrencyPrecise } from '../lib/format';
 
 type SpousalTopUp = NonNullable<HouseholdAnalysis['spousalTopUp']>;
+
+/**
+ * The disclosure for the one survivor direction the engine does not model.
+ *
+ * `strategy-calc.ts:104` pays survivor benefits only to the lower-PIA spouse,
+ * so when the *higher*-PIA spouse dies first no survivor period is emitted for
+ * anyone. If the survivor is the one holding the smaller monthly benefit, SSA
+ * would step them up and the chart does not — every figure shown for them
+ * after that death is too low.
+ *
+ * This is reachable, not theoretical: it needs the two benefits to be close
+ * and the person with the *larger* benefit to die first, which happens when an
+ * older spouse with a slightly lower PIA files late enough to out-earn the
+ * younger one. A 1957/PIA-1500 and 1970/PIA-1600 couple produces it.
+ *
+ * Null when there is nothing to disclose, so callers render nothing.
+ */
+export function survivorGapNote(gap: SurvivorGap | null | undefined): string | null {
+  // Undefined as well as null: a caller that has not been updated to pass the
+  // field must render nothing, not throw.
+  if (!gap) return null;
+  return (
+    `Survivor benefits are modeled only for the lower-earning spouse, so no step-up is ` +
+    `shown for ${gap.survivorLabel}, who outlives a spouse receiving ` +
+    `${formatCurrencyPrecise(gap.deceasedMonthly)}/mo while receiving ` +
+    `${formatCurrencyPrecise(gap.survivorOwnMonthly)}/mo of their own. The figures shown for ` +
+    `${gap.survivorLabel} after that death are lower than SSA would pay.`
+  );
+}
 
 /**
  * The one spousal sentence, shared by the on-screen methodology panel and
@@ -46,14 +76,20 @@ function sentence(spousal: SpousalTopUp, subject: string): string {
     );
   }
 
-  // Absent whenever the engine emits no Spousal band. That is not only the
-  // zero-entitlement case above: a lower earner who dies before the higher
-  // earner files is eligible but never collects, so there is a positive
-  // entitlement and no start date. Say that, rather than print a placeholder.
+  // Absent whenever the engine emits no Spousal band, which has two distinct
+  // causes. `strategy-calc.ts:145-158` runs the band from the later of the two
+  // filing dates to `min(survivorStartDate − 1, dependentFinalDate)`, so it is
+  // dropped either when the lower earner dies before that start OR when the
+  // higher earner dies before the lower earner's own filing date. In the
+  // second case the other spouse HAS filed and the lower earner is alive and
+  // collecting survivor benefits, so naming a single cause is wrong half the
+  // time. State the condition the engine actually tests — an empty overlap —
+  // rather than guessing which side produced it.
   const start =
     spousal.startsAtSpouseAge === null
-      ? `, though it never begins under the recommended strategy — the other spouse does not ` +
-        `file within ${subject}'s lifetime, and a spousal benefit cannot start before they do`
+      ? `, though it never begins under the recommended strategy — a spousal benefit needs a ` +
+        `month in which both spouses have filed and both are still living, and this strategy ` +
+        `leaves none`
       : `, beginning at ${subject}'s age ${spousal.startsAtSpouseAge} — the later of ` +
         `${subject}'s own filing and the other spouse's, since a spousal benefit cannot ` +
         `start before the other spouse has filed`;
@@ -87,9 +123,14 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
     );
   }
 
+  // The gap note replaces the blanket "survivor benefits are included" claim
+  // rather than sitting alongside it: for these households they are not.
+  const survivor =
+    survivorGapNote(analysis.survivorGap) ??
+    'Survivor benefits are included in the recommendation and in the combined income timeline.';
+
   return (
     'Married households are optimized jointly by ssa.tools, including the spousal top-up. ' +
-    `${spousalSummary(spousal, spousal.lowerEarnerLabel)} Survivor benefits are included ` +
-    'in the recommendation and in the combined income timeline.'
+    `${spousalSummary(spousal, spousal.lowerEarnerLabel)} ${survivor}`
   );
 }

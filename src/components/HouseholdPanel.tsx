@@ -45,7 +45,11 @@ export function HouseholdPanel({ analysis, annualCola }: HouseholdPanelProps) {
 
       <StrategyComparisonTable comparisons={analysis.comparisons} people={people} />
 
-      <CombinedIncomeChart timeline={analysis.combinedTimeline} people={people} />
+      <CombinedIncomeChart
+        timeline={analysis.combinedTimeline}
+        people={people}
+        survivorGap={analysis.survivorGap}
+      />
 
       <BreakEvenSection
         breakEvens={breakEvens}

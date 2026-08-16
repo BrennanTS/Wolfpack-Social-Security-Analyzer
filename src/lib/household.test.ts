@@ -338,6 +338,48 @@ describe('engine periods', () => {
     expect(result.survivorGap).toBeNull();
   });
 
+  it('reports the survivor gap the optimizer can actually produce', async () => {
+    // The engine pays survivor benefits only to the lower-PIA spouse, so when
+    // the HIGHER-PIA spouse outlives the other no survivor band exists — and
+    // if that survivor holds the smaller benefit, the chart understates them.
+    //
+    // Reaching it through the optimizer needs the two benefits close and the
+    // person with the LARGER benefit to die first. An older spouse with a
+    // slightly lower PIA does it: born Mar 1957 (FRA 66y6m), so filing at
+    // 68y10m earns more delayed credits than the younger spouse filing at
+    // 68y3m against an FRA of 67. None of the golden scenarios hit this, which
+    // is why it needs pinning here.
+    const older: Person = {
+      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
+      gender: 'female', piaMonthly: 1500, lifeExpectancy: 75,
+    };
+    const younger: Person = {
+      id: 'b', name: 'Blake', birthYear: 1970, birthMonth: 9,
+      gender: 'male', piaMonthly: 1600, lifeExpectancy: 100,
+    };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [older, younger] },
+      { annualCola: 0, discountRate: 0.025 },
+      asOf,
+    );
+
+    // Guards: this is only the gap case if no survivor band exists at all.
+    expect(result.periods.some((b) => b.type === 'survivor')).toBe(false);
+    expect(result.survivorGap).not.toBeNull();
+    expect(result.survivorGap!.survivorLabel).toBe('Blake');
+    // The disclosed figures are the engine's own, and the survivor really is
+    // the one holding the smaller benefit.
+    expect(result.survivorGap!.deceasedMonthly).toBeGreaterThan(
+      result.survivorGap!.survivorOwnMonthly,
+    );
+    const bandFor = (id: string) =>
+      result.periods
+        .filter((b) => b.personId === id && b.type === 'personal')
+        .reduce((latest, b) => (b.startIndex > latest.startIndex ? b : latest));
+    expect(result.survivorGap!.survivorOwnMonthly).toBe(bandFor('b').monthlyAmount);
+    expect(result.survivorGap!.deceasedMonthly).toBe(bandFor('a').monthlyAmount);
+  });
+
   it("matches each person's recommendedMonthly to their final personal band", async () => {
     // `analyzePerson` still computes `recommendedMonthly` independently of the
     // periods. The two must not drift: the amount a person is paid on their

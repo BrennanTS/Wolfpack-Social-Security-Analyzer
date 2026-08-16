@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { spousalMethodologyCopy, spousalSummary } from './methodologyCopy';
+import { spousalMethodologyCopy, spousalSummary, survivorGapNote } from './methodologyCopy';
 import { analyzeHousehold, type HouseholdAnalysis } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 
@@ -135,17 +135,23 @@ describe('spousalSummary', () => {
     }
   });
 
-  it('explains why a positive entitlement can still never begin', () => {
-    // Reachable: `strategy-calc.ts:158` pushes the Spousal period only when
-    // `endDate >= startDate`, so a lower earner who dies before the higher
-    // earner files is eligible but bandless. `atFra` is positive and there is
-    // no start date, which the zero-entitlement branch does not cover.
+  it('says a positive entitlement never begins without asserting a single cause', () => {
+    // `strategy-calc.ts:145-158` runs the band from the later of the two
+    // filing dates to min(survivorStartDate − 1, dependentFinalDate), so the
+    // band is dropped by EITHER of two configurations — see the two pipeline
+    // tests below. An earlier version of this clause blamed one of them ("the
+    // other spouse does not file within their lifetime"), which is flatly
+    // untrue in the other. It must name the empty overlap, not a cause.
     const copy = spousalSummary(
       { ...base, atFra: 1000, atRecommendedFilingAge: 0, startsAtSpouseAge: null },
       'the lower earner',
     );
     expect(copy).toContain('never begins under the recommended strategy');
+    expect(copy).toContain('both spouses have filed and both are still living');
     expect(copy).toContain("The unreduced amount at the lower earner's own FRA is $1,000.00/mo");
+    // The specific false claims this replaced.
+    expect(copy).not.toContain('does not file');
+    expect(copy).not.toMatch(/within .*lifetime/);
   });
 
   it('keeps the start date of a $0.00 top-up, which does begin', () => {
@@ -242,10 +248,102 @@ describe('the printed spousal sentence, over real households', () => {
     expect(copy).not.toMatch(/age\s*—/);
   });
 
+  it('prints no placeholder when the HIGHER earner dies before the lower earner files', async () => {
+    // The second, distinct way the Spousal band is dropped, and the one the
+    // "does not file within their lifetime" wording was false for. Avery is
+    // the higher earner, files, and dies Jun 2033 (born Jun 1958, plan-to 75).
+    // Blythe is seventeen years younger, so her earliest possible filing —
+    // age 62, Jun 2037 — is already after his death, and the band's end
+    // (survivorStartDate − 1) falls before its start. The other spouse DID
+    // file, and Blythe is alive and collecting survivor benefits, so any
+    // sentence blaming a missing filing is untrue here.
+    const avery: Person = {
+      id: 'a', name: 'Avery', birthYear: 1958, birthMonth: 6,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 75,
+    };
+    const blythe: Person = {
+      id: 'b', name: 'Blythe', birthYear: 1975, birthMonth: 6,
+      gender: 'female', piaMonthly: 500, lifeExpectancy: 90,
+    };
+    const analysis = await analyzeHousehold(
+      { status: 'married', people: [avery, blythe] },
+      assumptions,
+      asOf,
+    );
+    // Guards: this must be the positive-entitlement, no-band case, and it must
+    // be the sub-case where the higher earner did file and then died.
+    expect(analysis.spousalTopUp!.atFra).toBeGreaterThan(0);
+    expect(analysis.periods.some((b) => b.type === 'spousal')).toBe(false);
+    expect(analysis.spousalTopUp!.startsAtSpouseAge).toBeNull();
+    expect(analysis.periods.some((b) => b.personId === 'a' && b.type === 'personal')).toBe(true);
+    expect(analysis.periods.some((b) => b.personId === 'b' && b.type === 'survivor')).toBe(true);
+
+    const copy = spousalSummary(analysis.spousalTopUp!, 'the lower earner');
+    expect(copy).toContain('both spouses have filed and both are still living');
+    expect(copy).not.toContain('does not file');
+    expect(copy).not.toMatch(/age\s*—/);
+  });
+
   it('prints the real start date when there is one', async () => {
     const noRecord: Person = { ...sarah, piaMonthly: 0 };
     const copy = await printed([dan, noRecord]);
     expect(copy).toMatch(/beginning at the lower earner's age \d+/);
     expect(copy).not.toMatch(/age\s*—/);
+  });
+});
+
+/**
+ * The disclosure for the survivor direction the engine does not model. The
+ * combined-income caption affirmatively says each band includes "any spousal
+ * or survivor benefit"; for these households that is false, and the figures
+ * shown for the survivor are too low.
+ */
+describe('survivorGapNote', () => {
+  it('renders nothing when there is nothing to disclose', () => {
+    expect(survivorGapNote(null)).toBeNull();
+    // A caller that has not been updated to pass the field renders nothing
+    // rather than throwing.
+    expect(survivorGapNote(undefined)).toBeNull();
+  });
+
+  it('names the survivor and both monthly figures', () => {
+    const note = survivorGapNote({
+      survivorLabel: 'Blake',
+      survivorOwnMonthly: 1760,
+      deceasedMonthly: 1780,
+    })!;
+    expect(note).toContain('modeled only for the lower-earning spouse');
+    expect(note).toContain('no step-up is shown for Blake');
+    expect(note).toContain('$1,780.00/mo'); // what the deceased was receiving
+    expect(note).toContain('$1,760.00/mo'); // the survivor's own
+    expect(note).toContain('lower than SSA would pay');
+  });
+
+  it('replaces the blanket "survivor benefits are included" claim in the panel copy', () => {
+    const withGap = {
+      status: 'married',
+      spousalTopUp: {
+        atFra: 0, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: 'Blake',
+      },
+      survivorGap: { survivorLabel: 'Blake', survivorOwnMonthly: 1760, deceasedMonthly: 1780 },
+    } as unknown as HouseholdAnalysis;
+
+    const copy = spousalMethodologyCopy(withGap);
+    expect(copy).toContain('no step-up is shown for Blake');
+    // The claim that would be false for this household must not also appear.
+    expect(copy).not.toContain('Survivor benefits are included');
+  });
+
+  it('keeps the included-survivors sentence when there is no gap', () => {
+    const copy = spousalMethodologyCopy(
+      analysisWith({
+        atFra: 250,
+        atRecommendedFilingAge: 200,
+        startsAtSpouseAge: '69 years, 1 months',
+        lowerEarnerLabel: 'Spouse',
+      }),
+    );
+    expect(copy).toContain('Survivor benefits are included');
+    expect(copy).not.toContain('no step-up is shown');
   });
 });

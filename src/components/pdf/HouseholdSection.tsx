@@ -3,7 +3,7 @@ import { Page, Text, View, Svg, Line, Rect } from '@react-pdf/renderer';
 import type { CombinedTimelinePoint, HouseholdAnalysis, HouseholdStrategy } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../../lib/format';
-import { spousalSummary } from '../methodologyCopy';
+import { spousalSummary, survivorGapNote } from '../methodologyCopy';
 import { BORDER, CONTENT_W, GOLD, INK, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
 
@@ -140,6 +140,7 @@ function CombinedIncomeBars({
 export function HouseholdSection({ analysis, footerText, appendix, leadingHeader }: Props) {
   const people = analysis.people.map((p) => p.person);
   const spousal = analysis.spousalTopUp;
+  const gapNote = survivorGapNote(analysis.survivorGap);
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -173,6 +174,7 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
         filing year or a final year is shorter than a full one. Amounts are in
         today&rsquo;s dollars, before any cost-of-living adjustment.
       </Text>
+      {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
       <View style={styles.chartBox}>
         <CombinedIncomeBars timeline={analysis.combinedTimeline} people={people} />
       </View>

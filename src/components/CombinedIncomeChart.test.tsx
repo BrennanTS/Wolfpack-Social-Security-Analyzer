@@ -84,4 +84,31 @@ describe('CombinedIncomeChart', () => {
     render(<CombinedIncomeChart timeline={timeline} people={[people[0]]} />);
     expect(screen.queryByTestId('combined-income-caveat')).toBeNull();
   });
+
+  // The caption above says each band includes "any spousal or survivor
+  // benefit". For the one survivor direction the engine does not model that is
+  // false, and the survivor's figures are too low — so that household gets a
+  // second, conditional sentence saying so.
+  it('discloses the unmodeled survivor direction when there is one', () => {
+    render(
+      <CombinedIncomeChart
+        timeline={timeline}
+        people={people}
+        survivorGap={{ survivorLabel: 'Sarah', survivorOwnMonthly: 1760, deceasedMonthly: 1780 }}
+      />,
+    );
+    const note = screen.getByTestId('survivor-gap-note');
+    expect(note.textContent).toMatch(/no step-up is shown for Sarah/i);
+    expect(note.textContent).toMatch(/lower than SSA would pay/i);
+  });
+
+  it('shows no survivor-gap note when the engine models the direction', () => {
+    render(<CombinedIncomeChart timeline={timeline} people={people} survivorGap={null} />);
+    expect(screen.queryByTestId('survivor-gap-note')).toBeNull();
+  });
+
+  it('shows no survivor-gap note when the prop is omitted entirely', () => {
+    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    expect(screen.queryByTestId('survivor-gap-note')).toBeNull();
+  });
 });
