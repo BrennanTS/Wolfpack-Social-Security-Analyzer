@@ -705,17 +705,22 @@ filing *dates* for both people. Three concrete divergences follow:
 1. **Rounding.** `Math.round(base * (1 - reduction) * 100) / 100` (`src/lib/ssaTools.ts:147`) keeps
    cents; the engine calls `.floorToDollar()` (`benefit-calculator.ts:366`, `:376`). Our figure can
    sit up to a dollar above the engine's and shows cents where SSA shows whole dollars.
-2. **The higher earner's filing date is ignored.** `spousalTopUp` keys the reduction to
-   `spouseFilingAge` alone (`src/lib/ssaTools.ts:139`), and `src/lib/household.ts:214,216-219` passes
-   only the lower earner's age. The engine keys it to `startDate = max(spouseFilingDate, filingDate)`
-   (`benefit-calculator.ts:298-300`) and returns `$0` before the higher earner files
-   (`benefit-calculator.ts:306`). **We show a top-up in months where the engine pays nothing**, and
-   we apply a larger early-filing reduction than the engine would when the higher earner files later.
-3. **The combined 50%-of-PIA cap is missing.** `spousalTopUp` returns the full unreduced `base` for
-   any filing age at or after FRA (`src/lib/ssaTools.ts:140`). The engine, for a claimant who filed
-   *after* their NRA, subtracts the claimant's DRC-inflated actual benefit rather than their PIA
-   (`benefit-calculator.ts:343-356`). **We overstate the top-up for a lower earner who delays past
-   FRA** — the opposite direction from the widow error.
+2. **RESOLVED by `fix/spousal-start-date`.** ~~The higher earner's filing date is ignored.~~
+   `spousalTopUp` now takes both filing ages and keys the start — and the reduction — to
+   `startDate = max(spouseFilingAge, workerFilingAge)` (`src/lib/ssaTools.ts:151-161`), matching the
+   engine's `startDate = max(spouseFilingDate, filingDate)` (`benefit-calculator.ts:298-300`) and
+   returning `$0` before the higher earner has filed. `src/lib/household.ts` now passes both ages
+   through. Verified against the vendored engine across 11,640 combinations.
+3. **RESOLVED by `fix/spousal-start-date`, with a correction to this item's headline.** The headline
+   as originally written — "the combined 50%-of-PIA cap is missing" — was imprecise:
+   `baseSpousalBenefit` (`src/vendor/ssa-tools/benefit-calculator.ts:247-254`) already *is* the
+   50%-of-PIA cap, and `spousalTopUp` always applied it via `spousalEntitlement`. The item's body,
+   however, correctly identified a narrower missing branch: a spouse who files **past her own FRA**
+   must have the cap netted against her DRC-inflated *actual benefit*, not her PIA
+   (`benefit-calculator.ts:326-356`). `spousalTopUp` now implements that branch
+   (`src/lib/ssaTools.ts:169-182`): when there's no early-filing reduction and the spouse's own filing
+   age is past her FRA, it nets `halfWorkerPia` against `benefitAtAge(spouse, spouseFilingAge)`
+   instead of against `base`.
 
 Argument order is correct: `baseSpousalBenefit(higher, lower)` per `benefit-calculator.ts:247`, and
 `src/lib/household.ts:214` passes `(higher, lower)`.
