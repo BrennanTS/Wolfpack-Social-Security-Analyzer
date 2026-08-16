@@ -1,14 +1,15 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { IncomeCliffCallout } from './IncomeCliffCallout';
+import { INCOME_CLIFF_HEADING } from './methodologyCopy';
 import type { HouseholdAnalysis } from '../lib/household';
 import type { SurvivorGap } from '../lib/benefitPeriods';
 
 /**
- * Only the fields `incomeCliff` and `survivorGapNote` read. Running the
- * optimizer here would duplicate the pipeline coverage `incomeCliff.test.ts`
- * already owns — this file is about the component's rendering decisions
- * (render/don't render, which note appears), not the arithmetic.
+ * Only the fields `incomeCliff` reads. Running the optimizer here would
+ * duplicate the pipeline coverage `incomeCliff.test.ts` already owns — this
+ * file is about the component's rendering decisions (render/don't render,
+ * which wording appears), not the arithmetic.
  */
 function analysisWith(
   overrides: Partial<HouseholdAnalysis> & {
@@ -31,8 +32,9 @@ function analysisWith(
 }
 
 describe('IncomeCliffCallout', () => {
-  it('renders the sentence and the drop figures for a household with a modeled first death', () => {
-    const { getByTestId } = render(<IncomeCliffCallout analysis={analysisWith()} />);
+  it('renders the shared heading and the sentence with the drop figures', () => {
+    const { getByText, getByTestId } = render(<IncomeCliffCallout analysis={analysisWith()} />);
+    expect(getByText(INCOME_CLIFF_HEADING)).toBeInTheDocument();
     const sentence = getByTestId('income-cliff-sentence').textContent!;
     expect(sentence).toContain('2047');
     expect(sentence).toContain('$60,000');
@@ -86,27 +88,51 @@ describe('IncomeCliffCallout', () => {
     expect(sentence).toContain('$52,000');
   });
 
-  it('reuses survivorGapNote rather than a second hand-written sentence, when the gap is set', () => {
+  // Code-review finding: "once {survivor} is the only one still collecting"
+  // is false the moment `after` is $0 — a real, reachable shape (see
+  // `methodologyCopy.test.ts`'s `incomeCliffSentence` coverage, and
+  // `incomeCliff.test.ts` for the arithmetic that produces it). The closing
+  // clause must be a composition claim ("the household's only remaining
+  // member"), never a payment claim, so it stays true beside a $0 figure.
+  it('never claims the survivor is "collecting" anything, even when after is $0', () => {
+    const { getByTestId } = render(
+      <IncomeCliffCallout
+        analysis={analysisWith({
+          combinedTimeline: [
+            { year: 2046, bySeries: {}, byPersonId: {}, total: 24192 },
+            { year: 2047, bySeries: {}, byPersonId: {}, total: 12096 },
+            { year: 2048, bySeries: {}, byPersonId: {}, total: 0 },
+          ],
+        })}
+      />,
+    );
+    const sentence = getByTestId('income-cliff-sentence').textContent!;
+    expect(sentence).toContain('$0');
+    expect(sentence).not.toMatch(/collecting/i);
+    expect(sentence).toContain("Sarah is the household's only remaining member");
+  });
+
+  // Code-review finding: `CombinedIncomeChart` already prints
+  // `survivorGapNote` directly above this callout in `HouseholdPanel`, so
+  // this component must NOT render a second copy of the same paragraph — an
+  // earlier version did, and the note appeared twice on one screen. This
+  // component owns none of that text; `HouseholdPanel.test.tsx` covers the
+  // "exactly once, across the whole panel" invariant that matters at the
+  // composition level.
+  it('renders no survivor-gap paragraph of its own, even when the gap is set', () => {
     const gap: SurvivorGap = {
       survivorLabel: 'Sarah',
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
     };
-    const { getByTestId } = render(
+    const { queryByTestId, getByTestId } = render(
       <IncomeCliffCallout analysis={analysisWith({ survivorGap: gap })} />,
     );
-    const note = getByTestId('income-cliff-gap-note').textContent!;
-    // Exactly the string `survivorGapNote` produces for this gap — not a
-    // paraphrase written locally in the component.
-    expect(note).toContain('no step-up is shown for Sarah');
-    expect(note).toContain('$1,780.00/mo');
-    expect(note).toContain('$1,760.00/mo');
-    expect(note).toContain('lower than SSA would pay');
-  });
-
-  it('renders no gap note when the analysis has none', () => {
-    const { queryByTestId } = render(<IncomeCliffCallout analysis={analysisWith()} />);
+    // The callout still renders its own sentence...
+    expect(getByTestId('income-cliff-sentence')).toBeInTheDocument();
+    // ...but not a second rendering of the note `CombinedIncomeChart` already
+    // prints above it.
     expect(queryByTestId('income-cliff-gap-note')).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { HouseholdPanel } from './HouseholdPanel';
 import type { HouseholdAnalysis } from '../lib/household';
@@ -126,6 +126,49 @@ describe('HouseholdPanel', () => {
       <HouseholdPanel analysis={buildAnalysis()} annualCola={0} />,
     );
     expect(queryByTestId('survivor-gap-note')).toBeNull();
+  });
+
+  // Code-review finding: `CombinedIncomeChart` renders `survivorGapNote`
+  // above the chart, and `IncomeCliffCallout` renders below it — on the
+  // FIRST pass both called `survivorGapNote(gap)` themselves, so a married
+  // household with a set `survivorGap` showed the identical disclosure
+  // paragraph twice on one screen. No existing test caught it: this file's
+  // only `survivorGap` fixture (above) is a single-person household, where
+  // `incomeCliff` returns null and the callout never renders at all, so the
+  // duplication path never fired. This is a genuine two-person married
+  // household with `finalIndexByPersonId` and a three-year timeline — the
+  // fields `incomeCliff` needs — so both the chart's note and the callout
+  // are actually on screen together, and the fix (the callout no longer
+  // renders its own copy) is pinned here rather than only at the unit level.
+  it('prints the survivor-gap note exactly once, even though both the chart and the callout are on screen', () => {
+    const personA = buildPersonAnalysis('a', 'Dan');
+    const personB = buildPersonAnalysis('b', 'Sarah');
+    const analysis = {
+      ...buildAnalysis(),
+      status: 'married',
+      people: [personA, personB],
+      finalIndexByPersonId: { a: 2047 * 12 + 3, b: 2052 * 12 + 1 },
+      combinedTimeline: [
+        { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
+        { year: 2047, bySeries: {}, byPersonId: {}, total: 55000 },
+        { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
+      ],
+      survivorGap: {
+        survivorLabel: 'Sarah',
+        deceasedMonthly: 1780,
+        survivorOwnMonthly: 1760,
+        survivorUnder60: false,
+      },
+    } as HouseholdAnalysis;
+
+    render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+
+    // The callout really is on screen (guards against this passing
+    // vacuously because `incomeCliff` returned null).
+    expect(screen.getByTestId('income-cliff-sentence').textContent).toContain('Sarah');
+    // Exactly one copy of the disclosure — not zero (it must still say so
+    // somewhere) and not two (it must not say so twice).
+    expect(screen.getAllByTestId('survivor-gap-note')).toHaveLength(1);
   });
 
   it('falls back to the You/Spouse label when person A is unnamed', () => {

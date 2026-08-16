@@ -5,12 +5,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   combinedIncomeCaption,
   coupleModelingNote,
+  incomeCliffSentence,
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalMethodologyCopy,
   spousalSummary,
   survivorGapNote,
 } from './methodologyCopy';
 import { analyzeHousehold, type HouseholdAnalysis } from '../lib/household';
+import type { IncomeCliff } from '../lib/incomeCliff';
 import type { Person } from '../lib/personAnalysis';
 
 /**
@@ -517,6 +519,67 @@ describe('coupleModelingNote', () => {
     expect(note).toContain('The spousal top-up is modeled');
     expect(note).toContain('the survivor benefit this household would actually receive is not');
     expect(note).not.toMatch(/survivor benefits are (both )?modeled/);
+  });
+});
+
+/**
+ * The income-cliff sentence — the one an adviser says out loud about what
+ * happens to household income at the first death. Shared by the on-screen
+ * `IncomeCliffCallout` and `pdf/HouseholdSection`.
+ */
+describe('incomeCliffSentence', () => {
+  const base: IncomeCliff = {
+    deathYear: 2047,
+    before: 60000,
+    after: 38000,
+    dropPercent: 36.666666666666664,
+    survivorLabel: 'Sarah',
+  };
+
+  it('states the year, both full-year totals, and the survivor', () => {
+    const sentence = incomeCliffSentence(base);
+    expect(sentence).toContain('2047');
+    expect(sentence).toContain('$60,000');
+    expect(sentence).toContain('$38,000');
+    expect(sentence).toContain('Sarah');
+    expect(sentence).toMatch(/falls 36\.7%/);
+  });
+
+  it('says income does not fall, rather than "falls 0.0%", when dropPercent is zero', () => {
+    const sentence = incomeCliffSentence({ ...base, before: 50000, after: 52000, dropPercent: 0 });
+    expect(sentence).toContain('does not fall');
+    expect(sentence).not.toMatch(/falls \d/);
+    expect(sentence).toContain('$50,000');
+    expect(sentence).toContain('$52,000');
+  });
+
+  // Code-review finding: an earlier draft closed with "once {survivor} is
+  // the only one still collecting" — a payment claim that is false the
+  // moment `after` is $0, which `incomeCliff.test.ts` and a live run against
+  // the engine (the under-60 survivor-gap fixture from
+  // `benefitPeriods.test.ts`, b. Jun 1956 PIA $1,600 plan-to 76 / b. Jun
+  // 1976) both confirm is reachable. The closing clause must be a
+  // household-composition fact, true regardless of the dollar amount.
+  it('never claims the survivor is "collecting" anything, even when after is $0', () => {
+    const sentence = incomeCliffSentence({
+      ...base,
+      before: 24192,
+      after: 0,
+      dropPercent: 100,
+    });
+    expect(sentence).toContain('$0');
+    expect(sentence).not.toMatch(/collecting/i);
+    expect(sentence).toContain("Sarah is the household's only remaining member");
+  });
+
+  it('never asserts how the survivor benefit is determined, only that they are the last one left', () => {
+    // "steps up to the larger of the two" is SSA's real rule but is false for
+    // a survivorGap household, where `after` is understated because the
+    // engine did not model the step-up in that direction. The sentence must
+    // not claim it for any household shape, gap or not.
+    const sentence = incomeCliffSentence(base);
+    expect(sentence).not.toMatch(/larger/i);
+    expect(sentence).not.toMatch(/steps? (up|into)/i);
   });
 });
 

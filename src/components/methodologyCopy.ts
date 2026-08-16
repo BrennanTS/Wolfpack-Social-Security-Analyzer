@@ -306,6 +306,17 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
  * project's recurring defect: a claim beside a number the number does not
  * support for every household shape. Naming the survivor and the two full
  * years' totals is the part that is true unconditionally.
+ *
+ * The closing clause is a household-composition fact ("is the only person
+ * left"), never a payment fact ("is collecting"). `after === 0` is
+ * genuinely reachable through the real pipeline — a much-younger survivor
+ * who has neither filed on their own record nor reached the age a widow(er)
+ * benefit can start yields a full $0 year right after the death — and
+ * "once {survivor} is the only one still collecting" would print false
+ * beside a number that just said $0. Confirmed against the engine with the
+ * exact under-60 fixture `benefitPeriods.test.ts`/`methodologyCopy.test.ts`
+ * already use (Avery b. Jun 1956 PIA $1,600 plan-to 76, Blake b. Jun 1976):
+ * `incomeCliff` on that household returns `after: 0, dropPercent: 100`.
  */
 export function incomeCliffSentence(cliff: IncomeCliff): string {
   const { deathYear, before, after, dropPercent, survivorLabel } = cliff;
@@ -318,6 +329,14 @@ export function incomeCliffSentence(cliff: IncomeCliff): string {
 
   return (
     `At the first death, projected for ${deathYear}, household income ${change}, once ` +
-    `${survivorLabel} is the only one still collecting.`
+    `${survivorLabel} is the household's only remaining member.`
   );
 }
+
+/**
+ * The income-cliff section heading, shared by the on-screen callout and the
+ * PDF so it is not a literal hand-typed in both files — the exact mechanism
+ * behind three of this project's prior defects, and one this task itself
+ * added a second instance of on first pass.
+ */
+export const INCOME_CLIFF_HEADING = 'Income at the First Death';

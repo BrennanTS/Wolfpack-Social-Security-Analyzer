@@ -131,4 +131,55 @@ describe('incomeCliff', () => {
     expect(cliff.after).toBe(32000);
     expect(cliff.dropPercent).toBe(0);
   });
+
+  // Code-review finding: the closing clause of `incomeCliffSentence` used to
+  // read "once {survivor} is the only one still collecting" — a claim that
+  // is false the instant `after` is $0. This pins that `after: 0` really is
+  // reachable through the REAL pipeline, not just a hand-built fixture, so
+  // that claim was never a safe one to make: a much-younger survivor who has
+  // neither filed on their own record nor reached the SSA age a widow(er)
+  // benefit can start yields a full $0 year immediately after the death.
+  // Same household `benefitPeriods.test.ts` and
+  // `methodologyCopy.test.ts` already use for the under-60 survivor-gap
+  // case.
+  it('reports a $0 "after" for a real household with a much-younger, not-yet-eligible survivor', async () => {
+    const avery: Person = {
+      id: 'a', name: 'Avery', birthYear: 1956, birthMonth: 6,
+      gender: 'female', piaMonthly: 1600, lifeExpectancy: 76,
+    };
+    const blake: Person = {
+      id: 'b', name: 'Blake', birthYear: 1976, birthMonth: 6,
+      gender: 'male', piaMonthly: 1650, lifeExpectancy: 88,
+    };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [avery, blake] },
+      { annualCola: 0, discountRate: 0.025 },
+      asOf,
+    );
+    const cliff = incomeCliff(result)!;
+    expect(cliff.deathYear).toBe(2032); // Avery dies Jun 2032 (1956 + 76).
+    expect(cliff.after).toBe(0);
+    expect(cliff.dropPercent).toBe(100);
+  });
+
+  // Code-review finding: pin the tie-break rather than leaving it
+  // "arbitrary and untested". On an exact tie, person 0 is treated as first
+  // to die and person 1 as the survivor — the same direction
+  // `detectSurvivorGap` in `benefitPeriods.ts` uses for its own
+  // `finalIndexes[0] > finalIndexes[1] ? 0 : 1` comparison, so the two stay
+  // consistent with each other on this edge case even though neither
+  // ascribes it any real-world meaning.
+  it('breaks an exact tie in finalIndexByPersonId toward person 0 dying first', () => {
+    const analysis = analysisWith(
+      { a: 2040 * 12 + 3, b: 2040 * 12 + 3 },
+      [
+        { year: 2039, bySeries: {}, byPersonId: {}, total: 40000 },
+        { year: 2040, bySeries: {}, byPersonId: {}, total: 40000 },
+        { year: 2041, bySeries: {}, byPersonId: {}, total: 20000 },
+      ],
+    );
+    const cliff = incomeCliff(analysis)!;
+    expect(cliff.deathYear).toBe(2040);
+    expect(cliff.survivorLabel).toBe('Sarah'); // person 1 — Dan (person 0) is first.
+  });
 });

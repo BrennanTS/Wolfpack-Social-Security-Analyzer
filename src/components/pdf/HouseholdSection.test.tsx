@@ -254,7 +254,14 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
     expect(text).toContain('$38,000');
   });
 
-  it('prints the reused survivor-gap note alongside the cliff sentence when the gap is set', () => {
+  it('prints the reused survivor-gap note exactly once, not once above the chart and again beside the cliff sentence', () => {
+    // Code-review finding: the first pass rendered `survivorGapNote(gap)`
+    // once above `CombinedIncomeBars` (line ~204, pre-existing) AND again
+    // beside the cliff sentence below it, so a survivor-gap household
+    // printed the identical paragraph twice on one page. `analysisWith`'s
+    // own gap tests (above) can't catch this — that fixture has no
+    // `finalIndexByPersonId`, so `incomeCliff` returns null and the cliff
+    // section (where the duplicate lived) never rendered at all.
     const gap: SurvivorGap = {
       survivorLabel: 'Blake',
       deceasedMonthly: 1780,
@@ -264,7 +271,13 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
     const text = collectText(
       HouseholdSection({ analysis: analysisWithCliff(gap), footerText: 'f' }),
     ).join(' ');
-    expect(text).toContain('no step-up is shown for Blake');
+    // The cliff section really is on the page (guards against the count
+    // below passing vacuously because the section didn't render).
+    expect(text).toContain('Income at the First Death');
+    // Exactly one occurrence of the note's distinguishing text — not zero
+    // (it must still say so somewhere) and not two.
+    const occurrences = text.match(/no step-up is shown for Blake/g) ?? [];
+    expect(occurrences).toHaveLength(1);
     expect(text).toContain('$1,780.00/mo');
     expect(text).toContain('$1,760.00/mo');
   });

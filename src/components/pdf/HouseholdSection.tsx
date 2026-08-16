@@ -14,6 +14,7 @@ import {
   benefitSeriesLabel,
   combinedIncomeCaption,
   incomeCliffSentence,
+  INCOME_CLIFF_HEADING,
   spousalSummary,
   survivorGapNote,
 } from '../methodologyCopy';
@@ -208,11 +209,16 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
 
       {cliff && (
         <>
-          <Text style={styles.sectionTitle}>Income at the First Death</Text>
+          <Text style={styles.sectionTitle}>{INCOME_CLIFF_HEADING}</Text>
           {/* Same function the on-screen callout calls — the sentence an
-              adviser says out loud must read identically in print. */}
+              adviser says out loud must read identically in print. `gapNote`
+              is deliberately NOT repeated here: it already printed above,
+              directly under "Combined Household Income" (line ~204), and the
+              caption right before it says "see the note below" pointing at
+              that one copy. Printing it again here put the identical
+              paragraph on the page twice — the disclosure belongs exactly
+              once, at the chart it annotates. */}
           <Text style={styles.sectionDesc}>{incomeCliffSentence(cliff)}</Text>
-          {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
         </>
       )}
 
