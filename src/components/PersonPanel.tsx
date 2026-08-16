@@ -140,7 +140,11 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
         </div>
       </div>
 
-      <div className="output-duo">
+      {/* `BreakEvenSection` renders nothing when there are no pairs — a
+          zero-PIA person has none, since two zero streams never cross. Drop to
+          a single column in that case so the chart takes the full width rather
+          than sitting beside a dead column. */}
+      <div className={breakEvens.length === 0 ? 'output-duo output-duo-single' : 'output-duo'}>
         <BenefitChart
           options={claimingOptions}
           lifeExpectancy={analysis.person.lifeExpectancy}

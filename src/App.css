@@ -1275,6 +1275,13 @@
     flex: 1;
     align-content: start;
   }
+
+  /* No break-even pairs to show (a zero-PIA person has none, since two zero
+     streams never cross), so the chart takes the full width instead of
+     sitting beside an empty column. */
+  .output-duo.output-duo-single {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .results {

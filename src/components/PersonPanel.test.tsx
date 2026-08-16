@@ -148,4 +148,30 @@ describe('PersonPanel', () => {
     render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={5} />);
     expect(screen.getByTestId('break-even-62-70').textContent).not.toBe(zeroColaAge);
   });
+
+  // A person with no work record of their own: every claiming option is $0,
+  // so there is no crossover to show. The section must vanish rather than
+  // print a heading with nothing under it, and the surrounding grid must
+  // collapse to one column so the chart isn't left beside a dead half.
+  it('omits the break-even section and its column for a zero-benefit person', () => {
+    const zeroPia = {
+      ...wholeYearAnalysis,
+      person: { ...wholeYearAnalysis.person, piaMonthly: 0 },
+      recommendedMonthly: 0,
+      claimingOptions: wholeYearAnalysis.claimingOptions.map((o) => ({
+        ...o,
+        monthlyBenefit: 0,
+        lifetimeBenefits: 0,
+      })),
+    } as PersonAnalysis;
+
+    const { container } = render(
+      <PersonPanel analysis={zeroPia} index={1} annualCola={2.5} />,
+    );
+    expect(screen.queryByText('Break-Even Analysis')).toBeNull();
+    expect(container.querySelectorAll('.breakeven-section')).toHaveLength(0);
+    expect(container.querySelector('.output-duo')?.className).toContain('output-duo-single');
+    // The claiming-age table still renders, so the person's tab is not blank.
+    expect(screen.getByTestId('claim-row-70')).toBeDefined();
+  });
 });
