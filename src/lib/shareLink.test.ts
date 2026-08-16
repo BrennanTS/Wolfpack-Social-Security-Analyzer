@@ -103,6 +103,28 @@ describe('invalid parameters are dropped, never clamped', () => {
     expect(fromShareParams(params).discountRate).toBeCloseTo(0.031, 6);
   });
 
+  // The units guard (`isDiscountRateInBounds`) is what enforces these, and it
+  // runs on the converted FRACTION rather than the incoming percent — so the
+  // value that is checked is the value that reaches state. Whatever survives
+  // decoding must therefore be a plausible fraction, never a percent-shaped
+  // number that would mean a 250%+ discount rate.
+  it('only ever yields a discount rate that is plausible as a fraction', () => {
+    for (const raw of ['dr=0', 'dr=2.5', 'dr=6', 'dr=6.1', 'dr=99', 'dr=-1', 'dr=abc', '']) {
+      const { discountRate } = parse(raw);
+      expect(discountRate).toBeGreaterThanOrEqual(0);
+      expect(discountRate).toBeLessThanOrEqual(0.06);
+    }
+  });
+
+  it('accepts both endpoints of the discount range', () => {
+    expect(parse('dr=0').discountRate).toBe(0);
+    expect(parse('dr=6').discountRate).toBeCloseTo(0.06, 6);
+  });
+
+  it('drops a discount rate just past the ceiling', () => {
+    expect(parse('dr=6.1').discountRate).toBe(BLANK_FORM.discountRate);
+  });
+
   it('keeps the valid fields when a sibling field is invalid', () => {
     const form = parse('ay=1962&am=99&ab=2400');
     expect(form.personA.birthYear).toBe(1962);

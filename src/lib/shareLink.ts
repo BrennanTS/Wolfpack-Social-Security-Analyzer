@@ -1,7 +1,7 @@
 import {
   COLA_BOUNDS,
-  DISCOUNT_BOUNDS_PERCENT,
   isBenefitInRange,
+  isDiscountRateInBounds,
   isInBounds,
   LIFE_EXPECTANCY_BOUNDS,
 } from './formBounds';
@@ -102,7 +102,16 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
 
   const le = num(params, 'le');
   const cola = num(params, 'cola');
+
+  // `dr` travels as a percent; the form stores a fraction. Convert FIRST, then
+  // validate the fraction — so the value that is checked is the exact value
+  // that reaches state, rather than a percent that is checked and then
+  // transformed into something else. That is what `isDiscountRateInBounds`
+  // exists for; validating the pre-conversion percent instead left the
+  // fraction path unguarded, and left a reader of `formBounds.ts` believing
+  // otherwise.
   const dr = num(params, 'dr');
+  const discountFraction = dr === null ? null : dr / 100;
 
   return {
     personA: readPerson(params, 'a'),
@@ -111,10 +120,9 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
     lifeExpectancy:
       le !== null && isInBounds(le, LIFE_EXPECTANCY_BOUNDS) ? le : BLANK_FORM.lifeExpectancy,
     annualCola: cola !== null && isInBounds(cola, COLA_BOUNDS) ? cola : BLANK_FORM.annualCola,
-    // `dr` arrives as a percent; the form stores a fraction.
     discountRate:
-      dr !== null && isInBounds(dr, DISCOUNT_BOUNDS_PERCENT)
-        ? dr / 100
+      discountFraction !== null && isDiscountRateInBounds(discountFraction)
+        ? discountFraction
         : BLANK_FORM.discountRate,
   };
 }

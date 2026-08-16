@@ -63,7 +63,15 @@ export function isBenefitInRange(benefit: number): boolean {
   return isInBounds(benefit, { min: MIN_BENEFIT, max: MAX_BENEFIT });
 }
 
-/** Takes the stored fraction (0.025), not the slider's percent. */
+/**
+ * Takes the stored fraction (0.025), not the slider's percent.
+ *
+ * Called by `fromShareParams`, which converts the URL's percent to a fraction
+ * and then validates the fraction — so the value checked is the exact value
+ * that reaches form state. Validating the percent before converting would be
+ * arithmetically equivalent today but leaves the conversion itself unguarded:
+ * change the conversion and the check would keep passing.
+ */
 export function isDiscountRateInBounds(fraction: number): boolean {
   return isInBounds(fraction * 100, DISCOUNT_BOUNDS_PERCENT);
 }
