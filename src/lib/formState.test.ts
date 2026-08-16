@@ -5,6 +5,7 @@ import {
   isFormComplete,
   MAX_BENEFIT,
   MIN_BENEFIT,
+  reseedLifeExpectancy,
   suggestedLifeExpectancyFor,
   toHousehold,
   type AnalyzerFormState,
@@ -206,11 +207,11 @@ describe('per-person life expectancy', () => {
       personB: female,
       hasSpouse: true,
     });
-    // Same age, different gender: SSA's table gives women more remaining years,
-    // so B's fallback must exceed what a male of the same age would receive.
-    expect(household.people[1].lifeExpectancy).toBeGreaterThan(
-      suggestedLifeExpectancyFor(male)!,
-    );
+    // Asserts the invariant directly: person B's fallback is B's own SSA
+    // suggestion, not A's explicit 85 leaking across. Both sides read the
+    // same wall clock via suggestedLifeExpectancyFor, so this stays
+    // time-proof without hard-coding an absolute age (see the plan's note).
+    expect(household.people[1].lifeExpectancy).toBe(suggestedLifeExpectancyFor(female));
   });
 
   it('uses an explicit value for person B rather than the fallback', () => {
@@ -238,5 +239,44 @@ describe('per-person life expectancy', () => {
   it('returns null from the suggestion helper when identity is incomplete', () => {
     expect(suggestedLifeExpectancyFor({ ...male, gender: null })).toBeNull();
     expect(suggestedLifeExpectancyFor({ ...male, birthYear: '' })).toBeNull();
+  });
+});
+
+describe('reseedLifeExpectancy', () => {
+  // Both born 1960 — see the note above on why absolute ages are not asserted.
+  const person: PersonFormFields = {
+    name: 'Sarah', birthYear: 1960, birthMonth: 6, gender: 'female',
+    monthlyBenefit: 2100, lifeExpectancy: 95,
+  };
+
+  it('survives an unrelated field edit — the bug this guards against', () => {
+    // An adviser drags the slider to 95, then fixes an unrelated field (here,
+    // a benefit correction). Before this fix, the re-seed ran on every
+    // change and silently snapped 95 back to the SSA suggestion.
+    const next = { ...person, monthlyBenefit: 2150 };
+    expect(reseedLifeExpectancy(person, next)).toEqual(next);
+  });
+
+  it('survives a name correction too', () => {
+    const next = { ...person, name: 'Sarah Smith' };
+    expect(reseedLifeExpectancy(person, next)).toEqual(next);
+  });
+
+  it('re-seeds when the birth year changes', () => {
+    const next = { ...person, birthYear: 1958, lifeExpectancy: 95 };
+    const result = reseedLifeExpectancy(person, next);
+    expect(result.lifeExpectancy).toBe(suggestedLifeExpectancyFor(next));
+    expect(result.lifeExpectancy).not.toBe(95);
+  });
+
+  it('re-seeds when gender changes', () => {
+    const next = { ...person, gender: 'male' as const, lifeExpectancy: 95 };
+    const result = reseedLifeExpectancy(person, next);
+    expect(result.lifeExpectancy).toBe(suggestedLifeExpectancyFor(next));
+  });
+
+  it('leaves the value untouched when identity changes but is now incomplete', () => {
+    const next = { ...person, birthYear: '' as const, lifeExpectancy: 95 };
+    expect(reseedLifeExpectancy(person, next)).toEqual(next);
   });
 });

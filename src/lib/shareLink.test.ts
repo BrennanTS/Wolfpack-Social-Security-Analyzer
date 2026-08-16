@@ -168,6 +168,14 @@ describe('per-person life expectancy params', () => {
     expect(back.personB.lifeExpectancy).toBe(92);
   });
 
+  it('never writes the legacy le param', () => {
+    // `le` is a read-only legacy alias for `ale` (see fromShareParams). A
+    // future edit that reintroduced writing it would silently resurrect a
+    // parameter this module deliberately retired.
+    const params = toShareParams(form);
+    expect(params.has('le')).toBe(false);
+  });
+
   it('omits ble for a single claimant', () => {
     const params = toShareParams({ ...form, hasSpouse: false });
     expect(params.get('ale')).toBe('85');

@@ -71,9 +71,14 @@ now reading from that person's own gender rather than person A's.
 ### Completeness
 
 `isFormComplete` currently gates on `form.lifeExpectancy !== null`. That
-becomes: person A's is required; person B's is required only when the
-household is married. This mirrors how the other person-B fields are already
-gated.
+becomes: person A's is required; person B's is **never** required, married or
+not — `isPersonComplete` does not check `lifeExpectancy` at all, and
+`toPerson` falls back to person B's own SSA suggestion whenever their field is
+null. This is not the same shape as the other person-B fields (identity and
+benefit, which *are* gated on marital status), because person B's life
+expectancy always has a usable value even when unset, and requiring it would
+force an adviser to interact with a control whose entire point is that they
+don't have to.
 
 ### Share links
 
@@ -113,10 +118,15 @@ They already consume `Person.lifeExpectancy` per person.
 married household with different ages and genders produces two different
 figures; the completeness gate requires B's only when married.
 
-**Unit — defaults:** the seeded default for a known cohort equals the exact
-value that cohort receives today. Assert the number, not the function call —
-a test that asserts `getSuggestedLifeExpectancy` was called proves nothing
-about whether the result reached the person.
+**Unit — defaults:** the seeded default for a person reproduces that same
+person's own `suggestedLifeExpectancyFor` result — assert the value each
+person actually receives against that shared, wall-clock-aware helper, not an
+absolute literal (which would rot as `getCurrentAge` ages the fixture forward)
+and not a "was the function called" mock check (which proves nothing about
+whether the result reached the person). Comparing two people of the same age
+but different genders against each other's `suggestedLifeExpectancyFor`
+result is what actually distinguishes a per-person suggestion from a shared
+one.
 
 **Unit — `shareLink`:** round trip with two distinct values; `ble` absent
 when single; a legacy `le` link hydrates person A and leaves person B at its

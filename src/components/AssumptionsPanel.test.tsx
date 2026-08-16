@@ -133,6 +133,30 @@ describe('COLA survives a share-link round trip', () => {
 });
 
 describe('AssumptionsPanel per-person life expectancy', () => {
+  it('renders exactly one life-expectancy control for a single claimant', () => {
+    render(
+      <AssumptionsPanel
+        lifeExpectancies={[
+          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
+        ]}
+        annualCola={2.5}
+        onAnnualColaChange={vi.fn()}
+        discountRate={0.025}
+        onDiscountRateChange={vi.fn()}
+        expanded
+        onToggle={vi.fn()}
+      />,
+    );
+    // The panel also renders discount-rate and COLA sliders, so count
+    // life-expectancy controls specifically (id starting `life-`) rather
+    // than all sliders on the page — a single claimant must see B's control
+    // absent, not just "some slider count".
+    const lifeSliders = screen
+      .getAllByRole('slider')
+      .filter((el) => el.id.startsWith('life-'));
+    expect(lifeSliders).toHaveLength(1);
+  });
+
   it('renders one life-expectancy control per person', () => {
     render(
       <AssumptionsPanel

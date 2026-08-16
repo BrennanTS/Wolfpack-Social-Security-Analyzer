@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { genderLabel, getSuggestedLifeExpectancy } from '../lib/lifeExpectancy';
-import { getCurrentAge } from '../lib/personAnalysis';
+import { genderLabel } from '../lib/lifeExpectancy';
 import type { HouseholdAnalysis } from '../lib/household';
 import { BRAND_NAME } from '../lib/brand';
 import {
   analyzeIfComplete,
   BLANK_FORM,
   isFormComplete,
+  reseedLifeExpectancy,
   suggestedLifeExpectancyFor,
   type AnalyzerFormState,
   type PersonFormFields,
@@ -124,22 +124,19 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personA, personB, hasSpouse, discountRate]);
 
+  // Re-seeds the suggested life expectancy only when the identity inputs
+  // (date of birth, gender) actually changed — not on every edit to a
+  // person's fields. Without this guard, an adviser-set life expectancy was
+  // silently overwritten by an unrelated correction (e.g. fixing a benefit
+  // amount or a name), moving every lifetime total with nothing on screen
+  // saying so. Applies to both people; the bug predates this branch for
+  // person A but is fixed here too rather than leaving an asymmetry.
   function handlePersonAChange(next: PersonFormFields) {
-    if (next.birthYear !== '' && next.birthMonth !== '' && next.gender !== null) {
-      const age = getCurrentAge(next.birthYear, next.birthMonth).years;
-      setPersonA({ ...next, lifeExpectancy: getSuggestedLifeExpectancy(age, next.gender) });
-      return;
-    }
-    setPersonA(next);
+    setPersonA(reseedLifeExpectancy(personA, next));
   }
 
   function handlePersonBChange(next: PersonFormFields) {
-    if (next.birthYear !== '' && next.birthMonth !== '' && next.gender !== null) {
-      const age = getCurrentAge(next.birthYear, next.birthMonth).years;
-      setPersonB({ ...next, lifeExpectancy: getSuggestedLifeExpectancy(age, next.gender) });
-      return;
-    }
-    setPersonB(next);
+    setPersonB(reseedLifeExpectancy(personB, next));
   }
 
   const lifeExpectancies = [

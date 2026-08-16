@@ -87,7 +87,7 @@ export function AssumptionsPanel({
           {lifeExpectancies.map((control, index) => (
             <div className="field advanced-field" key={index}>
               <label htmlFor={`life-${index}`}>
-                {control.label}
+                Life expectancy — {control.label}
                 {control.value !== null ? ` — plan to age ${control.value}` : ''}
               </label>
               {control.value !== null ? (

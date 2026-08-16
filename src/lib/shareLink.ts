@@ -123,6 +123,15 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
   // it so links already in circulation reproduce the same analysis rather than
   // silently losing a parameter the recipient cannot see is missing. `ale` wins
   // when both are present — it is the newer, more specific key.
+  //
+  // This fallback cannot distinguish "ale absent" from "ale present but out of
+  // bounds" — both leave personA.lifeExpectancy null here, so an invalid `ale`
+  // silently falls through to a valid `le`, e.g. `?ale=200&le=88` yields 88
+  // rather than dropping to null. That is a quiet exception to this module's
+  // "dropped, not clamped, independently per person" rule. It is tolerated
+  // because new links never write `le`, so the combination is near-unreachable
+  // in practice, and distinguishing the two cases would add real complexity to
+  // a fallback that exists only for old links.
   const personA = readPerson(params, 'a');
   if (personA.lifeExpectancy === null) {
     personA.lifeExpectancy = readLifeExpectancy(params, 'le');

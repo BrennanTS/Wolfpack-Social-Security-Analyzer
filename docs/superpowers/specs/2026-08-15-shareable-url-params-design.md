@@ -49,9 +49,15 @@ Two decisions follow:
 | `bm` | person B birth month | as `am` |
 | `bg` | person B gender | as `ag` |
 | `bb` | person B benefit | 0–5000 (a spouse with no work record is valid) |
-| `le` | life expectancy | 75–100 (the `#life` slider's own range) |
+| `ale` | person A life expectancy | 75–100 (`LIFE_EXPECTANCY_BOUNDS`) |
+| `ble` | person B life expectancy | as `ale`; omitted when `m=0` |
 | `cola` | annual COLA | 0–8 (the `#cola` slider's own range) |
 | `dr` | discount rate | 0–6 (the `#discount` slider's own range) |
+
+`le` is still accepted on read as a legacy alias for `ale` — links written
+before the per-person split used it to mean person A's value, and it must
+keep hydrating person A so links already in circulation still reproduce the
+same analysis. New links never write `le`; `ale` wins when both are present.
 
 The three assumption ranges are the sliders' actual `min`/`max` in
 `AssumptionsPanel.tsx`, read from the component rather than assumed. If a slider

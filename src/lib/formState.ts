@@ -74,6 +74,28 @@ export function suggestedLifeExpectancyFor(fields: PersonFormFields): number | n
   return getSuggestedLifeExpectancy(getCurrentAge(birthYear, birthMonth).years, gender);
 }
 
+/**
+ * Decides whether an edit to a person's fields should re-seed their
+ * suggested life expectancy. Re-seeding must happen only when the identity
+ * inputs (birth year, birth month, gender) actually changed — never on an
+ * unrelated edit (name, benefit). Without this guard, correcting a benefit
+ * amount silently snapped an adviser-set life expectancy back to the SSA
+ * suggestion, moving every lifetime total with nothing on screen saying so.
+ * Applies to both people identically.
+ */
+export function reseedLifeExpectancy(
+  prev: PersonFormFields,
+  next: PersonFormFields,
+): PersonFormFields {
+  const identityChanged =
+    prev.birthYear !== next.birthYear ||
+    prev.birthMonth !== next.birthMonth ||
+    prev.gender !== next.gender;
+  if (!identityChanged) return next;
+  const suggested = suggestedLifeExpectancyFor(next);
+  return suggested === null ? next : { ...next, lifeExpectancy: suggested };
+}
+
 function toPerson(fields: PersonFormFields, id: 'a' | 'b'): Person {
   return {
     id,
