@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import type { SurvivorGap } from '../../lib/benefitPeriods';
 import type { HouseholdAnalysis } from '../../lib/household';
 import { HouseholdSection } from './HouseholdSection';
+import { MethodologyAppendix } from './ReportDocument';
 
 /**
  * The PDF's half of the survivor-gap disclosure and the combined-income
@@ -28,21 +29,39 @@ function collectText(node: unknown): string[] {
 }
 
 /**
- * Only the fields `HouseholdSection` reads. Running the optimizer here would
- * duplicate the pipeline coverage in `methodologyCopy.test.ts`, which is where
- * these exact gap figures are pinned against real `analyzeHousehold` output.
+ * Only the fields `HouseholdSection` and `MethodologyAppendix` read. Running
+ * the optimizer here would duplicate the pipeline coverage in
+ * `methodologyCopy.test.ts`, which is where these exact gap figures are pinned
+ * against real `analyzeHousehold` output.
  */
 function analysisWith(survivorGap: SurvivorGap | null): HouseholdAnalysis {
+  const rep = {
+    person: {
+      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
+      gender: 'female', piaMonthly: 1500, lifeExpectancy: 85,
+    },
+    fra: { years: 66, months: 6 },
+    currentAge: { years: 68, months: 10 },
+    ssaSuggestedLifeExpectancy: 86,
+    claimingOptions: [
+      { age: 62, percentOfPia: 72.5 },
+      { age: 70, percentOfPia: 126.7 },
+    ],
+  };
   return {
     status: 'married',
-    people: [
-      { person: { id: 'a', name: 'Avery' } },
-      { person: { id: 'b', name: 'Blake' } },
-    ],
+    people: [rep, { person: { id: 'b', name: 'Blake' } }],
     comparisons: [],
     combinedTimeline: [{ year: 2030, byPersonId: { a: 12000, b: 0 }, total: 12000 }],
     periods: [],
     survivorGap,
+    spousalTopUp: {
+      atFra: 0,
+      atRecommendedFilingAge: 0,
+      startsAtSpouseAge: null,
+      lowerEarnerLabel: 'Avery',
+    },
+    assumptions: { annualCola: 0, discountRate: 0.025 },
     recommendation: 'r',
     recommendationDetail: 'd',
   } as unknown as HouseholdAnalysis;
@@ -51,11 +70,28 @@ function analysisWith(survivorGap: SurvivorGap | null): HouseholdAnalysis {
 const printed = (survivorGap: SurvivorGap | null) =>
   collectText(HouseholdSection({ analysis: analysisWith(survivorGap), footerText: 'f' })).join(' ');
 
+/**
+ * The household page as `ReportDocument` actually composes it for a married
+ * report: the methodology appendix attaches to THIS page
+ * (`ReportDocument.tsx:206-211`), so its disclosures print alongside the
+ * combined-income caption and the gap note.
+ */
+const printedWithAppendix = (survivorGap: SurvivorGap | null) => {
+  const analysis = analysisWith(survivorGap);
+  return collectText(
+    HouseholdSection({
+      analysis,
+      footerText: 'f',
+      appendix: MethodologyAppendix({ analysis }),
+    }),
+  ).join(' ');
+};
+
 describe('HouseholdSection — the printed combined-income caption', () => {
   it('claims spousal and survivor benefits are included when they are', () => {
     const text = printed(null);
     expect(text).toContain('their own benefit plus any spousal or survivor benefit');
-    expect(text).toContain("today's dollars, before any cost-of-living adjustment");
+    expect(text).toContain("today’s dollars, before any cost-of-living adjustment");
     expect(text).not.toContain('No survivor benefit is included');
   });
 
@@ -116,5 +152,54 @@ describe('HouseholdSection — the printed survivor-gap note', () => {
 
   it('prints nothing at all when there is no gap', () => {
     expect(printed(null)).not.toContain('no step-up is shown');
+  });
+});
+
+/**
+ * The whole married household page, appendix included — the composition
+ * `ReportDocument` actually emits.
+ *
+ * This exists because the first fix wave removed the survivor contradiction
+ * from the caption and reintroduced it in the disclosures block one line
+ * below, where nothing tested the two together. They share a physical `<Page>`
+ * for a married report, so they must be asserted on one page or they will
+ * drift apart again.
+ */
+describe('HouseholdSection — the household page as the report composes it', () => {
+  const gap: SurvivorGap = {
+    survivorLabel: 'Blake',
+    deceasedMonthly: 1780,
+    survivorOwnMonthly: 1760,
+    survivorUnder60: false,
+  };
+
+  it('never claims survivor benefits are modeled on a page saying they are not', () => {
+    const page = printedWithAppendix(gap);
+    // Guard: the caption and note really are on this page, so the absence
+    // below is a contradiction removed, not a page that says nothing.
+    expect(page).toContain('No survivor benefit is included for this household');
+    expect(page).toContain('no step-up is shown for Blake');
+    // The reintroduced claim, in either of its wordings.
+    expect(page).not.toMatch(/survivor benefits are (both )?modeled/);
+    expect(page).toContain('the survivor benefit this household would actually receive is not');
+  });
+
+  it('does claim survivor benefits are modeled when the household has no gap', () => {
+    const page = printedWithAppendix(null);
+    expect(page).toContain('The spousal top-up and survivor benefits are both modeled');
+    expect(page).toContain('their own benefit plus any spousal or survivor benefit');
+    expect(page).not.toContain('No survivor benefit is included');
+  });
+
+  it('keeps one apostrophe style across the page', () => {
+    // The caption lost its `&rsquo;` when it was extracted to a plain string,
+    // so it rendered straight quotes beside the disclaimer's curly ones.
+    // Reaches the caption and the disclosures block, which is where the two
+    // styles collided. The `MethodPair` bodies are behind an uncalled
+    // component element, so this walk does not see them.
+    const page = printedWithAppendix(null);
+    expect(page).toContain('Each person’s band');
+    expect(page).toContain('today’s dollars, before any cost-of-living adjustment');
+    expect(page).toContain('Benefit amounts are in today’s dollars');
   });
 });

@@ -88,12 +88,37 @@ export function combinedIncomeCaption(gap: SurvivorGap | null | undefined): stri
   const survivorCaveat = gap
     ? ' No survivor benefit is included for this household — see the note below.'
     : '';
+  // Typographic apostrophes, matching the `&rsquo;` the two duplicated copies
+  // carried before extraction. This sentence prints beside copy that uses
+  // them — the PDF disclaimer's "today’s dollars" is on the same page — so
+  // ASCII here renders straight quotes next to curly ones.
   return (
-    `Each person's band is everything they are paid that year — ${included} — counting only ` +
-    'the months actually paid, so a filing year or a final year is shorter than a full one.' +
+    `Each person’s band is everything they are paid that year — ${included} — counting ` +
+    'only the months actually paid, so a filing year or a final year is shorter than a ' +
+    'full one.' +
     survivorCaveat +
-    " Amounts are in today's dollars, before any cost-of-living adjustment."
+    ' Amounts are in today’s dollars, before any cost-of-living adjustment.'
   );
+}
+
+/**
+ * The couple half of the PDF's "Important Disclosures" block.
+ *
+ * Conditional for exactly the reason `combinedIncomeCaption` is. For a married
+ * report the methodology appendix attaches to the household `<Page>`
+ * (`ReportDocument.tsx:206-211`), so an unconditional "survivor benefits are
+ * modeled" claim prints on the same physical page as the caption saying no
+ * survivor benefit is included for this household and the note explaining why.
+ * The unconditional version was introduced by the very fix wave that removed
+ * the same contradiction from the caption.
+ */
+export function coupleModelingNote(gap: SurvivorGap | null | undefined): string {
+  return gap
+    ? 'The spousal top-up is modeled via the ssa.tools couple optimizer; the survivor ' +
+        'benefit this household would actually receive is not — see the note on the ' +
+        'household page.'
+    : 'The spousal top-up and survivor benefits are both modeled via the ssa.tools couple ' +
+        'optimizer.';
 }
 
 /**

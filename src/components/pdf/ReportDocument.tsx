@@ -5,7 +5,11 @@ import { fraLabel } from '../../lib/format';
 import type { HouseholdAnalysis } from '../../lib/household';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../../lib/lifeExpectancy';
 import { formatVersionLabel } from '../../lib/version';
-import { SINGLE_CLAIMANT_BENEFIT_NOTE, spousalSummary } from '../methodologyCopy';
+import {
+  coupleModelingNote,
+  SINGLE_CLAIMANT_BENEFIT_NOTE,
+  spousalSummary,
+} from '../methodologyCopy';
 import { HouseholdSection } from './HouseholdSection';
 import { PersonSection } from './PersonSection';
 import { styles } from './theme';
@@ -115,7 +119,7 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
         // already baked into the PIA — so every dollar figure in this report
         // is in today's dollars. The household page says exactly this; these
         // two strings used to claim the opposite on the same printed page.
-        body: `Lifetime totals are in today's dollars, before any future cost-of-living adjustment, undiscounted, through age ${rep.person.lifeExpectancy}.`,
+        body: `Lifetime totals are in today’s dollars, before any future cost-of-living adjustment, undiscounted, through age ${rep.person.lifeExpectancy}.`,
       },
     ],
     [
@@ -150,7 +154,14 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
   ];
 }
 
-function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis }) {
+/**
+ * Exported for `HouseholdSection.test.tsx`, which places it on the household
+ * page exactly as `ReportDocument` does. That co-location is the whole point:
+ * for a married report this block and the combined-income caption share one
+ * physical `<Page>`, and testing them apart is how they came to contradict
+ * each other about survivor benefits.
+ */
+export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis }) {
   const pairs = buildMethodPairs(analysis);
   const hasSpouse = analysis.status === 'married';
 
@@ -167,7 +178,7 @@ function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis }) {
           planning only. Not affiliated with the SSA. Benefit amounts are in today&rsquo;s
           dollars, before any future cost-of-living adjustment.{' '}
           {hasSpouse
-            ? 'The spousal top-up and survivor benefits are modeled via the ssa.tools couple optimizer. '
+            ? `${coupleModelingNote(analysis.survivorGap)} `
             : `${SINGLE_CLAIMANT_BENEFIT_NOTE} `}
           Projections exclude taxation, earnings limits, and future rule changes. Data:{' '}
           {BLS_CPI_URL}. Verify at ssa.gov before claiming.

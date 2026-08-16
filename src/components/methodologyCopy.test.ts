@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   combinedIncomeCaption,
+  coupleModelingNote,
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalMethodologyCopy,
   spousalSummary,
@@ -435,7 +436,7 @@ describe('combinedIncomeCaption', () => {
     const caption = combinedIncomeCaption(null);
     expect(caption).toContain('their own benefit plus any spousal or survivor benefit');
     expect(caption).toContain('only the months actually paid');
-    expect(caption).toContain("today's dollars, before any cost-of-living adjustment");
+    expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
     expect(caption).not.toContain('No survivor benefit is included');
   });
 
@@ -451,11 +452,46 @@ describe('combinedIncomeCaption', () => {
     expect(caption).toContain('No survivor benefit is included for this household');
     // The parts that stay true either way.
     expect(caption).toContain('only the months actually paid');
-    expect(caption).toContain("today's dollars, before any cost-of-living adjustment");
+    expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
   });
 
   it('treats an unpassed gap the same as no gap', () => {
     expect(combinedIncomeCaption(undefined)).toBe(combinedIncomeCaption(null));
+  });
+
+  it('uses typographic apostrophes, as the copies it replaced did', () => {
+    // Both deleted copies wrote `&rsquo;`. This sentence prints beside copy
+    // that still does — the PDF disclaimer's "today’s dollars" shares its
+    // page — so ASCII here renders straight quotes next to curly ones.
+    const caption = combinedIncomeCaption(null);
+    expect(caption).toContain('Each person’s band');
+    expect(caption).toContain('today’s dollars');
+    expect(caption).not.toContain("'");
+  });
+});
+
+/**
+ * The couple half of the PDF disclosures block. Conditional for the same
+ * reason the caption is, and covered here as well as at the print surface
+ * because the two live on one physical page for a married report.
+ */
+describe('coupleModelingNote', () => {
+  it('claims survivor benefits are modeled when they are', () => {
+    const note = coupleModelingNote(null);
+    expect(note).toContain('The spousal top-up and survivor benefits are both modeled');
+    expect(note).toContain('ssa.tools couple optimizer');
+  });
+
+  it('stops claiming survivor benefits are modeled for a gap household', () => {
+    const note = coupleModelingNote({
+      survivorLabel: 'Blake',
+      deceasedMonthly: 1780,
+      survivorOwnMonthly: 1760,
+      survivorUnder60: false,
+    });
+    expect(note).toContain('The spousal top-up is modeled');
+    expect(note).toContain('the survivor benefit this household would actually receive is not');
+    expect(note).not.toMatch(/survivor benefits are (both )?modeled/);
   });
 });
 
