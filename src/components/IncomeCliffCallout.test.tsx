@@ -135,4 +135,23 @@ describe('IncomeCliffCallout', () => {
     // prints above it.
     expect(queryByTestId('income-cliff-gap-note')).toBeNull();
   });
+
+  // The boxed callout had no unit statement in it at all before this —
+  // `dollarsMode` names which dollars `analysis` (already transformed by
+  // `HouseholdPanel`, if nominal) is in.
+  describe('dollarsMode', () => {
+    it('defaults to naming today’s dollars when omitted', () => {
+      const { getByTestId } = render(<IncomeCliffCallout analysis={analysisWith()} />);
+      expect(getByTestId('income-cliff-sentence')).toHaveTextContent(
+        /today.s dollars, before any cost-of-living/i,
+      );
+    });
+
+    it('names nominal dollars when passed nominal', () => {
+      const { getByTestId } = render(
+        <IncomeCliffCallout analysis={analysisWith()} dollarsMode="nominal" />,
+      );
+      expect(getByTestId('income-cliff-sentence')).toHaveTextContent(/nominal/i);
+    });
+  });
 });

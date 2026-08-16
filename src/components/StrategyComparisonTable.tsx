@@ -1,10 +1,17 @@
 import type { SurvivorGap } from '../lib/benefitPeriods';
+import type { DollarsMode } from '../lib/dollarsMode';
 import { formatCurrency, personLabel } from '../lib/format';
 import type { HouseholdStrategy } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { SURVIVOR_INCOME_COLUMN_HEADER, survivorIncomeCaption } from './methodologyCopy';
 
 interface StrategyComparisonTableProps {
+  /**
+   * `survivorIncome` on each row already carries whichever mode the caller
+   * chose — `HouseholdPanel` transforms it before this component ever sees
+   * it, alongside `dollarsMode` below, which only *names* that mode; it
+   * applies no transform of its own.
+   */
   comparisons: HouseholdStrategy[];
   people: Person[];
   /**
@@ -13,6 +20,14 @@ interface StrategyComparisonTableProps {
    * pass it.
    */
   survivorGap?: SurvivorGap | null;
+  /**
+   * Names which dollars the survivor-income column is in — that column sits
+   * directly beside "Combined PV", which always stays in present-value
+   * dollars regardless of this toggle, so the caption is the only thing
+   * telling the two apart. Optional, defaulting to `'real'`, so every
+   * existing call site keeps its prior wording.
+   */
+  dollarsMode?: DollarsMode;
 }
 
 /**
@@ -36,6 +51,7 @@ export function StrategyComparisonTable({
   comparisons,
   people,
   survivorGap,
+  dollarsMode = 'real',
 }: StrategyComparisonTableProps) {
   const showSurvivorIncome = people.length === 2;
 
@@ -88,7 +104,7 @@ export function StrategyComparisonTable({
       </table>
       {showSurvivorIncome && (
         <p className="chart-caveat" data-testid="survivor-income-caption">
-          {survivorIncomeCaption(survivorGap)}
+          {survivorIncomeCaption(survivorGap, dollarsMode)}
         </p>
       )}
     </div>

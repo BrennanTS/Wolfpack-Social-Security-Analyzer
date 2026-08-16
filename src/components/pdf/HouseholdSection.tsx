@@ -187,20 +187,6 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
   const spousal = analysis.spousalTopUp;
   const gapNote = survivorGapNote(analysis.survivorGap);
   const cliff = incomeCliff(analysis);
-  // Print always renders real dollars (`combinedIncomeCaption` below is
-  // called with `'real'` explicitly) and offers no toggle, so this is the
-  // one nominal figure preserved in prose — the exact `after` amount,
-  // compounded forward to the calendar year it lands in, using the
-  // analysis's own baked-in COLA assumption rather than a live slider that
-  // doesn't exist on a printed page.
-  const nominalAfterFirstDeath = cliff
-    ? toNominalAmount(
-        cliff.after,
-        analysis.assumptions.annualCola,
-        analysis.asOf.getFullYear(),
-        cliff.deathYear + 1,
-      )
-    : null;
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -226,7 +212,9 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       </Text>
       <StrategyTable comparisons={analysis.comparisons} people={people} />
       {people.length === 2 && (
-        <Text style={styles.sectionDesc}>{survivorIncomeCaption(analysis.survivorGap)}</Text>
+        // `'real'` explicit, not the function's default: print always shows
+        // real dollars and has no toggle, regardless of what the default is.
+        <Text style={styles.sectionDesc}>{survivorIncomeCaption(analysis.survivorGap, 'real')}</Text>
       )}
 
       <Text style={styles.sectionTitle}>Combined Household Income</Text>
@@ -261,12 +249,21 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
               adding a second one: print can't offer the on-screen toggle, so
               this is the one nominal number preserved in prose — what the
               survivor's income actually will be, in the dollars they'll
-              receive that year, not today's. */}
+              receive that year, not today's. The nominal figure is computed
+              here, inside this `cliff &&` branch, rather than hoisted above
+              as a separately-nullable variable — TypeScript can then narrow
+              `cliff` to non-null on its own, with no `as number` cast
+              asserting a relationship it can't otherwise see. */}
           <Text style={styles.sectionDesc}>
-            {incomeCliffSentence(cliff)}{' '}
+            {incomeCliffSentence(cliff, 'real')}{' '}
             {nominalFirstDeathNote(
               cliff,
-              nominalAfterFirstDeath as number,
+              toNominalAmount(
+                cliff.after,
+                analysis.assumptions.annualCola,
+                analysis.asOf.getFullYear(),
+                cliff.deathYear + 1,
+              ),
               analysis.assumptions.annualCola,
             )}
           </Text>

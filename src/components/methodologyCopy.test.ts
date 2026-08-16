@@ -488,6 +488,51 @@ describe('survivorIncomeCaption', () => {
     expect(caption).not.toContain('Delaying raises this every year the survivor lives through it');
     expect(caption).not.toContain('understate');
   });
+
+  // The column sits directly beside "Combined PV", which stays in
+  // present-value dollars no matter what this toggle does — two unmarked
+  // unit systems in one table otherwise. Covered across all three gap
+  // branches, since the basis clause is appended in every one of them.
+  describe('dollars mode', () => {
+    it('defaults to naming today’s dollars when mode is omitted', () => {
+      expect(survivorIncomeCaption(null)).toMatch(/today.s dollars, before any cost-of-living/i);
+    });
+
+    it('names today’s dollars in real mode, in the no-gap branch', () => {
+      const caption = survivorIncomeCaption(null, 'real');
+      expect(caption).toMatch(/today.s dollars, before any cost-of-living/i);
+      expect(caption).not.toMatch(/nominal/i);
+    });
+
+    it('names nominal dollars and calls out Combined PV by contrast, in the no-gap branch', () => {
+      const caption = survivorIncomeCaption(null, 'nominal');
+      expect(caption).toMatch(/nominal/i);
+      expect(caption).toMatch(/Combined PV/);
+      expect(caption).not.toMatch(/today.s dollars, before any cost-of-living/i);
+    });
+
+    it('states the dollars basis in the under-60 branch too', () => {
+      const gap = {
+        survivorLabel: 'Blake',
+        deceasedMonthly: 2016,
+        survivorOwnMonthly: null,
+        survivorUnder60: true,
+      };
+      expect(survivorIncomeCaption(gap, 'real')).toMatch(/today.s dollars/i);
+      expect(survivorIncomeCaption(gap, 'nominal')).toMatch(/nominal/i);
+    });
+
+    it('states the dollars basis in the gap branch too', () => {
+      const gap = {
+        survivorLabel: 'Blake',
+        deceasedMonthly: 1780,
+        survivorOwnMonthly: 1760,
+        survivorUnder60: false,
+      };
+      expect(survivorIncomeCaption(gap, 'real')).toMatch(/today.s dollars/i);
+      expect(survivorIncomeCaption(gap, 'nominal')).toMatch(/nominal/i);
+    });
+  });
 });
 
 /**
@@ -583,10 +628,44 @@ describe('combinedIncomeCaption', () => {
       expect(caption).not.toContain('today’s dollars, before any cost-of-living adjustment');
     });
 
-    it('keeps every other claim unchanged by the mode', () => {
-      const real = combinedIncomeCaption(null, 'real').replace(/Amounts are.*$/, '');
-      const nominal = combinedIncomeCaption(null, 'nominal').replace(/Amounts are.*$/, '');
+    // Code-review finding: an earlier version of this test asserted the
+    // caption was byte-identical between modes once the trailing "Amounts
+    // are..." sentence was stripped — which does not verify mode-independence,
+    // it MANDATES it. That is wrong: "that personal band keeps paying what
+    // it already was" is a claim that the band's amount is constant over
+    // time, true in real dollars (the engine applies no COLA) but false in
+    // nominal, where every band compounds forward and a reader checking the
+    // personal band either side of the death year sees it grow. The
+    // structural point the sentence exists to make — a survivor segment is
+    // an increment on top of the personal band, never a replacement for it —
+    // does survive the mode; only the "stays flat" wording is mode-specific.
+    // These three tests replace the single over-broad one, pinning exactly
+    // that boundary instead of erasing it.
+    it('states the segment decomposition and the increment framing identically in both modes', () => {
+      const prefixThroughIncrementFraming = (caption: string) =>
+        caption.split('A survivor segment is the increment above the personal band beneath it:')[0] +
+        'A survivor segment is the increment above the personal band beneath it:';
+      const real = prefixThroughIncrementFraming(combinedIncomeCaption(null, 'real'));
+      const nominal = prefixThroughIncrementFraming(combinedIncomeCaption(null, 'nominal'));
       expect(nominal).toBe(real);
+    });
+
+    it('claims the personal band stays flat only in real dollars', () => {
+      expect(combinedIncomeCaption(null, 'real')).toContain(
+        'personal band keeps paying what it already was',
+      );
+      expect(combinedIncomeCaption(null, 'nominal')).not.toContain(
+        'personal band keeps paying what it already was',
+      );
+    });
+
+    it('says the personal band keeps compounding on its own in nominal dollars, with the increment framing intact', () => {
+      const nominal = combinedIncomeCaption(null, 'nominal');
+      expect(nominal).toMatch(/personal band keeps growing at the assumed COLA/i);
+      expect(nominal).toContain(
+        'A survivor segment is the increment above the personal band beneath it',
+      );
+      expect(nominal).toMatch(/survivor segment stacked on top of it is only the increase/i);
     });
   });
 });
@@ -674,6 +753,35 @@ describe('incomeCliffSentence', () => {
     const sentence = incomeCliffSentence(base);
     expect(sentence).not.toMatch(/larger/i);
     expect(sentence).not.toMatch(/steps? (up|into)/i);
+  });
+
+  // The boxed callout has no unit statement anywhere else in it — this
+  // clause is the only place the sentence says which dollars `before`/
+  // `after` are in. `mode` states, it does not convert: the caller
+  // (`HouseholdPanel`, via `IncomeCliffCallout`) already fed `cliff` figures
+  // in the right mode; this just names them.
+  describe('dollars mode', () => {
+    it('defaults to stating today’s dollars when mode is omitted', () => {
+      expect(incomeCliffSentence(base)).toMatch(/today.s dollars, before any cost-of-living/i);
+    });
+
+    it('states today’s dollars explicitly in real mode', () => {
+      const sentence = incomeCliffSentence(base, 'real');
+      expect(sentence).toMatch(/today.s dollars, before any cost-of-living/i);
+      expect(sentence).not.toMatch(/nominal/i);
+    });
+
+    it('states nominal dollars in nominal mode, and stops claiming today’s', () => {
+      const sentence = incomeCliffSentence(base, 'nominal');
+      expect(sentence).toMatch(/nominal/i);
+      expect(sentence).not.toMatch(/today.s dollars, before any cost-of-living/i);
+    });
+
+    it('changes only the trailing dollars-basis clause, not the figures or the survivor claim', () => {
+      const real = incomeCliffSentence(base, 'real').replace(/These figures.*$/, '');
+      const nominal = incomeCliffSentence(base, 'nominal').replace(/These figures.*$/, '');
+      expect(nominal).toBe(real);
+    });
   });
 });
 

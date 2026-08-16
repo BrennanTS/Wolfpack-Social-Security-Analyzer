@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { HouseholdAnalysis, HouseholdStrategy } from '../lib/household';
 import { computeBreakEvens } from '../lib/benefitMath';
 import { toNominal, toNominalAmount, type DollarsMode } from '../lib/dollarsMode';
@@ -82,6 +83,12 @@ function nominalComparisons(
  * (and its on-screen label) has already moved on. `analysis.asOf` is used
  * for the anchor year regardless, since "today" for this analysis doesn't
  * change with the slider.
+ *
+ * Each of the three derived values is memoized on `[analysis, annualCola,
+ * dollarsMode, asOfYear]` — `analysis.combinedTimeline` is otherwise a
+ * stable array identity, and rebuilding a fresh one (and a fresh
+ * `comparisons` array) on every unrelated re-render would hand `Area`/table
+ * children new object identities for data that hadn't actually changed.
  */
 export function HouseholdPanel({
   analysis,
@@ -94,24 +101,39 @@ export function HouseholdPanel({
   const breakEvens = computeBreakEvens(personA.claimingOptions, annualCola);
 
   const asOfYear = analysis.asOf.getFullYear();
-  const displayTimeline =
-    dollarsMode === 'nominal'
-      ? toNominal(analysis.combinedTimeline, annualCola, asOfYear)
-      : analysis.combinedTimeline;
-  const displayComparisons =
-    dollarsMode === 'nominal'
-      ? nominalComparisons(
-          analysis.comparisons,
-          analysis.people,
-          analysis.finalIndexByPersonId,
-          annualCola,
-          asOfYear,
-        )
-      : analysis.comparisons;
-  const displayAnalysis: HouseholdAnalysis =
-    dollarsMode === 'nominal'
-      ? { ...analysis, combinedTimeline: displayTimeline, comparisons: displayComparisons }
-      : analysis;
+  // Memoized so a re-render that doesn't change `analysis`, `annualCola` or
+  // `dollarsMode` (e.g. the "vs. best" delta's own state, or a parent
+  // re-render) reuses the same array identities `analysis.combinedTimeline`
+  // itself would have had — otherwise every render below `HouseholdPanel`
+  // saw a brand-new `timeline`/`comparisons` array even in real mode, where
+  // nothing had actually changed.
+  const displayTimeline = useMemo(
+    () =>
+      dollarsMode === 'nominal'
+        ? toNominal(analysis.combinedTimeline, annualCola, asOfYear)
+        : analysis.combinedTimeline,
+    [analysis, annualCola, dollarsMode, asOfYear],
+  );
+  const displayComparisons = useMemo(
+    () =>
+      dollarsMode === 'nominal'
+        ? nominalComparisons(
+            analysis.comparisons,
+            analysis.people,
+            analysis.finalIndexByPersonId,
+            annualCola,
+            asOfYear,
+          )
+        : analysis.comparisons,
+    [analysis, annualCola, dollarsMode, asOfYear],
+  );
+  const displayAnalysis: HouseholdAnalysis = useMemo(
+    () =>
+      dollarsMode === 'nominal'
+        ? { ...analysis, combinedTimeline: displayTimeline, comparisons: displayComparisons }
+        : analysis,
+    [analysis, dollarsMode, displayTimeline, displayComparisons],
+  );
 
   return (
     <div className="results">
@@ -125,6 +147,7 @@ export function HouseholdPanel({
         comparisons={displayComparisons}
         people={people}
         survivorGap={analysis.survivorGap}
+        dollarsMode={dollarsMode}
       />
 
       <CombinedIncomeChart
@@ -136,7 +159,7 @@ export function HouseholdPanel({
         onDollarsModeChange={onDollarsModeChange}
       />
 
-      <IncomeCliffCallout analysis={displayAnalysis} />
+      <IncomeCliffCallout analysis={displayAnalysis} dollarsMode={dollarsMode} />
 
       <BreakEvenSection
         breakEvens={breakEvens}

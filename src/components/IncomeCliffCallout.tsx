@@ -1,9 +1,23 @@
+import type { DollarsMode } from '../lib/dollarsMode';
 import { incomeCliff } from '../lib/incomeCliff';
 import type { HouseholdAnalysis } from '../lib/household';
 import { incomeCliffSentence, INCOME_CLIFF_HEADING } from './methodologyCopy';
 
 interface IncomeCliffCalloutProps {
+  /**
+   * Already carries whichever mode's figures — `HouseholdPanel` transforms
+   * `combinedTimeline` before this component ever sees it, so `incomeCliff`
+   * below derives `before`/`after` in that same mode automatically.
+   */
   analysis: HouseholdAnalysis;
+  /**
+   * Names, but does not apply, the mode `analysis` is already in — this
+   * boxed callout had no unit statement in it at all before, so a reader in
+   * nominal mode had no way to tell these figures apart from real ones
+   * without looking elsewhere on the page. Optional, defaulting to `'real'`,
+   * so every existing call site keeps its prior wording.
+   */
+  dollarsMode?: DollarsMode;
 }
 
 /**
@@ -36,14 +50,14 @@ interface IncomeCliffCalloutProps {
  * annotate; this callout relies on it being visible just above rather than
  * duplicating it.
  */
-export function IncomeCliffCallout({ analysis }: IncomeCliffCalloutProps) {
+export function IncomeCliffCallout({ analysis, dollarsMode = 'real' }: IncomeCliffCalloutProps) {
   const cliff = incomeCliff(analysis);
   if (!cliff) return null;
 
   return (
     <div className="income-cliff-callout" data-testid="income-cliff-callout">
       <h3>{INCOME_CLIFF_HEADING}</h3>
-      <p data-testid="income-cliff-sentence">{incomeCliffSentence(cliff)}</p>
+      <p data-testid="income-cliff-sentence">{incomeCliffSentence(cliff, dollarsMode)}</p>
     </div>
   );
 }

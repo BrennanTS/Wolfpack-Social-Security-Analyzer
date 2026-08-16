@@ -15,6 +15,22 @@ import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 
 type SpousalTopUp = NonNullable<HouseholdAnalysis['spousalTopUp']>;
 
+/**
+ * The short dollars-basis disclosure appended to a figure-bearing sentence
+ * that has no unit statement of its own — `incomeCliffSentence` and
+ * `survivorIncomeCaption` both show either real or nominal figures depending
+ * on the same toggle, and neither said which until this was added.
+ * `combinedIncomeCaption` states the same fact at greater length, in its own
+ * words, since it is the chart's primary caption rather than an addendum —
+ * this helper is not meant to replace that, only to give the two shorter
+ * captions the identical underlying fact without hand-retyping it.
+ */
+function dollarsBasisClause(mode: DollarsMode): string {
+  return mode === 'nominal'
+    ? 'figures are in future (nominal) dollars, compounded forward using the assumed COLA'
+    : 'figures are in today’s dollars, before any cost-of-living adjustment';
+}
+
 const BAND_TYPE_LABEL: Record<BandType, string> = {
   personal: 'own benefit',
   spousal: 'spousal',
@@ -117,13 +133,21 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * the personal band beneath it, not a replacement for it — since that is the
  * exact misconception this whole display phase exists to correct.
  *
- * `mode` decides only the closing sentence. Everything above it is true
- * regardless of dollars mode — the segment decomposition and the
- * months-actually-paid rule are facts about the engine's bands, not about
- * how they're being displayed. Defaults to `'real'` so every existing call
- * site (and every test written before the toggle existed) keeps reading the
- * sentence that was already correct for them. The print surface is the one
- * caller that always passes `'real'` explicitly, since it can't toggle.
+ * `mode` decides two things, not one. The closing sentence is the obvious
+ * one. The other is easy to miss: "that personal band keeps paying what it
+ * already was" is a claim that the band's amount is CONSTANT over time — true
+ * in real dollars (the engine's bands carry no COLA), but false the moment
+ * nominal compounds one forward, since every band then grows year over year.
+ * A reader checking the personal band either side of the death year in
+ * nominal mode sees, say, $2,000 → $2,050, while an unbranched version of
+ * this sentence would still say it "kept paying what it already was." The
+ * structural claim the sentence exists to make — a survivor segment is an
+ * increment on top of the personal band, not a replacement for it — is true
+ * in both modes; only the "band stays flat" wording is mode-specific, so only
+ * that clause branches. Defaults to `'real'` so every existing call site (and
+ * every test written before the toggle existed) keeps reading the sentence
+ * that was already correct for them. The print surface is the one caller
+ * that always passes `'real'` explicitly, since it can't toggle.
  */
 export function combinedIncomeCaption(
   gap: SurvivorGap | null | undefined,
@@ -135,7 +159,19 @@ export function combinedIncomeCaption(
   const survivorCaveat = gap
     ? ' No survivor segment is included for this household — see the note below.'
     : '';
-  // This is the one sentence in the caption that `mode` can falsify: the
+  // Real: the band genuinely stays flat (the engine applies no COLA), so the
+  // increment framing can say so. Nominal: the band keeps growing at the
+  // assumed COLA on its own — exactly as it would with no survivor segment
+  // present at all — and the survivor segment stacked on top is still only
+  // the increase over THAT trajectory, not over a flat line.
+  const bandContinuityClause =
+    mode === 'nominal'
+      ? 'that personal band keeps growing at the assumed COLA on its own, exactly as it ' +
+        'would without the survivor segment, and the survivor segment stacked on top of it ' +
+        'is only the increase over that.'
+      : 'that personal band keeps paying what it already was, and the survivor segment ' +
+        'stacked on top of it is only the increase.';
+  // This is the other sentence in the caption that `mode` can falsify: the
   // engine's bands never carry a COLA, so "today's dollars" is true only
   // while nothing downstream of them has compounded one forward. The nominal
   // toggle does exactly that, so the sentence has to say so instead.
@@ -153,9 +189,8 @@ export function combinedIncomeCaption(
     '— counting only the months actually paid, so a filing year or a final year is ' +
     'shorter than a full one.' +
     survivorCaveat +
-    ' A survivor segment is the increment above the personal band beneath it: that ' +
-    'personal band keeps paying what it already was, and the survivor segment stacked on ' +
-    'top of it is only the increase.' +
+    ' A survivor segment is the increment above the personal band beneath it: ' +
+    bandContinuityClause +
     ` ${dollarsClause}`
   );
 }
@@ -339,8 +374,18 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
  * exact under-60 fixture `benefitPeriods.test.ts`/`methodologyCopy.test.ts`
  * already use (Avery b. Jun 1956 PIA $1,600 plan-to 76, Blake b. Jun 1976):
  * `incomeCliff` on that household returns `after: 0, dropPercent: 100`.
+ *
+ * `mode` names which dollars `before`/`after` are already in — this function
+ * does no conversion of its own (the caller's `cliff` already carries
+ * whichever mode's figures, via `HouseholdPanel`'s single transform point),
+ * it only states the fact. Defaults to `'real'` so every call site written
+ * before the toggle existed keeps its exact prior wording. Print passes
+ * `'real'` explicitly (it always shows real figures) and adds
+ * `nominalFirstDeathNote` as a separate, explicitly-nominal number alongside
+ * — the two do not disagree, since this clause is stating the basis of the
+ * figures already in the sentence, and that note is a distinct converted one.
  */
-export function incomeCliffSentence(cliff: IncomeCliff): string {
+export function incomeCliffSentence(cliff: IncomeCliff, mode: DollarsMode = 'real'): string {
   const { deathYear, before, after, dropPercent, survivorLabel } = cliff;
   const change =
     dropPercent > 0
@@ -351,7 +396,7 @@ export function incomeCliffSentence(cliff: IncomeCliff): string {
 
   return (
     `At the first death, projected for ${deathYear}, household income ${change}, once ` +
-    `${survivorLabel} is the household's only remaining member.`
+    `${survivorLabel} is the household's only remaining member. These ${dollarsBasisClause(mode)}.`
   );
 }
 
@@ -440,18 +485,35 @@ export const SURVIVOR_INCOME_COLUMN_HEADER = 'Survivor income';
  * Neither branch names the survivor — `survivorGapNote` already does, and
  * this caption stays generic so the two do not need to agree on phrasing
  * for the same fact.
+ *
+ * `mode` adds one more thing every branch states: which dollars the column
+ * is in. The column sits directly beside "Combined PV", which stays in
+ * present-value dollars regardless of this toggle — a real risk of two
+ * unmarked unit systems in one table, worse once nominal makes the two
+ * columns diverge further apart. `HouseholdPanel` is the only caller that
+ * ever passes `'nominal'`; print always passes `'real'` explicitly, since it
+ * has no toggle.
  */
-export function survivorIncomeCaption(gap: SurvivorGap | null | undefined): string {
+export function survivorIncomeCaption(
+  gap: SurvivorGap | null | undefined,
+  mode: DollarsMode = 'real',
+): string {
   const base =
     "Household income in the first full year after the first spouse's death, under each " +
     "strategy, assuming the death direction implied by each spouse's own life-expectancy " +
     'input.';
+  const basisClause =
+    mode === 'nominal'
+      ? ' This column is in future (nominal) dollars, compounded forward using the assumed ' +
+        'COLA — unlike Combined PV beside it, which stays in present-value dollars regardless ' +
+        'of this toggle.'
+      : ' This column is in today’s dollars, before any cost-of-living adjustment.';
 
   if (gap?.survivorUnder60) {
     return (
       `${base} The survivor has not yet reached the age a widow(er) benefit can start, so ` +
       "every strategy's figure is $0 here and delaying raises none of them — see the note " +
-      'below for what changes from age 60 onward.'
+      `below for what changes from age 60 onward.${basisClause}`
     );
   }
 
@@ -459,11 +521,11 @@ export function survivorIncomeCaption(gap: SurvivorGap | null | undefined): stri
     'Delaying raises this every year the survivor lives through it, which the Combined PV ' +
     'column alone cannot show.';
 
-  if (!gap) return `${base} ${delayClause}`;
+  if (!gap) return `${base} ${delayClause}${basisClause}`;
 
   return (
     `${base} ${delayClause} The ssa.tools engine does not model survivor benefits in this ` +
     "household's direction, so these figures understate what the survivor would actually " +
-    'receive — see the note below.'
+    `receive — see the note below.${basisClause}`
   );
 }

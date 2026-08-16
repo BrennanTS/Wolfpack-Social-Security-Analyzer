@@ -119,6 +119,20 @@ test('recomputes break-evens when the COLA slider moves', async ({ page }) => {
   await expect(page.getByTestId('break-even-62-70')).not.toHaveText(zeroColaText ?? '');
 });
 
+/**
+ * The cliff sentence's own "...to $X/yr the year after..." figure, pulled
+ * out so it can be compared directly against the survivor-income column's
+ * cell — the two are computed independently (`incomeCliff` off
+ * `displayAnalysis`'s timeline vs. `nominalComparisons`' per-row scalar
+ * transform in `HouseholdPanel`) and must still agree, in both modes, since
+ * they describe the same household total in the same year.
+ */
+function cliffAfterFigure(sentence: string | null): string {
+  const match = sentence?.match(/to (\$[\d,]+)\/yr the year after/);
+  if (!match) throw new Error(`Could not find the "after" figure in: ${sentence}`);
+  return match[1];
+}
+
 test('toggles dollars mode and moves the chart, the income-cliff callout and the survivor-income column together', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, married);
@@ -136,6 +150,11 @@ test('toggles dollars mode and moves the chart, the income-cliff callout and the
   const cliffBefore = await page.getByTestId('income-cliff-sentence').textContent();
   const survivorCellBefore = await page.getByTestId('cell-survivor-optimal').textContent();
   expect(captionBefore).toContain('today’s dollars');
+  // The two independently-computed figures must already agree in real mode,
+  // not just after toggling — otherwise a nominal-mode-only assertion below
+  // would prove nothing about whether they agree "by construction" versus
+  // by coincidence of the one household under test.
+  expect(survivorCellBefore).toBe(cliffAfterFigure(cliffBefore));
 
   await nominalBtn.click();
 
@@ -154,6 +173,10 @@ test('toggles dollars mode and moves the chart, the income-cliff callout and the
 
   const survivorCellAfter = await page.getByTestId('cell-survivor-optimal').textContent();
   expect(survivorCellAfter).not.toBe(survivorCellBefore);
+  // The standing guarantee: the cliff callout's "after" figure and the
+  // strategy table's survivor-income cell must still be the exact same
+  // number in nominal mode, not just each individually different from real.
+  expect(survivorCellAfter).toBe(cliffAfterFigure(cliffAfter));
 
   // Toggling back restores every figure exactly, not just the button state.
   await realBtn.click();

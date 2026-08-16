@@ -108,4 +108,29 @@ describe('StrategyComparisonTable', () => {
     expect(caption.textContent).not.toContain('1,780');
     expect(caption.textContent).not.toContain('Sarah');
   });
+
+  // The column sits directly beside "Combined PV", which always stays in
+  // present-value dollars regardless of this toggle — the caption is the
+  // only thing in the table naming which dollars THIS column is in.
+  describe('dollarsMode', () => {
+    it('defaults to naming today’s dollars when omitted', () => {
+      render(<StrategyComparisonTable comparisons={comparisons} people={people} />);
+      expect(screen.getByTestId('survivor-income-caption')).toHaveTextContent(
+        /today.s dollars, before any cost-of-living/i,
+      );
+    });
+
+    it('names nominal dollars, contrasted against Combined PV, when passed nominal', () => {
+      render(
+        <StrategyComparisonTable
+          comparisons={comparisons}
+          people={people}
+          dollarsMode="nominal"
+        />,
+      );
+      const caption = screen.getByTestId('survivor-income-caption');
+      expect(caption).toHaveTextContent(/nominal/i);
+      expect(caption).toHaveTextContent(/Combined PV/);
+    });
+  });
 });
