@@ -2,7 +2,7 @@
  * Adapter for Gregable/social-security-tools (ssa.tools).
  * MIT License — https://github.com/Gregable/social-security-tools
  */
-import { benefitAtAge, baseSpousalBenefit } from '$lib/benefit-calculator';
+import { benefitAtAge } from '$lib/benefit-calculator';
 import { getDeathProbabilityDistribution } from '$lib/life-tables';
 import { Money } from '$lib/money';
 import { Birthdate } from '$lib/birthday';
@@ -106,90 +106,6 @@ export function isSsaClaimAgeEligible(
   const currentAge = recipient.birthdate.ageAtSsaDate(monthDateFrom(asOf));
   const claimAgeMonths = MonthDuration.initFromYearsMonths({ years: claimAgeYears, months: 0 });
   return currentAge.greaterThanOrEqual(claimAgeMonths);
-}
-
-export interface SpousalPayment {
-  /** Monthly top-up once payable. 0 when there is no entitlement. */
-  amount: number;
-  /** The spouse's age when the benefit actually begins. */
-  startsAtSpouseAge: FilingAgeDisplay;
-}
-
-/**
- * The unreduced spousal entitlement: half the worker's PIA, less the spouse's
- * own PIA, floored at zero. A reference figure — it has no filing dates in it
- * and is never what anyone is actually paid.
- */
-export function spousalEntitlement(worker: Recipient, spouse: Recipient): number {
-  return baseSpousalBenefit(worker, spouse).value();
-}
-
-/**
- * The spousal top-up the spouse actually receives, and when it starts.
- *
- * Two rules that the previous three-argument version could not express:
- *
- *  - A spousal benefit is payable only once the WORKER has filed. Filing on
- *    your own record earlier does not start it.
- *  - The reduction is measured from the age at which the spousal benefit
- *    itself begins, not from the spouse's own filing age. Those differ
- *    whenever the worker files later — which is exactly what the optimizer
- *    usually recommends.
- *
- * Delayed credits never apply, so beginning at or after FRA yields the
- * unreduced entitlement and no more. Beyond that, once the spouse files past
- * her own FRA the combined personal + spousal benefit is capped at half the
- * worker's PIA, which means netting against her DRC-inflated *benefit* rather
- * than her PIA.
- *
- * The vendored engine (src/vendor/ssa-tools/benefit-calculator.ts) has no
- * age-based spousal export: `baseSpousalBenefit` is unreduced and
- * `spousalBenefitOnDate` needs filing dates plus an "as of" month. So this
- * mirrors `spousalBenefitOnDate`'s branch structure (lines 297-377) against
- * ages instead of dates.
- */
-export function spousalTopUp(
-  worker: Recipient,
-  spouse: Recipient,
-  spouseFilingAge: MonthDuration,
-  workerFilingAge: MonthDuration,
-): SpousalPayment {
-  const startDate = MonthDate.max(
-    spouse.birthdate.dateAtSsaAge(spouseFilingAge),
-    worker.birthdate.dateAtSsaAge(workerFilingAge),
-  );
-  const startsAtSpouseAge = formatFilingAge(spouse.birthdate.ageAtSsaDate(startDate));
-
-  const base = spousalEntitlement(worker, spouse);
-  if (base <= 0) return { amount: 0, startsAtSpouseAge };
-
-  const fraMonths = spouse.normalRetirementAge().asMonths();
-  const monthsEarly = fraMonths - startsAtSpouseAge.monthDuration.asMonths();
-
-  if (monthsEarly <= 0) {
-    // No delayed credits apply to spousal benefits.
-    if (spouseFilingAge.asMonths() <= fraMonths) return { amount: base, startsAtSpouseAge };
-    // The spouse filed past her own FRA, so her personal benefit carries
-    // delayed credits. Combined personal + spousal is capped at half the
-    // worker's PIA (POMS RS 00615.694), so net against the actual benefit
-    // rather than the PIA — matching benefit-calculator.ts:343-356.
-    const ownBenefit = benefitAtAge(spouse, spouseFilingAge).value();
-    const halfWorkerPia = worker.pia().primaryInsuranceAmount().value() / 2;
-    return {
-      amount: Math.max(0, Math.round((halfWorkerPia - ownBenefit) * 100) / 100),
-      startsAtSpouseAge,
-    };
-  }
-
-  // SSA spousal reduction: 25/36 of 1% per month for the first 36 months
-  // early, then 5/12 of 1% per month beyond that.
-  const first = Math.min(monthsEarly, 36);
-  const rest = Math.max(0, monthsEarly - 36);
-  const reduction = first * (25 / 36 / 100) + rest * (5 / 12 / 100);
-  return {
-    amount: Math.round(base * (1 - reduction) * 100) / 100,
-    startsAtSpouseAge,
-  };
 }
 
 export function lifetimeNpvToAge(

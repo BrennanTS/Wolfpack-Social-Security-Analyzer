@@ -1,13 +1,21 @@
+import { baseSpousalBenefit } from '$lib/benefit-calculator';
+import { MonthDate } from '$lib/month-time';
+import type { Recipient } from '$lib/recipient';
 import { roundCents } from './benefitMath';
+import {
+  householdPeriods,
+  monthsInYear,
+  type BenefitBand,
+  type SurvivorGap,
+} from './benefitPeriods';
 import { formatCurrency, personLabel } from './format';
 import { analyzePerson, getFullRetirementAge, type Person, type PersonAnalysis } from './personAnalysis';
 import {
   createPiaRecipient,
   findStrategyByAges,
+  formatFilingAge,
   rankedCoupleStrategies,
   rankedSingleStrategies,
-  spousalEntitlement,
-  spousalTopUp,
   type FilingAgeDisplay,
   type RankedStrategy,
 } from './ssaTools';
@@ -60,6 +68,17 @@ export interface HouseholdAnalysis {
     startsAtSpouseAge: string;
     lowerEarnerLabel: string;
   };
+  /**
+   * Every benefit the household receives, as dated bands straight from the
+   * engine. The source of truth behind `combinedTimeline` and `spousalTopUp`
+   * — both are derived from this rather than re-computed.
+   */
+  periods: BenefitBand[];
+  /**
+   * Set when the engine cannot model the survivor direction this household
+   * would actually experience. Null when there is nothing to disclose.
+   */
+  survivorGap: SurvivorGap | null;
   recommendation: string;
   recommendationDetail: string;
   assumptions: Assumptions;
@@ -142,34 +161,102 @@ function createRecipientFor(person: Person) {
   return createPiaRecipient(person.birthYear, person.birthMonth, person.piaMonthly, person.gender);
 }
 
+/** The absolute month index convention `BenefitBand` uses, back to a MonthDate. */
+function monthDateAt(index: number): MonthDate {
+  return MonthDate.initFromYearsMonths({
+    years: Math.floor(index / 12),
+    months: index % 12,
+  });
+}
+
 /**
  * Household income per calendar year under the recommended strategy.
  *
- * A person contributes 12 monthly payments in every year after they have
- * filed and are still within their planning horizon, so the series steps up
- * as the second person files. Amounts are nominal at the recommended benefit;
+ * Every figure is the engine's: each band contributes
+ * `monthsInYear × monthlyAmount`, so a filing year, a death year and a
+ * mid-year survivor step-up all carry their true number of payments rather
+ * than a flat twelve. The bands carry no COLA, so these are constant dollars;
  * the COLA slider is illustrative and applied by the chart layer.
+ *
+ * `byPersonId` sums all of a person's bands — personal, spousal and survivor
+ * — into one figure per year. Splitting the series by benefit type is a
+ * display change, deliberately not made here.
  */
-function buildCombinedTimeline(people: PersonAnalysis[]): CombinedTimelinePoint[] {
-  const filingYear = (p: PersonAnalysis) => p.person.birthYear + p.recommendedFilingAge.years;
-  const finalYear = (p: PersonAnalysis) => p.person.birthYear + p.person.lifeExpectancy;
+function buildCombinedTimeline(
+  bands: BenefitBand[],
+  people: PersonAnalysis[],
+): CombinedTimelinePoint[] {
+  if (bands.length === 0) return [];
 
-  const start = Math.min(...people.map(filingYear));
-  const end = Math.max(...people.map(finalYear));
+  const start = Math.floor(Math.min(...bands.map((b) => b.startIndex)) / 12);
+  const end = Math.floor(Math.max(...bands.map((b) => b.endIndex)) / 12);
 
   const points: CombinedTimelinePoint[] = [];
   for (let year = start; year <= end; year++) {
+    // Seeded from `people` so every person keys into every year, including
+    // years they are paid nothing — the chart stacks on a stable key set.
     const byPersonId: Record<string, number> = {};
-    let total = 0;
-    for (const p of people) {
-      const active = year >= filingYear(p) && year <= finalYear(p);
-      const amount = active ? Math.round(p.recommendedMonthly * 12 * 100) / 100 : 0;
-      byPersonId[p.person.id] = amount;
-      total += amount;
+    for (const p of people) byPersonId[p.person.id] = 0;
+
+    for (const band of bands) {
+      byPersonId[band.personId] += monthsInYear(band, year) * band.monthlyAmount;
     }
-    points.push({ year, byPersonId, total: Math.round(total * 100) / 100 });
+
+    let total = 0;
+    for (const id of Object.keys(byPersonId)) {
+      byPersonId[id] = roundCents(byPersonId[id]);
+      total += byPersonId[id];
+    }
+    points.push({ year, byPersonId, total: roundCents(total) });
   }
   return points;
+}
+
+/**
+ * The spousal figures, read off the engine's Spousal band.
+ *
+ * The engine emits at most one Spousal period per household
+ * (`strategy-calc.ts:145-162`), and it pushes that period on date validity
+ * alone — so the band can carry $0.00 when a delayed-credit-inflated personal
+ * benefit already exceeds the combined 50%-of-PIA cap. That band is kept, not
+ * filtered: the entitlement genuinely exists and genuinely starts on that
+ * date, and $0.00 is what is payable. Reporting the start alongside a $0
+ * amount is also what the previous hand-rebuilt `spousalTopUp` did.
+ *
+ * When there is no band at all there is no start to report, and the em dash
+ * says so rather than inventing a date for a benefit that never begins.
+ */
+function spousalFiguresFrom(
+  bands: BenefitBand[],
+  recipientById: Record<string, Recipient>,
+  higher: Recipient,
+  lower: Recipient,
+  lowerEarnerLabel: string,
+): NonNullable<HouseholdAnalysis['spousalTopUp']> {
+  const band = bands
+    .filter((b) => b.type === 'spousal')
+    .reduce<BenefitBand | undefined>(
+      (first, b) => (first === undefined || b.startIndex < first.startIndex ? b : first),
+      undefined,
+    );
+
+  return {
+    // Unreduced reference figure — deliberately has no filing dates in it.
+    atFra: roundCents(baseSpousalBenefit(higher, lower).value()),
+    atRecommendedFilingAge: band?.monthlyAmount ?? 0,
+    // Aged against the band's OWN recipient rather than against whoever this
+    // module picked as the lower earner. The engine classifies earner and
+    // dependent with a strict PIA comparison and this module uses `>=`, so
+    // the two disagree on an exact PIA tie; reading the recipient off the
+    // band makes that disagreement unable to reach a date.
+    startsAtSpouseAge:
+      band === undefined
+        ? '—'
+        : formatFilingAge(
+            recipientById[band.personId].birthdate.ageAtSsaDate(monthDateAt(band.startIndex)),
+          ).label,
+    lowerEarnerLabel,
+  };
 }
 
 export async function analyzeHousehold(
@@ -210,19 +297,15 @@ export async function analyzeHousehold(
     const higher = aIsHigher ? recipientA : recipientB;
     const lower = aIsHigher ? recipientB : recipientA;
     const lowerIndex = aIsHigher ? 1 : 0;
-    const higherIndex = aIsHigher ? 0 : 1;
 
     const labelA = personLabel(personA.name, 0);
     const labelB = personLabel(personB.name, 1);
 
-    // The benefit cannot begin before the higher earner files, and its
-    // reduction runs from that start rather than from the lower earner's own
-    // filing age — so both filing ages have to go in.
-    const paid = spousalTopUp(
-      higher,
-      lower,
-      optimal.filingAges[lowerIndex].monthDuration,
-      optimal.filingAges[higherIndex].monthDuration,
+    const { bands, survivorGap } = householdPeriods(
+      household.people,
+      [recipientA, recipientB],
+      optimal.filingAges.map((f) => f.monthDuration),
+      [labelA, labelB],
     );
 
     return {
@@ -230,14 +313,16 @@ export async function analyzeHousehold(
       people,
       optimal,
       comparisons,
-      combinedTimeline: buildCombinedTimeline(people),
-      spousalTopUp: {
-        // Unreduced reference figure — deliberately has no filing dates in it.
-        atFra: roundCents(spousalEntitlement(higher, lower)),
-        atRecommendedFilingAge: paid.amount,
-        startsAtSpouseAge: paid.startsAtSpouseAge.label,
-        lowerEarnerLabel: lowerIndex === 0 ? labelA : labelB,
-      },
+      combinedTimeline: buildCombinedTimeline(bands, people),
+      periods: bands,
+      survivorGap,
+      spousalTopUp: spousalFiguresFrom(
+        bands,
+        { [personA.id]: recipientA, [personB.id]: recipientB },
+        higher,
+        lower,
+        lowerIndex === 0 ? labelA : labelB,
+      ),
       recommendation:
         `${labelA} files at ${optimal.filingAges[0].label} · ` +
         `${labelB} files at ${optimal.filingAges[1].label}`,
@@ -252,8 +337,9 @@ export async function analyzeHousehold(
   }
 
   const [person] = household.people;
+  const recipient = createRecipientFor(person);
   const recipientRanked = await rankedSingleStrategies(
-    createRecipientFor(person),
+    recipient,
     assumptions.discountRate,
     asOf,
   );
@@ -270,12 +356,21 @@ export async function analyzeHousehold(
 
   const people = [analyzePerson(person, optimal.filingAges[0], assumptions.annualCola, asOf)];
 
+  const { bands, survivorGap } = householdPeriods(
+    household.people,
+    [recipient],
+    [optimal.filingAges[0].monthDuration],
+    [personLabel(person.name, 0)],
+  );
+
   return {
     status: 'single',
     people,
     optimal,
     comparisons,
-    combinedTimeline: buildCombinedTimeline(people),
+    combinedTimeline: buildCombinedTimeline(bands, people),
+    periods: bands,
+    survivorGap,
     recommendation: `Claim at age ${optimal.filingAges[0].label}`,
     recommendationDetail:
       `ssa.tools recommends filing at age ${optimal.filingAges[0].label} ` +

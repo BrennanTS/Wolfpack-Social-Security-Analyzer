@@ -261,3 +261,150 @@ describe('combinedTimeline', () => {
     expect(Object.keys(result.combinedTimeline[0].byPersonId)).toEqual(['a']);
   });
 });
+
+describe('engine periods', () => {
+  it('exposes the engine periods on the analysis', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    expect(result.periods.length).toBeGreaterThan(0);
+    expect(result.periods.every((b) => b.monthlyAmount >= 0)).toBe(true);
+  });
+
+  it('credits only the months a person is actually paid, not a flat twelve', async () => {
+    // The old timeline credited 12 payments in every year from the filing
+    // year to the plan-to year inclusive. Dan is born in April with a plan-to
+    // age of 85, so his last calendar year pays four months, not twelve.
+    //
+    // The partial year asserted here is the *last* one rather than the first:
+    // the optimizer's chosen filing age for this fixture lands in January
+    // (delayed credits are paid from January, so January filings dominate),
+    // which makes his first calendar year a genuinely full one.
+    const result = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
+
+    const end = Math.max(...result.periods.map((b) => b.endIndex));
+    const lastYear = Math.floor(end / 12);
+    const monthsPaid = (end % 12) + 1;
+    expect(lastYear).toBe(dan.birthYear + dan.lifeExpectancy);
+    expect(monthsPaid).toBe(dan.birthMonth); // April → Jan–Apr
+
+    const point = result.combinedTimeline.find((p) => p.year === lastYear)!;
+    const prior = result.combinedTimeline.find((p) => p.year === lastYear - 1)!;
+    expect(point.total).toBeLessThan(prior.total);
+    // And short by exactly the months he is not paid, not some other amount.
+    expect(point.total).toBeCloseTo((prior.total / 12) * monthsPaid, 2);
+  });
+
+  it('sums every band into the year totals, spousal included', async () => {
+    // A spouse with no record of her own receives nothing but the spousal
+    // top-up, so her timeline row is exactly the spousal band. The old
+    // recommendedMonthly-driven timeline showed her as $0 forever.
+    const noRecord: Person = { ...sarah, piaMonthly: 0 };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, noRecord] },
+      assumptions,
+      asOf,
+    );
+    const spousal = result.periods.filter((b) => b.type === 'spousal');
+    expect(spousal).toHaveLength(1);
+    expect(spousal[0].monthlyAmount).toBeGreaterThan(0);
+
+    // A full calendar year strictly inside the spousal band pays 12 months of
+    // it and nothing else, since she has no personal benefit.
+    const fullYear = Math.floor(spousal[0].startIndex / 12) + 1;
+    const point = result.combinedTimeline.find((p) => p.year === fullYear)!;
+    expect(point.byPersonId.b).toBeCloseTo(spousal[0].monthlyAmount * 12, 2);
+  });
+
+  it('reports no survivor gap when the engine models the survivor direction', async () => {
+    // Dan out-earns Sarah and she outlives him (85 vs 88), so the engine's
+    // one-directional survivor model is the direction this household needs.
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    expect(result.survivorGap).toBeNull();
+    expect(result.periods.some((b) => b.type === 'survivor')).toBe(true);
+  });
+
+  it('has no survivor gap for a single claimant', async () => {
+    const result = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
+    expect(result.survivorGap).toBeNull();
+  });
+
+  it("matches each person's recommendedMonthly to their final personal band", async () => {
+    // `analyzePerson` still computes `recommendedMonthly` independently of the
+    // periods. The two must not drift: the amount a person is paid on their
+    // own record after any delayed-credit January bump is their last personal
+    // band. (They are not the whole story — the bands also carry spousal and
+    // survivor amounts, which `recommendedMonthly` has never included.)
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    for (const p of result.people) {
+      const last = result.periods
+        .filter((b) => b.personId === p.person.id && b.type === 'personal')
+        .reduce((latest, b) => (b.startIndex > latest.startIndex ? b : latest));
+      expect(last.monthlyAmount).toBeCloseTo(p.recommendedMonthly, 2);
+    }
+  });
+
+  it('keeps the start date of a spousal entitlement that is fully absorbed', async () => {
+    // The engine pushes a Spousal period on date validity alone, so it can
+    // carry $0.00: `eligibleForSpousalBenefit` tests half the earner's PIA
+    // against the dependent's PIA, while `spousalBenefitOnDate` re-tests it
+    // against the dependent's delayed-credit-inflated *benefit*.
+    //
+    // Blythe (b. Mar 1958, FRA 66y8m, PIA $1,400) is entitled to $100 at her
+    // own FRA — half of Avery's $3,000 less her own PIA. The optimizer files
+    // her at 67y10m, 14 months past her FRA, so her own benefit is
+    // 1400 × (1 + 14 × 2/3%) = $1,530.67, already above the $1,500 combined
+    // cap. Nothing is payable, but the entitlement is real and it begins the
+    // month Avery files.
+    const avery: Person = {
+      id: 'a', name: 'Avery', birthYear: 1960, birthMonth: 6,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 85,
+    };
+    const blythe: Person = {
+      id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 3,
+      gender: 'female', piaMonthly: 1400, lifeExpectancy: 90,
+    };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [avery, blythe] },
+      { annualCola: 0, discountRate: 0.025 },
+      asOf,
+    );
+
+    // Guards everything below — if the optimizer ever stopped filing her past
+    // her own FRA, this scenario would no longer be the $0-band case at all.
+    const spousal = result.periods.filter((b) => b.type === 'spousal');
+    expect(spousal).toHaveLength(1);
+    expect(spousal[0].monthlyAmount).toBe(0);
+
+    const topUp = result.spousalTopUp!;
+    expect(topUp.atFra).toBeCloseTo(100, 2);
+    expect(topUp.atRecommendedFilingAge).toBe(0);
+    // Avery files at 70 — Jun 2030 — when Blythe is 72y3m. The start is
+    // reported rather than suppressed: the entitlement exists and does begin.
+    expect(topUp.startsAtSpouseAge).toBe('72 years, 3 months');
+  });
+
+  it('reports no spousal start when there is no entitlement at all', async () => {
+    // Both earn enough that half of the higher PIA never exceeds the lower
+    // one, so the engine emits no Spousal period. There is no start to state.
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    expect(result.periods.some((b) => b.type === 'spousal')).toBe(false);
+    expect(result.spousalTopUp!.atFra).toBe(0);
+    expect(result.spousalTopUp!.atRecommendedFilingAge).toBe(0);
+    expect(result.spousalTopUp!.startsAtSpouseAge).toBe('—');
+  });
+});
