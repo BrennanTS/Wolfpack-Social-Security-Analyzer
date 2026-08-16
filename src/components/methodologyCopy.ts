@@ -274,9 +274,17 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
     // name interpolated, so it cannot read differently depending on entry
     // order. An exact PIA tie always yields a $0 entitlement (half of equal
     // PIAs cancels out), so there is no figure being suppressed here either.
+    //
+    // Says PIAs match, not records match: `isPiaTie` (`household.ts`) is an
+    // exact PIA comparison, and two equal PIAs can come from very different
+    // earnings histories — the test fixture for this branch pairs different
+    // birth years and different genders with only the PIA forced equal. "PIA"
+    // is stated explicitly rather than the vaguer "benefit" so this cannot be
+    // misread as also claiming their eventual filing benefits are equal,
+    // which early/delayed filing can make untrue even when PIAs tie exactly.
     return (
-      `Both spouses have identical Social Security records, so there is no lower earner — ` +
-      `neither has a spousal top-up to claim on the other's record.`
+      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner — ` +
+      `there is no spousal top-up to claim on the other's record.`
     );
   }
   if (spousal.atFra <= 0) {

@@ -212,16 +212,19 @@ describe('spousalSummary', () => {
   });
 
   // `subject === null` is how `household.ts` reports an exact PIA tie: there
-  // is no lower earner, so no name should reach the sentence at all.
-  it('renders a name-agnostic sentence when subject is null, regardless of atFra', () => {
+  // is no lower earner, so no name should reach the sentence at all. And the
+  // sentence must claim only what the guard establishes — an exact PIA
+  // match, not "identical records": two people can share a PIA with
+  // completely different earnings histories, ages, or genders.
+  it('renders a PIA-scoped, name-agnostic sentence when subject is null, regardless of atFra', () => {
     for (const atFra of [0, 1000]) {
       const copy = spousalSummary(
         { ...base, atFra, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: null },
         null,
       );
-      expect(copy).toContain('no lower earner');
+      expect(copy).toContain('Primary Insurance Amount');
+      expect(copy).not.toMatch(/identical (social security )?records?/i);
       expect(copy).not.toContain('Sarah');
-      expect(copy).not.toMatch(/\bthe lower earner\b/);
     }
   });
 });
@@ -405,7 +408,11 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
     expect(swappedCopy).toBe(forwardCopy);
     expect(forwardCopy).not.toContain('Dan');
     expect(forwardCopy).not.toContain('Sarah');
-    expect(forwardCopy).toContain('no lower earner');
+    expect(forwardCopy).toContain('Primary Insurance Amount');
+    // Overclaim guard: the test fixture pairs a different birth year and a
+    // different gender with only the PIA forced equal, so the sentence must
+    // not claim more than that — "identical records" would be false here.
+    expect(forwardCopy).not.toMatch(/identical (social security )?records?/i);
   });
 });
 
