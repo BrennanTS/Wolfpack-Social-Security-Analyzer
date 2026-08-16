@@ -108,43 +108,88 @@ export function isSsaClaimAgeEligible(
   return currentAge.greaterThanOrEqual(claimAgeMonths);
 }
 
+export interface SpousalPayment {
+  /** Monthly top-up once payable. 0 when there is no entitlement. */
+  amount: number;
+  /** The spouse's age when the benefit actually begins. */
+  startsAtSpouseAge: FilingAgeDisplay;
+}
+
 /**
- * The spousal top-up the dependent spouse actually receives if they start
- * spousal benefits at `spouseFilingAge`: the amount by which half of the
- * worker's PIA exceeds the spouse's own PIA, reduced if the spouse claims
- * before their own full retirement age. Delayed retirement credits never
- * apply to spousal benefits, so filing at or after FRA gives the full
- * (unreduced) amount.
+ * The unreduced spousal entitlement: half the worker's PIA, less the spouse's
+ * own PIA, floored at zero. A reference figure — it has no filing dates in it
+ * and is never what anyone is actually paid.
+ */
+export function spousalEntitlement(worker: Recipient, spouse: Recipient): number {
+  return baseSpousalBenefit(worker, spouse).value();
+}
+
+/**
+ * The spousal top-up the spouse actually receives, and when it starts.
  *
- * Replaces the previous FRA-only helper, which fabricated the spouse from the
- * worker's birthdate and therefore ignored both the spouse's real age and the
- * reduction for claiming early.
+ * Two rules that the previous three-argument version could not express:
+ *
+ *  - A spousal benefit is payable only once the WORKER has filed. Filing on
+ *    your own record earlier does not start it.
+ *  - The reduction is measured from the age at which the spousal benefit
+ *    itself begins, not from the spouse's own filing age. Those differ
+ *    whenever the worker files later — which is exactly what the optimizer
+ *    usually recommends.
+ *
+ * Delayed credits never apply, so beginning at or after FRA yields the
+ * unreduced entitlement and no more. Beyond that, once the spouse files past
+ * her own FRA the combined personal + spousal benefit is capped at half the
+ * worker's PIA, which means netting against her DRC-inflated *benefit* rather
+ * than her PIA.
  *
  * The vendored engine (src/vendor/ssa-tools/benefit-calculator.ts) has no
- * age-based spousal export: `baseSpousalBenefit` returns only the unreduced
- * amount, and `spousalBenefitOnDate` is date-based and requires filing dates
- * for both members that this function's signature doesn't carry. So this
- * composes `baseSpousalBenefit` with the SSA early-filing reduction schedule
- * directly (same formula `spousalBenefitOnDate` uses internally).
+ * age-based spousal export: `baseSpousalBenefit` is unreduced and
+ * `spousalBenefitOnDate` needs filing dates plus an "as of" month. So this
+ * mirrors `spousalBenefitOnDate`'s branch structure (lines 297-377) against
+ * ages instead of dates.
  */
 export function spousalTopUp(
   worker: Recipient,
   spouse: Recipient,
   spouseFilingAge: MonthDuration,
-): number {
-  const base = baseSpousalBenefit(worker, spouse).value();
-  if (base <= 0) return 0;
+  workerFilingAge: MonthDuration,
+): SpousalPayment {
+  const startDate = MonthDate.max(
+    spouse.birthdate.dateAtSsaAge(spouseFilingAge),
+    worker.birthdate.dateAtSsaAge(workerFilingAge),
+  );
+  const startsAtSpouseAge = formatFilingAge(spouse.birthdate.ageAtSsaDate(startDate));
 
-  const fra = spouse.normalRetirementAge();
-  const monthsEarly = fra.asMonths() - spouseFilingAge.asMonths();
-  if (monthsEarly <= 0) return base; // No delayed credits apply to spousal benefits.
+  const base = spousalEntitlement(worker, spouse);
+  if (base <= 0) return { amount: 0, startsAtSpouseAge };
+
+  const fraMonths = spouse.normalRetirementAge().asMonths();
+  const monthsEarly = fraMonths - startsAtSpouseAge.monthDuration.asMonths();
+
+  if (monthsEarly <= 0) {
+    // No delayed credits apply to spousal benefits.
+    if (spouseFilingAge.asMonths() <= fraMonths) return { amount: base, startsAtSpouseAge };
+    // The spouse filed past her own FRA, so her personal benefit carries
+    // delayed credits. Combined personal + spousal is capped at half the
+    // worker's PIA (POMS RS 00615.694), so net against the actual benefit
+    // rather than the PIA — matching benefit-calculator.ts:343-356.
+    const ownBenefit = benefitAtAge(spouse, spouseFilingAge).value();
+    const halfWorkerPia = worker.pia().primaryInsuranceAmount().value() / 2;
+    return {
+      amount: Math.max(0, Math.round((halfWorkerPia - ownBenefit) * 100) / 100),
+      startsAtSpouseAge,
+    };
+  }
 
   // SSA spousal reduction: 25/36 of 1% per month for the first 36 months
   // early, then 5/12 of 1% per month beyond that.
   const first = Math.min(monthsEarly, 36);
   const rest = Math.max(0, monthsEarly - 36);
   const reduction = first * (25 / 36 / 100) + rest * (5 / 12 / 100);
-  return Math.round(base * (1 - reduction) * 100) / 100;
+  return {
+    amount: Math.round(base * (1 - reduction) * 100) / 100,
+    startsAtSpouseAge,
+  };
 }
 
 export function lifetimeNpvToAge(

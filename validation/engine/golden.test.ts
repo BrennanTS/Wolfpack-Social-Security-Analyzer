@@ -204,6 +204,24 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     }
   });
 
+  it('starts the spousal benefit at the expected age', async () => {
+    const result = await run(scenario);
+    if (scenario.expected.startsAtSpouseAge === null) {
+      // Nothing payable in this scenario, so no start to assert. For a
+      // single claimant there is no spousalTopUp at all; for a married
+      // scenario with a zero top-up the field is still populated, so guard
+      // that its label wasn't silently left empty.
+      if (!result.spousalTopUp) {
+        expect(scenario.inputs.status).toBe('single');
+      } else {
+        expect(result.spousalTopUp.startsAtSpouseAge).not.toBe('');
+      }
+    } else {
+      expect(result.spousalTopUp).toBeDefined();
+      expect(result.spousalTopUp!.startsAtSpouseAge).toBe(scenario.expected.startsAtSpouseAge);
+    }
+  });
+
   it('satisfies structural invariants', async () => {
     const result = await run(scenario);
 

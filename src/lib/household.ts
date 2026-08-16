@@ -1,3 +1,4 @@
+import { roundCents } from './benefitMath';
 import { formatCurrency, personLabel } from './format';
 import { analyzePerson, getFullRetirementAge, type Person, type PersonAnalysis } from './personAnalysis';
 import {
@@ -5,6 +6,7 @@ import {
   findStrategyByAges,
   rankedCoupleStrategies,
   rankedSingleStrategies,
+  spousalEntitlement,
   spousalTopUp,
   type FilingAgeDisplay,
   type RankedStrategy,
@@ -49,7 +51,15 @@ export interface HouseholdAnalysis {
    * re-deriving it in a component is exactly how the on-screen figure drifted
    * to being person-A-anchored while the PDF stayed lower-earner-anchored.
    */
-  spousalTopUp?: { atFra: number; atRecommendedFilingAge: number; lowerEarnerLabel: string };
+  spousalTopUp?: {
+    /** Unreduced entitlement, `max(0, higherPIA/2 − lowerPIA)`. No filing dates. */
+    atFra: number;
+    /** What is actually paid under the recommended strategy. */
+    atRecommendedFilingAge: number;
+    /** The lower earner's age when the benefit begins, e.g. "68 years, 3 months". */
+    startsAtSpouseAge: string;
+    lowerEarnerLabel: string;
+  };
   recommendation: string;
   recommendationDetail: string;
   assumptions: Assumptions;
@@ -200,9 +210,20 @@ export async function analyzeHousehold(
     const higher = aIsHigher ? recipientA : recipientB;
     const lower = aIsHigher ? recipientB : recipientA;
     const lowerIndex = aIsHigher ? 1 : 0;
+    const higherIndex = aIsHigher ? 0 : 1;
 
     const labelA = personLabel(personA.name, 0);
     const labelB = personLabel(personB.name, 1);
+
+    // The benefit cannot begin before the higher earner files, and its
+    // reduction runs from that start rather than from the lower earner's own
+    // filing age — so both filing ages have to go in.
+    const paid = spousalTopUp(
+      higher,
+      lower,
+      optimal.filingAges[lowerIndex].monthDuration,
+      optimal.filingAges[higherIndex].monthDuration,
+    );
 
     return {
       status: 'married',
@@ -211,12 +232,10 @@ export async function analyzeHousehold(
       comparisons,
       combinedTimeline: buildCombinedTimeline(people),
       spousalTopUp: {
-        atFra: spousalTopUp(higher, lower, lower.normalRetirementAge()),
-        atRecommendedFilingAge: spousalTopUp(
-          higher,
-          lower,
-          optimal.filingAges[lowerIndex].monthDuration,
-        ),
+        // Unreduced reference figure — deliberately has no filing dates in it.
+        atFra: roundCents(spousalEntitlement(higher, lower)),
+        atRecommendedFilingAge: paid.amount,
+        startsAtSpouseAge: paid.startsAtSpouseAge.label,
         lowerEarnerLabel: lowerIndex === 0 ? labelA : labelB,
       },
       recommendation:

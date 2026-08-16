@@ -127,7 +127,7 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
       {
         title: 'Spousal Benefit',
         body: spousal
-          ? `Spousal top-up at the lower earner's recommended filing age: ${formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo (unreduced amount at that person's FRA: ${formatCurrencyPrecise(spousal.atFra)}/mo).`
+          ? `The lower earner's spousal top-up is ${formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo under the recommended strategy, beginning at age ${spousal.startsAtSpouseAge} — the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed (unreduced amount at the lower earner's own FRA: ${formatCurrencyPrecise(spousal.atFra)}/mo).`
           : 'Single claimant — spousal benefits not modeled.',
       },
       {
