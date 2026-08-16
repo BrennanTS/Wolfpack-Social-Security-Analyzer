@@ -116,7 +116,8 @@ They already consume `Person.lifeExpectancy` per person.
 
 **Unit — `formState`:** `toHousehold` gives each person their own value; a
 married household with different ages and genders produces two different
-figures; the completeness gate requires B's only when married.
+figures; the completeness gate requires person A's life expectancy, and
+never person B's.
 
 **Unit — defaults:** the seeded default for a person reproduces that same
 person's own `suggestedLifeExpectancyFor` result — assert the value each
