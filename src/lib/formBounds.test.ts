@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clampToBounds,
   COLA_BOUNDS,
   DISCOUNT_BOUNDS_PERCENT,
   isBenefitInRange,
@@ -65,6 +66,44 @@ describe('isDiscountRateInBounds takes a fraction, not a percent', () => {
   it('rejects a percent-shaped value passed as a fraction', () => {
     expect(isDiscountRateInBounds(5)).toBe(false);
     expect(isDiscountRateInBounds(2.5)).toBe(false);
+  });
+});
+
+describe('clampToBounds', () => {
+  it('leaves an in-range value alone', () => {
+    expect(clampToBounds(2.5, COLA_BOUNDS)).toBe(2.5);
+  });
+
+  it('pins a value above the ceiling to the ceiling', () => {
+    // The exact case that leaked into a share link: a typed 12 became
+    // `cola=12`, which the recipient's parser rejected and replaced.
+    expect(clampToBounds(12, COLA_BOUNDS)).toBe(8);
+    expect(clampToBounds(15, COLA_BOUNDS)).toBe(8);
+  });
+
+  it('pins a value below the floor to the floor', () => {
+    expect(clampToBounds(-3, COLA_BOUNDS)).toBe(0);
+  });
+
+  it('keeps both endpoints', () => {
+    expect(clampToBounds(0, COLA_BOUNDS)).toBe(0);
+    expect(clampToBounds(8, COLA_BOUNDS)).toBe(8);
+  });
+
+  it('pins non-finite input to the floor rather than propagating NaN', () => {
+    // An empty or half-typed number field parses to NaN.
+    expect(clampToBounds(Number.NaN, COLA_BOUNDS)).toBe(0);
+    expect(clampToBounds(Number.POSITIVE_INFINITY, COLA_BOUNDS)).toBe(0);
+  });
+
+  // Clamping is right for a field the user is looking at; it is wrong for a
+  // URL, where the substitution happens on a machine nobody is watching.
+  // `shareLink.ts` drops out-of-range values instead. Asserted here so the two
+  // policies stay deliberately different rather than drifting together.
+  it('always yields a value that isInBounds accepts', () => {
+    for (const v of [-100, -0.1, 0, 2.5, 8, 8.1, 12, 1e9]) {
+      expect(isInBounds(clampToBounds(v, COLA_BOUNDS), COLA_BOUNDS)).toBe(true);
+    }
   });
 });
 

@@ -7,7 +7,12 @@ import {
 import type { Gender } from '../lib/personAnalysis';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
 import { DEFAULT_DISCOUNT_RATE } from '../lib/ssaTools';
-import { COLA_BOUNDS, DISCOUNT_BOUNDS_PERCENT, LIFE_EXPECTANCY_BOUNDS } from '../lib/formBounds';
+import {
+  clampToBounds,
+  COLA_BOUNDS,
+  DISCOUNT_BOUNDS_PERCENT,
+  LIFE_EXPECTANCY_BOUNDS,
+} from '../lib/formBounds';
 
 interface AssumptionsPanelProps {
   lifeExpectancy: number | null;
@@ -141,13 +146,24 @@ export function AssumptionsPanel({
               <span>8%</span>
             </div>
             <div className="cola-input-row">
+              {/* Bounds and clamping both come from COLA_BOUNDS, the same
+                  source the slider above and the share-link parser read.
+                  This field used to accept up to 15 and clamp nothing, so a
+                  typed 12 entered state, passed the completeness gate, and
+                  was written into a shared link as `cola=12` — which the
+                  recipient's parser then rejected as out of bounds and
+                  silently replaced with the CPI default. Sender and
+                  recipient saw different cumulative and break-even charts
+                  with nothing on screen saying so. */}
               <input
                 type="number"
-                min={0}
-                max={15}
-                step={0.1}
+                min={COLA_BOUNDS.min}
+                max={COLA_BOUNDS.max}
+                step={COLA_BOUNDS.step}
                 value={annualCola}
-                onChange={(e) => onAnnualColaChange(Number(e.target.value) || 0)}
+                onChange={(e) =>
+                  onAnnualColaChange(clampToBounds(Number(e.target.value), COLA_BOUNDS))
+                }
                 aria-label="Annual COLA percentage"
               />
               <span>%</span>

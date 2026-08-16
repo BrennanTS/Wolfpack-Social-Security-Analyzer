@@ -42,6 +42,23 @@ export function isInBounds(value: number, bounds: { min: number; max: number }):
   return Number.isFinite(value) && value >= bounds.min && value <= bounds.max;
 }
 
+/**
+ * Pins a value inside `bounds`, for the free-text number inputs that sit
+ * beside a slider. A slider physically cannot leave its range; a number input
+ * happily accepts anything typed into it.
+ *
+ * This is for values the USER types, where clamping is the right answer — the
+ * clamped result is visible in the field they are looking at. Values arriving
+ * from a URL are the opposite case and are DROPPED rather than clamped, since
+ * nobody is watching the substitution happen. See `shareLink.ts`.
+ *
+ * Non-finite input (an empty or half-typed field parses to NaN) pins to `min`.
+ */
+export function clampToBounds(value: number, bounds: { min: number; max: number }): number {
+  if (!Number.isFinite(value)) return bounds.min;
+  return Math.min(bounds.max, Math.max(bounds.min, value));
+}
+
 export function isBenefitInRange(benefit: number): boolean {
   return isInBounds(benefit, { min: MIN_BENEFIT, max: MAX_BENEFIT });
 }
