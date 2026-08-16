@@ -1,8 +1,13 @@
-# Shareable URL parameters
+# Shareable URL parameters, and benefit-entry validation
 
 - **Date:** 2026-08-15
 - **Branch:** `feat/share-links`
 - **Status:** Approved for planning
+
+This spec covers two related pieces of work. The link feature has to enforce the
+same benefit ranges the form does, so changing those ranges and building the
+validation that guards them belong in the same change — otherwise the two drift
+apart immediately.
 
 ## Context
 
@@ -38,7 +43,7 @@ Two decisions follow:
 | `ay` | person A birth year | must appear in the form's offered birth-year list |
 | `am` | person A birth month | integer 1–12 |
 | `ag` | person A gender | `m` or `f` |
-| `ab` | person A benefit | 500–5000 |
+| `ab` | person A benefit | 0–5000 |
 | `m` | married | `1` (married) or `0` (single) |
 | `by` | person B birth year | as `ay` |
 | `bm` | person B birth month | as `am` |
@@ -61,9 +66,8 @@ would create a false impression of protection — the data is equally present
 either way — while making the feature harder to debug and harder for a reader to
 audit.
 
-The benefit ranges are the same ones the form itself enforces. Person A's $500
-floor is deliberate: Phase 1 made the UI's declared validity and the submission
-gate agree, and the link must not become a back door around that.
+The benefit ranges are the same ones the form itself enforces, and the link must
+not become a back door around them.
 
 ## The parsing rule
 
@@ -77,6 +81,60 @@ empty, so the form visibly asks for it and the recipient supplies it knowingly.
 
 A link with no valid parameters at all behaves exactly as a normal visit: the
 blank form, no error.
+
+## Benefit entry
+
+### The ranges change to 0–5,000 for both people
+
+Person A's old $500 floor solved the wrong problem. A floor catches values that
+are too *low*; the realistic data-entry error — typing a yearly figure — makes
+the number too *high*. The floor blocked nothing real and rejected genuine
+low-earner PIAs (SSA special-minimum and short-career cases).
+
+### The completeness rule becomes "at least one person earns"
+
+Dropping the floor to zero collides with the current gate, which requires person
+A's benefit to be positive. That rule is wrong: **a zero-benefit person A is
+legitimate.** It is the mirror of the spouse-with-no-work-record case the app
+already supports — someone with no earnings record married to an earner receives
+a spousal benefit, and advisers meet that household.
+
+So the gate becomes: **at least one person must have a positive benefit.** The
+all-zeros case stays out, because there is nothing to analyze. For a single
+claimant this is unchanged in effect, since "at least one" is the only person.
+
+### Catching a yearly figure entered as monthly
+
+The field label is the root cause: it currently reads "Benefit at full retirement
+age" and never says *monthly*, so someone reading an SSA statement can reasonably
+enter either number. Prevention comes first — the label becomes **"Monthly
+benefit at full retirement age"** with the unit also visible in the field.
+
+Detection targets the mistake's actual signature rather than magnitude. A yearly
+figure is one where the value is implausible as a monthly benefit **and** the
+value divided by 12 is plausible. That test is far sharper than "over $5,000",
+and it produces something actionable:
+
+> $36,000 looks like a yearly amount. Use $3,000/month instead?
+
+with a control that applies the conversion. A genuinely high monthly figure
+triggers nothing, since 4,800 ÷ 12 = 400 is not plausible either.
+
+**This nudges, it does not block.** A hard ceiling ages badly: SSA's maximum
+benefit rises every year, so a fixed wall eventually rejects a legitimate high
+earner who then has no way forward. A dismissible prompt degrades gracefully.
+
+### The ceiling is a tripwire, not a wall
+
+`MAX_BENEFIT` stays a single named constant, commented with what it represents
+(SSA's published maximum at full retirement age, plus headroom) and covered by a
+test asserting its current value. When reality outgrows it, the test says so
+before a client does.
+
+Deriving the true maximum from the engine was considered and rejected. The
+vendored `pia.ts` has the wage-indexed bend points that make the real maximum
+rise, but converting those into a maximum PIA needs a full maximum-earnings
+history — substantial machinery for a validation hint.
 
 ## Architecture
 
@@ -143,7 +201,12 @@ header.
 4. The address bar carries no client data except in the moment a link is
    deliberately copied, and is cleared after a link is loaded.
 5. A link arriving at the password gate still hydrates after sign-in.
-6. `npm run lint`, the unit/component suite, `npm run build` and the e2e suite
+6. A married household with a zero-benefit person A and an earning person B
+   analyzes successfully; an all-zero household does not.
+7. Entering 36000 offers a conversion to 3000/month; entering 4800 offers
+   nothing; neither is blocked from submitting.
+8. The benefit field states that the amount is monthly.
+9. `npm run lint`, the unit/component suite, `npm run build` and the e2e suite
    all pass.
 
 ## Out of scope
