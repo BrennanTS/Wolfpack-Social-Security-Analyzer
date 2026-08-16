@@ -8,7 +8,10 @@ Client-facing Social Security claiming analysis tool for **Wolfpack | Planning T
 - Optimal claiming age recommendation with break-even analysis
 - COLA / inflation assumptions with BLS CPI history
 - Life expectancy modeling (SSA period life tables)
-- Spousal & survivor benefit projections
+- Household modeling for singles and couples: each person analyzed on their own
+  record, filing ages chosen by the ssa.tools joint couple optimizer
+- Strategy comparison showing what the optimizer rejected and by how much
+- Spousal top-up projections (survivor benefits are not modeled)
 - Interactive charts (heatmap, opportunity cost, monthly ramp, and more)
 - PDF export for client meetings
 - Password-gated demo access

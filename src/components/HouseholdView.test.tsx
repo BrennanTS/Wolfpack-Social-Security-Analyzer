@@ -12,7 +12,7 @@ function buildPersonAnalysis(id: 'a' | 'b', name: string): PersonAnalysis {
   return {
     person: { id, name, birthYear: 1962, birthMonth: 4,
               gender: id === 'a' ? 'male' : 'female', piaMonthly: 2400, lifeExpectancy: 85 },
-    fra: { years: 67, months: 0, totalMonths: 804, fraDate: new Date(2029, 0, 1) },
+    fra: { years: 67, months: 0 },
     currentAge: { years: 63, months: 9 },
     claimingOptions: [
       { age: 62, monthlyBenefit: 1680, percentOfPia: 70 },

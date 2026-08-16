@@ -35,8 +35,6 @@ export interface Person {
 export interface FraResult {
   years: number;
   months: number;
-  totalMonths: number;
-  fraDate: Date;
 }
 
 export interface PersonAnalysis {
@@ -51,8 +49,8 @@ export interface PersonAnalysis {
 }
 
 export function getFullRetirementAge(birthYear: number): FraResult {
-  const fra = fraFromBirthYear(birthYear);
-  return { ...fra, fraDate: new Date(birthYear + fra.years, fra.months, 1) };
+  const { years, months } = fraFromBirthYear(birthYear);
+  return { years, months };
 }
 
 export function getCurrentAge(
@@ -68,10 +66,6 @@ export function getCurrentAge(
     (asOf.getFullYear() - birthYear) * 12 + (asOf.getMonth() + 1 - birthMonth),
   );
   return { years: Math.floor(totalMonths / 12), months: totalMonths % 12 };
-}
-
-export function ageToMonths(years: number, months = 0): number {
-  return years * 12 + months;
 }
 
 export function analyzePerson(

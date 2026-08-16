@@ -54,19 +54,11 @@ export function createPiaRecipient(
   return recipient;
 }
 
-export function fraFromBirthYear(birthYear: number): {
-  years: number;
-  months: number;
-  totalMonths: number;
-} {
+export function fraFromBirthYear(birthYear: number): { years: number; months: number } {
   const recipient = new Recipient();
   recipient.birthdate = Birthdate.FromYMD(birthYear, 5, DEFAULT_BIRTH_DAY);
   const fra = recipient.normalRetirementAge();
-  return {
-    years: fra.years(),
-    months: fra.modMonths(),
-    totalMonths: fra.asMonths(),
-  };
+  return { years: fra.years(), months: fra.modMonths() };
 }
 
 export function formatFilingAge(age: MonthDuration): FilingAgeDisplay {
@@ -242,44 +234,6 @@ export function findStrategyByAges(
         s.filingAges.every((f, i) => f.years === ages[i].years && f.months === ages[i].months),
     ) ?? null
   );
-}
-
-export async function computeOptimalFilingSingle(
-  recipient: Recipient,
-  discountRate: number,
-  asOf: Date = new Date(),
-): Promise<{ filingAge: FilingAgeDisplay; expectedNpv: number }> {
-  const ranked = await rankedSingleStrategies(recipient, discountRate, asOf);
-  if (ranked.length === 0) {
-    throw new Error('No eligible filing ages for this recipient');
-  }
-  const best = ranked[0];
-  return {
-    filingAge: best.filingAges[0],
-    expectedNpv: best.expectedNpv,
-  };
-}
-
-export async function computeOptimalFilingCouple(
-  worker: Recipient,
-  spouse: Recipient,
-  discountRate: number,
-  asOf: Date = new Date(),
-): Promise<{
-  workerFilingAge: FilingAgeDisplay;
-  spouseFilingAge: FilingAgeDisplay;
-  expectedNpv: number;
-}> {
-  const ranked = await rankedCoupleStrategies(worker, spouse, discountRate, asOf);
-  if (ranked.length === 0) {
-    throw new Error('No eligible couple filing strategies');
-  }
-  const best = ranked[0];
-  return {
-    workerFilingAge: best.filingAges[0],
-    spouseFilingAge: best.filingAges[1],
-    expectedNpv: best.expectedNpv,
-  };
 }
 
 export function nearestWholeClaimAge(decimalYears: number): number {
