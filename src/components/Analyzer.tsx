@@ -11,6 +11,7 @@ import {
   type AnalyzerFormState,
   type PersonFormFields,
 } from '../lib/formState';
+import { personLabel } from '../lib/format';
 import { downloadPdfReport } from '../lib/printReport';
 import { fromShareParams } from '../lib/shareLink';
 import { AssumptionsPanel } from './AssumptionsPanel';
@@ -123,8 +124,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [personA, personB, hasSpouse, discountRate]);
 
-  const ssaSuggested = suggestedLifeExpectancyFor(personA);
-
   function handlePersonAChange(next: PersonFormFields) {
     if (next.birthYear !== '' && next.birthMonth !== '' && next.gender !== null) {
       const age = getCurrentAge(next.birthYear, next.birthMonth).years;
@@ -133,6 +132,36 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     }
     setPersonA(next);
   }
+
+  function handlePersonBChange(next: PersonFormFields) {
+    if (next.birthYear !== '' && next.birthMonth !== '' && next.gender !== null) {
+      const age = getCurrentAge(next.birthYear, next.birthMonth).years;
+      setPersonB({ ...next, lifeExpectancy: getSuggestedLifeExpectancy(age, next.gender) });
+      return;
+    }
+    setPersonB(next);
+  }
+
+  const lifeExpectancies = [
+    {
+      label: personLabel(personA.name, 0),
+      value: personA.lifeExpectancy,
+      onChange: (v: number) => setPersonA({ ...personA, lifeExpectancy: v }),
+      ssaSuggested: suggestedLifeExpectancyFor(personA),
+      gender: personA.gender,
+    },
+    ...(hasSpouse
+      ? [
+          {
+            label: personLabel(personB.name, 1),
+            value: personB.lifeExpectancy,
+            onChange: (v: number) => setPersonB({ ...personB, lifeExpectancy: v }),
+            ssaSuggested: suggestedLifeExpectancyFor(personB),
+            gender: personB.gender,
+          },
+        ]
+      : []),
+  ];
 
   function handleMaritalChange(married: boolean) {
     setHasSpouse(married);
@@ -240,17 +269,16 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               </span>
             </div>
 
-            {hasSpouse && <PersonFields person={personB} index={1} onChange={setPersonB} />}
+            {hasSpouse && (
+              <PersonFields person={personB} index={1} onChange={handlePersonBChange} />
+            )}
 
             <AssumptionsPanel
-              lifeExpectancy={personA.lifeExpectancy}
-              onLifeExpectancyChange={(v) => setPersonA({ ...personA, lifeExpectancy: v })}
+              lifeExpectancies={lifeExpectancies}
               annualCola={annualCola}
               onAnnualColaChange={setAnnualCola}
               discountRate={discountRate}
               onDiscountRateChange={setDiscountRate}
-              ssaSuggestedLifeExpectancy={ssaSuggested}
-              gender={personA.gender}
               expanded={showAssumptions}
               onToggle={() => setShowAssumptions(!showAssumptions)}
             />

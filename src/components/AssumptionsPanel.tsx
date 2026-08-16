@@ -14,28 +14,30 @@ import {
   LIFE_EXPECTANCY_BOUNDS,
 } from '../lib/formBounds';
 
+interface LifeExpectancyControl {
+  label: string;
+  value: number | null;
+  onChange: (value: number) => void;
+  ssaSuggested: number | null;
+  gender: Gender | null;
+}
+
 interface AssumptionsPanelProps {
-  lifeExpectancy: number | null;
-  onLifeExpectancyChange: (value: number) => void;
+  lifeExpectancies: LifeExpectancyControl[];
   annualCola: number;
   onAnnualColaChange: (value: number) => void;
   discountRate: number;
   onDiscountRateChange: (value: number) => void;
-  ssaSuggestedLifeExpectancy: number | null;
-  gender: Gender | null;
   expanded: boolean;
   onToggle: () => void;
 }
 
 export function AssumptionsPanel({
-  lifeExpectancy,
-  onLifeExpectancyChange,
+  lifeExpectancies,
   annualCola,
   onAnnualColaChange,
   discountRate,
   onDiscountRateChange,
-  ssaSuggestedLifeExpectancy,
-  gender,
   expanded,
   onToggle,
 }: AssumptionsPanelProps) {
@@ -82,51 +84,53 @@ export function AssumptionsPanel({
             )}
           </div>
 
-          <div className="field advanced-field">
-            <label htmlFor="life">
-              Life expectancy
-              {lifeExpectancy !== null ? ` — plan to age ${lifeExpectancy}` : ''}
-            </label>
-            {lifeExpectancy !== null ? (
-              <>
-                <input
-                  id="life"
-                  type="range"
-                  min={LIFE_EXPECTANCY_BOUNDS.min}
-                  max={LIFE_EXPECTANCY_BOUNDS.max}
-                  value={lifeExpectancy}
-                  onChange={(e) => onLifeExpectancyChange(Number(e.target.value))}
-                />
-                <div className="range-labels">
-                  <span>75</span>
-                  <span>100</span>
+          {lifeExpectancies.map((control, index) => (
+            <div className="field advanced-field" key={index}>
+              <label htmlFor={`life-${index}`}>
+                {control.label}
+                {control.value !== null ? ` — plan to age ${control.value}` : ''}
+              </label>
+              {control.value !== null ? (
+                <>
+                  <input
+                    id={`life-${index}`}
+                    type="range"
+                    min={LIFE_EXPECTANCY_BOUNDS.min}
+                    max={LIFE_EXPECTANCY_BOUNDS.max}
+                    value={control.value}
+                    onChange={(e) => control.onChange(Number(e.target.value))}
+                  />
+                  <div className="range-labels">
+                    <span>75</span>
+                    <span>100</span>
+                  </div>
+                </>
+              ) : (
+                <p className="field-hint assumptions-placeholder">
+                  Set date of birth and gender to enable life expectancy planning.
+                </p>
+              )}
+              {control.ssaSuggested !== null && control.gender !== null && (
+                <div className="ssa-life-row">
+                  <span className="field-hint">
+                    SSA suggests age <strong>{control.ssaSuggested}</strong> for{' '}
+                    {genderLabel(control.gender).toLowerCase()} (
+                    <a href={SSA_LIFE_TABLE_URL} target="_blank" rel="noopener noreferrer">
+                      period life table
+                    </a>
+                    )
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-reset-cola"
+                    onClick={() => control.onChange(control.ssaSuggested as number)}
+                  >
+                    Use SSA age ({control.ssaSuggested})
+                  </button>
                 </div>
-              </>
-            ) : (
-              <p className="field-hint assumptions-placeholder">
-                Set date of birth and gender to enable life expectancy planning.
-              </p>
-            )}
-            {ssaSuggestedLifeExpectancy !== null && gender !== null && (
-              <div className="ssa-life-row">
-                <span className="field-hint">
-                  SSA suggests age <strong>{ssaSuggestedLifeExpectancy}</strong> for{' '}
-                  {genderLabel(gender).toLowerCase()} (
-                  <a href={SSA_LIFE_TABLE_URL} target="_blank" rel="noopener noreferrer">
-                    period life table
-                  </a>
-                  )
-                </span>
-                <button
-                  type="button"
-                  className="btn-reset-cola"
-                  onClick={() => onLifeExpectancyChange(ssaSuggestedLifeExpectancy)}
-                >
-                  Use SSA age ({ssaSuggestedLifeExpectancy})
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          ))}
 
           <div className="field advanced-field">
             <label htmlFor="cola">
