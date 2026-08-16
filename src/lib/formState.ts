@@ -1,4 +1,5 @@
 import { CPI_DEFAULT_COLA } from './cpiHistory';
+import { isBenefitInRange } from './formBounds';
 import { analyzeHousehold, type Household, type HouseholdAnalysis } from './household';
 import { getCurrentAge, type Gender, type Person } from './personAnalysis';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
@@ -38,40 +39,20 @@ export const BLANK_FORM: AnalyzerFormState = {
   discountRate: DEFAULT_DISCOUNT_RATE,
 };
 
-/**
- * Benefit guardrails — the single source of truth for both the form UI's
- * `aria-invalid` state (`PersonFields`) and the submission gate below.
- *
- * They used to be two different rules: the field marked anything under $500
- * invalid while the gate only required `> 0`, so a $250 entry showed a red
- * field *and* produced a confident analysis. Declared validity and the gate
- * now agree, and the gate is the stricter of the two directions — the app is
- * client-facing, so it should not put a number it has itself flagged as
- * implausible in front of an adviser's client.
- *
- * The primary person needs a real work record; a spouse's own benefit
- * legitimately starts at $0 ("no work record of their own"). $5,000 sits
- * above the maximum PIA attainable at FRA, so anything higher is a typo.
- */
-export const MAX_BENEFIT = 5000;
-export const MIN_BENEFIT_BY_INDEX: Record<0 | 1, number> = { 0: 500, 1: 0 };
-
-export function isBenefitInRange(benefit: number, index: 0 | 1): boolean {
-  return benefit >= MIN_BENEFIT_BY_INDEX[index] && benefit <= MAX_BENEFIT;
-}
+export { isBenefitInRange, MAX_BENEFIT, MIN_BENEFIT } from './formBounds';
 
 /** A person is complete when identity is present and the benefit is in range. */
-function isPersonComplete(p: PersonFormFields, index: 0 | 1): boolean {
+function isPersonComplete(p: PersonFormFields): boolean {
   if (p.birthYear === '' || p.birthMonth === '' || p.gender === null) return false;
   if (p.monthlyBenefit === '') return false;
-  return isBenefitInRange(p.monthlyBenefit, index);
+  return isBenefitInRange(p.monthlyBenefit);
 }
 
 export function isFormComplete(form: AnalyzerFormState): boolean {
   if (form.hasSpouse === null || form.lifeExpectancy === null) return false;
-  if (!isPersonComplete(form.personA, 0)) return false;
+  if (!isPersonComplete(form.personA)) return false;
   // Married analyses require real spouse data — never defaulted from person A.
-  if (form.hasSpouse && !isPersonComplete(form.personB, 1)) return false;
+  if (form.hasSpouse && !isPersonComplete(form.personB)) return false;
   return true;
 }
 

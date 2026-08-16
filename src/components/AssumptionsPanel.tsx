@@ -7,6 +7,7 @@ import {
 import type { Gender } from '../lib/personAnalysis';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
 import { DEFAULT_DISCOUNT_RATE } from '../lib/ssaTools';
+import { COLA_BOUNDS, DISCOUNT_BOUNDS_PERCENT, LIFE_EXPECTANCY_BOUNDS } from '../lib/formBounds';
 
 interface AssumptionsPanelProps {
   lifeExpectancy: number | null;
@@ -57,9 +58,9 @@ export function AssumptionsPanel({
             <input
               id="discount"
               type="range"
-              min={0}
-              max={6}
-              step={0.1}
+              min={DISCOUNT_BOUNDS_PERCENT.min}
+              max={DISCOUNT_BOUNDS_PERCENT.max}
+              step={DISCOUNT_BOUNDS_PERCENT.step}
               value={discountRate * 100}
               onChange={(e) => onDiscountRateChange(Number(e.target.value) / 100)}
             />
@@ -86,8 +87,8 @@ export function AssumptionsPanel({
                 <input
                   id="life"
                   type="range"
-                  min={75}
-                  max={100}
+                  min={LIFE_EXPECTANCY_BOUNDS.min}
+                  max={LIFE_EXPECTANCY_BOUNDS.max}
                   value={lifeExpectancy}
                   onChange={(e) => onLifeExpectancyChange(Number(e.target.value))}
                 />
@@ -129,9 +130,9 @@ export function AssumptionsPanel({
             <input
               id="cola"
               type="range"
-              min={0}
-              max={8}
-              step={0.1}
+              min={COLA_BOUNDS.min}
+              max={COLA_BOUNDS.max}
+              step={COLA_BOUNDS.step}
               value={annualCola}
               onChange={(e) => onAnnualColaChange(Number(e.target.value))}
             />

@@ -37,11 +37,12 @@ describe('PersonFields', () => {
 
   // The red ring and the "will this analyze?" gate now share one predicate
   // (`isBenefitInRange`), so this asserts the UI half against the same cases
-  // formState.test.ts asserts the gate half against.
+  // formState.test.ts asserts the gate half against. Both people share one
+  // $0-$5,000 range now — there is no longer a $500 floor on person 0.
   it.each([
-    { index: 0 as const, benefit: 499, invalid: true },
+    { index: 0 as const, benefit: 0, invalid: false },
+    { index: 0 as const, benefit: 250, invalid: false },
     { index: 0 as const, benefit: 500, invalid: false },
-    { index: 0 as const, benefit: 250, invalid: true },
     { index: 0 as const, benefit: 5000, invalid: false },
     { index: 0 as const, benefit: 9999, invalid: true },
     { index: 1 as const, benefit: 0, invalid: false },

@@ -2,12 +2,8 @@ import { useEffect, useState } from 'react';
 import { formatAgeDisplay, fraLabel, personLabel } from '../lib/format';
 import { genderLabel } from '../lib/lifeExpectancy';
 import { getCurrentAge, getFullRetirementAge } from '../lib/personAnalysis';
-import {
-  isBenefitInRange,
-  MAX_BENEFIT,
-  MIN_BENEFIT_BY_INDEX,
-  type PersonFormFields,
-} from '../lib/formState';
+import { isBenefitInRange, MAX_BENEFIT, MIN_BENEFIT } from '../lib/formBounds';
+import type { PersonFormFields } from '../lib/formState';
 
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -50,10 +46,9 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person.monthlyBenefit]);
 
-  const minBenefit = MIN_BENEFIT_BY_INDEX[index];
   // Same predicate the submission gate uses (`formState.isFormComplete`), so
   // a field marked invalid can never also produce an analysis.
-  const benefitOutOfRange = benefitText !== '' && !isBenefitInRange(Number(benefitText), index);
+  const benefitOutOfRange = benefitText !== '' && !isBenefitInRange(Number(benefitText));
 
   return (
     <fieldset className="person-fields" aria-label={label}>
@@ -161,7 +156,7 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
           />
         </div>
         <span className="field-hint" id={`${idPrefix}-benefit-hint`}>
-          ${minBenefit.toLocaleString()}–${MAX_BENEFIT.toLocaleString()}.{' '}
+          ${MIN_BENEFIT.toLocaleString()}–${MAX_BENEFIT.toLocaleString()}.{' '}
           {index === 0
             ? 'From your SSA statement or mySocialSecurity.gov estimate.'
             : 'Enter $0 if they have little or no own work record.'}
