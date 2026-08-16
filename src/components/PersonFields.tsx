@@ -164,7 +164,7 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
           />
         </div>
         {yearlySuspicion && (
-          <div className="benefit-nudge" data-testid="yearly-entry-nudge">
+          <div className="benefit-nudge" data-testid="yearly-entry-nudge" role="status">
             <span>
               {formatCurrency(yearlySuspicion.entered)} looks like a yearly amount.
             </span>

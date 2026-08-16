@@ -126,6 +126,7 @@ describe('yearly-entry nudge', () => {
     expect(onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ monthlyBenefit: 3000 }),
     );
+    expect(screen.getByLabelText(/monthly benefit at full retirement age/i)).toHaveValue('3000');
   });
 
   it('stays quiet for a plausible monthly benefit', () => {
