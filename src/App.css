@@ -921,6 +921,36 @@
   line-height: 1.4;
 }
 
+.benefit-nudge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--gold);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.benefit-nudge-action {
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.benefit-nudge-action:hover {
+  background: var(--gold);
+  color: var(--surface);
+}
+
 .person-fields {
   border: none;
   margin: 0 0 8px;

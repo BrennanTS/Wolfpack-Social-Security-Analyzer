@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { formatAgeDisplay, fraLabel, personLabel } from '../lib/format';
+import { detectYearlyEntry } from '../lib/benefitEntry';
+import { formatAgeDisplay, formatCurrency, fraLabel, personLabel } from '../lib/format';
 import { genderLabel } from '../lib/lifeExpectancy';
 import { getCurrentAge, getFullRetirementAge } from '../lib/personAnalysis';
 import { isBenefitInRange, MAX_BENEFIT, MIN_BENEFIT } from '../lib/formBounds';
@@ -49,6 +50,11 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
   // Same predicate the submission gate uses (`formState.isFormComplete`), so
   // a field marked invalid can never also produce an analysis.
   const benefitOutOfRange = benefitText !== '' && !isBenefitInRange(Number(benefitText));
+
+  // A suggestion, never a block: the field stays valid/invalid per
+  // `benefitOutOfRange` above regardless of what this says.
+  const yearlySuspicion =
+    benefitText === '' ? null : detectYearlyEntry(Number(benefitText));
 
   return (
     <fieldset className="person-fields" aria-label={label}>
@@ -133,7 +139,7 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
       </div>
 
       <div className="field">
-        <label htmlFor={`${idPrefix}-benefit`}>Benefit at full retirement age</label>
+        <label htmlFor={`${idPrefix}-benefit`}>Monthly benefit at full retirement age</label>
         <div className="currency-input">
           <span className="currency-prefix">$</span>
           <input
@@ -141,9 +147,11 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
             type="text"
             inputMode="numeric"
             // A paste/fat-finger guard only — it does NOT enforce the $5,000
-            // ceiling (4 digits still admits 9999). `isBenefitInRange` does,
-            // in both the aria-invalid state above and the submission gate.
-            maxLength={String(MAX_BENEFIT).length}
+            // ceiling. It's wide enough to admit a mistyped yearly figure
+            // (e.g. 36000) so `detectYearlyEntry` can catch and explain it;
+            // `isBenefitInRange` enforces the real ceiling, in both the
+            // aria-invalid state above and the submission gate.
+            maxLength={7}
             value={benefitText}
             placeholder="0"
             aria-describedby={`${idPrefix}-benefit-hint`}
@@ -155,6 +163,24 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
             }}
           />
         </div>
+        {yearlySuspicion && (
+          <div className="benefit-nudge" data-testid="yearly-entry-nudge">
+            <span>
+              {formatCurrency(yearlySuspicion.entered)} looks like a yearly amount.
+            </span>
+            <button
+              type="button"
+              className="benefit-nudge-action"
+              onClick={() => {
+                const next = yearlySuspicion.monthly;
+                setBenefitText(String(next));
+                set({ monthlyBenefit: next });
+              }}
+            >
+              Use {formatCurrency(yearlySuspicion.monthly)}/month
+            </button>
+          </div>
+        )}
         <span className="field-hint" id={`${idPrefix}-benefit-hint`}>
           ${MIN_BENEFIT.toLocaleString()}–${MAX_BENEFIT.toLocaleString()}.{' '}
           {index === 0

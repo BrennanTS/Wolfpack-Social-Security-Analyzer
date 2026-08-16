@@ -84,3 +84,54 @@ describe('PersonFields', () => {
     expect(you.getAttribute('aria-label')).not.toBe(spouse.getAttribute('aria-label'));
   });
 });
+
+describe('yearly-entry nudge', () => {
+  const blank = {
+    name: '', birthYear: '' as const, birthMonth: '' as const,
+    gender: null, monthlyBenefit: '' as const,
+  };
+
+  it('says the benefit is monthly, in the label', () => {
+    render(<PersonFields person={blank} index={0} onChange={vi.fn()} />);
+    expect(screen.getByLabelText(/monthly benefit at full retirement age/i)).toBeDefined();
+  });
+
+  it('accepts more than four digits, so a yearly figure can be typed at all', async () => {
+    const onChange = vi.fn();
+    render(<PersonFields person={blank} index={0} onChange={onChange} />);
+    await userEvent.type(
+      screen.getByLabelText(/monthly benefit at full retirement age/i),
+      '36000',
+    );
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ monthlyBenefit: 36000 }),
+    );
+  });
+
+  it('offers the monthly equivalent when a yearly figure is entered', () => {
+    render(
+      <PersonFields person={{ ...blank, monthlyBenefit: 36000 }} index={0} onChange={vi.fn()} />,
+    );
+    const nudge = screen.getByTestId('yearly-entry-nudge');
+    expect(nudge.textContent).toMatch(/36,000/);
+    expect(nudge.textContent).toMatch(/3,000/);
+  });
+
+  it('applies the conversion when the suggestion is accepted', async () => {
+    const onChange = vi.fn();
+    render(
+      <PersonFields person={{ ...blank, monthlyBenefit: 36000 }} index={0} onChange={onChange} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /use \$3,000/i }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ monthlyBenefit: 3000 }),
+    );
+  });
+
+  it('stays quiet for a plausible monthly benefit', () => {
+    render(
+      <PersonFields person={{ ...blank, monthlyBenefit: 4800 }} index={0} onChange={vi.fn()} />,
+    );
+    expect(screen.queryByTestId('yearly-entry-nudge')).toBeNull();
+  });
+});
