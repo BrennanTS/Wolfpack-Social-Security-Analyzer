@@ -251,17 +251,34 @@ export const SINGLE_CLAIMANT_BENEFIT_NOTE =
  * sentence capitalizes its own first letter, so the subject reads correctly
  * both at the start of the sentence and in the middle of it.
  *
+ * `subject` is `null` on an exact PIA tie (`household.ts`'s
+ * `spousalTopUp.lowerEarnerLabel`) — there is no lower earner to name, and
+ * naming one anyway would be positional, not factual: the engine's own
+ * classifier still has to pick a slot on a tie, and it always picks the
+ * same slot, so the printed name would depend only on which spouse was
+ * entered first for a household unaffected by that order.
+ *
  * The top-up is the amount by which half the higher earner's PIA exceeds the
  * lower earner's own — for $3,000/$1,000 that is $500, not $1,500. It is
  * never "50% of your PIA", which is what an earlier version claimed.
  */
-export function spousalSummary(spousal: SpousalTopUp, subject: string): string {
+export function spousalSummary(spousal: SpousalTopUp, subject: string | null): string {
   return capitalize(sentence(spousal, subject));
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function sentence(spousal: SpousalTopUp, subject: string): string {
+function sentence(spousal: SpousalTopUp, subject: string | null): string {
+  if (subject === null) {
+    // Symmetric by construction: true of the household as a whole, with no
+    // name interpolated, so it cannot read differently depending on entry
+    // order. An exact PIA tie always yields a $0 entitlement (half of equal
+    // PIAs cancels out), so there is no figure being suppressed here either.
+    return (
+      `Both spouses have identical Social Security records, so there is no lower earner — ` +
+      `neither has a spousal top-up to claim on the other's record.`
+    );
+  }
   if (spousal.atFra <= 0) {
     // "at their own FRA" is load-bearing, not decoration: `household.ts:262`
     // computes `atFra` from `baseSpousalBenefit`, which compares half the

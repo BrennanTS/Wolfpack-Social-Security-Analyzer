@@ -1,4 +1,4 @@
-import { baseSpousalBenefit } from '$lib/benefit-calculator';
+import { baseSpousalBenefit, higherEarningsThan } from '$lib/benefit-calculator';
 import { classifyEarnerDependent } from '$lib/strategy/calculations/earner-dependent';
 import { MonthDate } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
@@ -90,7 +90,16 @@ export interface HouseholdAnalysis {
      * lower earner's own delayed credits.
      */
     startsAtSpouseAge: string | null;
-    lowerEarnerLabel: string;
+    /**
+     * Null on an exact PIA tie. `higherEarningsThan` is a strict `>`, so on a
+     * tie the engine's own classifier still has to pick a slot — but that
+     * pick is positional (always the same array index), not a fact about
+     * either person, and printing it would name whichever spouse happened to
+     * be entered first. There genuinely is no lower earner for a household
+     * with two equal PIAs, so this is modelled as an absence rather than an
+     * arbitrary name, the same reasoning as `startsAtSpouseAge`.
+     */
+    lowerEarnerLabel: string | null;
   };
   /**
    * Every benefit the household receives, as dated bands straight from the
@@ -399,7 +408,7 @@ function spousalFiguresFrom(
   recipientById: Record<string, Recipient>,
   higher: Recipient,
   lower: Recipient,
-  lowerEarnerLabel: string,
+  lowerEarnerLabel: string | null,
 ): NonNullable<HouseholdAnalysis['spousalTopUp']> {
   const band = bands
     .filter((b) => b.type === 'spousal')
@@ -461,14 +470,24 @@ export async function analyzeHousehold(
     // The top-up accrues to the lower earner, claimed on the higher earner's
     // record. Classified via the engine's own `classifyEarnerDependent`
     // (strict `>` on PIA) rather than a local comparison, so this module
-    // cannot disagree with the engine about who is the higher earner. On an
-    // exact PIA tie the classifier still has to pick a slot — but the
-    // resulting top-up is 0 either way, since half of equal PIAs cancels out.
+    // cannot disagree with the engine about who is the higher earner.
     const { earnerIndex } = classifyEarnerDependent([recipientA, recipientB]);
     const aIsHigher = earnerIndex === 0;
     const higher = aIsHigher ? recipientA : recipientB;
     const lower = aIsHigher ? recipientB : recipientA;
     const lowerIndex = aIsHigher ? 1 : 0;
+
+    // On an exact PIA tie `classifyEarnerDependent` still has to return SOME
+    // slot — `higherEarningsThan` is a strict `>`, so it falls through to a
+    // fixed positional default (always index 1) rather than breaking
+    // symmetrically. That default is not a fact about either person: swap
+    // which physical person occupies which slot and the SAME slot still
+    // wins, so the "lower earner" it names is whoever was entered first.
+    // Checked directly (neither is higher-earning than the other) rather
+    // than inferred from `earnerIndex`, so this doesn't depend on knowing
+    // which direction the classifier's default happens to point.
+    const isPiaTie =
+      !higherEarningsThan(recipientA, recipientB) && !higherEarningsThan(recipientB, recipientA);
 
     const labelA = personLabel(personA.name, 0);
     const labelB = personLabel(personB.name, 1);
@@ -505,7 +524,7 @@ export async function analyzeHousehold(
         { [personA.id]: recipientA, [personB.id]: recipientB },
         higher,
         lower,
-        lowerIndex === 0 ? labelA : labelB,
+        isPiaTie ? null : lowerIndex === 0 ? labelA : labelB,
       ),
       recommendation:
         `${labelA} files at ${optimal.filingAges[0].label} · ` +

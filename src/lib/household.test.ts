@@ -2,11 +2,9 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { classifyEarnerDependent } from '$lib/strategy/calculations/earner-dependent';
 import { analyzeHousehold, visibleBenefitSeries, type Household } from './household';
 import { incomeCliff } from './incomeCliff';
 import type { Person } from './personAnalysis';
-import { createPiaRecipient } from './ssaTools';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
@@ -742,51 +740,51 @@ describe('analyzeHousehold — entry order', () => {
     const equalA: Person = { ...dan, id: 'a', piaMonthly: 2200 };
     const equalB: Person = { ...sarah, id: 'b', piaMonthly: 2200 };
 
-    it('agrees with the engine`s own classifyEarnerDependent about who is the higher earner', async () => {
+    // `higherEarningsThan` (the engine's own comparison, `benefit-calculator.ts`)
+    // is a strict `>`. On an exact tie it is false BOTH ways, so the engine's
+    // `classifyEarnerDependent` still has to return some slot — and it always
+    // returns the same one (`earner-dependent.ts:15-28` falls through to a
+    // fixed `else`), regardless of which physical person occupies it. That
+    // slot is not a fact about either person: swap who is in it and the SAME
+    // slot still "wins". There genuinely is no lower earner for this
+    // household, so `lowerEarnerLabel` must be null rather than whichever
+    // name the classifier's positional default happens to attach to.
+    it('reports no lower earner — null, not a name from either slot', async () => {
       const result = await analyzeHousehold(
         { status: 'married', people: [equalA, equalB] },
         assumptions,
         asOf,
       );
-
       // Half of equal PIAs cancels out, so this is a genuine tie: no amount
-      // changes whichever way the classifier breaks it.
-      expect(result.spousalTopUp!.atFra).toBe(0);
-
-      // The engine's own classifier is the arbiter of who is "higher" on a
-      // tie. household.ts must land on the SAME person, not decide
-      // independently via its own comparison — a local `>=` and the engine's
-      // strict `>` disagree on an exact tie, which is exactly the seam this
-      // pins shut.
-      const recipientA = createPiaRecipient(
-        equalA.birthYear,
-        equalA.birthMonth,
-        equalA.piaMonthly,
-        equalA.gender,
-      );
-      const recipientB = createPiaRecipient(
-        equalB.birthYear,
-        equalB.birthMonth,
-        equalB.piaMonthly,
-        equalB.gender,
-      );
-      const { earnerIndex } = classifyEarnerDependent([recipientA, recipientB]);
-      const expectedLowerLabel = earnerIndex === 0 ? 'Sarah' : 'Dan';
-      expect(result.spousalTopUp!.lowerEarnerLabel).toBe(expectedLowerLabel);
-    });
-
-    it('reports the zero-entitlement sentence path, not a person-specific dollar figure', async () => {
-      // Guards the copy side of the same tie: `spousalSummary` must take its
-      // `atFra <= 0` branch (see `methodologyCopy.ts`), which states no
-      // top-up applies rather than attributing a specific paid amount to
-      // whichever name landed in the "lower earner" slot.
-      const result = await analyzeHousehold(
-        { status: 'married', people: [equalA, equalB] },
-        assumptions,
-        asOf,
-      );
+      // changes whichever way the classifier would have broken it.
       expect(result.spousalTopUp!.atFra).toBe(0);
       expect(result.spousalTopUp!.atRecommendedFilingAge).toBe(0);
+      expect(result.spousalTopUp!.lowerEarnerLabel).toBeNull();
+    });
+
+    // The actual regression: a prior version of this fix left `household.ts`
+    // agreeing with the engine's classifier, which made it internally
+    // consistent but still order-dependent — the classifier's positional
+    // default meant whichever physical person was entered first got named
+    // "the lower earner". Confirmed at the data level, in both directions,
+    // so `lowerEarnerLabel` cannot merely mirror production's own slot
+    // arithmetic. The stronger check — that the rendered COPY is identical
+    // in both directions and never leaks a name — lives in
+    // `methodologyCopy.test.ts` (`spousalMethodologyCopy`), since that is the
+    // surface the defect was actually visible on.
+    it('reports no lower earner whichever spouse is entered first', async () => {
+      const forward = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+      const swapped = await analyzeHousehold(
+        { status: 'married', people: [{ ...equalB, id: 'a' }, { ...equalA, id: 'b' }] },
+        assumptions,
+        asOf,
+      );
+      expect(forward.spousalTopUp!.lowerEarnerLabel).toBeNull();
+      expect(swapped.spousalTopUp!.lowerEarnerLabel).toBeNull();
     });
   });
 });

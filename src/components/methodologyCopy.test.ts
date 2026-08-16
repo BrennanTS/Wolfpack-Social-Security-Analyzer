@@ -210,6 +210,20 @@ describe('spousalSummary', () => {
     expect(copy).toContain("beginning at Blythe's age 72 years, 3 months");
     expect(copy).toContain('$0.00/mo');
   });
+
+  // `subject === null` is how `household.ts` reports an exact PIA tie: there
+  // is no lower earner, so no name should reach the sentence at all.
+  it('renders a name-agnostic sentence when subject is null, regardless of atFra', () => {
+    for (const atFra of [0, 1000]) {
+      const copy = spousalSummary(
+        { ...base, atFra, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: null },
+        null,
+      );
+      expect(copy).toContain('no lower earner');
+      expect(copy).not.toContain('Sarah');
+      expect(copy).not.toMatch(/\bthe lower earner\b/);
+    }
+  });
 });
 
 /**
@@ -329,6 +343,69 @@ describe('the printed spousal sentence, over real households', () => {
     const copy = await printed([dan, noRecord]);
     expect(copy).toMatch(/beginning at the lower earner's age \d+/);
     expect(copy).not.toMatch(/age\s*—/);
+  });
+});
+
+/**
+ * The on-screen path specifically — `spousalMethodologyCopy` interpolates
+ * `analysis.spousalTopUp.lowerEarnerLabel` as a name
+ * (`methodologyCopy.ts:330`), unlike the PDF's `printed` helper above, which
+ * always passes the generic literal `'the lower earner'`. On an exact PIA
+ * tie that is exactly where a positional tie-break would leak: the engine's
+ * `classifyEarnerDependent` still has to pick a slot on a tie
+ * (`earner-dependent.ts:15-28`, falling through to a fixed `else`), and an
+ * earlier version of `household.ts` mirrored that pick into
+ * `lowerEarnerLabel` — internally consistent with the engine, but still
+ * naming whichever spouse happened to be entered first. A test that
+ * recomputes the classifier the same way `household.ts` does, with the same
+ * array order, cannot catch this (it is a tautology); this drives a real
+ * household through BOTH entry orders and diffs the rendered sentence.
+ */
+describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
+  const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
+
+  beforeAll(() => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      const contents = await readFile(path.join(publicDir, String(url).replace(/^\//, '')), 'utf8');
+      return { ok: true, json: async () => JSON.parse(contents) } as Response;
+    });
+  });
+  afterAll(() => vi.unstubAllGlobals());
+
+  const asOf = new Date(2026, 0, 15);
+  const assumptions = { annualCola: 2.5, discountRate: 0.025 };
+
+  const equalA: Person = {
+    id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+    gender: 'male', piaMonthly: 2200, lifeExpectancy: 85,
+  };
+  const equalB: Person = {
+    id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+    gender: 'female', piaMonthly: 2200, lifeExpectancy: 88,
+  };
+
+  it('prints the identical sentence whichever spouse is entered first, naming neither', async () => {
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [equalA, equalB] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...equalB, id: 'a' }, { ...equalA, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+
+    // Guards this really is the tie this test means to exercise.
+    expect(forward.spousalTopUp!.lowerEarnerLabel).toBeNull();
+    expect(swapped.spousalTopUp!.lowerEarnerLabel).toBeNull();
+
+    const forwardCopy = spousalMethodologyCopy(forward);
+    const swappedCopy = spousalMethodologyCopy(swapped);
+    expect(swappedCopy).toBe(forwardCopy);
+    expect(forwardCopy).not.toContain('Dan');
+    expect(forwardCopy).not.toContain('Sarah');
+    expect(forwardCopy).toContain('no lower earner');
   });
 });
 
