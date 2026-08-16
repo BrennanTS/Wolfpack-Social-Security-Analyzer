@@ -11,14 +11,13 @@ function renderPanel(overrides: Partial<Parameters<typeof AssumptionsPanel>[0]> 
   const onAnnualColaChange = vi.fn();
   render(
     <AssumptionsPanel
-      lifeExpectancy={85}
-      onLifeExpectancyChange={vi.fn()}
+      lifeExpectancies={[
+        { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 82, gender: 'male' },
+      ]}
       annualCola={2.5}
       onAnnualColaChange={onAnnualColaChange}
       discountRate={0.025}
       onDiscountRateChange={vi.fn()}
-      ssaSuggestedLifeExpectancy={82}
-      gender="male"
       expanded
       onToggle={vi.fn()}
       {...overrides}
@@ -40,8 +39,9 @@ function renderStateful(initial: number) {
     const [cola, setCola] = useState(initial);
     return (
       <AssumptionsPanel
-        lifeExpectancy={85}
-        onLifeExpectancyChange={vi.fn()}
+        lifeExpectancies={[
+          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 82, gender: 'male' },
+        ]}
         annualCola={cola}
         onAnnualColaChange={(v) => {
           seen.push(v);
@@ -49,8 +49,6 @@ function renderStateful(initial: number) {
         }}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
-        ssaSuggestedLifeExpectancy={82}
-        gender="male"
         expanded
         onToggle={vi.fn()}
       />
@@ -131,5 +129,83 @@ describe('COLA survives a share-link round trip', () => {
     const received = fromShareParams(new URLSearchParams(toShareParams(sent).toString()));
     expect(received.annualCola).not.toBe(12);
     expect(received.annualCola).toBe(BLANK_FORM.annualCola);
+  });
+});
+
+describe('AssumptionsPanel per-person life expectancy', () => {
+  it('renders exactly one life-expectancy control for a single claimant', () => {
+    render(
+      <AssumptionsPanel
+        lifeExpectancies={[
+          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
+        ]}
+        annualCola={2.5}
+        onAnnualColaChange={vi.fn()}
+        discountRate={0.025}
+        onDiscountRateChange={vi.fn()}
+        expanded
+        onToggle={vi.fn()}
+      />,
+    );
+    // The panel also renders discount-rate and COLA sliders, so count
+    // life-expectancy controls specifically (id starting `life-`) rather
+    // than all sliders on the page — a single claimant must see B's control
+    // absent, not just "some slider count".
+    const lifeSliders = screen
+      .getAllByRole('slider')
+      .filter((el) => el.id.startsWith('life-'));
+    expect(lifeSliders).toHaveLength(1);
+  });
+
+  it('renders one life-expectancy control per person', () => {
+    render(
+      <AssumptionsPanel
+        lifeExpectancies={[
+          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
+          { label: 'Sarah', value: 92, onChange: vi.fn(), ssaSuggested: 86, gender: 'female' },
+        ]}
+        annualCola={2.5}
+        onAnnualColaChange={vi.fn()}
+        discountRate={0.025}
+        onDiscountRateChange={vi.fn()}
+        expanded
+        onToggle={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText(/Dan/)).toHaveValue('85');
+    expect(screen.getByLabelText(/Sarah/)).toHaveValue('92');
+    // Each hint reads its own person's gender and SSA-suggested age, not person
+    // A's. A bare /86/ match could hit unrelated text on the panel and
+    // getByText throws if more than one node matches, so this pins the claim
+    // to the one field-hint span whose own text mentions both "86" and
+    // "female" — i.e. Sarah's hint, not Dan's (83, male).
+    const sarahHint = screen.getByText(
+      (_, element) =>
+        element?.tagName === 'SPAN' &&
+        element.className === 'field-hint' &&
+        /86/.test(element.textContent ?? '') &&
+        /female/i.test(element.textContent ?? ''),
+    );
+    expect(sarahHint).toBeInTheDocument();
+  });
+
+  it('calls the right person handler', async () => {
+    const onChangeB = vi.fn();
+    render(
+      <AssumptionsPanel
+        lifeExpectancies={[
+          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
+          { label: 'Sarah', value: 92, onChange: onChangeB, ssaSuggested: 86, gender: 'female' },
+        ]}
+        annualCola={2.5}
+        onAnnualColaChange={vi.fn()}
+        discountRate={0.025}
+        onDiscountRateChange={vi.fn()}
+        expanded
+        onToggle={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Use SSA age \(86\)/ }));
+    expect(onChangeB).toHaveBeenCalledWith(86);
   });
 });

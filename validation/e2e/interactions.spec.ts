@@ -206,6 +206,22 @@ test('a shared link still hydrates after the password gate', async ({ browser })
   }
 });
 
+test('gives each spouse their own life-expectancy slider', async ({ page }) => {
+  await page.goto('/');
+  await fillScenarioForm(page, married);
+
+  const a = page.locator('#life-0');
+  const b = page.locator('#life-1');
+  await expect(a).toHaveAttribute('type', 'range');
+  await expect(b).toHaveAttribute('type', 'range');
+
+  // The two must be independent: moving B's must not move A's.
+  const aBefore = await a.inputValue();
+  await b.fill('100');
+  await expect(a).toHaveValue(aBefore);
+  await expect(b).toHaveValue('100');
+});
+
 test('offers to convert a yearly benefit figure', async ({ page }) => {
   await page.goto('/');
   await page.locator('#a-benefit').fill('36000');

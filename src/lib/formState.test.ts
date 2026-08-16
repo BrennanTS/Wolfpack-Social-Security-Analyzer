@@ -5,8 +5,11 @@ import {
   isFormComplete,
   MAX_BENEFIT,
   MIN_BENEFIT,
+  reseedLifeExpectancy,
+  suggestedLifeExpectancyFor,
   toHousehold,
   type AnalyzerFormState,
+  type PersonFormFields,
 } from './formState';
 
 const completeA = {
@@ -15,6 +18,7 @@ const completeA = {
   birthMonth: 4,
   gender: 'male' as const,
   monthlyBenefit: 2400,
+  lifeExpectancy: 85,
 };
 const completeB = {
   name: '',
@@ -22,13 +26,13 @@ const completeB = {
   birthMonth: 2,
   gender: 'female' as const,
   monthlyBenefit: 2100,
+  lifeExpectancy: null,
 };
 
 const single: AnalyzerFormState = {
   ...BLANK_FORM,
   personA: completeA,
   hasSpouse: false,
-  lifeExpectancy: 85,
 };
 
 describe('isFormComplete', () => {
@@ -116,13 +120,13 @@ describe('isBenefitInRange', () => {
 describe('at least one person must have a positive benefit', () => {
   const earner = {
     name: '', birthYear: 1962, birthMonth: 4,
-    gender: 'male' as const, monthlyBenefit: 2400,
+    gender: 'male' as const, monthlyBenefit: 2400, lifeExpectancy: 85,
   };
   const noRecord = {
     name: '', birthYear: 1964, birthMonth: 2,
-    gender: 'female' as const, monthlyBenefit: 0,
+    gender: 'female' as const, monthlyBenefit: 0, lifeExpectancy: 85,
   };
-  const base = { ...BLANK_FORM, lifeExpectancy: 85 };
+  const base = BLANK_FORM;
 
   it('accepts a married household where person A has no work record', () => {
     expect(
@@ -180,5 +184,99 @@ describe('toHousehold', () => {
     const h = toHousehold({ ...single, hasSpouse: true, personB: completeB });
     expect(h.people[1].birthYear).toBe(1964);
     expect(h.people[1].birthYear).not.toBe(h.people[0].birthYear);
+  });
+});
+
+describe('per-person life expectancy', () => {
+  // Both born 1960, so both are the same age — gender is the only variable.
+  // Absolute values are deliberately not asserted: getCurrentAge reads the
+  // wall clock, so an exact expectation would rot. See the plan's note.
+  const male: PersonFormFields = {
+    name: '', birthYear: 1960, birthMonth: 6, gender: 'male',
+    monthlyBenefit: 2500, lifeExpectancy: null,
+  };
+  const female: PersonFormFields = {
+    name: '', birthYear: 1960, birthMonth: 6, gender: 'female',
+    monthlyBenefit: 1200, lifeExpectancy: null,
+  };
+
+  it('gives each person their own suggested value when neither is set', () => {
+    const household = toHousehold({
+      ...BLANK_FORM,
+      personA: { ...male, lifeExpectancy: 85 },
+      personB: female,
+      hasSpouse: true,
+    });
+    // Asserts the invariant directly: person B's fallback is B's own SSA
+    // suggestion, not A's explicit 85 leaking across. Both sides read the
+    // same wall clock via suggestedLifeExpectancyFor, so this stays
+    // time-proof without hard-coding an absolute age (see the plan's note).
+    expect(household.people[1].lifeExpectancy).toBe(suggestedLifeExpectancyFor(female));
+  });
+
+  it('uses an explicit value for person B rather than the fallback', () => {
+    const household = toHousehold({
+      ...BLANK_FORM,
+      personA: { ...male, lifeExpectancy: 85 },
+      personB: { ...female, lifeExpectancy: 92 },
+      hasSpouse: true,
+    });
+    expect(household.people[1].lifeExpectancy).toBe(92);
+    expect(household.people[0].lifeExpectancy).toBe(85);
+  });
+
+  it('requires person A life expectancy but not person B', () => {
+    const base = {
+      ...BLANK_FORM,
+      personA: { ...male, lifeExpectancy: 85 },
+      personB: female,
+      hasSpouse: true,
+    };
+    expect(isFormComplete(base)).toBe(true);
+    expect(isFormComplete({ ...base, personA: { ...male, lifeExpectancy: null } })).toBe(false);
+  });
+
+  it('returns null from the suggestion helper when identity is incomplete', () => {
+    expect(suggestedLifeExpectancyFor({ ...male, gender: null })).toBeNull();
+    expect(suggestedLifeExpectancyFor({ ...male, birthYear: '' })).toBeNull();
+  });
+});
+
+describe('reseedLifeExpectancy', () => {
+  // Both born 1960 — see the note above on why absolute ages are not asserted.
+  const person: PersonFormFields = {
+    name: 'Sarah', birthYear: 1960, birthMonth: 6, gender: 'female',
+    monthlyBenefit: 2100, lifeExpectancy: 95,
+  };
+
+  it('survives an unrelated field edit — the bug this guards against', () => {
+    // An adviser drags the slider to 95, then fixes an unrelated field (here,
+    // a benefit correction). Before this fix, the re-seed ran on every
+    // change and silently snapped 95 back to the SSA suggestion.
+    const next = { ...person, monthlyBenefit: 2150 };
+    expect(reseedLifeExpectancy(person, next)).toEqual(next);
+  });
+
+  it('survives a name correction too', () => {
+    const next = { ...person, name: 'Sarah Smith' };
+    expect(reseedLifeExpectancy(person, next)).toEqual(next);
+  });
+
+  it('re-seeds when the birth year changes', () => {
+    const next = { ...person, birthYear: 1958, lifeExpectancy: 95 };
+    const result = reseedLifeExpectancy(person, next);
+    expect(result.lifeExpectancy).toBe(suggestedLifeExpectancyFor(next));
+    expect(result.lifeExpectancy).not.toBe(95);
+  });
+
+  it('re-seeds when gender changes', () => {
+    const next = { ...person, gender: 'male' as const, lifeExpectancy: 95 };
+    const result = reseedLifeExpectancy(person, next);
+    expect(result.lifeExpectancy).toBe(suggestedLifeExpectancyFor(next));
+  });
+
+  it('leaves the value untouched when identity changes but is now incomplete', () => {
+    const next = { ...person, birthYear: '' as const, lifeExpectancy: 95 };
+    expect(reseedLifeExpectancy(person, next)).toEqual(next);
   });
 });

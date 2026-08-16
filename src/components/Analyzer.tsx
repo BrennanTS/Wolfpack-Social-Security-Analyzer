@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { genderLabel, getSuggestedLifeExpectancy } from '../lib/lifeExpectancy';
-import { getCurrentAge } from '../lib/personAnalysis';
+import { genderLabel } from '../lib/lifeExpectancy';
 import type { HouseholdAnalysis } from '../lib/household';
 import { BRAND_NAME } from '../lib/brand';
 import {
   analyzeIfComplete,
   BLANK_FORM,
   isFormComplete,
-  suggestedLifeExpectancy,
+  reseedLifeExpectancy,
+  suggestedLifeExpectancyFor,
   type AnalyzerFormState,
   type PersonFormFields,
 } from '../lib/formState';
+import { personLabel } from '../lib/format';
 import { downloadPdfReport } from '../lib/printReport';
 import { fromShareParams } from '../lib/shareLink';
 import { AssumptionsPanel } from './AssumptionsPanel';
@@ -44,7 +45,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [personA, setPersonA] = useState<PersonFormFields>(initialForm.personA);
   const [personB, setPersonB] = useState<PersonFormFields>(initialForm.personB);
   const [hasSpouse, setHasSpouse] = useState<boolean | null>(initialForm.hasSpouse);
-  const [lifeExpectancy, setLifeExpectancy] = useState<number | null>(initialForm.lifeExpectancy);
   const [annualCola, setAnnualCola] = useState(initialForm.annualCola);
   const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
 
@@ -77,11 +77,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       personA,
       personB,
       hasSpouse,
-      lifeExpectancy,
       annualCola,
       discountRate,
     }),
-    [personA, personB, hasSpouse, lifeExpectancy, annualCola, discountRate],
+    [personA, personB, hasSpouse, annualCola, discountRate],
   );
 
   const inputsComplete = isFormComplete(form);
@@ -123,17 +122,43 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personA, personB, hasSpouse, lifeExpectancy, discountRate]);
+  }, [personA, personB, hasSpouse, discountRate]);
 
-  const ssaSuggested = suggestedLifeExpectancy(form);
-
+  // Re-seeds the suggested life expectancy only when the identity inputs
+  // (date of birth, gender) actually changed — not on every edit to a
+  // person's fields. Without this guard, an adviser-set life expectancy was
+  // silently overwritten by an unrelated correction (e.g. fixing a benefit
+  // amount or a name), moving every lifetime total with nothing on screen
+  // saying so. Applies to both people; the bug predates this branch for
+  // person A but is fixed here too rather than leaving an asymmetry.
   function handlePersonAChange(next: PersonFormFields) {
-    setPersonA(next);
-    if (next.birthYear !== '' && next.birthMonth !== '' && next.gender !== null) {
-      const age = getCurrentAge(next.birthYear, next.birthMonth).years;
-      setLifeExpectancy(getSuggestedLifeExpectancy(age, next.gender));
-    }
+    setPersonA(reseedLifeExpectancy(personA, next));
   }
+
+  function handlePersonBChange(next: PersonFormFields) {
+    setPersonB(reseedLifeExpectancy(personB, next));
+  }
+
+  const lifeExpectancies = [
+    {
+      label: personLabel(personA.name, 0),
+      value: personA.lifeExpectancy,
+      onChange: (v: number) => setPersonA({ ...personA, lifeExpectancy: v }),
+      ssaSuggested: suggestedLifeExpectancyFor(personA),
+      gender: personA.gender,
+    },
+    ...(hasSpouse
+      ? [
+          {
+            label: personLabel(personB.name, 1),
+            value: personB.lifeExpectancy,
+            onChange: (v: number) => setPersonB({ ...personB, lifeExpectancy: v }),
+            ssaSuggested: suggestedLifeExpectancyFor(personB),
+            gender: personB.gender,
+          },
+        ]
+      : []),
+  ];
 
   function handleMaritalChange(married: boolean) {
     setHasSpouse(married);
@@ -241,17 +266,16 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               </span>
             </div>
 
-            {hasSpouse && <PersonFields person={personB} index={1} onChange={setPersonB} />}
+            {hasSpouse && (
+              <PersonFields person={personB} index={1} onChange={handlePersonBChange} />
+            )}
 
             <AssumptionsPanel
-              lifeExpectancy={lifeExpectancy}
-              onLifeExpectancyChange={setLifeExpectancy}
+              lifeExpectancies={lifeExpectancies}
               annualCola={annualCola}
               onAnnualColaChange={setAnnualCola}
               discountRate={discountRate}
               onDiscountRateChange={setDiscountRate}
-              ssaSuggestedLifeExpectancy={ssaSuggested}
-              gender={personA.gender}
               expanded={showAssumptions}
               onToggle={() => setShowAssumptions(!showAssumptions)}
             />

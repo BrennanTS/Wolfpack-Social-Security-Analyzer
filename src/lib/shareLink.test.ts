@@ -4,10 +4,15 @@ import { buildShareUrl, fromShareParams, toShareParams } from './shareLink';
 
 const married: AnalyzerFormState = {
   ...BLANK_FORM,
-  personA: { name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male', monthlyBenefit: 2400 },
-  personB: { name: 'Sarah', birthYear: 1964, birthMonth: 2, gender: 'female', monthlyBenefit: 2100 },
+  personA: {
+    name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male',
+    monthlyBenefit: 2400, lifeExpectancy: 85,
+  },
+  personB: {
+    name: 'Sarah', birthYear: 1964, birthMonth: 2, gender: 'female',
+    monthlyBenefit: 2100, lifeExpectancy: null,
+  },
   hasSpouse: true,
-  lifeExpectancy: 85,
   annualCola: 2.5,
   // A FRACTION (0.025 = 2.5%), unlike annualCola above — see the module
   // comment. A value of `2.5` here would mean 250%, fail the dr bounds check
@@ -18,9 +23,11 @@ const married: AnalyzerFormState = {
 
 const single: AnalyzerFormState = {
   ...BLANK_FORM,
-  personA: { name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male', monthlyBenefit: 2400 },
+  personA: {
+    name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male',
+    monthlyBenefit: 2400, lifeExpectancy: 85,
+  },
   hasSpouse: false,
-  lifeExpectancy: 85,
 };
 
 describe('round trip', () => {
@@ -81,13 +88,13 @@ describe('invalid parameters are dropped, never clamped', () => {
 
   it('drops non-numeric junk', () => {
     expect(parse('ab=abc').personA.monthlyBenefit).toBe('');
-    expect(parse('le=soon').lifeExpectancy).toBeNull();
+    expect(parse('le=soon').personA.lifeExpectancy).toBeNull();
   });
 
   it('drops assumptions outside their slider bounds', () => {
     expect(parse('cola=99').annualCola).toBe(BLANK_FORM.annualCola);
     expect(parse('dr=99').discountRate).toBe(BLANK_FORM.discountRate);
-    expect(parse('le=200').lifeExpectancy).toBeNull();
+    expect(parse('le=200').personA.lifeExpectancy).toBeNull();
   });
 
   // `dr` travels as a percent and is stored as a fraction. Without the
@@ -138,6 +145,64 @@ describe('invalid parameters are dropped, never clamped', () => {
 
   it('accepts a zero benefit, which is a valid no-work-record entry', () => {
     expect(parse('ab=0').personA.monthlyBenefit).toBe(0);
+  });
+});
+
+describe('per-person life expectancy params', () => {
+  const form: AnalyzerFormState = {
+    ...BLANK_FORM,
+    personA: {
+      name: '', birthYear: 1960, birthMonth: 6, gender: 'male',
+      monthlyBenefit: 2500, lifeExpectancy: 85,
+    },
+    personB: {
+      name: '', birthYear: 1962, birthMonth: 3, gender: 'female',
+      monthlyBenefit: 1200, lifeExpectancy: 92,
+    },
+    hasSpouse: true,
+  };
+
+  it('round-trips two distinct values', () => {
+    const back = fromShareParams(toShareParams(form));
+    expect(back.personA.lifeExpectancy).toBe(85);
+    expect(back.personB.lifeExpectancy).toBe(92);
+  });
+
+  it('never writes the legacy le param', () => {
+    // `le` is a read-only legacy alias for `ale` (see fromShareParams). A
+    // future edit that reintroduced writing it would silently resurrect a
+    // parameter this module deliberately retired.
+    const params = toShareParams(form);
+    expect(params.has('le')).toBe(false);
+  });
+
+  it('omits ble for a single claimant', () => {
+    const params = toShareParams({ ...form, hasSpouse: false });
+    expect(params.get('ale')).toBe('85');
+    expect(params.has('ble')).toBe(false);
+  });
+
+  it('hydrates a legacy le link onto person A', () => {
+    const back = fromShareParams(new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&m=0&le=88'));
+    expect(back.personA.lifeExpectancy).toBe(88);
+  });
+
+  it('prefers ale over a legacy le when both are present', () => {
+    const back = fromShareParams(new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&m=0&le=88&ale=91'));
+    expect(back.personA.lifeExpectancy).toBe(91);
+  });
+
+  it('drops an out-of-range value without touching the other person', () => {
+    const back = fromShareParams(
+      new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&by=1962&bm=3&bg=f&bb=1200&m=1&ale=200&ble=92'),
+    );
+    expect(back.personA.lifeExpectancy).toBeNull();
+    expect(back.personB.lifeExpectancy).toBe(92);
+  });
+
+  it('drops non-numeric junk', () => {
+    const back = fromShareParams(new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&m=0&ale=eighty'));
+    expect(back.personA.lifeExpectancy).toBeNull();
   });
 });
 

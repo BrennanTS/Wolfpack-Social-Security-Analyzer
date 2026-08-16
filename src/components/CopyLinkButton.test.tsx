@@ -6,9 +6,11 @@ import { BLANK_FORM } from '../lib/formState';
 
 const form = {
   ...BLANK_FORM,
-  personA: { name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male' as const, monthlyBenefit: 2400 },
+  personA: {
+    name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male' as const,
+    monthlyBenefit: 2400, lifeExpectancy: 85,
+  },
   hasSpouse: false,
-  lifeExpectancy: 85,
 };
 
 afterEach(() => vi.unstubAllGlobals());
