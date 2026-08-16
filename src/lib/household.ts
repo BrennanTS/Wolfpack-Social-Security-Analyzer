@@ -195,9 +195,17 @@ function buildComparisons(
  * Attaches `survivorIncome` to each comparison row: household income in the
  * first full year after the first death, computed under THAT row's own
  * filing ages — a fresh `householdPeriods`/`buildCombinedTimeline` pair per
- * row, not the optimal strategy's bands re-read. Null for a single claimant
- * (`rawPeople.length !== 2`) and for the same edge case `incomeCliff` returns
- * null for: the first death falling outside a row's own modeled timeline.
+ * row, not the optimal strategy's bands re-read for every row. Null for a
+ * single claimant (`rawPeople.length !== 2`) and for the same edge case
+ * `incomeCliff` returns null for: the first death falling outside a row's own
+ * modeled timeline.
+ *
+ * `optimalBands` is the married branch's own `householdPeriods` call, already
+ * in scope by the time this runs (needed there regardless, for
+ * `combinedTimeline`/`spousalTopUp`/`periods`) — reused for the optimal row
+ * rather than recomputed, since the optimal row's filing ages are exactly the
+ * ones that produced it. Every other row still gets its own fresh call, since
+ * only the optimal row's bands are already in scope.
  *
  * The death year is computed once, via `firstDeath` — the same arithmetic
  * `incomeCliff` uses, reused rather than re-derived. The death months are
@@ -211,6 +219,7 @@ function withSurvivorIncome(
   labels: string[],
   finalIndexByPersonId: Record<string, number>,
   peopleAnalysis: PersonAnalysis[],
+  optimalBands: BenefitBand[],
 ): HouseholdStrategy[] {
   if (rawPeople.length !== 2) return comparisons.map((c) => ({ ...c, survivorIncome: null }));
 
@@ -218,12 +227,14 @@ function withSurvivorIncome(
   if (death === null) return comparisons.map((c) => ({ ...c, survivorIncome: null }));
 
   return comparisons.map((c) => {
-    const { bands } = householdPeriods(
-      rawPeople,
-      recipients,
-      c.filingAges.map((f) => f.monthDuration),
-      labels,
-    );
+    const bands = c.isOptimal
+      ? optimalBands
+      : householdPeriods(
+          rawPeople,
+          recipients,
+          c.filingAges.map((f) => f.monthDuration),
+          labels,
+        ).bands;
     const timeline = buildCombinedTimeline(bands, peopleAnalysis);
     const point = timeline.find((p) => p.year === death.deathYear + 1);
     return { ...c, survivorIncome: point ? point.total : null };
@@ -471,6 +482,7 @@ export async function analyzeHousehold(
       [labelA, labelB],
       finalIndexByPersonId,
       people,
+      bands,
     );
     const optimalWithSurvivor = comparisonsWithSurvivor.find((c) => c.isOptimal) ?? optimal;
 
@@ -541,6 +553,7 @@ export async function analyzeHousehold(
     [personLabel(person.name, 0)],
     finalIndexByPersonId,
     people,
+    bands,
   );
   const optimalWithSurvivor = comparisonsWithSurvivor.find((c) => c.isOptimal) ?? optimal;
 

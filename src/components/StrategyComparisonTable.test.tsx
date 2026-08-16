@@ -83,10 +83,14 @@ describe('StrategyComparisonTable', () => {
     expect(within(row).getByTestId('cell-survivor-earliest')).toHaveTextContent('—');
   });
 
-  it('states the modeled death direction in the caption below the table', () => {
+  it('states the assumed death direction in the caption below the table, without naming one', () => {
     render(<StrategyComparisonTable comparisons={comparisons} people={people} />);
     const caption = screen.getByTestId('survivor-income-caption');
-    expect(caption).toHaveTextContent('ssa.tools engine models');
+    expect(caption).toHaveTextContent("each spouse's own life-expectancy input");
+    // Which spouse survives falls out of life expectancy, not PIA — a fixed
+    // direction claim here would be false for a household whose higher
+    // earner happens to be the one projected to survive.
+    expect(caption.textContent).not.toContain('lower-earning spouse outliving the higher earner');
   });
 
   it("points at the existing gap note, rather than repeating it, when survivorGap is set", () => {

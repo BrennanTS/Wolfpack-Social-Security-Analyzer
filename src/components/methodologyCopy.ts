@@ -355,28 +355,68 @@ export const SURVIVOR_INCOME_COLUMN_HEADER = 'Survivor income';
  * spouse. Shared by the on-screen table and the PDF's twin so the sentence
  * cannot be hand-retyped into one and drift from the other.
  *
- * States that the figure assumes the death direction the engine models —
- * the lower-earning spouse outliving the higher earner, the only direction
- * `strategy-calc.ts:104` pays a survivor benefit for. True regardless of
- * `survivorGap`: even when the gap note below says the engine cannot model
- * *this* household's actual direction, the figures in the column were still
- * computed assuming the modeled one, which is exactly why they understate.
+ * The leading sentence states that the figure assumes the death direction
+ * implied by each spouse's own life-expectancy input — direction-agnostic
+ * and true for every household, since that is genuinely what `firstDeath`
+ * uses to pick who dies first, independent of who earns more. It does NOT
+ * name a specific direction ("the lower-earning spouse outliving the higher
+ * earner"): which spouse survives, for a given household, falls out of
+ * `finalIndexByPersonId`, not PIA, and a fixed household can have the
+ * higher earner as the modeled survivor with no `survivorGap` at all —
+ * `detectSurvivorGap` only flags the cases where the engine's own step-up
+ * rule (`strategy-calc.ts:104`, paid only to the lower-PIA dependent) misses
+ * a real shortfall. An earlier version of this sentence hardcoded "the
+ * lower-earning spouse outliving the higher earner" as if that direction
+ * were always what the figures assumed; it read false beside a column
+ * computed for a household whose higher earner was the one projected to
+ * survive.
  *
- * When `survivorGap` is set, this points at the note that already explains
- * the shortfall in figures — `survivorGapNote`, rendered once already on
- * this page (`CombinedIncomeChart` on screen, the gap note under "Combined
- * Household Income" in print) — rather than restating its numbers here.
- * Three renderings of the same disclosure on one page is precisely the
- * defect that note's own history exists to prevent.
+ * Two further branches, mirroring `survivorGapNote`'s own reason for having
+ * three: a single unbranched sentence was wrong for some reachable
+ * household in each case.
+ *
+ *  - `gap.survivorUnder60`: no widow(er) benefit is payable this young under
+ *    ANY strategy, and the death month is the same for every row (see
+ *    `withSurvivorIncome`'s doc), so every row's figure is genuinely $0 —
+ *    delaying raises none of them, and "these figures understate" would be
+ *    true only from age 60 onward, not yet. Asserting either the delay
+ *    claim or the understate claim here is exactly the defect
+ *    `survivorGapNote`'s under-60 branch exists to prevent, repeated here.
+ *  - `gap` set, not under 60: the delay claim still holds (the survivor's
+ *    own benefit still rises with their filing age across rows), and the
+ *    understate claim is true — reused as a pointer to `survivorGapNote`
+ *    (rendered once already: `CombinedIncomeChart` on screen, the gap note
+ *    under "Combined Household Income" in print) rather than restating its
+ *    figures here, which is exactly the duplication that note's own history
+ *    exists to prevent.
+ *
+ * Neither branch names the survivor — `survivorGapNote` already does, and
+ * this caption stays generic so the two do not need to agree on phrasing
+ * for the same fact.
  */
 export function survivorIncomeCaption(gap: SurvivorGap | null | undefined): string {
   const base =
     "Household income in the first full year after the first spouse's death, under each " +
-    'strategy — delaying raises this every year the survivor lives through it, which the ' +
-    "Combined PV column alone cannot show. Assumes the death direction the ssa.tools " +
-    'engine models: the lower-earning spouse outliving the higher earner.';
-  return gap
-    ? `${base} This household's modeled direction runs the other way, so these figures ` +
-        'understate what the survivor would actually receive — see the note below.'
-    : base;
+    "strategy, assuming the death direction implied by each spouse's own life-expectancy " +
+    'input.';
+
+  if (gap?.survivorUnder60) {
+    return (
+      `${base} The survivor has not yet reached the age a widow(er) benefit can start, so ` +
+      "every strategy's figure is $0 here and delaying raises none of them — see the note " +
+      'below for what changes from age 60 onward.'
+    );
+  }
+
+  const delayClause =
+    'Delaying raises this every year the survivor lives through it, which the Combined PV ' +
+    'column alone cannot show.';
+
+  if (!gap) return `${base} ${delayClause}`;
+
+  return (
+    `${base} ${delayClause} The ssa.tools engine does not model survivor benefits in this ` +
+    "household's direction, so these figures understate what the survivor would actually " +
+    'receive — see the note below.'
+  );
 }

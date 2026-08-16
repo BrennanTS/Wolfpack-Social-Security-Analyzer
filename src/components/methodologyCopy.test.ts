@@ -429,19 +429,24 @@ describe('survivorGapNote', () => {
 });
 
 describe('survivorIncomeCaption', () => {
-  it('states the figure assumes the modeled death direction, for a household with no gap', () => {
+  it('states the figure assumes the life-expectancy-implied death direction, without naming one', () => {
     const caption = survivorIncomeCaption(null);
-    expect(caption).toContain('ssa.tools engine models');
-    expect(caption).toContain('lower-earning spouse outliving the higher earner');
+    expect(caption).toContain("each spouse's own life-expectancy input");
+    expect(caption).toContain('Delaying raises this every year the survivor lives through it');
+    // The earlier version hardcoded a direction — false for a household whose
+    // higher earner happens to be the one projected to survive, with no gap
+    // firing to correct it (that direction is a fact about who dies first
+    // per life expectancy, not about who earns more).
+    expect(caption).not.toContain('lower-earning spouse outliving the higher earner');
     // Nothing here claims this household's gap is unmodeled — there is none.
-    expect(caption).not.toContain('modeled direction runs the other way');
+    expect(caption).not.toContain('understate');
   });
 
   it('renders the same for undefined as for null, so a caller need not pass the field', () => {
     expect(survivorIncomeCaption(undefined)).toBe(survivorIncomeCaption(null));
   });
 
-  it('points at the existing gap note rather than restating its figures', () => {
+  it('points at the existing gap note rather than restating its figures, when the survivor has already reached 60', () => {
     const gap = {
       survivorLabel: 'Blake',
       deceasedMonthly: 1780,
@@ -451,12 +456,36 @@ describe('survivorIncomeCaption', () => {
     const caption = survivorIncomeCaption(gap);
     expect(caption).toContain('understate what the survivor would actually receive');
     expect(caption).toContain('see the note below');
+    expect(caption).toContain('Delaying raises this every year the survivor lives through it');
     // The gap note's own figures belong to `survivorGapNote`, not here — a
     // second rendering of them is the exact duplication three of this
     // project's prior defects were made of.
     expect(caption).not.toContain('1,780');
     expect(caption).not.toContain('1,760');
     expect(caption).not.toContain('Blake');
+  });
+
+  it('makes neither the delay claim nor the understate claim when the survivor is under 60', () => {
+    // Reachable household: the survivor is the engine's earner (so no
+    // step-up is modeled for them at all) and is under 60 at the death, with
+    // no personal band that month. Every named row shares the same death
+    // month (filing strategy doesn't move it — see `withSurvivorIncome`), and
+    // every row's own filing age is >= 62, so no row's survivor benefit has
+    // started either. The column reads $0 across every strategy: delaying
+    // raises nothing, and nothing is understated *yet* (that starts at 60).
+    const gap = {
+      survivorLabel: 'Blake',
+      deceasedMonthly: 2016,
+      survivorOwnMonthly: null,
+      survivorUnder60: true,
+    };
+    const caption = survivorIncomeCaption(gap);
+    expect(caption).toContain('has not yet reached the age a widow(er) benefit can start');
+    expect(caption).toContain("every strategy's figure is $0 here");
+    expect(caption).toContain('delaying raises none of them');
+    expect(caption).toContain('see the note below');
+    expect(caption).not.toContain('Delaying raises this every year the survivor lives through it');
+    expect(caption).not.toContain('understate');
   });
 });
 
