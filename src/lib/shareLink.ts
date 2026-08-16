@@ -61,6 +61,12 @@ function readBenefit(params: URLSearchParams, key: string): number | '' {
   return value;
 }
 
+function readLifeExpectancy(params: URLSearchParams, key: string): number | null {
+  const value = num(params, key);
+  if (value === null || !isInBounds(value, LIFE_EXPECTANCY_BOUNDS)) return null;
+  return value;
+}
+
 function readPerson(params: URLSearchParams, prefix: 'a' | 'b'): PersonFormFields {
   return {
     // Deliberately never decoded — see the module comment.
@@ -69,9 +75,7 @@ function readPerson(params: URLSearchParams, prefix: 'a' | 'b'): PersonFormField
     birthMonth: intInBounds(params, `${prefix}m`, { min: 1, max: 12 }),
     gender: readGender(params, `${prefix}g`),
     monthlyBenefit: readBenefit(params, `${prefix}b`),
-    // Per-person parsing arrives in a later task; for now every person reads
-    // back with no explicit life expectancy of their own.
-    lifeExpectancy: null,
+    lifeExpectancy: readLifeExpectancy(params, `${prefix}le`),
   };
 }
 
@@ -84,6 +88,7 @@ function writePerson(
   if (person.birthMonth !== '') params.set(`${prefix}m`, String(person.birthMonth));
   if (person.gender !== null) params.set(`${prefix}g`, person.gender === 'male' ? 'm' : 'f');
   if (person.monthlyBenefit !== '') params.set(`${prefix}b`, String(person.monthlyBenefit));
+  if (person.lifeExpectancy !== null) params.set(`${prefix}le`, String(person.lifeExpectancy));
 }
 
 export function toShareParams(form: AnalyzerFormState): URLSearchParams {
@@ -91,7 +96,6 @@ export function toShareParams(form: AnalyzerFormState): URLSearchParams {
   writePerson(params, 'a', form.personA);
   if (form.hasSpouse !== null) params.set('m', form.hasSpouse ? '1' : '0');
   if (form.hasSpouse) writePerson(params, 'b', form.personB);
-  if (form.personA.lifeExpectancy !== null) params.set('le', String(form.personA.lifeExpectancy));
   params.set('cola', String(form.annualCola));
   // `dr` travels as a PERCENT so the link is human-readable and matches the
   // slider; the form stores a fraction. Convert on both sides.
@@ -103,7 +107,6 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
   const married = params.get('m');
   const hasSpouse = married === '1' ? true : married === '0' ? false : null;
 
-  const le = num(params, 'le');
   const cola = num(params, 'cola');
 
   // `dr` travels as a percent; the form stores a fraction. Convert FIRST, then
@@ -116,9 +119,14 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
   const dr = num(params, 'dr');
   const discountFraction = dr === null ? null : dr / 100;
 
+  // `le` predates the per-person split, where it meant person A's value. Honour
+  // it so links already in circulation reproduce the same analysis rather than
+  // silently losing a parameter the recipient cannot see is missing. `ale` wins
+  // when both are present — it is the newer, more specific key.
   const personA = readPerson(params, 'a');
-  personA.lifeExpectancy =
-    le !== null && isInBounds(le, LIFE_EXPECTANCY_BOUNDS) ? le : null;
+  if (personA.lifeExpectancy === null) {
+    personA.lifeExpectancy = readLifeExpectancy(params, 'le');
+  }
 
   return {
     personA,

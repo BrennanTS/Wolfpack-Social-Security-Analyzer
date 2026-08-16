@@ -148,6 +148,56 @@ describe('invalid parameters are dropped, never clamped', () => {
   });
 });
 
+describe('per-person life expectancy params', () => {
+  const form: AnalyzerFormState = {
+    ...BLANK_FORM,
+    personA: {
+      name: '', birthYear: 1960, birthMonth: 6, gender: 'male',
+      monthlyBenefit: 2500, lifeExpectancy: 85,
+    },
+    personB: {
+      name: '', birthYear: 1962, birthMonth: 3, gender: 'female',
+      monthlyBenefit: 1200, lifeExpectancy: 92,
+    },
+    hasSpouse: true,
+  };
+
+  it('round-trips two distinct values', () => {
+    const back = fromShareParams(toShareParams(form));
+    expect(back.personA.lifeExpectancy).toBe(85);
+    expect(back.personB.lifeExpectancy).toBe(92);
+  });
+
+  it('omits ble for a single claimant', () => {
+    const params = toShareParams({ ...form, hasSpouse: false });
+    expect(params.get('ale')).toBe('85');
+    expect(params.has('ble')).toBe(false);
+  });
+
+  it('hydrates a legacy le link onto person A', () => {
+    const back = fromShareParams(new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&m=0&le=88'));
+    expect(back.personA.lifeExpectancy).toBe(88);
+  });
+
+  it('prefers ale over a legacy le when both are present', () => {
+    const back = fromShareParams(new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&m=0&le=88&ale=91'));
+    expect(back.personA.lifeExpectancy).toBe(91);
+  });
+
+  it('drops an out-of-range value without touching the other person', () => {
+    const back = fromShareParams(
+      new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&by=1962&bm=3&bg=f&bb=1200&m=1&ale=200&ble=92'),
+    );
+    expect(back.personA.lifeExpectancy).toBeNull();
+    expect(back.personB.lifeExpectancy).toBe(92);
+  });
+
+  it('drops non-numeric junk', () => {
+    const back = fromShareParams(new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&m=0&ale=eighty'));
+    expect(back.personA.lifeExpectancy).toBeNull();
+  });
+});
+
 describe('buildShareUrl', () => {
   it('joins origin, path and query', () => {
     const url = buildShareUrl(single, 'https://example.test', '/');
