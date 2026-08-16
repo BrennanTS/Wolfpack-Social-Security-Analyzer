@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MonthDuration } from '$lib/month-time';
 import { getDeathProbabilityDistribution } from '$lib/life-tables';
 import {
   createPiaRecipient,
@@ -13,8 +12,6 @@ import {
   nearestWholeClaimAge,
   rankedCoupleStrategies,
   rankedSingleStrategies,
-  spousalEntitlement,
-  spousalTopUp,
   ssaMonthlyBenefitAtAge,
 } from './ssaTools';
 
@@ -78,125 +75,38 @@ describe('ssaMonthlyBenefitAtAge (reduction / delayed credits)', () => {
   });
 });
 
-describe('spousalEntitlement', () => {
-  it('tops a no-record spouse up to half the worker PIA', () => {
-    const worker = createPiaRecipient(1960, 6, 2500, 'male');
-    const spouse = createPiaRecipient(1962, 3, 0, 'female');
-    expect(spousalEntitlement(worker, spouse)).toBeCloseTo(1250, 0);
+describe('the 1959/1960 FRA cohort boundary reaches the benefit', () => {
+  // Rewritten from the deleted `spousalTopUp` suite's FRA-schedule regression
+  // guard. That test's real subject was never the spousal arithmetic: it
+  // paired a 1959-cohort claimant against a 1960-cohort one, filing at the
+  // same age, and asserted their reductions did NOT collapse — because the
+  // two cohorts have different FRAs (66y10m vs 67y0m) and reading the wrong
+  // person's FRA would make them identical. The spousal computation now lives
+  // in the engine, but that boundary is still load-bearing for every reduced
+  // benefit this app shows, so the guard is kept against the personal benefit,
+  // where the same collapse would be just as invisible.
+  //
+  // PIA $2,500, claiming at 62:
+  //   born Jun 1959, FRA 66y10m: 58 months early
+  //     = 36 × 5/9% + 22 × 5/12% = 29.1667% → 2500 × 0.708333 = 1770.83
+  //   born Jun 1960, FRA 67y0m: 60 months early
+  //     = 36 × 5/9% + 24 × 5/12% = 30% → 2500 × 0.70 = 1750.00
+  // The engine floors to whole dollars, so 1770 and 1750.
+  const cohort1959 = createPiaRecipient(1959, 6, 2500, 'female');
+  const cohort1960 = createPiaRecipient(1960, 6, 2500, 'female');
+
+  it('gives the two cohorts different FRAs', () => {
+    expect(fraFromBirthYear(1959)).toMatchObject({ years: 66, months: 10 });
+    expect(fraFromBirthYear(1960)).toMatchObject({ years: 67, months: 0 });
   });
 
-  it('is zero when the spouse own PIA already exceeds half the worker PIA', () => {
-    const worker = createPiaRecipient(1960, 6, 2500, 'male');
-    const spouse = createPiaRecipient(1962, 3, 2000, 'female');
-    expect(spousalEntitlement(worker, spouse)).toBe(0);
-  });
-});
-
-describe('spousalTopUp — start date', () => {
-  const age = (years: number, months = 0) =>
-    MonthDuration.initFromYearsMonths({ years, months });
-
-  // Worker born Jun 1960 (FRA 67), spouse born Mar 1962 (FRA 67), spouse has
-  // no record of her own. This is the strategy the optimizer usually picks.
-  const worker = () => createPiaRecipient(1960, 6, 2500, 'male');
-  const spouse = () => createPiaRecipient(1962, 3, 0, 'female');
-
-  it('cannot begin before the worker files', () => {
-    // Worker files at 70 (Jun 2030). Spouse filed at 62 (Mar 2024) on her own
-    // record, but the spousal benefit waits for him.
-    const result = spousalTopUp(worker(), spouse(), age(62), age(70));
-    // Jun 2030 − Mar 1962 = 68 years, 3 months.
-    expect(result.startsAtSpouseAge.years).toBe(68);
-    expect(result.startsAtSpouseAge.months).toBe(3);
-  });
-
-  it('is unreduced when it begins at or after the spouse own FRA', () => {
-    // Beginning at 68y3m is past her FRA of 67, so no reduction applies.
-    const result = spousalTopUp(worker(), spouse(), age(62), age(70));
-    expect(result.amount).toBeCloseTo(1250, 0);
-  });
-
-  it('begins at the spouse filing age when the worker filed first', () => {
-    // Worker files at 62 (Jun 2022); spouse files at 65 (Mar 2027).
-    const result = spousalTopUp(worker(), spouse(), age(65), age(62));
-    expect(result.startsAtSpouseAge.years).toBe(65);
-    expect(result.startsAtSpouseAge.months).toBe(0);
-  });
-
-  it('reduces by the months between the actual start and the spouse FRA', () => {
-    // Starts at 65y0m, 24 months before her FRA of 67, all within the first
-    // 36-month band: 24 × 25/36 of 1% = 16.6667%. 1250 × 0.833333 = 1041.67.
-    const result = spousalTopUp(worker(), spouse(), age(65), age(62));
-    expect(result.amount).toBeCloseTo(1041.67, 1);
-  });
-
-  it('does not reduce by the spouse own filing age when the start is later', () => {
-    // Filing on her own record at 62 while the benefit starts at 65 must give
-    // the 65 reduction (1041.67), NOT the 62 reduction (812.50).
-    //
-    // She is 1y9m younger than him, so his filing age has to be 66y9m for the
-    // benefit to start on her 65th birthday: Jun 1960 + 66y9m = Mar 2027, and
-    // Mar 2027 − Mar 1962 = exactly 65y0m. (The brief's `age(65)` here would
-    // put her at 63y3m — see the report.)
-    const startsAt65 = spousalTopUp(worker(), spouse(), age(62), age(66, 9));
-    expect(startsAt65.startsAtSpouseAge.years).toBe(65);
-    expect(startsAt65.startsAtSpouseAge.months).toBe(0);
-    expect(startsAt65.amount).toBeCloseTo(1041.67, 1);
-  });
-
-  it('grants no delayed credits for beginning after FRA', () => {
-    const atFra = spousalTopUp(worker(), spouse(), age(67), age(62));
-    const wellAfter = spousalTopUp(worker(), spouse(), age(70), age(62));
-    expect(atFra.amount).toBeCloseTo(1250, 0);
-    expect(wellAfter.amount).toBeCloseTo(1250, 0);
-  });
-
-  it('pays nothing when there is no entitlement, whatever the dates', () => {
-    const earner = createPiaRecipient(1962, 3, 2000, 'female');
-    const result = spousalTopUp(worker(), earner, age(62), age(70));
-    expect(result.amount).toBe(0);
-  });
-
-  it('uses the spouse own FRA schedule, not the worker FRA', () => {
-    // Regression guard, carried over from the previous three-argument suite.
-    // Both spouses below start their spousal benefit at exactly age 62y0m, so
-    // the only thing that can separate their reductions is whose FRA schedule
-    // was used. The worker (born Jun 1959) has FRA 66y10m; the 1960 spouse has
-    // FRA 67. Reading the worker's FRA for the 1960 spouse would collapse the
-    // two results.
-    //
-    // Worker Jun 1959 files at 62 → Jun 2021, before both spouses' own filings,
-    // so each benefit starts on that spouse's own 62nd birthday.
-    //   spouse born Jun 1959, FRA 66y10m: 58 months early
-    //     = 25% + 22 × 5/12% = 34.1667% → 1250 × 0.658333 = 822.92
-    //   spouse born Jun 1960, FRA 67y0m: 60 months early
-    //     = 25% + 24 × 5/12% = 35% → 1250 × 0.65 = 812.50
-    const olderWorker = createPiaRecipient(1959, 6, 2500, 'male');
-    const cohort1959 = createPiaRecipient(1959, 6, 0, 'female');
-    const cohort1960 = createPiaRecipient(1960, 6, 0, 'female');
-
-    const a = spousalTopUp(olderWorker, cohort1959, age(62), age(62));
-    const b = spousalTopUp(olderWorker, cohort1960, age(62), age(62));
-    expect(a.startsAtSpouseAge.years).toBe(62);
-    expect(b.startsAtSpouseAge.years).toBe(62);
-    expect(a.amount).toBeCloseTo(822.92, 1);
-    expect(b.amount).toBeCloseTo(812.5, 1);
-  });
-
-  it('caps the combined benefit at half the worker PIA when the spouse files past her FRA', () => {
-    // Additional finding — see the report's 50%-cap verdict. The engine
-    // (benefit-calculator.ts:343-356) subtracts the spouse's DRC-inflated
-    // *actual* benefit, not her PIA, once she files after her own NRA.
-    //   worker PIA 3000 → half is 1500. Spouse PIA 1000, FRA 67, files at 70:
-    //   own benefit = 1000 × (1 + 36 × 2/3%) = 1240.
-    //   spousal = 1500 − 1240 = 260, so combined = 1500 = half the worker PIA.
-    // Without the cap the top-up would be the unreduced 1500 − 1000 = 500 and
-    // the combined benefit 1740, i.e. 58% of the worker's PIA.
-    const w = createPiaRecipient(1960, 6, 3000, 'male');
-    const s = createPiaRecipient(1962, 3, 1000, 'female');
-    expect(spousalTopUp(w, s, age(70), age(62)).amount).toBeCloseTo(260, 0);
-    // Filing at exactly her FRA is not "past" it — no cap branch, unreduced.
-    expect(spousalTopUp(w, s, age(67), age(62)).amount).toBeCloseTo(500, 0);
+  it('reduces each cohort against its own FRA, not a shared one', () => {
+    const a = ssaMonthlyBenefitAtAge(cohort1959, 62).benefit;
+    const b = ssaMonthlyBenefitAtAge(cohort1960, 62).benefit;
+    expect(a).toBeCloseTo(1770, 0);
+    expect(b).toBeCloseTo(1750, 0);
+    // The point of the guard: these must not collapse into one another.
+    expect(a).not.toBe(b);
   });
 });
 

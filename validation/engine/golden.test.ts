@@ -207,19 +207,39 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
   it('starts the spousal benefit at the expected age', async () => {
     const result = await run(scenario);
     if (scenario.expected.startsAtSpouseAge === null) {
-      // Nothing payable in this scenario, so no start to assert. For a
-      // single claimant there is no spousalTopUp at all; for a married
-      // scenario with a zero top-up the field is still populated, so guard
-      // that its label wasn't silently left empty.
+      // The fixture's null means "this household has no spousal start date".
+      // For a single claimant there is no spousalTopUp at all; for a married
+      // scenario the field is populated and must itself be null. Asserting
+      // that exactly — rather than the old "not the empty string" — makes the
+      // fixture's null load-bearing, and would have caught the '—' sentinel
+      // that reached the PDF.
       if (!result.spousalTopUp) {
         expect(scenario.inputs.status).toBe('single');
       } else {
-        expect(result.spousalTopUp.startsAtSpouseAge).not.toBe('');
+        expect(result.spousalTopUp.startsAtSpouseAge).toBeNull();
       }
     } else {
       expect(result.spousalTopUp).toBeDefined();
       expect(result.spousalTopUp!.startsAtSpouseAge).toBe(scenario.expected.startsAtSpouseAge);
     }
+  });
+
+  it("files each person at the optimizer's recorded recommended age", async () => {
+    // The one assertion in this file that is engine-RECORDED rather than
+    // hand-derived (see recommendedFilingAgeByPerson in scenarios.ts for why
+    // that is correct here). It exists because `optimalAgeRangeByPerson` is
+    // [62, 70] — the entire legal range — for all 21 full scenarios, so before
+    // this the suite could not detect a moved filing age at all, and every
+    // downstream figure it pins (the spousal start, the reduced top-up, the
+    // whole benefit-period decomposition) is a function of these ages.
+    const expectedAges = scenario.expected.recommendedFilingAgeByPerson;
+    expect(expectedAges, 'full-mode scenarios must record their filing ages').not.toBeNull();
+    const result = await run(scenario);
+    const actual = result.people.map((p) => ({
+      years: p.recommendedFilingAge.years,
+      months: p.recommendedFilingAge.months,
+    }));
+    expect(actual).toEqual(expectedAges);
   });
 
   it('satisfies structural invariants', async () => {
@@ -294,6 +314,47 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
       const flipped = await runWithGenderFlipped(scenario, 1);
       expect(flipped.optimal.expectedNpv).toBeGreaterThan(0);
       expect(flipped.optimal.expectedNpv).not.toBe(result.optimal.expectedNpv);
+    }
+  });
+
+  it('decomposes every household into well-formed bands', async () => {
+    const result = await run(scenario);
+    for (const band of result.periods) {
+      expect(band.endIndex).toBeGreaterThanOrEqual(band.startIndex);
+      // A $0.00 Spousal band is legitimate, not a bug, and must not be
+      // "fixed" back to > 0: eligibleForSpousalBenefit (benefit-calculator.ts)
+      // tests the unreduced entitlement against the dependent's PIA, but
+      // spousalBenefitOnDate re-tests against their DRC-inflated actual
+      // benefit once they file past their own NRA, which can come out to
+      // zero even though strategy-calc.ts:158 has already pushed the period
+      // on date validity alone.
+      expect(band.monthlyAmount).toBeGreaterThanOrEqual(0);
+      expect(['personal', 'spousal', 'survivor']).toContain(band.type);
+    }
+    // A single claimant can only ever hold a personal benefit. The length
+    // guard is not decoration: `every` is vacuously true on an empty array,
+    // and an empty periods list is exactly what a broken pipeline would
+    // produce without erroring (benefitPeriods.test.ts:30 guards the same
+    // assertion the same way).
+    if (scenario.inputs.status === 'single') {
+      expect(result.periods.length).toBeGreaterThan(0);
+      expect(result.periods.every((b) => b.type === 'personal')).toBe(true);
+    }
+    // Spousal and survivor never overlap: you cannot draw a spousal benefit
+    // on a deceased spouse's record. Reachable here, not vacuous: 5 of the 11
+    // married full-mode fixtures put the dependent (lower PIA) in the one
+    // direction the engine models — surviving the earner — while also holding
+    // a spousal entitlement, so those five produce both a spousal and a
+    // survivor band for the same personId and the loop below actually
+    // compares them. (The other six emit no spousal band at all: half the
+    // higher earner's PIA does not exceed the lower earner's own.)
+    const spousal = result.periods.filter((b) => b.type === 'spousal');
+    const survivor = result.periods.filter((b) => b.type === 'survivor');
+    for (const sp of spousal) {
+      for (const sv of survivor) {
+        if (sp.personId !== sv.personId) continue;
+        expect(sp.endIndex).toBeLessThan(sv.startIndex);
+      }
     }
   });
 });

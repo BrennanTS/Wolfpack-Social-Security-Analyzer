@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { CombinedTimelinePoint } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../lib/format';
+import { combinedIncomeCaption, survivorGapNote } from './methodologyCopy';
 import {
   CHART_AXIS_LINE,
   CHART_GOLD,
@@ -15,6 +17,12 @@ import {
 interface CombinedIncomeChartProps {
   timeline: CombinedTimelinePoint[];
   people: Person[];
+  /**
+   * The one survivor direction the engine does not model. When set, the bands
+   * understate the survivor's income after the first death, and the caption
+   * below says so. Optional so the single-claimant call site need not pass it.
+   */
+  survivorGap?: SurvivorGap | null;
 }
 
 /**
@@ -31,7 +39,9 @@ const PERSON_COLORS = [CHART_GOLD, CHART_INK, CHART_GREY_MID];
  * `chartTheme` tokens, `ResponsiveContainer` wrapper, axis/tooltip styling)
  * so the household tab doesn't look like a different app.
  */
-export function CombinedIncomeChart({ timeline, people }: CombinedIncomeChartProps) {
+export function CombinedIncomeChart({ timeline, people, survivorGap }: CombinedIncomeChartProps) {
+  const gap = survivorGap ?? null;
+  const gapNote = survivorGapNote(gap);
   const series = useMemo(
     () =>
       people.map((p, i) => ({
@@ -49,13 +59,12 @@ export function CombinedIncomeChart({ timeline, people }: CombinedIncomeChartPro
         <p>Annual Social Security income by year under the recommended filing strategy</p>
         {people.length > 1 && (
           <p className="chart-caveat" data-testid="combined-income-caveat">
-            Each band is that person&rsquo;s own benefit only, and excludes any spousal
-            top-up. Someone with little or no work record of their own shows here as $0
-            even when the recommended strategy pays them a spousal benefit, so this chart
-            understates the household in that case. The recommendation and the strategy
-            comparison above do include the spousal benefit. Survivor benefits are not
-            modeled in this version, so the drop after the first death is overstated — in
-            practice the survivor receives the greater of the two benefits.
+            {combinedIncomeCaption(gap)}
+          </p>
+        )}
+        {gapNote && (
+          <p className="chart-caveat" data-testid="survivor-gap-note">
+            {gapNote}
           </p>
         )}
         <div className="chart-legend-row" aria-hidden="true">

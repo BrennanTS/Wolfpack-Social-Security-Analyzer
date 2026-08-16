@@ -11,7 +11,8 @@ Client-facing Social Security claiming analysis tool for **Wolfpack | Planning T
 - Household modeling for singles and couples: each person analyzed on their own
   record, filing ages chosen by the ssa.tools joint couple optimizer
 - Strategy comparison showing what the optimizer rejected and by how much
-- Spousal top-up projections (survivor benefits are not modeled)
+- Spousal top-up and survivor benefit projections for couples, taken from the
+  ssa.tools engine's own typed benefit periods
 - Interactive charts (heatmap, opportunity cost, monthly ramp, and more)
 - PDF export for client meetings
 - Password-gated demo access

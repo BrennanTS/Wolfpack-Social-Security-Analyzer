@@ -101,6 +101,31 @@ describe('HouseholdPanel', () => {
     expect(attribution.textContent).toContain('not modeled');
   });
 
+  // Wiring guard: the disclosure is computed in `lib` and rendered by
+  // `CombinedIncomeChart`, and this panel is the only thing joining them. Both
+  // ends were unit-tested while the field went unpassed, which is exactly how
+  // `survivorGap` sat computed-but-unrendered in the first place.
+  it('passes the survivor gap through to the combined income chart', () => {
+    const analysis = {
+      ...buildAnalysis(),
+      survivorGap: {
+        survivorLabel: 'Dan',
+        deceasedMonthly: 1780,
+        survivorOwnMonthly: 1760,
+        survivorUnder60: false,
+      },
+    } as HouseholdAnalysis;
+    const { getByTestId } = render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+    expect(getByTestId('survivor-gap-note').textContent).toContain('no step-up is shown for Dan');
+  });
+
+  it('renders no survivor-gap note when the analysis has none', () => {
+    const { queryByTestId } = render(
+      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} />,
+    );
+    expect(queryByTestId('survivor-gap-note')).toBeNull();
+  });
+
   it('falls back to the You/Spouse label when person A is unnamed', () => {
     const analysis = buildAnalysis();
     const unnamed = {

@@ -89,7 +89,12 @@ export function OptionalChartsPanel({
 
       <ToggleChartSection
         title="Lifetime Total by Claiming Age"
-        description={`Total benefits received through age ${lifeExpectancy}, using SSA cost-of-living adjustments (ssa.tools), undiscounted.`}
+        // Same `claimingOptions.lifetimeBenefits` figures the PDF's benefit
+        // table describes: `lifetimeNpvToAge` sums the engine's own periods,
+        // which carry no projected COLA. Screen and print used to agree here
+        // and both be wrong; correcting only print would leave them
+        // disagreeing about identical numbers.
+        description={`Total benefits received through age ${lifeExpectancy}, in today’s dollars before any future cost-of-living adjustment, undiscounted.`}
         visible={visibility.lifetimeBar}
         onToggle={() => onToggle('lifetimeBar')}
       >

@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { Page, Text, View, Svg, Line, Rect } from '@react-pdf/renderer';
 import type { CombinedTimelinePoint, HouseholdAnalysis, HouseholdStrategy } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
-import { formatCurrency, formatCurrencyPrecise, personLabel } from '../../lib/format';
+import { formatCurrency, personLabel } from '../../lib/format';
+import { combinedIncomeCaption, spousalSummary, survivorGapNote } from '../methodologyCopy';
 import { BORDER, CONTENT_W, GOLD, INK, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
 
@@ -139,6 +140,7 @@ function CombinedIncomeBars({
 export function HouseholdSection({ analysis, footerText, appendix, leadingHeader }: Props) {
   const people = analysis.people.map((p) => p.person);
   const spousal = analysis.spousalTopUp;
+  const gapNote = survivorGapNote(analysis.survivorGap);
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -150,14 +152,10 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
         <Text style={styles.recHeadline}>{analysis.recommendation}</Text>
         <Text style={styles.recBody}>{analysis.recommendationDetail}</Text>
         {spousal && (
-          <Text style={styles.recBody}>
-            The lower earner&apos;s spousal top-up is{' '}
-            {formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo under the recommended
-            strategy, beginning at age {spousal.startsAtSpouseAge} — the later of the lower
-            earner&apos;s own filing and the other spouse&apos;s, since a spousal benefit
-            cannot start before the other spouse has filed. The unreduced amount at the lower
-            earner&apos;s own FRA is {formatCurrencyPrecise(spousal.atFra)}/mo.
-          </Text>
+          // Built by the same function the on-screen panel uses. Interpolating
+          // the fields here is what let this surface print an unguarded
+          // absence marker while the screen branched correctly.
+          <Text style={styles.recBody}>{spousalSummary(spousal, 'the lower earner')}</Text>
         )}
       </View>
 
@@ -169,16 +167,14 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       <StrategyTable comparisons={analysis.comparisons} people={people} />
 
       <Text style={styles.sectionTitle}>Combined Household Income</Text>
+      {/* Same function as the on-screen chart caption: the two were a verbatim
+          duplicate, and both claimed survivor benefits were included even for
+          the households whose gap note directly beneath said they were not. */}
       <Text style={styles.sectionDesc}>
-        Annual Social Security income by year under the recommended filing strategy. Each
-        band is that person&rsquo;s own benefit only, and excludes any spousal top-up.
-        Someone with little or no work record of their own shows here as $0 even when the
-        recommended strategy pays them a spousal benefit, so this chart understates the
-        household in that case. The recommendation and the strategy comparison above do
-        include the spousal benefit. Survivor benefits are not modeled in this version, so
-        the drop after the first death is overstated — in practice the survivor receives
-        the greater of the two benefits.
+        Annual Social Security income by year under the recommended filing strategy.{' '}
+        {combinedIncomeCaption(analysis.survivorGap)}
       </Text>
+      {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
       <View style={styles.chartBox}>
         <CombinedIncomeBars timeline={analysis.combinedTimeline} people={people} />
       </View>

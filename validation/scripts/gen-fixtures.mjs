@@ -12,7 +12,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const CONVENTIONS =
-  "expected.monthly = floor(round_to_cent(PIA * factor)) with whole-dollar PIA, matching the vendored ssa.tools engine (benefitAtAge: PIA.floorToDollar() x factor, then floorToDollar). Values are generated independently from SSA's published rules (gen-fixtures.mjs), not copied from the engine. Early-claim factor: 1 - (min(36,m)*5/900 + max(0,m-36)*5/1200); delayed credits: 1 + m*(2/3 of 1%) per month to age 70. percentOfPia = round(benefit/PIA*1000)/10. Break-evens assume annualCola=0 and are the first 0.1-year grid point where the later strategy's cumulative total catches up. Each scenario pins `asOf` (the date the household is evaluated as-of) so 'full'-mode eligibility and the optimizer's chosen filing ages are deterministic rather than drifting with wall-clock time. SPOUSAL (three fields). spousalTopUpAtFra = the unreduced entitlement max(0, higherPIA/2 - lowerPIA) — a dateless reference figure, never what anyone is actually paid; independently derivable, and what gen-fixtures.mjs computes. startsAtSpouseAge = the lower earner's age when the spousal benefit actually begins. A spousal benefit is payable only once the HIGHER earner has filed, so it begins at max(higher earner's filing date, lower earner's filing date) — filing on your own record earlier does not start it. spousalTopUpAtFilingAge = the entitlement reduced by SSA's early-filing schedule (25/36 of 1% per month for the first 36 months, then 5/12 of 1% per month beyond) measured from that START against the lower earner's OWN FRA — not from their own filing age, which is the defect fixed on branch fix/spousal-start-date. A start at or after their FRA is unreduced, since delayed credits never apply to spousal benefits. Both startsAtSpouseAge and spousalTopUpAtFilingAge depend on the mortality-weighted couple optimizer's chosen filing ages (given the scenario's pinned `asOf`), so gen-fixtures.mjs cannot derive them and instead preserves the hand-derived value already on record for each scenario id (see each scenario's description for the derivation) rather than silently dropping or reverting it. Only the person(s) covered by monthlyByClaimAgeByPerson/percentOfPiaByClaimAgeByPerson/optimalAgeRangeByPerson are asserted per-claim-age; an unasserted person (e.g. a spouse with no earnings record) is not checked for monotonicity. Most married scenarios cover only the first person (historically called the 'worker'); a scenario opts its second person in too by setting spec.assertPersonB in gen-fixtures.mjs, which appends that person's own table to all three arrays (breakEvensByPerson stays first-person-only everywhere). MODE: 'full' runs the complete analyzeHousehold pipeline and the Playwright UI suite; only valid while every person in the household is under 70 as of `asOf` (the optimizer needs a prospective filing age for each). 'factorsOnly' validates the deterministic factor math (FRA, monthly, %PIA, break-evens) without the optimizer and never ages out.";
+  "expected.monthly = floor(round_to_cent(PIA * factor)) with whole-dollar PIA, matching the vendored ssa.tools engine (benefitAtAge: PIA.floorToDollar() x factor, then floorToDollar). Values are generated independently from SSA's published rules (gen-fixtures.mjs), not copied from the engine. Early-claim factor: 1 - (min(36,m)*5/900 + max(0,m-36)*5/1200); delayed credits: 1 + m*(2/3 of 1%) per month to age 70. percentOfPia = round(benefit/PIA*1000)/10. Break-evens assume annualCola=0 and are the first 0.1-year grid point where the later strategy's cumulative total catches up. Each scenario pins `asOf` (the date the household is evaluated as-of) so 'full'-mode eligibility and the optimizer's chosen filing ages are deterministic rather than drifting with wall-clock time. SPOUSAL (three fields). spousalTopUpAtFra = the unreduced entitlement max(0, higherPIA/2 - lowerPIA) — a dateless reference figure, never what anyone is actually paid; independently derivable, and what gen-fixtures.mjs computes. startsAtSpouseAge = the lower earner's age when the spousal benefit actually begins. A spousal benefit is payable only once the HIGHER earner has filed, so it begins at max(higher earner's filing date, lower earner's filing date) — filing on your own record earlier does not start it. spousalTopUpAtFilingAge = the entitlement reduced by SSA's early-filing schedule (25/36 of 1% per month for the first 36 months, then 5/12 of 1% per month beyond) measured from that START against the lower earner's OWN FRA — not from their own filing age, which is the defect fixed on branch fix/spousal-start-date. A start at or after their FRA is unreduced, since delayed credits never apply to spousal benefits. Both startsAtSpouseAge and spousalTopUpAtFilingAge depend on the mortality-weighted couple optimizer's chosen filing ages (given the scenario's pinned `asOf`), so gen-fixtures.mjs cannot derive them and instead preserves the hand-derived value already on record for each scenario id (see each scenario's description for the derivation) rather than silently dropping or reverting it. FILING AGES. optimalAgeRangeByPerson is a permissive [62,70] sanity window and cannot detect a moved filing age, since that is the entire legal range. recommendedFilingAgeByPerson pins what the optimizer ACTUALLY chose, per person, as {years, months}; it is null for 'factorsOnly' scenarios, which never run the optimizer. Unlike every other expected value in this file it is ENGINE-RECORDED rather than hand-derived — the optimizer weights expected NPV by empirical SSA/CDC life tables, which has no published closed form — and gen-fixtures.mjs preserves it per scenario id exactly as it preserves the two optimizer-dependent spousal fields. Never re-record one of these to make the golden suite pass: a moved filing age is the regression the field exists to catch. Only the person(s) covered by monthlyByClaimAgeByPerson/percentOfPiaByClaimAgeByPerson/optimalAgeRangeByPerson are asserted per-claim-age; an unasserted person (e.g. a spouse with no earnings record) is not checked for monotonicity. Most married scenarios cover only the first person (historically called the 'worker'); a scenario opts its second person in too by setting spec.assertPersonB in gen-fixtures.mjs, which appends that person's own table to all three arrays (breakEvensByPerson stays first-person-only everywhere). MODE: 'full' runs the complete analyzeHousehold pipeline and the Playwright UI suite; only valid while every person in the household is under 70 as of `asOf` (the optimizer needs a prospective filing age for each). 'factorsOnly' validates the deterministic factor math (FRA, monthly, %PIA, break-evens) without the optimizer and never ages out.";
 
 // spousalTopUpAtFilingAge depends on the mortality-weighted couple
 // optimizer's output (and, since Task 21, on the scenario's pinned asOf), so
@@ -32,6 +32,15 @@ const fixturesPath = new URL('../fixtures/scenarios.json', import.meta.url);
 // come from the optimizer.
 const previousSpousalTopUpAtFilingAge = new Map();
 const previousStartsAtSpouseAge = new Map();
+// recommendedFilingAgeByPerson is preserved for the same reason again, with
+// one difference worth stating plainly: it is ENGINE-RECORDED, not
+// hand-derived. The optimizer's chosen ages come from mortality-weighted
+// expected NPV over empirical SSA/CDC life tables, which has no published
+// closed form to re-derive from. Recording them is nonetheless correct here —
+// without them the suite's only filing-age assertion is
+// optimalAgeRangeByPerson, pinned to the entire legal [62, 70] window, so
+// running the golden suite could not detect a moved filing age at all.
+const previousRecommendedFilingAgeByPerson = new Map();
 if (existsSync(fixturesPath)) {
   const previous = JSON.parse(readFileSync(fixturesPath, 'utf8'));
   for (const s of previous.scenarios ?? []) {
@@ -40,6 +49,9 @@ if (existsSync(fixturesPath)) {
     }
     if (typeof s.expected?.startsAtSpouseAge === 'string') {
       previousStartsAtSpouseAge.set(s.id, s.expected.startsAtSpouseAge);
+    }
+    if (Array.isArray(s.expected?.recommendedFilingAgeByPerson)) {
+      previousRecommendedFilingAgeByPerson.set(s.id, s.expected.recommendedFilingAgeByPerson);
     }
   }
 }
@@ -179,6 +191,26 @@ function build(spec) {
     }
   }
 
+  // Only 'full'-mode scenarios run the optimizer at all; 'factorsOnly' ones
+  // exercise the deterministic factor math and have no recommendation.
+  let recommendedFilingAgeByPerson = null;
+  if (spec.mode === 'full') {
+    if (previousRecommendedFilingAgeByPerson.has(spec.id)) {
+      recommendedFilingAgeByPerson = previousRecommendedFilingAgeByPerson.get(spec.id);
+    } else {
+      throw new Error(
+        `recommendedFilingAgeByPerson for '${spec.id}' is missing from scenarios.json. ` +
+          'This is an engine-recorded value, not a hand-derived one: the optimizer ' +
+          'weights expected NPV by empirical SSA/CDC life tables, so there is no ' +
+          'published rule to derive it from. Run analyzeHousehold() for this scenario ' +
+          "with its pinned asOf, record each person's recommendedFilingAge as " +
+          '{years, months} in scenarios.json, and re-run fixtures:gen. Never adjust an ' +
+          'existing recorded value to make the golden suite pass — a moved filing age ' +
+          'is the regression that field exists to catch.',
+      );
+    }
+  }
+
   const invariants = ['monthlyMonotonicIncreasing'];
   if (spec.mode === 'full') invariants.push('expectedPvPositive');
   if (spec.extraInvariants) invariants.push(...spec.extraInvariants);
@@ -227,6 +259,7 @@ function build(spec) {
       spousalTopUpAtFilingAge,
       startsAtSpouseAge,
       optimalAgeRangeByPerson,
+      recommendedFilingAgeByPerson,
       invariants,
     },
     // spec.uiTestable overrides the default derivation from `mode` for
@@ -302,7 +335,7 @@ const specs = [
     description: 'Sample HH2: dual high earners, worker Feb 1960 M PIA $3,200; spouse Sep 1961 F PIA $3,000 - similar PIAs, no spousal top-up ($0)' },
   { id: 'sample-hh3-married-1959-reduced-spousal', mode: 'full', birthYear: 1959, birthMonth: 7, gender: 'female', hasSpouse: true, pia: 3600,
     spouseBirthYear: 1963, spouseBirthMonth: 11, spousePia: 700,
-    description: "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 (FRA 67y0m) below 50% of worker PIA - routed to spousal. spousalTopUpAtFra: unreduced entitlement = max(0, 3600/2 - 700) = $1,100 - a dateless reference figure. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15 the optimizer files the worker at 70 (Jul 1959 + 70y = Jul 2029) and the spouse at 62y2m (Nov 1963 + 62y2m = Jan 2026). The benefit starts at max(Jan 2026, Jul 2029) = Jul 2029, when the spouse is Jul 2029 - Nov 1963 = 65y8m (startsAtSpouseAge '65 years, 8 months'). That is 16 months before his own FRA of 67y0m, all inside the first 36-month band: 16 * 25/36 of 1% = 11.1111%. Top-up = 1100 * (1 - 0.111111) = $977.78. Was $724.17 while the reduction was wrongly measured from his own 62y2m filing (58 months early)." },
+    description: "Sample HH3: large PIA gap, worker Jul 1959 F PIA $3,600 (FRA 66y10m); spouse Nov 1963 M own PIA $700 (FRA 67y0m) below 50% of worker PIA - routed to spousal. spousalTopUpAtFra: unreduced entitlement = max(0, 3600/2 - 700) = $1,100 - a dateless reference figure. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15 the optimizer files the worker at 70 (Jul 1959 + 70y = Jul 2029) and the spouse at 62y2m (Nov 1963 + 62y2m = Jan 2026). The benefit starts at max(Jan 2026, Jul 2029) = Jul 2029, when the spouse is Jul 2029 - Nov 1963 = 65y8m (startsAtSpouseAge '65 years, 8 months'). That is 16 months before his own FRA of 67y0m, all inside the first 36-month band: 16 * 25/36 of 1% = 11.1111%. Reduced entitlement = 1100 * (1 - 0.111111) = $977.7778, and SSA truncates a benefit amount to the whole dollar, so the payable top-up is floor($977.7778) = $977. The hand-derivation used to stop one step short of that floor and recorded $977.78, leaving a permanent $0.78 gap sitting inside the $1 tolerance — exactly where the next real divergence would have hidden. Both sides agree on the base ($1,100), the start (Jul 2029), whose FRA the reduction is measured against (the dependent's) and the reduction band; only the floor was missing. Was $724.17 while the reduction was wrongly measured from his own 62y2m filing (58 months early). Also incidentally pins the cross-person FRA dimension: the reduction is measured against the DEPENDENT's own FRA (spouse, Nov 1963 + 67y0m = Nov 2030), not the earner's (worker, Jul 1959 + 66y10m = May 2026). The benefit start of Jul 2029 falls before the dependent's FRA (Nov 2030), so it is reduced - but it falls after the earner's FRA (May 2026), so reading the earner's FRA here instead would wrongly report 0 months early and an unreduced $1,100." },
   { id: 'sample-hh4-married-1955-wide-age-gap', mode: 'full', asOf: '2024-01-15', uiTestable: false, birthYear: 1955, birthMonth: 3, gender: 'male', hasSpouse: true, pia: 2800,
     spouseBirthYear: 1968, spouseBirthMonth: 6, spousePia: 1900,
     description: "Sample HH4: wide age gap, worker Mar 1955 M PIA $2,800 (FRA 66y2m); spouse Jun 1968 F own PIA $1,900, 13 years younger. asOf pinned to 2024-01-15 so the worker (68, turning 69 in Mar 2024) is still under 70 and eligible for the 'full'-mode optimizer - as of any 2026+ asOf the worker is 71+ and the optimizer has no prospective filing age left, which is why this case was previously marked 'Aged out' in validation/samples/README.md. uiTestable: false (Task 23) because Playwright drives the real app against the real wall-clock date rather than this pinned asOf — by 2026-08 the worker has already aged past 70 in the live app, hitting its 'Analysis unavailable' error path (analyzeIfComplete throws when the optimizer has no prospective filing age), so the Playwright golden-scenarios suite skips this scenario's UI assertions while the Vitest engine suite (which passes the pinned asOf explicitly) keeps validating it. spousalTopUpAtFra: unreduced top-up = max(0, 2800/2 - 1900) = max(0, -500) = $0 - the spouse's own PIA already exceeds half the worker's, so no top-up applies (independently derivable; no hand-derivation needed for spousalTopUpAtFilingAge either, since a non-positive at-FRA top-up is trivially $0 at any filing age)." },
