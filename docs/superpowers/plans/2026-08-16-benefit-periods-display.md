@@ -598,6 +598,121 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
+### Task 6: Entry order must not change the analysis
+
+**Files:**
+- Modify: `src/lib/incomeCliff.ts`, `src/lib/incomeCliff.test.ts`
+- Modify: `src/lib/household.ts`, `src/lib/household.test.ts`
+- Modify: `src/components/methodologyCopy.ts` if the copy names a person a tie leaves undefined
+
+**Interfaces:**
+- Consumes: everything the earlier tasks built
+- Produces: no new exports
+
+**Added at the user's request, outside the original spec.** The requirement, in their words: *"Order of entry of people should not matter for the app. I would like not to have to put the older or younger person first or the higher or lower earning person in any kind of order."*
+
+This is a property, and it is testable: analysing `[A, B]` must produce the same analysis as `[B, A]`, modulo the two people's ids and labels.
+
+Two confirmed violations, both of which change what the client reads:
+
+1. **`household.ts:452`** classifies the higher earner with `personA.piaMonthly >= personB.piaMonthly`, while the engine's `classifyEarnerDependent` uses a strict `>` (`benefit-calculator.ts:231`). **On equal PIAs they disagree**, and swapping entry order flips which name is printed as the lower earner. This is the seam recorded at `docs/reference/ssa-tools-engine-audit.md` §6.4.
+2. **`incomeCliff.firstDeath`** breaks an exact tie with `finalIndexes[0] <= finalIndexes[1] ? 0 : 1`. Two people sharing a birth month and a plan-to age hit it — a same-age couple both planning to 85 — and swapping the order names the other spouse as survivor.
+
+- [ ] **Step 1: Write the failing property test**
+
+```ts
+// append to src/lib/household.test.ts
+/**
+ * Entry order is a data-entry accident, not a fact about the household. An
+ * adviser must not have to put the older, younger, higher- or lower-earning
+ * person first.
+ */
+it('produces the same analysis whichever person is entered first', async () => {
+  const forward = await analyzeHousehold(
+    { status: 'married', people: [dan, sarah] },
+    assumptions,
+    asOf,
+  );
+  const swapped = await analyzeHousehold(
+    { status: 'married', people: [{ ...sarah, id: 'a' }, { ...dan, id: 'b' }] },
+    assumptions,
+    asOf,
+  );
+
+  // The optimum is a property of the household, so the same two ages come
+  // back — attached to the other slot.
+  expect(swapped.optimal.filingAges[0].label).toBe(forward.optimal.filingAges[1].label);
+  expect(swapped.optimal.filingAges[1].label).toBe(forward.optimal.filingAges[0].label);
+  expect(swapped.optimal.expectedNpv).toBeCloseTo(forward.optimal.expectedNpv, 2);
+
+  // Same money, same years, whichever way round.
+  expect(swapped.combinedTimeline.map((p) => p.total)).toEqual(
+    forward.combinedTimeline.map((p) => p.total),
+  );
+
+  // The spousal top-up accrues to a person, not to a slot.
+  expect(swapped.spousalTopUp?.atRecommendedFilingAge).toBe(
+    forward.spousalTopUp?.atRecommendedFilingAge,
+  );
+  expect(swapped.spousalTopUp?.lowerEarnerLabel).toBe(forward.spousalTopUp?.lowerEarnerLabel);
+});
+
+it('names the same survivor whichever person is entered first', async () => {
+  // Same birth month, same plan-to age: their final months are identical, so
+  // the old tie-break picked whoever happened to be entered first.
+  const twinA = { ...dan, id: 'a' as const, lifeExpectancy: 85 };
+  const twinB = { ...sarah, id: 'b' as const, birthYear: dan.birthYear, birthMonth: dan.birthMonth, lifeExpectancy: 85 };
+
+  const forward = await analyzeHousehold(
+    { status: 'married', people: [twinA, twinB] },
+    assumptions,
+    asOf,
+  );
+  const swapped = await analyzeHousehold(
+    { status: 'married', people: [{ ...twinB, id: 'a' }, { ...twinA, id: 'b' }] },
+    assumptions,
+    asOf,
+  );
+  expect(incomeCliff(swapped)).toEqual(incomeCliff(forward));
+});
+```
+
+Check `household.test.ts`'s existing fixtures before relying on `dan`, `sarah`, `assumptions` and `asOf`. If `dan` and `sarah` have equal PIAs the first test will not exercise the `>=` seam — verify, and if it does not, add a third case with equal PIAs that does.
+
+- [ ] **Step 2: Run to confirm they fail**
+
+Run: `npm run test -- household`
+Expected: FAIL on the tie cases.
+
+- [ ] **Step 3: Fix the ties by recognising the concept does not apply**
+
+Do **not** invent a better tie-break. A tie-break picks a winner where there is no winner, and any rule — birth date, name, id — is still arbitrary and still a fact about data entry rather than about the household.
+
+- **`firstDeath` returns `null` on an exact tie.** If both people's final months are identical there is no survivor and no income cliff; the callout should not render. That is more correct than picking one, as well as order-independent.
+- **The higher-earner classification uses the engine's `classifyEarnerDependent`** rather than a local `>=`, so `household.ts` and the engine cannot disagree. On an equal-PIA tie the spousal entitlement is already `max(0, PIA/2 − PIA) = 0`, so no amount changes — but the copy must not name a "lower earner" when the two are equal. Check what `spousalSummary` does with a zero entitlement and make sure that path is what runs.
+
+- [ ] **Step 4: Run everything and commit**
+
+Run: `npm run lint && npm run test && npm run build && PW_PORT=4199 npm run test:e2e`
+
+```bash
+npm run fixtures:gen && git diff --stat validation/fixtures/scenarios.json
+```
+Expected: empty. **A moved fixture means the classification change altered a real household, not just a tie** — stop and report.
+
+```bash
+git add src/lib/ src/components/
+SKIP_E2E=1 git commit -m "fix: make the analysis independent of which person is entered first
+
+Two ties were broken by entry order — the higher-earner classification on
+equal PIAs, and the first death on identical final months. Both now
+recognise that a tie means the concept does not apply.
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+```
+
+---
+
 ## Verification against the spec's success criteria
 
 4. **A band per benefit type, survivor stacked on a continuing personal band** — Task 2 Steps 3 and 5.
@@ -608,6 +723,16 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 10. **Lint, tests, build, e2e** — every task.
 
 Criteria 1, 2, 3 and 6 were delivered by 2b-i.
+
+Task 6 sits outside the spec's criteria — it was added at the user's request during execution.
+
+## Follow-on work identified during execution
+
+Neither belongs in this plan; both need their own spec.
+
+**The earliest-claim comparison row has never rendered, for any household.** `buildComparisons` asks `findStrategyByAges` for an exact `{years: 62, months: 0}`, but SSA requires a full month at 62, so entitlement begins at 62y1m — and the day-1-or-2 exception (SSA deems you attain an age the day before your birthday) is unreachable because `DEFAULT_BIRTH_DAY = 15` fixes every recipient at the 15th. So no ranked strategy ever carries 62y0m and the row is dropped at `household.ts:173`. The table shows at most *FRA*, *Optimal* and *delay to 70* — the client's most common instinct has no row and no "vs. best" delta. Fix: ask each recipient for its own `earliestFilingMonth()` and stop hardcoding "62" in the label. Safe against the pinned golden invariant, since adding a row cannot move the optimum.
+
+**Birth day of month is not collected.** More consequential than the earliest-claim case alone: because SSA attains an age the day before the birthday, someone born on the **1st** attains every age in the previous month, shifting their whole FRA and filing schedule a month earlier. `DEFAULT_BIRTH_DAY = 15` hides that for every user. Adding the field touches the form, the share link and the PDF; keeping 15 as the default is what makes existing fixtures safe.
 
 ## Known gaps this plan does not close
 
