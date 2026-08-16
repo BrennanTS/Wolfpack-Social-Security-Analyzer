@@ -12,8 +12,8 @@ import {
   Line,
   CartesianGrid,
 } from 'recharts';
-import type { ClaimingOption } from '../lib/socialSecurity';
-import { formatCurrency } from '../lib/socialSecurity';
+import type { ClaimingOption } from '../lib/benefitMath';
+import { formatCurrency } from '../lib/format';
 import {
   generateHeatmapData,
   generateOpportunityCostData,
@@ -25,7 +25,6 @@ import {
 import {
   CHART_AXIS_LINE,
   CHART_GOLD as GOLD,
-  CHART_GREY_MID as GREY_MID,
   CHART_INK as INK,
   CHART_MUTED as MUTED,
   CHART_RED,
@@ -195,78 +194,6 @@ export function ColaProjectionChart({
           labelFormatter={(age) => `Age ${age}`}
         />
         <Bar dataKey="monthly" fill={INK} radius={[4, 4, 0, 0]} maxBarSize={14} />
-      </BarChart>
-    </ResponsiveContainer>
-    </div>
-  );
-}
-
-interface SpousalSurvivorChartProps {
-  options: ClaimingOption[];
-  spousalAtFra: number;
-  optimalAge: number;
-}
-
-export function SpousalSurvivorChart({
-  options,
-  spousalAtFra,
-  optimalAge,
-}: SpousalSurvivorChartProps) {
-  // A surviving spouse steps up to the deceased worker's own monthly benefit,
-  // so the survivor amount at each claiming age equals the worker's benefit there.
-  const data = useMemo(
-    () =>
-      options.map((o) => ({
-        age: o.age,
-        survivor: o.monthlyBenefit,
-        spousal: spousalAtFra,
-        isOptimal: o.age === optimalAge,
-      })),
-    [options, spousalAtFra, optimalAge],
-  );
-
-  return (
-    <div className="chart-surface">
-      <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
-        <XAxis
-          dataKey="age"
-          tick={{ fill: MUTED, fontSize: 12 }}
-          axisLine={{ stroke: CHART_AXIS_LINE }}
-          tickLine={false}
-        />
-        <YAxis
-          tick={{ fill: MUTED, fontSize: 12 }}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
-        />
-        <Tooltip
-          contentStyle={TOOLTIP_STYLE}
-          formatter={(value, name) => {
-            const num = typeof value === 'number' ? value : 0;
-            return [
-              formatCurrency(num),
-              String(name) === 'survivor' ? 'Survivor benefit' : 'Spousal at FRA (50% PIA)',
-            ];
-          }}
-          labelFormatter={(age) => `You claim at ${age}`}
-        />
-        <ReferenceLine
-          y={spousalAtFra}
-          stroke={MUTED}
-          strokeDasharray="4 4"
-          label={{ value: 'Spousal at FRA', fill: MUTED, fontSize: 10 }}
-        />
-        <Bar dataKey="survivor" name="survivor" radius={[4, 4, 0, 0]} maxBarSize={32}>
-          {data.map((entry) => (
-            <Cell
-              key={entry.age}
-              fill={entry.isOptimal ? GOLD : GREY_MID}
-              fillOpacity={entry.isOptimal ? 1 : 0.8}
-            />
-          ))}
-        </Bar>
       </BarChart>
     </ResponsiveContainer>
     </div>

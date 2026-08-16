@@ -1,0 +1,214 @@
+import type { ReactNode } from 'react';
+import { Page, Text, View } from '@react-pdf/renderer';
+import { computeBreakEvens, type ClaimingOption } from '../../lib/benefitMath';
+import { formatCurrency, formatCurrencyPrecise, fraLabel, personLabel } from '../../lib/format';
+import type { PersonAnalysis } from '../../lib/personAnalysis';
+import { nearestWholeClaimAge } from '../../lib/ssaTools';
+import { PdfChart, PdfHeatmap, PdfMonthlyRamp, PdfOpportunityCost } from './charts';
+import { COL, MONTHS, styles } from './theme';
+import { PageFooter } from './ReportDocument';
+
+interface Props {
+  analysis: PersonAnalysis;
+  index: 0 | 1;
+  annualCola: number;
+  footerText: string;
+  appendix?: ReactNode;
+  leadingHeader?: ReactNode;
+}
+
+function BenefitTable({
+  claimingOptions,
+  optimal,
+  optimalAge,
+}: {
+  claimingOptions: ClaimingOption[];
+  optimal: ClaimingOption;
+  optimalAge: number;
+}) {
+  return (
+    <View>
+      <View style={styles.tableHeader}>
+        <Text style={[styles.th, { width: COL.age }]}>Age</Text>
+        <Text style={[styles.th, { width: COL.monthly }]}>Monthly</Text>
+        <Text style={[styles.th, { width: COL.pia }]}>% PIA</Text>
+        <Text style={[styles.th, { width: COL.life }]}>Lifetime</Text>
+        <Text style={[styles.th, { width: COL.diff }]}>vs. Optimal</Text>
+      </View>
+      {claimingOptions.map((opt) => {
+        const diff = opt.lifetimeBenefits - optimal.lifetimeBenefits;
+        const isOptimal = opt.age === optimalAge;
+        return (
+          <View key={opt.age} style={[styles.tableRow, isOptimal ? styles.tableRowOptimal : {}]}>
+            <View style={[styles.tdAge, { width: COL.age }]}>
+              <Text style={styles.tdBold}>{opt.age}</Text>
+              {isOptimal && <Text style={styles.badge}>OPT</Text>}
+            </View>
+            <Text style={[styles.td, { width: COL.monthly }]}>
+              {formatCurrencyPrecise(opt.monthlyBenefit)}
+            </Text>
+            <Text style={[styles.td, { width: COL.pia }]}>{opt.percentOfPia}%</Text>
+            <Text style={[styles.td, { width: COL.life }]}>
+              {formatCurrency(opt.lifetimeBenefits)}
+            </Text>
+            <Text style={[styles.td, { width: COL.diff }, diff < 0 ? styles.negative : {}]}>
+              {diff === 0 ? '—' : formatCurrency(diff)}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/**
+ * One person's full claiming breakdown: profile summary, recommendation,
+ * benefit-by-age table, and the four supporting charts. This is the entire
+ * report for a single claimant (no `HouseholdSection` precedes it), and one
+ * of two per-person pages for a married household — so it stays
+ * self-contained rather than assuming a household header already ran.
+ */
+export function PersonSection({ analysis, index, annualCola, footerText, appendix, leadingHeader }: Props) {
+  const { person, fra, currentAge, claimingOptions, recommendedFilingAge, recommendedMonthly, ssaSuggestedLifeExpectancy } =
+    analysis;
+  const name = personLabel(person.name, index);
+  const optimalAge = nearestWholeClaimAge(recommendedFilingAge.decimalYears);
+  const optimal = claimingOptions.find((o) => o.age === optimalAge) ?? claimingOptions[0];
+  const dob = `${MONTHS[person.birthMonth - 1]} ${person.birthYear}`;
+  const breakEvens = computeBreakEvens(claimingOptions, annualCola);
+
+  return (
+    <Page size="LETTER" style={styles.page}>
+      {leadingHeader}
+      <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{name}</Text>
+
+      <View style={styles.profileGrid}>
+        {[
+          ['Date of Birth', dob],
+          ['Current Age', `${currentAge.years} years, ${currentAge.months} months`],
+          ['Full Retirement Age', fraLabel(fra)],
+          ['PIA (Benefit at FRA)', `${formatCurrencyPrecise(person.piaMonthly)}/mo`],
+          ['Life Expectancy', `Age ${person.lifeExpectancy}`],
+          ['SSA Suggested Age', `Age ${ssaSuggestedLifeExpectancy}`],
+        ].map(([label, value]) => (
+          <View key={label} style={styles.profileItem}>
+            <Text style={styles.profileLabel}>{label}</Text>
+            <Text style={styles.profileValue}>{value}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.recBox}>
+        <Text style={styles.recEyebrow}>Recommended Strategy (ssa.tools)</Text>
+        <Text style={styles.recHeadline}>File at age {recommendedFilingAge.label}</Text>
+        <Text style={styles.recBody}>
+          {name} filing at age {recommendedFilingAge.label} yields {formatCurrency(recommendedMonthly)}
+          /month, {optimal.percentOfPia}% of PIA.
+        </Text>
+        <View style={styles.recMetrics}>
+          <View style={styles.recMetricBlock}>
+            <Text style={styles.recMetricValue}>{formatCurrency(recommendedMonthly)}</Text>
+            <Text style={styles.recMetricLabel}>Monthly at age {recommendedFilingAge.label}</Text>
+          </View>
+          <View style={styles.recMetricBlock}>
+            <Text style={styles.recMetricValue}>{formatCurrency(optimal.lifetimeBenefits)}</Text>
+            <Text style={styles.recMetricLabel}>Lifetime through age {person.lifeExpectancy}</Text>
+          </View>
+          <View style={styles.recMetricBlock}>
+            <Text style={styles.recMetricValue}>{optimal.percentOfPia}%</Text>
+            <Text style={styles.recMetricLabel}>Of PIA</Text>
+          </View>
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Benefit Comparison by Claiming Age</Text>
+      <Text style={styles.sectionDesc}>
+        Monthly benefit and lifetime total through age {person.lifeExpectancy}, using SSA
+        cost-of-living adjustments (ssa.tools), undiscounted
+      </Text>
+      <BenefitTable claimingOptions={claimingOptions} optimal={optimal} optimalAge={optimalAge} />
+
+      <Text style={styles.sectionTitle}>Cumulative Lifetime Benefits</Text>
+      <Text style={styles.sectionDesc}>
+        Comparing claim-at-62, 67, and 70. Red dashed line = life expectancy (age{' '}
+        {person.lifeExpectancy}).
+      </Text>
+      <View style={styles.chartSection}>
+        <View style={styles.chartBox}>
+          <PdfChart
+            options={claimingOptions}
+            lifeExpectancy={person.lifeExpectancy}
+            optimalAge={optimalAge}
+            annualCola={annualCola}
+          />
+        </View>
+      </View>
+
+      {breakEvens.length > 0 && (
+        <View style={styles.beSection}>
+          <Text style={styles.sectionTitle}>Break-Even Analysis</Text>
+          <Text style={styles.sectionDesc}>
+            Age when a later claiming strategy surpasses an earlier one in total benefits
+          </Text>
+          <View style={styles.beRow}>
+            {breakEvens.map((be, i) => {
+              const favorsLater = person.lifeExpectancy >= be.breakEvenAge;
+              const isLast = i === breakEvens.length - 1;
+              return (
+                <View
+                  key={`${be.earlierAge}-${be.laterAge}`}
+                  style={[styles.beCard, isLast ? styles.beCardLast : {}]}
+                >
+                  <Text style={styles.bePair}>
+                    Age {be.earlierAge} → Age {be.laterAge}
+                  </Text>
+                  <Text style={styles.beAge}>{be.breakEvenAge}</Text>
+                  <Text style={styles.beLabel}>Break-even age</Text>
+                  <Text style={favorsLater ? styles.beVerdictLater : styles.beVerdictEarlier}>
+                    {favorsLater
+                      ? `Delaying to ${be.laterAge} is favorable`
+                      : `Claiming at ${be.earlierAge} is favorable`}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Lifetime Benefit Heatmap</Text>
+      <Text style={styles.sectionDesc}>
+        Cumulative benefits by claiming age (rows) and living age (columns). Gold row = optimal
+        age {optimalAge}.
+      </Text>
+      <View style={styles.chartBox}>
+        <PdfHeatmap
+          options={claimingOptions}
+          lifeExpectancy={person.lifeExpectancy}
+          optimalAge={optimalAge}
+          annualCola={annualCola}
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>Opportunity Cost vs. Optimal</Text>
+      <Text style={styles.sectionDesc}>
+        Lifetime income shortfall compared to claiming at age {optimalAge}.
+      </Text>
+      <View style={styles.chartBox}>
+        <PdfOpportunityCost options={claimingOptions} optimalAge={optimalAge} />
+      </View>
+
+      <Text style={styles.sectionTitle}>Monthly Benefit Ramp (Ages 62–70)</Text>
+      <Text style={styles.sectionDesc}>
+        Monthly check at each claiming age. Gold marker = optimal age {optimalAge}.
+      </Text>
+      <View style={styles.chartBox}>
+        <PdfMonthlyRamp options={claimingOptions} optimalAge={optimalAge} />
+      </View>
+
+      {appendix}
+
+      <PageFooter text={footerText} />
+    </Page>
+  );
+}

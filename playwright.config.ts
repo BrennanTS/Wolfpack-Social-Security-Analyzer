@@ -14,6 +14,8 @@ import { defineConfig } from '@playwright/test';
  * playwright.crosscheck.config.ts.
  */
 const useDev = !!process.env.PW_DEV;
+const port = Number(process.env.PW_PORT ?? 4173);
+const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: 'validation/e2e',
@@ -23,17 +25,14 @@ export default defineConfig({
   workers: 2,
   // Pre-commit must be deterministic, not retried green.
   retries: 0,
-  reporter: [['list']],
-  use: {
-    baseURL: 'http://localhost:4173',
-    trace: 'retain-on-failure',
-  },
+  reporter: [['list'], ['html', { open: 'never' }]],
+  use: { baseURL, trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
   webServer: {
     command: useDev
-      ? 'npx vite --port 4173 --strictPort'
-      : 'npm run build && npx vite preview --port 4173 --strictPort',
-    url: 'http://localhost:4173',
+      ? `npx vite --port ${port} --strictPort`
+      : `npm run build && npx vite preview --port ${port} --strictPort`,
+    url: baseURL,
     reuseExistingServer: useDev,
     timeout: 120_000,
   },

@@ -1,52 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AnalysisResult, Gender } from '../lib/socialSecurity';
-import {
-  computeBreakEvens,
-  formatAgeDisplay,
-  formatCurrency,
-  fraLabel,
-  getCurrentAge,
-  getFullRetirementAge,
-} from '../lib/socialSecurity';
 import { genderLabel, getSuggestedLifeExpectancy } from '../lib/lifeExpectancy';
+import { getCurrentAge } from '../lib/personAnalysis';
+import type { HouseholdAnalysis } from '../lib/household';
 import { BRAND_NAME } from '../lib/brand';
 import {
   analyzeIfComplete,
   BLANK_FORM,
   isFormComplete,
   suggestedLifeExpectancy,
-  toUserInputs,
-  type FormGender,
-  type FormMarital,
+  type AnalyzerFormState,
+  type PersonFormFields,
 } from '../lib/formState';
 import { downloadPdfReport } from '../lib/printReport';
 import { AssumptionsPanel } from './AssumptionsPanel';
-import { BenefitChart } from './BenefitChart';
-import { BreakEvenSection } from './BreakEvenSection';
-import { OptionalChartsPanel, type ChartKey } from './OptionalChartsPanel';
-import { ResultsPanel } from './ResultsPanel';
+import { HouseholdView } from './HouseholdView';
+import { PersonFields } from './PersonFields';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
 import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
 import { AppVersion } from './AppVersion';
-
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-const CURRENT_YEAR = new Date().getFullYear();
-const BIRTH_YEARS = Array.from({ length: 70 }, (_, i) => CURRENT_YEAR - 18 - i);
-
-const DEFAULT_CHART_VISIBILITY: Record<ChartKey, boolean> = {
-  monthlyBar: false,
-  lifetimeBar: false,
-  colaProjection: false,
-  spousalSurvivor: false,
-  lifetimeHeatmap: false,
-  opportunityCost: false,
-  monthlyRamp: false,
-};
+import { spousalMethodologyCopy } from './methodologyCopy';
 
 interface AnalyzerProps {
   onLogout: () => void;
@@ -55,68 +28,44 @@ interface AnalyzerProps {
 }
 
 export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps) {
-  const [birthYear, setBirthYear] = useState<number | ''>(BLANK_FORM.birthYear);
-  const [birthMonth, setBirthMonth] = useState<number | ''>(BLANK_FORM.birthMonth);
-  const [monthlyBenefit, setMonthlyBenefit] = useState<number | ''>(BLANK_FORM.monthlyBenefit);
+  const [personA, setPersonA] = useState<PersonFormFields>(BLANK_FORM.personA);
+  const [personB, setPersonB] = useState<PersonFormFields>(BLANK_FORM.personB);
+  const [hasSpouse, setHasSpouse] = useState<boolean | null>(BLANK_FORM.hasSpouse);
   const [lifeExpectancy, setLifeExpectancy] = useState<number | null>(BLANK_FORM.lifeExpectancy);
   const [annualCola, setAnnualCola] = useState(BLANK_FORM.annualCola);
   const [discountRate, setDiscountRate] = useState(BLANK_FORM.discountRate);
-  const [gender, setGender] = useState<FormGender>(BLANK_FORM.gender);
-  const [hasSpouse, setHasSpouse] = useState<FormMarital>(BLANK_FORM.hasSpouse);
-  const [spouseBirthYear, setSpouseBirthYear] = useState<number | ''>(BLANK_FORM.spouseBirthYear);
-  const [spouseBirthMonth, setSpouseBirthMonth] = useState<number | ''>(BLANK_FORM.spouseBirthMonth);
-  const [spouseMonthlyBenefit, setSpouseMonthlyBenefit] = useState<number | ''>(
-    BLANK_FORM.spouseMonthlyBenefit,
-  );
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [analysis, setAnalysis] = useState<HouseholdAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(true);
-  const [chartVisibility, setChartVisibility] = useState(DEFAULT_CHART_VISIBILITY);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
-  const form = useMemo(
+  const form = useMemo<AnalyzerFormState>(
     () => ({
-      birthYear,
-      birthMonth,
-      monthlyBenefit,
+      personA,
+      personB,
+      hasSpouse,
       lifeExpectancy,
       annualCola,
       discountRate,
-      gender,
-      hasSpouse,
-      spouseBirthYear,
-      spouseBirthMonth,
-      spouseMonthlyBenefit,
     }),
-    [
-      birthYear,
-      birthMonth,
-      monthlyBenefit,
-      lifeExpectancy,
-      annualCola,
-      discountRate,
-      gender,
-      hasSpouse,
-      spouseBirthYear,
-      spouseBirthMonth,
-      spouseMonthlyBenefit,
-    ],
+    [personA, personB, hasSpouse, lifeExpectancy, annualCola, discountRate],
   );
 
   const inputsComplete = isFormComplete(form);
-  const inputs = inputsComplete ? toUserInputs(form) : null;
 
   // The ssa.tools engine (benefits, optimal filing, expected PV) does not depend
   // on the chart-only COLA slider, so we intentionally exclude `annualCola` from
-  // the dependencies below. Break-even lines that DO use COLA are recomputed
-  // cheaply on the client via the `breakEvens` memo further down.
+  // the dependencies below. On-screen break-even lines that DO use COLA are
+  // recomputed cheaply from `analysis.people[0].claimingOptions` where they're
+  // needed (see `HouseholdPanel`); the PDF export instead uses the analysis's
+  // own baked-in `assumptions.annualCola`, since it's a point-in-time snapshot.
   useEffect(() => {
     if (!isFormComplete(form)) {
-      setResult(null);
+      setAnalysis(null);
       setAnalysisError(null);
       setAnalyzing(false);
       return;
@@ -129,13 +78,13 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     analyzeIfComplete(form)
       .then((next) => {
         if (!cancelled) {
-          setResult(next);
+          setAnalysis(next);
           setAnalyzing(false);
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setResult(null);
+          setAnalysis(null);
           setAnalysisError('Analysis failed. Check your inputs and try again.');
           setAnalyzing(false);
         }
@@ -145,89 +94,28 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    birthYear,
-    birthMonth,
-    monthlyBenefit,
-    lifeExpectancy,
-    discountRate,
-    gender,
-    hasSpouse,
-    spouseBirthYear,
-    spouseBirthMonth,
-    spouseMonthlyBenefit,
-  ]);
+  }, [personA, personB, hasSpouse, lifeExpectancy, discountRate]);
 
-  // Illustrative break-even ages depend on the flat COLA assumption; recompute
-  // them locally so moving the COLA slider updates instantly without re-running
-  // the full mortality-weighted analysis.
-  const breakEvens = useMemo(
-    () => (result ? computeBreakEvens(result.claimingOptions, annualCola) : []),
-    [result, annualCola],
-  );
   const ssaSuggested = suggestedLifeExpectancy(form);
 
-  const fra = useMemo(
-    () => (birthYear !== '' ? getFullRetirementAge(birthYear) : null),
-    [birthYear],
-  );
-  const currentAge = useMemo(
-    () =>
-      birthYear !== '' && birthMonth !== ''
-        ? getCurrentAge(birthYear, birthMonth)
-        : null,
-    [birthYear, birthMonth],
-  );
-  const spouseCurrentAge = useMemo(
-    () =>
-      spouseBirthYear !== '' && spouseBirthMonth !== ''
-        ? getCurrentAge(spouseBirthYear, spouseBirthMonth)
-        : null,
-    [spouseBirthYear, spouseBirthMonth],
-  );
-  const spouseFra = useMemo(
-    () => (spouseBirthYear !== '' ? getFullRetirementAge(spouseBirthYear) : null),
-    [spouseBirthYear],
-  );
-
-  function applyLifeExpectancySuggestion(nextGender: Gender) {
-    if (birthYear === '' || birthMonth === '') return;
-    const age = getCurrentAge(birthYear, birthMonth).years;
-    setLifeExpectancy(getSuggestedLifeExpectancy(age, nextGender));
-  }
-
-  function handleGenderChange(next: Gender) {
-    setGender(next);
-    applyLifeExpectancySuggestion(next);
+  function handlePersonAChange(next: PersonFormFields) {
+    setPersonA(next);
+    if (next.birthYear !== '' && next.birthMonth !== '' && next.gender !== null) {
+      const age = getCurrentAge(next.birthYear, next.birthMonth).years;
+      setLifeExpectancy(getSuggestedLifeExpectancy(age, next.gender));
+    }
   }
 
   function handleMaritalChange(married: boolean) {
     setHasSpouse(married);
-    if (married && birthYear !== '' && birthMonth !== '') {
-      if (spouseBirthYear === '') setSpouseBirthYear(birthYear);
-      if (spouseBirthMonth === '') setSpouseBirthMonth(birthMonth);
-    }
-  }
-
-  function handleBirthChange(year: number | '', month: number | '') {
-    setBirthYear(year);
-    setBirthMonth(month);
-    if (year !== '' && month !== '' && gender !== null) {
-      setLifeExpectancy(getSuggestedLifeExpectancy(getCurrentAge(year, month).years, gender));
-    }
-  }
-
-  function toggleChart(key: ChartKey) {
-    setChartVisibility((v) => ({ ...v, [key]: !v[key] }));
   }
 
   async function handleExportPdf() {
-    if (!inputs || !result) return;
+    if (!analysis) return;
     setExportError(null);
     setExporting(true);
     try {
-      // Use the live COLA-driven break-evens so the PDF matches what's on screen.
-      await downloadPdfReport(inputs, { ...result, breakEvens });
+      await downloadPdfReport(analysis);
     } catch {
       setExportError('PDF export failed. Please try again.');
     } finally {
@@ -296,72 +184,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           <p className="input-hint">A few quick fields for a more accurate analysis.</p>
 
           <div className="input-fields">
-            <div className="field">
-              <label htmlFor="birth">Date of Birth</label>
-              <div className="birth-row">
-                <select
-                  id="birth-month"
-                  value={birthMonth}
-                  onChange={(e) => {
-                    const month = e.target.value === '' ? '' : Number(e.target.value);
-                    handleBirthChange(birthYear, month);
-                  }}
-                  aria-label="Birth month"
-                >
-                  <option value="">Month</option>
-                  {MONTHS.map((m, i) => (
-                    <option key={m} value={i + 1}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  id="birth"
-                  value={birthYear}
-                  onChange={(e) => {
-                    const year = e.target.value === '' ? '' : Number(e.target.value);
-                    handleBirthChange(year, birthMonth);
-                  }}
-                  aria-label="Birth year"
-                >
-                  <option value="">Year</option>
-                  {BIRTH_YEARS.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {currentAge && fra && (
-                <div className="age-badge">
-                  <div>
-                    <span className="age-badge-label">Client age</span>
-                    <span className="age-badge-meta">FRA {fraLabel(fra)}</span>
-                  </div>
-                  <span className="age-badge-value">{formatAgeDisplay(currentAge)}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="field">
-              <span className="field-label">Gender</span>
-              <div className="segmented-control" role="group" aria-label="Gender">
-                {(['female', 'male'] as const).map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    className={`segment-btn ${gender === g ? 'segment-btn-active' : ''}`}
-                    onClick={() => handleGenderChange(g)}
-                    aria-pressed={gender === g}
-                  >
-                    {genderLabel(g)}
-                  </button>
-                ))}
-              </div>
-              <span className="field-hint">
-                Used for SSA life expectancy tables (period life table)
-              </span>
-            </div>
+            <PersonFields person={personA} index={0} onChange={handlePersonAChange} />
 
             <div className="field">
               <span className="field-label">Marital status</span>
@@ -384,104 +207,11 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 </button>
               </div>
               <span className="field-hint">
-                Married uses ssa.tools couple optimizer (spousal + survivor strategies)
+                Married uses ssa.tools couple optimizer (includes the spousal top-up)
               </span>
             </div>
 
-            {hasSpouse && (
-              <>
-                <div className="field">
-                  <label>Spouse date of birth</label>
-                  <div className="birth-row">
-                    <select
-                      value={spouseBirthMonth}
-                      onChange={(e) => {
-                        const month = e.target.value === '' ? '' : Number(e.target.value);
-                        setSpouseBirthMonth(month);
-                      }}
-                      aria-label="Spouse birth month"
-                    >
-                      <option value="">Month</option>
-                      {MONTHS.map((m, i) => (
-                        <option key={m} value={i + 1}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={spouseBirthYear}
-                      onChange={(e) => {
-                        const year = e.target.value === '' ? '' : Number(e.target.value);
-                        setSpouseBirthYear(year);
-                      }}
-                      aria-label="Spouse birth year"
-                    >
-                      <option value="">Year</option>
-                      {BIRTH_YEARS.map((y) => (
-                        <option key={y} value={y}>
-                          {y}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {spouseCurrentAge && spouseFra && (
-                    <div className="age-badge">
-                      <div>
-                        <span className="age-badge-label">Spouse age</span>
-                        <span className="age-badge-meta">FRA {fraLabel(spouseFra)}</span>
-                      </div>
-                      <span className="age-badge-value">{formatAgeDisplay(spouseCurrentAge)}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="field">
-                  <label htmlFor="spouse-benefit">Spouse benefit at FRA</label>
-                  <div className="currency-input">
-                    <span className="currency-prefix">$</span>
-                    <input
-                      id="spouse-benefit"
-                      type="number"
-                      min={0}
-                      max={5000}
-                      step={50}
-                      value={spouseMonthlyBenefit}
-                      placeholder="0"
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        setSpouseMonthlyBenefit(raw === '' ? '' : Number(raw));
-                      }}
-                    />
-                  </div>
-                  <span className="field-hint">
-                    Enter $0 if spouse has little or no own work record
-                  </span>
-                </div>
-              </>
-            )}
-
-            <div className="field">
-              <label htmlFor="benefit">Monthly Benefit at Full Retirement Age</label>
-              <div className="currency-input">
-                <span className="currency-prefix">$</span>
-                <input
-                  id="benefit"
-                  type="number"
-                  min={500}
-                  max={5000}
-                  step={50}
-                  value={monthlyBenefit}
-                  placeholder="0"
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    setMonthlyBenefit(raw === '' ? '' : Number(raw));
-                  }}
-                />
-              </div>
-              <span className="field-hint">
-                From your SSA statement or mySocialSecurity.gov estimate
-              </span>
-            </div>
+            {hasSpouse && <PersonFields person={personB} index={1} onChange={setPersonB} />}
 
             <AssumptionsPanel
               lifeExpectancy={lifeExpectancy}
@@ -491,7 +221,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               discountRate={discountRate}
               onDiscountRateChange={setDiscountRate}
               ssaSuggestedLifeExpectancy={ssaSuggested}
-              gender={gender}
+              gender={personA.gender}
               expanded={showAssumptions}
               onToggle={() => setShowAssumptions(!showAssumptions)}
             />
@@ -499,9 +229,9 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
 
           <div className="input-summary">
             <p>
-              {inputsComplete && gender ? (
+              {inputsComplete && personA.gender ? (
                 <>
-                  Analyzing <strong>{genderLabel(gender)}</strong>
+                  Analyzing <strong>{genderLabel(personA.gender)}</strong>
                   {hasSpouse ? ', married (ssa.tools couple)' : ', single'} claimant —
                   benefits via <strong>ssa.tools</strong> engine.
                 </>
@@ -528,7 +258,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               <h3>Analysis unavailable</h3>
               <p>{analysisError}</p>
             </div>
-          ) : !result || !inputs ? (
+          ) : !analysis ? (
             <div className="empty-state">
               <div className="empty-state-icon" aria-hidden="true">
                 <span />
@@ -541,41 +271,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             </div>
           ) : (
             <>
-              <ResultsPanel
-                fra={result.fra}
-                currentAge={result.currentAge}
-                claimingOptions={result.claimingOptions}
-                optimalAge={result.optimalAge}
-                optimalFilingAge={result.optimalFilingAge}
-                optimalMonthly={result.optimalMonthly}
-                expectedPresentValue={result.expectedPresentValue}
-                discountRate={result.discountRate}
-                recommendation={result.recommendation}
-                recommendationDetail={result.recommendationDetail}
-                lifeExpectancy={lifeExpectancy!}
-                annualCola={annualCola}
-                gender={inputs.gender}
-                hasSpouse={inputs.hasSpouse}
-                spousal={result.spousal}
-              />
-
-              <div className="output-duo">
-                <BenefitChart
-                  options={result.claimingOptions}
-                  lifeExpectancy={lifeExpectancy!}
-                  optimalAge={result.optimalAge}
-                  annualCola={annualCola}
-                />
-
-                <BreakEvenSection breakEvens={breakEvens} lifeExpectancy={lifeExpectancy!} />
-              </div>
-
-              <OptionalChartsPanel
-                result={result}
-                inputs={inputs}
-                visibility={chartVisibility}
-                onToggle={toggleChart}
-              />
+              <HouseholdView analysis={analysis} annualCola={annualCola} />
 
               <div className="methodology">
                 <h3>How This Works</h3>
@@ -605,17 +301,14 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                     <strong>Life expectancy by gender</strong>
                     <p>
                       SSA 2021 period life table suggests planning to age{' '}
-                      {result.ssaSuggestedLifeExpectancy} for a{' '}
-                      {genderLabel(inputs.gender).toLowerCase()} at age {result.currentAge.years}. Adjust under Planning assumptions.
+                      {analysis.people[0].ssaSuggestedLifeExpectancy} for a{' '}
+                      {genderLabel(analysis.people[0].person.gender).toLowerCase()} at age{' '}
+                      {analysis.people[0].currentAge.years}. Adjust under Planning assumptions.
                     </p>
                   </div>
                   <div>
-                    <strong>Spousal & survivor benefits</strong>
-                    <p>
-                      {inputs.hasSpouse
-                        ? `Spouse may receive up to ${formatCurrency(result.spousal?.spousalBenefitAtFra ?? 0)}/mo at their FRA (50% of your PIA). Survivor receives your full monthly amount.`
-                        : 'Select Married to model spousal and survivor benefits.'}
-                    </p>
+                    <strong>Spousal benefits</strong>
+                    <p data-testid="methodology-spousal">{spousalMethodologyCopy(analysis)}</p>
                   </div>
                 </div>
               </div>

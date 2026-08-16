@@ -1,5 +1,4 @@
-import type { ClaimingOption } from './socialSecurity';
-import { cumulativeBenefits } from './socialSecurity';
+import { cumulativeBenefits, type ClaimingOption } from './benefitMath';
 
 export interface HeatmapCell {
   claimAge: number;

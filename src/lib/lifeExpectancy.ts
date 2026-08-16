@@ -19,16 +19,43 @@ const FEMALE_REMAINING: Record<number, number> = {
 export const SSA_LIFE_TABLE_URL =
   'https://www.ssa.gov/oact/STATS/table4c6.html';
 
+/** The tables start at the earliest claiming age; younger lookups clamp here. */
+const MIN_TABLE_AGE = 62;
+
 function lookupRemaining(age: number, gender: Gender): number {
   const table = gender === 'male' ? MALE_REMAINING : FEMALE_REMAINING;
-  const clamped = Math.max(62, Math.min(95, Math.round(age)));
+  const clamped = Math.max(MIN_TABLE_AGE, Math.min(95, Math.round(age)));
   return table[clamped] ?? (gender === 'male' ? 10 : 12);
 }
 
-/** Suggested plan-to age using SSA period life expectancy at current age. */
+/**
+ * Suggested plan-to age using SSA period life expectancy at current age.
+ *
+ * Below 62 the lookup is clamped to the age-62 row, but the remaining years
+ * it returns were being added to the person's *actual* age — projecting a
+ * 45-year-old man to age 65 and a 40-year-old to 60, i.e. death at or before
+ * the earliest claiming age. That is reachable: the form accepts birth years
+ * back to age 18, and wide age gaps are a headline use case (person B's life
+ * expectancy is derived from this function with no control of its own, and
+ * it is printed in the client PDF).
+ *
+ * Rule: the age-62 projection (62 + remaining years at 62) is a floor.
+ *
+ * Rationale — this tool only ever answers "when should you claim?", a
+ * question that presupposes reaching 62. SSA's e(x) is a *conditional*
+ * expectation, so 62 + e(62) is exactly the expected age at death of someone
+ * who reaches the claiming window. A younger person's unconditional
+ * expectation sits lower only because some of them die before claiming,
+ * which is not the branch being planned for. Expressing it as a floor rather
+ * than a replacement keeps the result non-decreasing in age and can never
+ * pull down a projection that came from a real in-table row.
+ */
 export function getSuggestedLifeExpectancy(currentAgeYears: number, gender: Gender): number {
-  const remaining = lookupRemaining(currentAgeYears, gender);
-  return Math.round(currentAgeYears + remaining);
+  const projected = Math.round(currentAgeYears + lookupRemaining(currentAgeYears, gender));
+  const floorAtClaimingAge = Math.round(
+    MIN_TABLE_AGE + lookupRemaining(MIN_TABLE_AGE, gender),
+  );
+  return Math.max(projected, floorAtClaimingAge);
 }
 
 export function genderLabel(gender: Gender): string {

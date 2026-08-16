@@ -28,7 +28,7 @@ see the gaps below.)
 | 1  | Single | Baseline single, delay to 70 | ✅ **Added** | `sample-hh1-single-1962-pia2400-delay70` |
 | 2  | MFJ | Dual high earners, split strategy | ✅ **Added** (partial) | `sample-hh2-married-1960-dual-high-earners` — worker tables + $0 top-up asserted; *which spouse delays* is not a value we assert |
 | 3  | MFJ | Reduced spousal top-up (own < 50% of higher PIA) | ✅ **Added** | `sample-hh3-married-1959-reduced-spousal` — top-up **$1,100**; worker FRA 66y10m |
-| 4  | MFJ | Wide age gap, staggered claiming | ⚠️ **Aged out** | Worker born 3/1955 is 71 now; the optimizer rejects cohorts ≥ 70, so it can't run `full`. Spousal top-up is $0 here anyway. Could add worker-only factor coverage in `factorsOnly`, but that drops the married/age-gap point the case is about. |
+| 4  | MFJ | Wide age gap, staggered claiming | ✅ **Added** | `sample-hh4-married-1955-wide-age-gap` — `asOf` pinned to 2024-01-15 (worker was 68, turning 69 in Mar 2024) so the optimizer has a prospective filing age; $0 top-up (spouse's own PIA exceeds half the worker's) |
 | 5  | Widowed | Survivor, deceased claimed at FRA | ❌ **Not modeled** | No widowed filing status; survivor benefit — see gaps |
 | 6  | Single | Divorced-spouse benefit | ❌ **Not modeled** | No divorced-spouse logic |
 | 7  | Single | Divorced survivor benefit | ❌ **Not modeled** | No divorced/survivor logic |
@@ -52,14 +52,19 @@ product feature that does not exist yet.
 
 ## Coverage summary
 
-- **4 of 20** added as fixtures: HH1, HH2, HH3, HH13 (see
+- **5 of 20** added as fixtures: HH1, HH2, HH3, HH4, HH13 (see
   [`../scripts/gen-fixtures.mjs`](../scripts/gen-fixtures.mjs), regenerate with
   `npm run fixtures:gen`).
 - HH3 is the first **married, non-integer-FRA** cross-check case; the live
   cross-check's worker-table picker was made robust for it (it now selects the
   worker's table by closest fit to the expected values instead of assuming
   "benefit at FRA == PIA").
-- The remaining 16 are out of scope for the current PIA-in, single/married,
+- Every fixture pins an `asOf` date (Task 21) so `full`-mode eligibility and
+  the optimizer's chosen filing ages are deterministic. HH4 is the case this
+  unlocked: it needs `asOf: "2024-01-15"` specifically, since the 1955 cohort
+  ages out of the optimizer (turns 70) under the default `asOf` the other
+  fixtures use.
+- The remaining 15 are out of scope for the current PIA-in, single/married,
   retirement-only model.
 
 ## What each gap would require

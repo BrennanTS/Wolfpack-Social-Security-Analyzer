@@ -921,6 +921,21 @@
   line-height: 1.4;
 }
 
+.person-fields {
+  border: none;
+  margin: 0 0 8px;
+  padding: 0;
+  min-width: 0;
+}
+
+.person-fields legend {
+  padding: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
 .age-badge {
   display: flex;
   align-items: center;
@@ -1188,6 +1203,59 @@
 }
 
 .results {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─── Household Tab Strip ─── */
+.household-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.household-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--fill-secondary);
+  border-radius: var(--radius);
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.household-tab {
+  padding: 10px 20px;
+  min-height: 40px;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.25s var(--ease), color 0.25s var(--ease);
+}
+
+.household-tab:hover:not(.household-tab-active) {
+  color: var(--text);
+}
+
+.household-tab:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.household-tab-active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.household-tabpanel {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -1508,6 +1576,22 @@ tbody tr:hover {
   width: 100%;
   height: clamp(220px, 28vh, 320px);
   min-height: 220px;
+}
+
+/*
+ * Honest limitation notice on a chart. Phase 1 models each person's own
+ * benefit only; the survivor step-up (greater of the two benefits, subject
+ * to RIB-LIM) arrives in Phase 2, so the post-death drop reads deeper than
+ * it would be. Styled to be read, not skimmed past.
+ */
+.chart-caveat {
+  max-width: 62ch;
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--gold, #b8965a);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-muted, #5c5c5c);
 }
 
 .chart-axis-caption {
@@ -2051,10 +2135,15 @@ tbody tr:hover {
 }
 
 @media (max-width: 720px) {
-  .table-wrap table th:nth-child(5),
-  .table-wrap table td:nth-child(5),
-  .table-wrap table th:nth-child(6),
-  .table-wrap table td:nth-child(6) {
+  /* Drops the benefit table's 5th column ("Status"), which is decorative —
+     the optimal row already carries a "Best" badge and ineligible rows are
+     styled. Scoped to that one table by testid: the unscoped
+     `.table-wrap table` selector also matched the strategy comparison table,
+     where a married household's 5th column is "vs. best" — the entire point
+     of that table — so it silently vanished on phones and portrait tablets.
+     No table in the app has a 6th column. */
+  [data-testid='benefit-table'] th:nth-child(5),
+  [data-testid='benefit-table'] td:nth-child(5) {
     display: none;
   }
 

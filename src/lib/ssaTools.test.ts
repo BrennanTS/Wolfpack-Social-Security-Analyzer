@@ -1,11 +1,32 @@
-import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MonthDuration } from '$lib/month-time';
+import { getDeathProbabilityDistribution } from '$lib/life-tables';
 import {
   createPiaRecipient,
+  findStrategyByAges,
   fraFromBirthYear,
+  isSsaClaimAgeEligible,
+  monthDateFrom,
   nearestWholeClaimAge,
-  spousalBenefitAtFra,
+  rankedCoupleStrategies,
+  rankedSingleStrategies,
+  spousalTopUp,
   ssaMonthlyBenefitAtAge,
 } from './ssaTools';
+
+// Spy on the vendored mortality entry point while still executing the real
+// life tables, so the determinism tests below can assert which reference year
+// the survival curve is conditioned on. Behaviour is unchanged for every other
+// test in this file — the spy just delegates.
+vi.mock('$lib/life-tables', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/life-tables')>();
+  return { ...actual, getDeathProbabilityDistribution: vi.fn(actual.getDeathProbabilityDistribution) };
+});
+
+const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
 describe('fraFromBirthYear (SSA full retirement age schedule)', () => {
   it('returns 66y for 1954 and earlier', () => {
@@ -56,15 +77,45 @@ describe('ssaMonthlyBenefitAtAge (reduction / delayed credits)', () => {
   });
 });
 
-describe('spousalBenefitAtFra', () => {
-  it('tops a no-earnings spouse up to 50% of the worker PIA', () => {
-    const worker = createPiaRecipient(1960, 6, 2500, 'male');
-    expect(spousalBenefitAtFra(worker, 0)).toBeCloseTo(1250, 0);
+describe('spousalTopUp', () => {
+  const worker = createPiaRecipient(1960, 6, 2500, 'male');
+  const fra = MonthDuration.initFromYearsMonths({ years: 67, months: 0 });
+
+  it('tops a no-record spouse up to half the worker PIA at their FRA', () => {
+    const spouse = createPiaRecipient(1962, 3, 0, 'female');
+    expect(spousalTopUp(worker, spouse, fra)).toBeCloseTo(1250, 0);
   });
 
-  it('returns no top-up when the spouse PIA already exceeds half the worker PIA', () => {
-    const worker = createPiaRecipient(1960, 6, 2500, 'male');
-    expect(spousalBenefitAtFra(worker, 2000)).toBe(0);
+  it('pays nothing when the spouse own PIA already exceeds half the worker PIA', () => {
+    const spouse = createPiaRecipient(1962, 3, 2000, 'female');
+    expect(spousalTopUp(worker, spouse, fra)).toBe(0);
+  });
+
+  it('reduces the top-up when the spouse claims before their FRA', () => {
+    const spouse = createPiaRecipient(1962, 3, 0, 'female');
+    const atFra = spousalTopUp(worker, spouse, fra);
+    const atSixtyTwo = spousalTopUp(
+      worker,
+      spouse,
+      MonthDuration.initFromYearsMonths({ years: 62, months: 0 }),
+    );
+    expect(atSixtyTwo).toBeGreaterThan(0);
+    expect(atSixtyTwo).toBeLessThan(atFra);
+  });
+
+  it('uses the spouse own birthdate, not the worker birthdate', () => {
+    // The worker's own FRA is 67 (born 1960). A spouse who shares that
+    // birthdate is a decoy: it can't distinguish "used the spouse's
+    // birthdate" from "used the worker's birthdate" (both give FRA 67). Only
+    // a spouse born before 1960 — with a genuinely different FRA (66) — can
+    // tell the two apart, since post-1960 birth years all plateau at FRA 67.
+    const sameAge = createPiaRecipient(1960, 6, 0, 'female');
+    const olderCohort = createPiaRecipient(1950, 6, 0, 'female');
+    const early = MonthDuration.initFromYearsMonths({ years: 62, months: 0 });
+    // Different FRA schedules produce different early-claim reductions.
+    expect(spousalTopUp(worker, sameAge, early)).not.toBe(
+      spousalTopUp(worker, olderCohort, early),
+    );
   });
 });
 
@@ -77,5 +128,130 @@ describe('nearestWholeClaimAge (clamps to the 62–70 filing window)', () => {
   it('clamps below 62 and above 70', () => {
     expect(nearestWholeClaimAge(59)).toBe(62);
     expect(nearestWholeClaimAge(73)).toBe(70);
+  });
+});
+
+describe('monthDateFrom', () => {
+  it('converts a JS date to the engine month grid', () => {
+    // MonthDate months are 0-indexed, matching Date.getMonth().
+    const md = monthDateFrom(new Date(2026, 7, 15)); // Aug 2026
+    expect(md.year()).toBe(2026);
+    expect(md.monthIndex()).toBe(7);
+  });
+});
+
+describe('isSsaClaimAgeEligible with an injected date', () => {
+  it('treats a claim age as reached only once the reference date passes it', () => {
+    const r = createPiaRecipient(1960, 6, 2500, 'female'); // born Jun 1960
+    expect(isSsaClaimAgeEligible(r, 65, new Date(2024, 5, 1))).toBe(false);
+    expect(isSsaClaimAgeEligible(r, 65, new Date(2026, 5, 1))).toBe(true);
+  });
+});
+
+describe('ranked strategies', () => {
+  // Serve the real life-table JSON from public/ so the async mortality path runs
+  // exactly as it does in the browser after the on-demand fetch change.
+  beforeAll(() => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      const relative = String(url).replace(/^\//, '');
+      const file = path.join(publicDir, relative);
+      const contents = await readFile(file, 'utf8');
+      return {
+        ok: true,
+        json: async () => JSON.parse(contents),
+      } as Response;
+    });
+  });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const asOf = new Date(2026, 0, 15);
+
+  it('returns single strategies sorted best-first', async () => {
+    const r = createPiaRecipient(1962, 6, 2500, 'female');
+    const ranked = await rankedSingleStrategies(r, 0.025, asOf);
+    expect(ranked.length).toBeGreaterThan(1);
+    expect(ranked[0].filingAges).toHaveLength(1);
+    for (let i = 1; i < ranked.length; i++) {
+      expect(ranked[i - 1].expectedNpv).toBeGreaterThanOrEqual(ranked[i].expectedNpv);
+    }
+  });
+
+  it('returns couple strategies with one filing age per person, sorted best-first', async () => {
+    const a = createPiaRecipient(1962, 6, 3200, 'male');
+    const b = createPiaRecipient(1964, 2, 2100, 'female');
+    const ranked = await rankedCoupleStrategies(a, b, 0.025, asOf);
+    expect(ranked[0].filingAges).toHaveLength(2);
+    expect(ranked[0].expectedNpv).toBeGreaterThanOrEqual(ranked[1].expectedNpv);
+  });
+
+  it('finds an exact whole-year combination and returns null when absent', async () => {
+    const a = createPiaRecipient(1962, 6, 3200, 'male');
+    const b = createPiaRecipient(1964, 2, 2100, 'female');
+    const ranked = await rankedCoupleStrategies(a, b, 0.025, asOf);
+
+    const both70 = findStrategyByAges(ranked, [
+      { years: 70, months: 0 },
+      { years: 70, months: 0 },
+    ]);
+    expect(both70).not.toBeNull();
+    expect(both70!.filingAges[0].years).toBe(70);
+    expect(both70!.filingAges[1].years).toBe(70);
+
+    // 61 is below the SSA filing window, so no strategy uses it.
+    expect(
+      findStrategyByAges(ranked, [
+        { years: 61, months: 0 },
+        { years: 61, months: 0 },
+      ]),
+    ).toBeNull();
+  });
+
+  // Regression: the mortality distribution used to be requested with no
+  // reference year, so `getDeathProbabilityDistribution` fell back to its
+  // `new Date().getFullYear()` default. Every expected NPV was then weighted
+  // by a survival curve conditioned on the wall clock while the optimizer ran
+  // from `asOf` — meaning results silently changed every 1 January and the
+  // one fixture pinned to a past year was never actually evaluated in it.
+  describe('asOf determinism', () => {
+    const distSpy = vi.mocked(getDeathProbabilityDistribution);
+
+    beforeEach(() => {
+      distSpy.mockClear();
+    });
+
+    it('conditions the single survival curve on asOf, not the wall clock', async () => {
+      const r = createPiaRecipient(1962, 6, 2500, 'female');
+      await rankedSingleStrategies(r, 0.025, new Date(2024, 0, 15));
+      expect(distSpy).toHaveBeenCalledWith(r, 2024);
+    });
+
+    it('conditions both couple survival curves on asOf', async () => {
+      const a = createPiaRecipient(1962, 6, 3200, 'male');
+      const b = createPiaRecipient(1964, 2, 2100, 'female');
+      await rankedCoupleStrategies(a, b, 0.025, new Date(2024, 0, 15));
+      expect(distSpy).toHaveBeenCalledWith(a, 2024);
+      expect(distSpy).toHaveBeenCalledWith(b, 2024);
+    });
+
+    it('produces identical rankings for a fixed asOf no matter what year it is run in', async () => {
+      const build = () => createPiaRecipient(1962, 6, 2500, 'female');
+      const pinned = new Date(2026, 0, 15);
+
+      const baseline = await rankedSingleStrategies(build(), 0.025, pinned);
+
+      // Fake only Date, so the async life-table fetch still resolves.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date(2031, 5, 1));
+        const later = await rankedSingleStrategies(build(), 0.025, pinned);
+        expect(later.map((s) => s.expectedNpv)).toEqual(baseline.map((s) => s.expectedNpv));
+        expect(later[0].filingAges[0].label).toBe(baseline[0].filingAges[0].label);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

@@ -1,5 +1,5 @@
-import type { AnalysisResult, UserInputs } from '../lib/socialSecurity';
-import { formatCurrency } from '../lib/socialSecurity';
+import type { ClaimingOption } from '../lib/benefitMath';
+import type { ChartKey } from '../lib/chartVisibility';
 import {
   ColaProjectionChart,
   LifetimeBarChart,
@@ -7,35 +7,35 @@ import {
   MonthlyBenefitBarChart,
   MonthlyRampChart,
   OpportunityCostChart,
-  SpousalSurvivorChart,
 } from './OptionalCharts';
 import { ToggleChartSection } from './ToggleChartSection';
 
-export type ChartKey =
-  | 'monthlyBar'
-  | 'lifetimeBar'
-  | 'colaProjection'
-  | 'spousalSurvivor'
-  | 'lifetimeHeatmap'
-  | 'opportunityCost'
-  | 'monthlyRamp';
+export type { ChartKey };
 
 interface OptionalChartsPanelProps {
-  result: AnalysisResult;
-  inputs: UserInputs;
+  claimingOptions: ClaimingOption[];
+  optimalAge: number;
+  lifeExpectancy: number;
+  annualCola: number;
   visibility: Record<ChartKey, boolean>;
   onToggle: (key: ChartKey) => void;
 }
 
+/**
+ * Per-person optional chart gallery — takes plain `PersonAnalysis`-derived
+ * values (`claimingOptions`, `optimalAge`, `lifeExpectancy`, `annualCola`)
+ * rather than a household-level shape, so it has no dependency on
+ * `household.ts`. Rendered once per person, inside `PersonPanel`.
+ */
 export function OptionalChartsPanel({
-  result,
-  inputs,
+  claimingOptions,
+  optimalAge,
+  lifeExpectancy,
+  annualCola,
   visibility,
   onToggle,
 }: OptionalChartsPanelProps) {
-  const { claimingOptions, optimalAge, spousal } = result;
   const optimal = claimingOptions.find((o) => o.age === optimalAge)!;
-  const { lifeExpectancy, annualCola, hasSpouse } = inputs;
 
   return (
     <div className="optional-charts">
@@ -108,26 +108,6 @@ export function OptionalChartsPanel({
           lifeExpectancy={lifeExpectancy}
           annualCola={annualCola}
         />
-      </ToggleChartSection>
-
-      <ToggleChartSection
-        title="Spousal & Survivor Benefits"
-        description={
-          hasSpouse
-            ? `Survivor benefit equals your monthly amount. Spousal benefit at FRA is ${formatCurrency(spousal?.spousalBenefitAtFra ?? 0)} (50% of your PIA).`
-            : 'Enable "Married" in your profile to view spousal and survivor projections.'
-        }
-        visible={visibility.spousalSurvivor}
-        onToggle={() => onToggle('spousalSurvivor')}
-        disabled={!hasSpouse}
-      >
-        {hasSpouse && spousal && (
-          <SpousalSurvivorChart
-            options={claimingOptions}
-            spousalAtFra={spousal.spousalBenefitAtFra}
-            optimalAge={optimalAge}
-          />
-        )}
       </ToggleChartSection>
       </div>
     </div>

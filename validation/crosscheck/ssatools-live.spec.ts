@@ -58,9 +58,10 @@ function isoDob(year: number, month: number): string {
 
 function calculatorUrl(scenario: GoldenScenario): string {
   const { inputs } = scenario;
-  let url = `https://ssa.tools/calculator#pia1=${inputs.monthlyBenefitAtFra}&dob1=${isoDob(inputs.birthYear, inputs.birthMonth)}`;
-  if (inputs.hasSpouse) {
-    url += `&pia2=${inputs.spouseMonthlyBenefitAtFra ?? 0}&dob2=${isoDob(inputs.spouseBirthYear, inputs.spouseBirthMonth)}`;
+  const [person, spouse] = inputs.people;
+  let url = `https://ssa.tools/calculator#pia1=${person.piaMonthly}&dob1=${isoDob(person.birthYear, person.birthMonth)}`;
+  if (inputs.status === 'married' && spouse) {
+    url += `&pia2=${spouse.piaMonthly}&dob2=${isoDob(spouse.birthYear, spouse.birthMonth)}`;
   }
   return url;
 }
@@ -90,7 +91,10 @@ async function fetchSsaTools(page: Page, scenario: GoldenScenario): Promise<Live
   // Robust to non-integer FRA, where "benefit at FRA == PIA" does not hold.)
   const workerByAge = tables.length === 1 ? tables[0] : pickClosestTable(tables, scenario);
 
-  return { workerByAge, spousalTopupAtFra: scenario.inputs.hasSpouse ? parseSpousalTopup(md) : null };
+  return {
+    workerByAge,
+    spousalTopupAtFra: scenario.inputs.status === 'married' ? parseSpousalTopup(md) : null,
+  };
 }
 
 /**
@@ -103,7 +107,7 @@ function pickClosestTable(
   tables: Record<string, number>[],
   scenario: GoldenScenario,
 ): Record<string, number> {
-  const expected = scenario.expected.monthlyByClaimAge;
+  const expected = scenario.expected.monthlyByClaimAgeByPerson[0];
   const deviation = (t: Record<string, number>) =>
     Object.entries(expected).reduce(
       (sum, [age, v]) => sum + (age in t ? Math.abs(t[age] - v) : 1e9),
@@ -163,7 +167,7 @@ test.describe('ssa.tools live cross-check', () => {
         return;
       }
 
-      const deltas: AgeDelta[] = Object.entries(scenario.expected.monthlyByClaimAge).map(
+      const deltas: AgeDelta[] = Object.entries(scenario.expected.monthlyByClaimAgeByPerson[0]).map(
         ([age, ours]) => {
           const theirs = live.workerByAge[age] ?? null;
           const delta = theirs === null ? null : theirs - ours;
@@ -180,7 +184,7 @@ test.describe('ssa.tools live cross-check', () => {
       // Cross-check the spousal top-up only for the unambiguous case where the
       // worker is the higher earner (fixture top-up > 0); role-flipped/zero
       // cases are covered by the engine + UI suites.
-      const expectedSpousal = scenario.expected.spousalBenefitAtFra;
+      const expectedSpousal = scenario.expected.spousalTopUpAtFra;
       const report: ScenarioReport = { id: scenario.id, implemented: true, deltas };
       if (expectedSpousal !== null && expectedSpousal > 0) {
         const theirs = live.spousalTopupAtFra;

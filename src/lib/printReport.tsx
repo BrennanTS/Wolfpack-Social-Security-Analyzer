@@ -1,4 +1,4 @@
-import type { AnalysisResult, UserInputs } from './socialSecurity';
+import type { HouseholdAnalysis } from './household';
 
 function reportFilename(): string {
   const date = new Date().toISOString().slice(0, 10);
@@ -6,14 +6,11 @@ function reportFilename(): string {
 }
 
 /** Generate and download a PDF without using the browser print dialog. */
-export async function downloadPdfReport(
-  inputs: UserInputs,
-  result: AnalysisResult,
-): Promise<void> {
+export async function downloadPdfReport(analysis: HouseholdAnalysis): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
-  const { PdfReportDocument: Report } = await import('../components/PdfReportDocument');
+  const { ReportDocument } = await import('../components/pdf/ReportDocument');
 
-  const blob = await pdf(<Report inputs={inputs} result={result} />).toBlob();
+  const blob = await pdf(<ReportDocument analysis={analysis} />).toBlob();
 
   const url = URL.createObjectURL(blob);
   try {

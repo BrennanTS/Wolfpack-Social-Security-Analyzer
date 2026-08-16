@@ -21,6 +21,18 @@ export const DEFAULT_BIRTH_DAY = 15;
 /** ssa.tools default — 20-year TIPS yield proxy. */
 export const DEFAULT_DISCOUNT_RATE = 0.025;
 
+/**
+ * Converts a JS Date to the engine's month grid. Every "now" in this adapter
+ * routes through here so callers can pin a reference date, which is what makes
+ * fixtures deterministic and stops cohorts aging out of the optimizer.
+ */
+export function monthDateFrom(asOf: Date): MonthDate {
+  return MonthDate.initFromYearsMonths({
+    years: asOf.getFullYear(),
+    months: asOf.getMonth(),
+  });
+}
+
 export interface FilingAgeDisplay {
   years: number;
   months: number;
@@ -42,19 +54,11 @@ export function createPiaRecipient(
   return recipient;
 }
 
-export function fraFromBirthYear(birthYear: number): {
-  years: number;
-  months: number;
-  totalMonths: number;
-} {
+export function fraFromBirthYear(birthYear: number): { years: number; months: number } {
   const recipient = new Recipient();
   recipient.birthdate = Birthdate.FromYMD(birthYear, 5, DEFAULT_BIRTH_DAY);
   const fra = recipient.normalRetirementAge();
-  return {
-    years: fra.years(),
-    months: fra.modMonths(),
-    totalMonths: fra.asMonths(),
-  };
+  return { years: fra.years(), months: fra.modMonths() };
 }
 
 export function formatFilingAge(age: MonthDuration): FilingAgeDisplay {
@@ -99,20 +103,48 @@ export function isSsaClaimAgeEligible(
   claimAgeYears: number,
   asOf: Date = new Date(),
 ): boolean {
-  const asOfMonth = MonthDate.initFromYearsMonths({
-    years: asOf.getFullYear(),
-    months: asOf.getMonth(),
-  });
-  const currentAge = recipient.birthdate.ageAtSsaDate(asOfMonth);
+  const currentAge = recipient.birthdate.ageAtSsaDate(monthDateFrom(asOf));
   const claimAgeMonths = MonthDuration.initFromYearsMonths({ years: claimAgeYears, months: 0 });
   return currentAge.greaterThanOrEqual(claimAgeMonths);
 }
 
-export function spousalBenefitAtFra(worker: Recipient, spousePia = 0): number {
-  const spouse = new Recipient();
-  spouse.birthdate = worker.birthdate;
-  spouse.setPia(Money.from(spousePia));
-  return baseSpousalBenefit(worker, spouse).value();
+/**
+ * The spousal top-up the dependent spouse actually receives if they start
+ * spousal benefits at `spouseFilingAge`: the amount by which half of the
+ * worker's PIA exceeds the spouse's own PIA, reduced if the spouse claims
+ * before their own full retirement age. Delayed retirement credits never
+ * apply to spousal benefits, so filing at or after FRA gives the full
+ * (unreduced) amount.
+ *
+ * Replaces the previous FRA-only helper, which fabricated the spouse from the
+ * worker's birthdate and therefore ignored both the spouse's real age and the
+ * reduction for claiming early.
+ *
+ * The vendored engine (src/vendor/ssa-tools/benefit-calculator.ts) has no
+ * age-based spousal export: `baseSpousalBenefit` returns only the unreduced
+ * amount, and `spousalBenefitOnDate` is date-based and requires filing dates
+ * for both members that this function's signature doesn't carry. So this
+ * composes `baseSpousalBenefit` with the SSA early-filing reduction schedule
+ * directly (same formula `spousalBenefitOnDate` uses internally).
+ */
+export function spousalTopUp(
+  worker: Recipient,
+  spouse: Recipient,
+  spouseFilingAge: MonthDuration,
+): number {
+  const base = baseSpousalBenefit(worker, spouse).value();
+  if (base <= 0) return 0;
+
+  const fra = spouse.normalRetirementAge();
+  const monthsEarly = fra.asMonths() - spouseFilingAge.asMonths();
+  if (monthsEarly <= 0) return base; // No delayed credits apply to spousal benefits.
+
+  // SSA spousal reduction: 25/36 of 1% per month for the first 36 months
+  // early, then 5/12 of 1% per month beyond that.
+  const first = Math.min(monthsEarly, 36);
+  const rest = Math.max(0, monthsEarly - 36);
+  const reduction = first * (25 / 36 / 100) + rest * (5 / 12 / 100);
+  return Math.round(base * (1 - reduction) * 100) / 100;
 }
 
 export function lifetimeNpvToAge(
@@ -120,6 +152,7 @@ export function lifetimeNpvToAge(
   filingAge: MonthDuration,
   lifeExpectancy: number,
   discountRate: number,
+  asOf: Date = new Date(),
 ): number {
   const finalDate = recipient.birthdate.dateAtLayAge(
     MonthDuration.initFromYearsMonths({ years: lifeExpectancy, months: 0 }),
@@ -127,62 +160,80 @@ export function lifetimeNpvToAge(
   const cents = strategySumCentsSingle(
     recipient,
     finalDate,
-    MonthDate.initFromNow(),
+    monthDateFrom(asOf),
     discountRate,
     filingAge,
   );
   return cents / 100;
 }
 
-export async function computeOptimalFilingSingle(
-  recipient: Recipient,
-  discountRate: number,
-): Promise<{ filingAge: FilingAgeDisplay; expectedNpv: number }> {
-  const deathDist = await getDeathProbabilityDistribution(recipient);
-  const results = expectedNPVSingle(
-    recipient,
-    MonthDate.initFromNow(),
-    discountRate,
-    deathDist,
-  );
-  if (results.length === 0) {
-    throw new Error('No eligible filing ages for this recipient');
-  }
-  const best = results[0];
-  return {
-    filingAge: formatFilingAge(best.filingAge),
-    expectedNpv: best.expectedNPVCents / 100,
-  };
+/** One filing-age combination and its expected NPV, as returned by the engine's optimizer. */
+export interface RankedStrategy {
+  filingAges: FilingAgeDisplay[];
+  expectedNpv: number;
 }
 
-export async function computeOptimalFilingCouple(
-  worker: Recipient,
-  spouse: Recipient,
+/**
+ * Every filing age for a single recipient, sorted best-first by expected NPV.
+ * `expectedNPVSingle` already computes and sorts the full set (one entry per
+ * eligible filing month); this just shapes it for display.
+ */
+export async function rankedSingleStrategies(
+  recipient: Recipient,
   discountRate: number,
-): Promise<{
-  workerFilingAge: FilingAgeDisplay;
-  spouseFilingAge: FilingAgeDisplay;
-  expectedNpv: number;
-}> {
-  const [workerDist, spouseDist] = await Promise.all([
-    getDeathProbabilityDistribution(worker),
-    getDeathProbabilityDistribution(spouse),
+  asOf: Date = new Date(),
+): Promise<RankedStrategy[]> {
+  // The survival curve must be conditioned on the same reference date the
+  // optimizer runs from. `getDeathProbabilityDistribution` defaults its
+  // `currentYear` to the wall clock, which would weight every NPV by a
+  // cohort's survival as of *today* while `monthDateFrom(asOf)` below runs the
+  // optimizer from `asOf` — silently making results depend on when they were
+  // computed rather than on `asOf`.
+  const deathDist = await getDeathProbabilityDistribution(recipient, asOf.getFullYear());
+  return expectedNPVSingle(recipient, monthDateFrom(asOf), discountRate, deathDist).map((r) => ({
+    filingAges: [formatFilingAge(r.filingAge)],
+    expectedNpv: r.expectedNPVCents / 100,
+  }));
+}
+
+/**
+ * Every filing-age combination for a couple, sorted best-first by expected
+ * NPV. `expectedNPVCoupleOptimized` already computes and sorts the full
+ * cross-product (~9,400 combinations for a typical couple); this just shapes
+ * it for display.
+ */
+export async function rankedCoupleStrategies(
+  a: Recipient,
+  b: Recipient,
+  discountRate: number,
+  asOf: Date = new Date(),
+): Promise<RankedStrategy[]> {
+  // Conditioned on `asOf`, not the wall clock — see `rankedSingleStrategies`.
+  const [distA, distB] = await Promise.all([
+    getDeathProbabilityDistribution(a, asOf.getFullYear()),
+    getDeathProbabilityDistribution(b, asOf.getFullYear()),
   ]);
-  const results = expectedNPVCoupleOptimized(
-    [worker, spouse],
-    MonthDate.initFromNow(),
-    discountRate,
-    [workerDist, spouseDist],
+  return expectedNPVCoupleOptimized([a, b], monthDateFrom(asOf), discountRate, [
+    distA,
+    distB,
+  ]).map((r) => ({
+    filingAges: [formatFilingAge(r.filingAges[0]), formatFilingAge(r.filingAges[1])],
+    expectedNpv: r.expectedNPVCents / 100,
+  }));
+}
+
+/** Exact year-and-month match on every person's filing age; null when unavailable. */
+export function findStrategyByAges(
+  ranked: RankedStrategy[],
+  ages: { years: number; months: number }[],
+): RankedStrategy | null {
+  return (
+    ranked.find(
+      (s) =>
+        s.filingAges.length === ages.length &&
+        s.filingAges.every((f, i) => f.years === ages[i].years && f.months === ages[i].months),
+    ) ?? null
   );
-  if (results.length === 0) {
-    throw new Error('No eligible couple filing strategies');
-  }
-  const best = results[0];
-  return {
-    workerFilingAge: formatFilingAge(best.filingAges[0]),
-    spouseFilingAge: formatFilingAge(best.filingAges[1]),
-    expectedNpv: best.expectedNPVCents / 100,
-  };
 }
 
 export function nearestWholeClaimAge(decimalYears: number): number {
