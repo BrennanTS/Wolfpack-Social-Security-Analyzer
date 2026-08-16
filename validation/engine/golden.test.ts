@@ -204,6 +204,19 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     }
   });
 
+  it('starts the spousal benefit at the expected age', async () => {
+    const result = await run(scenario);
+    if (scenario.expected.startsAtSpouseAge === null) {
+      // Nothing payable in this scenario, so no start to assert. Guard that
+      // the field itself is still populated — an empty label would mean the
+      // start silently stopped being computed.
+      if (result.spousalTopUp) expect(result.spousalTopUp.startsAtSpouseAge).not.toBe('');
+    } else {
+      expect(result.spousalTopUp).toBeDefined();
+      expect(result.spousalTopUp!.startsAtSpouseAge).toBe(scenario.expected.startsAtSpouseAge);
+    }
+  });
+
   it('satisfies structural invariants', async () => {
     const result = await run(scenario);
 

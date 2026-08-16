@@ -165,6 +165,46 @@ describe('analyzeHousehold — married', () => {
     expect(result.spousalTopUp!.atFra).toBe(0);
   });
 
+  it('does not start the spousal benefit before the higher earner files', async () => {
+    const noRecord: Person = { ...sarah, piaMonthly: 0 };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, noRecord] },
+      assumptions,
+      asOf,
+    );
+    const spousal = result.spousalTopUp!;
+    const higherIndex = dan.piaMonthly >= noRecord.piaMonthly ? 0 : 1;
+    const lowerIndex = higherIndex === 0 ? 1 : 0;
+
+    // The benefit cannot begin before the higher earner files, so the spouse's
+    // age at start must be at least her age when he files.
+    const higherFilesAtYear =
+      result.people[higherIndex].person.birthYear +
+      result.optimal.filingAges[higherIndex].years;
+    const spouseAgeThen = higherFilesAtYear - result.people[lowerIndex].person.birthYear;
+
+    const startYears = Number(spousal.startsAtSpouseAge.split(' ')[0]);
+    expect(startYears).toBeGreaterThanOrEqual(spouseAgeThen - 1);
+    expect(spousal.startsAtSpouseAge).not.toBe('');
+
+    // And it must be at least her own filing age too — the start is the later
+    // of the two, never the earlier.
+    expect(startYears).toBeGreaterThanOrEqual(result.optimal.filingAges[lowerIndex].years);
+  });
+
+  it('reports the unreduced entitlement separately from what is paid', async () => {
+    const noRecord: Person = { ...sarah, piaMonthly: 0 };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, noRecord] },
+      assumptions,
+      asOf,
+    );
+    const spousal = result.spousalTopUp!;
+    // Half of Dan's PIA, since she has no record of her own.
+    expect(spousal.atFra).toBeCloseTo(dan.piaMonthly / 2, 0);
+    expect(spousal.atRecommendedFilingAge).toBeLessThanOrEqual(spousal.atFra);
+  });
+
   it('uses each person own gender for mortality, not an assumed opposite', async () => {
     const bothMale: Household = {
       status: 'married',
