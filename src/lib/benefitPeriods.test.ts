@@ -370,6 +370,25 @@ describe('householdPeriods — spousal reduction beyond the first 36 months earl
   });
 });
 
+describe('householdPeriods — finalIndexByPersonId', () => {
+  it('reports each person final month, which the bands cannot tell you', () => {
+    // Jane is the higher earner and dies first, so the split extends John's
+    // personal band past her death — and hers past her own death too.
+    const john = person('a', 1958, 3, 1400, 'male', 88);
+    const jane = person('b', 1960, 9, 3000, 'female', 80);
+    const { finalIndexByPersonId } = householdPeriods(
+      [john, jane],
+      [recipientFor(john), recipientFor(jane)],
+      [age(62), age(70)],
+      ['John', 'Jane'],
+    );
+    // Jane born Sep 1960, plan-to 80 -> Sep 2040. John born Mar 1958,
+    // plan-to 88 -> Mar 2046. Verify both against `dateAtSsaAge` yourself.
+    expect(finalIndexByPersonId.b).toBe(2040 * 12 + 8);
+    expect(finalIndexByPersonId.a).toBe(2046 * 12 + 2);
+  });
+});
+
 describe('monthsInYear', () => {
   it('counts only the months the band actually covers', () => {
     // Sep 2030 (2030*12 + 8) through Mar 2032 (2032*12 + 2).

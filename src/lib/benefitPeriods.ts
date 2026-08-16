@@ -71,6 +71,13 @@ export interface SurvivorGap {
 export interface HouseholdPeriods {
   bands: BenefitBand[];
   survivorGap: SurvivorGap | null;
+  /**
+   * Each person's inclusive final month index — the month they reach their
+   * plan-to age. NOT derivable from the bands: the dual-entitlement split
+   * extends the deceased's personal band to the SURVIVOR's death, so the
+   * band ends tell you nothing about when the first death happened.
+   */
+  finalIndexByPersonId: Record<string, number>;
 }
 
 /**
@@ -301,7 +308,12 @@ export function householdPeriods(
     labels,
   );
 
-  return { bands: splitDualEntitlement(normalized), survivorGap };
+  const finalIndexByPersonId: Record<string, number> = {};
+  people.forEach((p, i) => {
+    finalIndexByPersonId[p.id] = monthIndexOf(finalDates[i]);
+  });
+
+  return { bands: splitDualEntitlement(normalized), survivorGap, finalIndexByPersonId };
 }
 
 /** Payment months this band contributes to a given calendar year. */

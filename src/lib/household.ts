@@ -42,6 +42,9 @@ export interface HouseholdStrategy {
 
 export interface CombinedTimelinePoint {
   year: number;
+  /** Keyed `${personId}:${type}` — the chart's stacked series. */
+  bySeries: Record<string, number>;
+  /** Per-person roll-up. The tooltip and the PDF summary both want a person's total. */
   byPersonId: Record<string, number>;
   total: number;
 }
@@ -90,6 +93,13 @@ export interface HouseholdAnalysis {
    * would actually experience. Null when there is nothing to disclose.
    */
   survivorGap: SurvivorGap | null;
+  /**
+   * Each person's inclusive final month index — the month they reach their
+   * plan-to age. NOT derivable from `periods`: the dual-entitlement split
+   * extends the deceased's personal band to the SURVIVOR's death, so the
+   * band ends tell you nothing about when the first death happened.
+   */
+  finalIndexByPersonId: Record<string, number>;
   recommendation: string;
   recommendationDetail: string;
   assumptions: Assumptions;
@@ -191,9 +201,9 @@ function monthDateAt(index: number): MonthDate {
  * chart layer applied the COLA slider; `HouseholdPanel` passes the timeline
  * straight through, so it never did.)
  *
- * `byPersonId` sums all of a person's bands — personal, spousal and survivor
- * — into one figure per year. Splitting the series by benefit type is a
- * display change, deliberately not made here.
+ * `bySeries` keys each figure `${personId}:${type}` — the chart's stacked
+ * series. `byPersonId` is derived from it by summing each person's series, so
+ * the two cannot disagree.
  */
 function buildCombinedTimeline(
   bands: BenefitBand[],
@@ -211,8 +221,17 @@ function buildCombinedTimeline(
     const byPersonId: Record<string, number> = {};
     for (const p of people) byPersonId[p.person.id] = 0;
 
+    const bySeries: Record<string, number> = {};
     for (const band of bands) {
-      byPersonId[band.personId] += monthsInYear(band, year) * band.monthlyAmount;
+      const amount = monthsInYear(band, year) * band.monthlyAmount;
+      const seriesKey = `${band.personId}:${band.type}`;
+      bySeries[seriesKey] = (bySeries[seriesKey] ?? 0) + amount;
+    }
+
+    for (const [seriesKey, amount] of Object.entries(bySeries)) {
+      bySeries[seriesKey] = roundCents(amount);
+      const personId = seriesKey.slice(0, seriesKey.lastIndexOf(':'));
+      byPersonId[personId] = (byPersonId[personId] ?? 0) + bySeries[seriesKey];
     }
 
     let total = 0;
@@ -220,7 +239,7 @@ function buildCombinedTimeline(
       byPersonId[id] = roundCents(byPersonId[id]);
       total += byPersonId[id];
     }
-    points.push({ year, byPersonId, total: roundCents(total) });
+    points.push({ year, bySeries, byPersonId, total: roundCents(total) });
   }
   return points;
 }
@@ -318,7 +337,7 @@ export async function analyzeHousehold(
     const labelA = personLabel(personA.name, 0);
     const labelB = personLabel(personB.name, 1);
 
-    const { bands, survivorGap } = householdPeriods(
+    const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
       household.people,
       [recipientA, recipientB],
       optimal.filingAges.map((f) => f.monthDuration),
@@ -333,6 +352,7 @@ export async function analyzeHousehold(
       combinedTimeline: buildCombinedTimeline(bands, people),
       periods: bands,
       survivorGap,
+      finalIndexByPersonId,
       spousalTopUp: spousalFiguresFrom(
         bands,
         { [personA.id]: recipientA, [personB.id]: recipientB },
@@ -373,7 +393,7 @@ export async function analyzeHousehold(
 
   const people = [analyzePerson(person, optimal.filingAges[0], assumptions.annualCola, asOf)];
 
-  const { bands, survivorGap } = householdPeriods(
+  const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
     household.people,
     [recipient],
     [optimal.filingAges[0].monthDuration],
@@ -388,6 +408,7 @@ export async function analyzeHousehold(
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap,
+    finalIndexByPersonId,
     recommendation: `Claim at age ${optimal.filingAges[0].label}`,
     recommendationDetail:
       `ssa.tools recommends filing at age ${optimal.filingAges[0].label} ` +

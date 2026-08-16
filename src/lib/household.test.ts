@@ -281,6 +281,44 @@ describe('combinedTimeline', () => {
     const result = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
     expect(Object.keys(result.combinedTimeline[0].byPersonId)).toEqual(['a']);
   });
+
+  it('keys the timeline by person and benefit type', async () => {
+    // dan/sarah both have substantial records and produce no spousal band
+    // (see "reports no spousal start when there is no entitlement at all"
+    // below), so this needs a pairing that genuinely has one: sarah with no
+    // record of her own draws a spousal band on dan's record.
+    const noRecord: Person = { ...sarah, piaMonthly: 0 };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, noRecord] },
+      assumptions,
+      asOf,
+    );
+    const withSpousal = result.periods.find((b) => b.type === 'spousal');
+    // Guard: without this, `withSpousal!` below would index `undefined` and
+    // fail for an unrelated reason rather than testing anything.
+    expect(withSpousal).toBeDefined();
+    const point = result.combinedTimeline.find(
+      (p) => p.year === Math.floor(withSpousal!.startIndex / 12) + 1,
+    )!;
+    expect(point.bySeries[`${withSpousal!.personId}:spousal`]).toBeGreaterThan(0);
+  });
+
+  it('rolls series up to the same per-person totals', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    for (const point of result.combinedTimeline) {
+      for (const person of result.people) {
+        const id = person.person.id;
+        const summed = Object.entries(point.bySeries)
+          .filter(([key]) => key.startsWith(`${id}:`))
+          .reduce((acc, [, value]) => acc + value, 0);
+        expect(point.byPersonId[id]).toBeCloseTo(summed, 2);
+      }
+    }
+  });
 });
 
 describe('engine periods', () => {
