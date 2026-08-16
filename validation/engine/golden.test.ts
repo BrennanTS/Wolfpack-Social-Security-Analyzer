@@ -298,6 +298,41 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
       expect(flipped.optimal.expectedNpv).not.toBe(result.optimal.expectedNpv);
     }
   });
+
+  it('decomposes every household into well-formed bands', async () => {
+    const result = await run(scenario);
+    for (const band of result.periods) {
+      expect(band.endIndex).toBeGreaterThanOrEqual(band.startIndex);
+      // A $0.00 Spousal band is legitimate, not a bug, and must not be
+      // "fixed" back to > 0: eligibleForSpousalBenefit (benefit-calculator.ts)
+      // tests the unreduced entitlement against the dependent's PIA, but
+      // spousalBenefitOnDate re-tests against their DRC-inflated actual
+      // benefit once they file past their own NRA, which can come out to
+      // zero even though strategy-calc.ts:158 has already pushed the period
+      // on date validity alone.
+      expect(band.monthlyAmount).toBeGreaterThanOrEqual(0);
+      expect(['personal', 'spousal', 'survivor']).toContain(band.type);
+    }
+    // A single claimant can only ever hold a personal benefit.
+    if (scenario.inputs.status === 'single') {
+      expect(result.periods.every((b) => b.type === 'personal')).toBe(true);
+    }
+    // Spousal and survivor never overlap: you cannot draw a spousal benefit
+    // on a deceased spouse's record. Reachable here, not vacuous: most
+    // married full-mode fixtures put the dependent (lower PIA, usually the
+    // younger person) in the one direction the engine models — surviving the
+    // earner — so this scenario set routinely produces both a spousal and a
+    // survivor band for the same personId, and the loop below actually
+    // compares them.
+    const spousal = result.periods.filter((b) => b.type === 'spousal');
+    const survivor = result.periods.filter((b) => b.type === 'survivor');
+    for (const sp of spousal) {
+      for (const sv of survivor) {
+        if (sp.personId !== sv.personId) continue;
+        expect(sp.endIndex).toBeLessThan(sv.startIndex);
+      }
+    }
+  });
 });
 
 describe.each(factorScenarios)('golden scenario (factors only): $id', (scenario) => {

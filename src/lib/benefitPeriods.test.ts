@@ -215,6 +215,76 @@ describe('householdPeriods — the unmodeled survivor direction', () => {
   });
 });
 
+describe('householdPeriods — spousal reduction nets against the dependent\'s own DRC-inflated benefit past NRA', () => {
+  // Vendored engine branch: spousalBenefitOnDate's NRA-netting branch
+  // (src/vendor/ssa-tools/benefit-calculator.ts:355). Once the dependent
+  // files past their OWN normal retirement age, POMS RS 00615.694 caps the
+  // combined personal + spousal benefit at half the earner's PIA by netting
+  // the spousal top-up against the dependent's actual (delayed-credit-
+  // inflated) benefit rather than their PIA — a materially smaller top-up
+  // than the naive PIA-based subtraction would give. This is a positive
+  // residual: half the earner's PIA still exceeds the dependent's inflated
+  // benefit, so a top-up remains, just a reduced one.
+  //
+  // No golden fixture reaches this: married-1960-partial-topup is the only
+  // scenario where the dependent files late, and even there the dependent's
+  // filing date is still <= their own NRA, taking the early "unreduced"
+  // return at benefit-calculator.ts:327-328 instead. This recreates the
+  // deleted spousalTopUp suite's regression case (see git history at
+  // 560f140, ssaTools.test.ts) at the householdPeriods level: worker PIA
+  // $3,000 files at 62, spouse PIA $1,000 (FRA 67y0m) files at 70. Spouse's
+  // own benefit at 70 is 1000 * (1 + 36 * 2/3%) = $1,240; half the worker's
+  // PIA is $1,500; so the top-up nets to 1500 - 1240 = $260 — not the
+  // unreduced 1500 - 1000 = $500 that netting against the PIA would give.
+  // A regression that swapped the DRC-inflated benefit back for the PIA
+  // would make this assert 500 and fail.
+  it('reduces the top-up to the residual over the DRC-inflated benefit, not the PIA', () => {
+    const worker = person('a', 1960, 6, 3000, 'male', 85);
+    const spouse = person('b', 1962, 3, 1000, 'female', 85);
+    const { bands } = householdPeriods(
+      [worker, spouse],
+      [recipientFor(worker), recipientFor(spouse)],
+      [age(62), age(70)],
+      ['Worker', 'Spouse'],
+    );
+    const spousal = bands.find((b) => b.type === 'spousal');
+    expect(spousal).toBeDefined();
+    expect(spousal!.monthlyAmount).toBe(260);
+  });
+});
+
+describe('householdPeriods — spousal reduction beyond the first 36 months early', () => {
+  // Vendored engine branch: spousalBenefitOnDate's second reduction band
+  // (src/vendor/ssa-tools/benefit-calculator.ts:367-377) — 25% for the first
+  // 36 months early, then 5/12 of 1% per additional month. No golden
+  // scenario's spousal start lands more than 16 months before the
+  // dependent's own FRA, so the >36-month branch has never run outside this
+  // test.
+  //
+  // Worker PIA $3,000 files at 62 (Jan 2022). Spouse PIA $1,000, born Jun
+  // 1963 (FRA 67y0m = Jun 2030), also files at her own 62 (Jun 2025) — later
+  // than the worker's filing, so the spousal band starts on her filing date,
+  // 60 months before her FRA. Base entitlement = 3000/2 - 1000 = $500.
+  // Reduction = 25% (first 36 months) + 24 * 5/12% (remaining 24 months) =
+  // 25% + 10% = 35%. Top-up = 500 * 0.65 = $325. A regression that applied
+  // the flat 25/36%-per-month rate across all 60 months (the pre-36-month
+  // formula) would give 500 * (1 - 60 * 25/3600) = 500 * 0.5833 = $291.67
+  // instead, and this test would fail.
+  it('applies the second reduction band beyond 36 months early', () => {
+    const worker = person('a', 1960, 1, 3000, 'male', 85);
+    const spouse = person('b', 1963, 6, 1000, 'female', 85);
+    const { bands } = householdPeriods(
+      [worker, spouse],
+      [recipientFor(worker), recipientFor(spouse)],
+      [age(62), age(62)],
+      ['Worker', 'Spouse'],
+    );
+    const spousal = bands.find((b) => b.type === 'spousal');
+    expect(spousal).toBeDefined();
+    expect(spousal!.monthlyAmount).toBe(325);
+  });
+});
+
 describe('monthsInYear', () => {
   it('counts only the months the band actually covers', () => {
     // Sep 2030 (2030*12 + 8) through Mar 2032 (2032*12 + 2).

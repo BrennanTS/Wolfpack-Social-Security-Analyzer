@@ -272,8 +272,25 @@ describe('engine periods', () => {
       assumptions,
       asOf,
     );
+    // Guard: `every`/`some` below are vacuously true/false on an empty
+    // array, and an empty periods list is exactly what a broken wire-up to
+    // householdPeriods() would produce without erroring.
     expect(result.periods.length).toBeGreaterThan(0);
     expect(result.periods.every((b) => b.monthlyAmount >= 0)).toBe(true);
+    // Both people must actually be represented, each holding at least one
+    // personal band — the one band type every recipient is guaranteed. A
+    // regression that dropped a person, or mapped every recipientIndex onto
+    // the same personId (the exact defect `personId` exists to catch), would
+    // leave one of these false while still passing the length/amount checks
+    // above.
+    expect(result.periods.some((b) => b.personId === 'a' && b.type === 'personal')).toBe(true);
+    expect(result.periods.some((b) => b.personId === 'b' && b.type === 'personal')).toBe(true);
+    // For this fixture Sarah survives Dan under the engine's one modeled
+    // direction (see benefitPeriods.ts), so her personal band is carried
+    // forward into a genuine survivor band rather than truncated — pinning
+    // that the periods array reflects real structure, not just personal
+    // bands relabeled.
+    expect(result.periods.some((b) => b.personId === 'b' && b.type === 'survivor')).toBe(true);
   });
 
   it('credits only the months a person is actually paid, not a flat twelve', async () => {
