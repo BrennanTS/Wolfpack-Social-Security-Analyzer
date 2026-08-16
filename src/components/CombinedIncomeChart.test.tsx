@@ -65,4 +65,25 @@ describe('CombinedIncomeChart', () => {
     render(<CombinedIncomeChart timeline={timeline} people={[people[0]]} />);
     expect(screen.queryByTestId('combined-income-caveat')).toBeNull();
   });
+
+  // `buildCombinedTimeline` sums `recommendedMonthly`, which `personAnalysis`
+  // derives from a SOLO recipient with no spousal linkage — so a zero-PIA
+  // person contributes $0 to every year even when the recommendation pays them
+  // a spousal top-up, and the chart understates the household by that whole
+  // amount. The couple optimizer's NPV and the recommendation ARE
+  // spousal-aware, so the advice is right and only the illustration is wrong.
+  // Wiring the top-up into the timeline interacts with filing ages and belongs
+  // with the Phase 2 survivor rework; until then the chart must say so.
+  it('discloses that the bands exclude any spousal top-up, for a couple', () => {
+    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    const caveat = screen.getByTestId('combined-income-caveat');
+    expect(caveat.textContent).toMatch(/excludes any spousal\s+top-up/i);
+    expect(caveat.textContent).toMatch(/shows here as \$0/i);
+  });
+
+  it('points the reader at the recommendation, which does include the spousal benefit', () => {
+    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    const caveat = screen.getByTestId('combined-income-caveat');
+    expect(caveat.textContent).toMatch(/do\s+include the spousal benefit/i);
+  });
 });

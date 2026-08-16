@@ -168,9 +168,13 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       <Text style={styles.sectionTitle}>Combined Household Income</Text>
       <Text style={styles.sectionDesc}>
         Annual Social Security income by year under the recommended filing strategy. Each
-        band is that person&rsquo;s own benefit only. Survivor benefits are not modeled in
-        this version, so the drop after the first death is overstated — in practice the
-        survivor receives the greater of the two benefits.
+        band is that person&rsquo;s own benefit only, and excludes any spousal top-up.
+        Someone with little or no work record of their own shows here as $0 even when the
+        recommended strategy pays them a spousal benefit, so this chart understates the
+        household in that case. The recommendation and the strategy comparison above do
+        include the spousal benefit. Survivor benefits are not modeled in this version, so
+        the drop after the first death is overstated — in practice the survivor receives
+        the greater of the two benefits.
       </Text>
       <View style={styles.chartBox}>
         <CombinedIncomeBars timeline={analysis.combinedTimeline} people={people} />
