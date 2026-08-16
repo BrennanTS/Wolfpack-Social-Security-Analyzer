@@ -102,6 +102,16 @@ Each strategy row gains what the survivor receives annually, in the engine's sup
 
 Below the corrected chart: the household total in the year before the first death against the year after, the percentage drop, and the strategy's contribution to the survivor's income relative to claiming earliest.
 
+## Delivery: two plans
+
+One design, delivered in two plans. The seam is between the calculation and the display, and it exists so the fixture cross-check below lands on its own — before any chart work can muddy what a moved number means.
+
+**2b-i — the calculation rebase.** `benefitPeriods.ts`, `household.ts` driving from periods, `spousalTopUp` and `spousalEntitlement` deleted. Display shapes unchanged, so the existing charts and PDF keep rendering from the same fields. Carries the whole invariant: no recommended filing age moves, and the hand-derived spousal fixtures are reproduced from the periods.
+
+**2b-ii — the display.** Bands per benefit type, the income-cliff callout, the survivor-income column, the real/nominal toggle, and the copy and PDF changes that follow.
+
+Success criteria 1–3 and 6 belong to 2b-i; 4, 5, 7, 8 and 9 to 2b-ii. Criterion 10 binds both.
+
 ## Architecture
 
 | File | Responsibility |
