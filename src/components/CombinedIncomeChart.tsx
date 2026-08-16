@@ -47,6 +47,13 @@ export function CombinedIncomeChart({ timeline, people }: CombinedIncomeChartPro
       <div className="chart-header">
         <h3>Combined Household Income</h3>
         <p>Annual Social Security income by year under the recommended filing strategy</p>
+        {people.length > 1 && (
+          <p className="chart-caveat" data-testid="combined-income-caveat">
+            Each band is that person&rsquo;s own benefit only. Survivor benefits are not
+            modeled in this version, so the drop after the first death is overstated — in
+            practice the survivor receives the greater of the two benefits.
+          </p>
+        )}
         <div className="chart-legend-row" aria-hidden="true">
           {series.map((s) => (
             <span key={s.id} className="chart-legend-item">

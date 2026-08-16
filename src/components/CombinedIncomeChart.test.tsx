@@ -49,4 +49,20 @@ describe('CombinedIncomeChart', () => {
     expect(screen.getByText('You')).toBeDefined();
     expect(screen.getByText('Spouse')).toBeDefined();
   });
+
+  // The timeline drops a person's band to zero at their life expectancy with no
+  // survivor step-up, so the post-death drop is deeper than reality. Until Phase 2
+  // models that, the chart must say so — this is the guard against the caveat
+  // being quietly dropped in a future layout change.
+  it('discloses that survivor benefits are not modeled, for a couple', () => {
+    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    const caveat = screen.getByTestId('combined-income-caveat');
+    expect(caveat.textContent).toMatch(/survivor benefits are not\s+modeled/i);
+    expect(caveat.textContent).toMatch(/greater of the two benefits/i);
+  });
+
+  it('omits the survivor caveat for a single claimant, who has no survivor', () => {
+    render(<CombinedIncomeChart timeline={timeline} people={[people[0]]} />);
+    expect(screen.queryByTestId('combined-income-caveat')).toBeNull();
+  });
 });

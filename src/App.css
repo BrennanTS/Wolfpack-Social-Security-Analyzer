@@ -1578,6 +1578,22 @@ tbody tr:hover {
   min-height: 220px;
 }
 
+/*
+ * Honest limitation notice on a chart. Phase 1 models each person's own
+ * benefit only; the survivor step-up (greater of the two benefits, subject
+ * to RIB-LIM) arrives in Phase 2, so the post-death drop reads deeper than
+ * it would be. Styled to be read, not skimmed past.
+ */
+.chart-caveat {
+  max-width: 62ch;
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--gold, #b8965a);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-muted, #5c5c5c);
+}
+
 .chart-axis-caption {
   display: block;
   text-align: center;
