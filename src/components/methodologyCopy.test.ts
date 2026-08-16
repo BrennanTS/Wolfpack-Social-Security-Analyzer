@@ -2,7 +2,13 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { spousalMethodologyCopy, spousalSummary, survivorGapNote } from './methodologyCopy';
+import {
+  combinedIncomeCaption,
+  SINGLE_CLAIMANT_BENEFIT_NOTE,
+  spousalMethodologyCopy,
+  spousalSummary,
+  survivorGapNote,
+} from './methodologyCopy';
 import { analyzeHousehold, type HouseholdAnalysis } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 
@@ -22,6 +28,17 @@ function analysisWith(spousalTopUp?: HouseholdAnalysis['spousalTopUp']): Househo
 describe('spousalMethodologyCopy', () => {
   it('prompts for a marital status when the household is single', () => {
     expect(spousalMethodologyCopy(analysisWith())).toContain('Select Married');
+  });
+
+  it('never tells a single claimant that survivor benefits require a couple', () => {
+    // "Survivor benefits apply only to a couple" is false as a benefit rule:
+    // a survivor benefit is paid precisely to someone who is no longer part of
+    // one. A widowed user selecting "Single" was told the benefit they may be
+    // collecting does not exist.
+    const copy = spousalMethodologyCopy(analysisWith());
+    expect(copy).not.toMatch(/only to a couple/i);
+    expect(copy).toContain(SINGLE_CLAIMANT_BENEFIT_NOTE);
+    expect(copy).toMatch(/SSA does pay survivor benefits to a widow\(er\)/);
   });
 
   it('states both the reduced and unreduced amounts, attributed to the lower earner', () => {
@@ -65,6 +82,24 @@ describe('spousalMethodologyCopy', () => {
     );
     expect(copy).toContain('No top-up applies');
     expect(copy).toContain("does not exceed You's own benefit");
+  });
+
+  it('qualifies the zero-entitlement comparison to the FRA benefit it actually makes', () => {
+    // `household.ts:262` derives `atFra` from `baseSpousalBenefit`, which
+    // compares half the higher earner's PIA against the lower earner's own
+    // PIA — their benefit at their own FRA. Unqualified, this sentence denied
+    // something that is routinely true: for a lower earner filing at 62 the
+    // benefit is ~70% of PIA, so half the higher earner's PIA can genuinely
+    // exceed what they are paid while no top-up applies.
+    const copy = spousalMethodologyCopy(
+      analysisWith({
+        atFra: 0,
+        atRecommendedFilingAge: 0,
+        startsAtSpouseAge: null,
+        lowerEarnerLabel: 'You',
+      }),
+    );
+    expect(copy).toContain("does not exceed You's own benefit at their own FRA");
   });
 
   it('states when the spousal benefit begins', () => {
@@ -299,6 +334,26 @@ describe('the printed spousal sentence, over real households', () => {
  * shown for the survivor are too low.
  */
 describe('survivorGapNote', () => {
+  /** The three shapes, with the exact figures the pipeline tests below pin. */
+  const contemporaneous = {
+    survivorLabel: 'Blake',
+    deceasedMonthly: 1780,
+    survivorOwnMonthly: 1760,
+    survivorUnder60: false,
+  };
+  const notFiled = {
+    survivorLabel: 'Blake',
+    deceasedMonthly: 1780,
+    survivorOwnMonthly: null,
+    survivorUnder60: false,
+  };
+  const under60 = {
+    survivorLabel: 'Blake',
+    deceasedMonthly: 2016,
+    survivorOwnMonthly: null,
+    survivorUnder60: true,
+  };
+
   it('renders nothing when there is nothing to disclose', () => {
     expect(survivorGapNote(null)).toBeNull();
     // A caller that has not been updated to pass the field renders nothing
@@ -306,17 +361,38 @@ describe('survivorGapNote', () => {
     expect(survivorGapNote(undefined)).toBeNull();
   });
 
-  it('names the survivor and both monthly figures', () => {
-    const note = survivorGapNote({
-      survivorLabel: 'Blake',
-      survivorOwnMonthly: 1760,
-      deceasedMonthly: 1780,
-    })!;
+  it('names the survivor and both monthly figures when both are contemporaneous', () => {
+    const note = survivorGapNote(contemporaneous)!;
     expect(note).toContain('modeled only for the lower-earning spouse');
     expect(note).toContain('no step-up is shown for Blake');
     expect(note).toContain('$1,780.00/mo'); // what the deceased was receiving
-    expect(note).toContain('$1,760.00/mo'); // the survivor's own
+    expect(note).toContain('$1,760.00/mo'); // the survivor's own, at that death
     expect(note).toContain('lower than SSA would pay');
+  });
+
+  it('quotes no dollar figure for a survivor who has not filed at the death', () => {
+    // The C1 defect: the survivor's own figure used to be read off their LAST
+    // personal band with no date test at all, so the sentence asserted, in the
+    // present tense, an amount that may not begin for decades — over a chart
+    // rendering those same years at zero.
+    const note = survivorGapNote(notFiled)!;
+    expect(note).toContain('$1,780.00/mo'); // the deceased's, which is real
+    expect(note).toContain('has not filed on their own record by then');
+    expect(note).toContain('shows them nothing from that death');
+    // Exactly one dollar figure, and it is the deceased's.
+    expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual(['$1,780.00']);
+    expect(note).not.toContain('of their own');
+  });
+
+  it('says a step-up cannot begin before 60 when the survivor is under 60', () => {
+    const note = survivorGapNote(under60)!;
+    expect(note).toContain('is under 60 then');
+    expect(note).toContain('no widow(er) benefit is payable yet');
+    expect(note).toContain('the chart is right to show none');
+    expect(note).toContain('from age 60 onward');
+    // No claim of an immediate, permanent shortfall, and no invented figure.
+    expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual(['$2,016.00']);
+    expect(note).not.toContain('lower than SSA would pay');
   });
 
   it('replaces the blanket "survivor benefits are included" claim in the panel copy', () => {
@@ -325,7 +401,7 @@ describe('survivorGapNote', () => {
       spousalTopUp: {
         atFra: 0, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: 'Blake',
       },
-      survivorGap: { survivorLabel: 'Blake', survivorOwnMonthly: 1760, deceasedMonthly: 1780 },
+      survivorGap: contemporaneous,
     } as unknown as HouseholdAnalysis;
 
     const copy = spousalMethodologyCopy(withGap);
@@ -345,5 +421,182 @@ describe('survivorGapNote', () => {
     );
     expect(copy).toContain('Survivor benefits are included');
     expect(copy).not.toContain('no step-up is shown');
+  });
+});
+
+/**
+ * The chart caption, shared by the on-screen chart and the PDF household page.
+ * It was a verbatim duplicate across those two files, and both copies claimed
+ * unconditionally that a band includes "any spousal or survivor benefit" —
+ * contradicting the gap note directly beneath them.
+ */
+describe('combinedIncomeCaption', () => {
+  it('claims spousal and survivor benefits are included when they are', () => {
+    const caption = combinedIncomeCaption(null);
+    expect(caption).toContain('their own benefit plus any spousal or survivor benefit');
+    expect(caption).toContain('only the months actually paid');
+    expect(caption).toContain("today's dollars, before any cost-of-living adjustment");
+    expect(caption).not.toContain('No survivor benefit is included');
+  });
+
+  it('drops the survivor claim for a household whose survivor benefit is unmodeled', () => {
+    const caption = combinedIncomeCaption({
+      survivorLabel: 'Blake',
+      deceasedMonthly: 1780,
+      survivorOwnMonthly: 1760,
+      survivorUnder60: false,
+    });
+    expect(caption).not.toContain('or survivor benefit');
+    expect(caption).toContain('their own benefit plus any spousal benefit');
+    expect(caption).toContain('No survivor benefit is included for this household');
+    // The parts that stay true either way.
+    expect(caption).toContain('only the months actually paid');
+    expect(caption).toContain("today's dollars, before any cost-of-living adjustment");
+  });
+
+  it('treats an unpassed gap the same as no gap', () => {
+    expect(combinedIncomeCaption(undefined)).toBe(combinedIncomeCaption(null));
+  });
+});
+
+/**
+ * The gap note over real `analyzeHousehold` output, one household per branch.
+ *
+ * The pure cases above cover the wording; these cover the thing the C1 defect
+ * actually was — that the figure in the sentence must be the one the person is
+ * being paid *in the month of the death being described*. Each test reads the
+ * bands back and asserts the note against them, so a note that drifts back to
+ * an end-of-life figure fails here rather than looking plausible.
+ */
+describe('the survivor-gap note over real households', () => {
+  const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
+
+  beforeAll(() => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      const contents = await readFile(path.join(publicDir, String(url).replace(/^\//, '')), 'utf8');
+      return { ok: true, json: async () => JSON.parse(contents) } as Response;
+    });
+  });
+  afterAll(() => vi.unstubAllGlobals());
+
+  const asOf = new Date(2026, 0, 15);
+  const noCola = { annualCola: 0, discountRate: 0.025 };
+
+  const run = (a: Person, b: Person) =>
+    analyzeHousehold({ status: 'married', people: [a, b] }, noCola, asOf);
+
+  /** What `personId` is actually paid on their own record in `monthIndex`. */
+  const paidAt = (analysis: HouseholdAnalysis, personId: string, monthIndex: number) =>
+    analysis.periods.find(
+      (x) =>
+        x.personId === personId &&
+        x.type === 'personal' &&
+        x.startIndex <= monthIndex &&
+        monthIndex <= x.endIndex,
+    ) ?? null;
+
+  const lastBand = (analysis: HouseholdAnalysis, personId: string) =>
+    analysis.periods
+      .filter((x) => x.personId === personId && x.type === 'personal')
+      .reduce((latest, x) => (x.startIndex > latest.startIndex ? x : latest));
+
+  it('quotes contemporaneous figures when the survivor has already filed', async () => {
+    // Avery (b. Mar 1957, PIA $1,500, plan-to 85) is the engine's dependent
+    // and dies Mar 2042. Blake (b. Sep 1970, PIA $1,600, plan-to 100) is the
+    // earner, has filed by then, and holds the smaller benefit.
+    const avery: Person = {
+      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
+      gender: 'female', piaMonthly: 1500, lifeExpectancy: 85,
+    };
+    const blake: Person = {
+      id: 'b', name: 'Blake', birthYear: 1970, birthMonth: 9,
+      gender: 'male', piaMonthly: 1600, lifeExpectancy: 100,
+    };
+    const analysis = await run(avery, blake);
+    const death = (1957 + 85) * 12 + 2; // Mar 2042, inclusive.
+
+    expect(analysis.survivorGap).not.toBeNull();
+    const gap = analysis.survivorGap!;
+    expect(gap.survivorLabel).toBe('Blake');
+    expect(gap.survivorUnder60).toBe(false);
+    // Both figures are what each person is actually paid at that death.
+    expect(gap.deceasedMonthly).toBe(paidAt(analysis, 'a', death)!.monthlyAmount);
+    expect(gap.survivorOwnMonthly).toBe(paidAt(analysis, 'b', death + 1)!.monthlyAmount);
+
+    const note = survivorGapNote(gap)!;
+    expect(note).toContain('$1,780.00/mo'); // Avery's, at the death
+    expect(note).toContain('$1,760.00/mo'); // Blake's own, that same month
+    expect(note).toContain('lower than SSA would pay');
+  });
+
+  it('quotes no figure for the survivor when the chart shows them nothing', async () => {
+    // Same couple, but Avery's plan-to age of 75 puts the death in Mar 2032 —
+    // six years before Blake files. The note used to assert the $1,760 his
+    // last band pays, in the present tense, while the chart beneath showed him
+    // at $0 for those years.
+    const avery: Person = {
+      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
+      gender: 'female', piaMonthly: 1500, lifeExpectancy: 75,
+    };
+    const blake: Person = {
+      id: 'b', name: 'Blake', birthYear: 1970, birthMonth: 9,
+      gender: 'male', piaMonthly: 1600, lifeExpectancy: 100,
+    };
+    const analysis = await run(avery, blake);
+    const death = (1957 + 75) * 12 + 2; // Mar 2032.
+
+    const gap = analysis.survivorGap!;
+    expect(gap.survivorOwnMonthly).toBeNull();
+    expect(gap.survivorUnder60).toBe(false);
+    // Guard: he really is paid nothing then, and really is paid something later.
+    expect(paidAt(analysis, 'b', death + 1)).toBeNull();
+    const later = lastBand(analysis, 'b').monthlyAmount;
+    expect(later).toBeGreaterThan(0);
+
+    const note = survivorGapNote(gap)!;
+    expect(note).toContain('has not filed on their own record by then');
+    // The figure the old note printed must not appear anywhere in the new one.
+    expect(note).not.toContain(`$${later.toLocaleString('en-US')}.00`);
+    expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual([
+      `$${gap.deceasedMonthly.toLocaleString('en-US')}.00`,
+    ]);
+  });
+
+  it('says a step-up cannot begin until 60 when the survivor is too young', async () => {
+    // The household from the C1 report: Avery (b. Jun 1956, PIA $1,600,
+    // plan-to 76) dies Jun 2032, when Blake (b. Jun 1976) is 56. No widow(er)
+    // benefit is payable to anyone under 60, so the chart's $0 is correct for
+    // those years — the old note asserted an immediate permanent shortfall.
+    const avery: Person = {
+      id: 'a', name: 'Avery', birthYear: 1956, birthMonth: 6,
+      gender: 'female', piaMonthly: 1600, lifeExpectancy: 76,
+    };
+    const blake: Person = {
+      id: 'b', name: 'Blake', birthYear: 1976, birthMonth: 6,
+      gender: 'male', piaMonthly: 1650, lifeExpectancy: 88,
+    };
+    const analysis = await run(avery, blake);
+    const death = (1956 + 76) * 12 + 5; // Jun 2032.
+
+    const gap = analysis.survivorGap!;
+    expect(gap.survivorLabel).toBe('Blake');
+    expect(gap.survivorUnder60).toBe(true);
+    expect(gap.survivorOwnMonthly).toBeNull();
+    expect(gap.deceasedMonthly).toBe(paidAt(analysis, 'a', death)!.monthlyAmount);
+    expect(paidAt(analysis, 'b', death + 1)).toBeNull();
+
+    // And the chart really does render a multi-year hole at zero there, which
+    // is what makes an asserted monthly amount a fabricated figure.
+    const holeYears = analysis.combinedTimeline.filter(
+      (p) => p.year > 2032 && p.year < 2045 && p.total === 0,
+    );
+    expect(holeYears.length).toBeGreaterThan(5);
+
+    const note = survivorGapNote(gap)!;
+    expect(note).toContain('is under 60 then');
+    expect(note).toContain('from age 60 onward');
+    expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual([
+      `$${gap.deceasedMonthly.toLocaleString('en-US')}.00`,
+    ]);
   });
 });

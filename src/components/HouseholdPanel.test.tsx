@@ -108,7 +108,12 @@ describe('HouseholdPanel', () => {
   it('passes the survivor gap through to the combined income chart', () => {
     const analysis = {
       ...buildAnalysis(),
-      survivorGap: { survivorLabel: 'Dan', survivorOwnMonthly: 1760, deceasedMonthly: 1780 },
+      survivorGap: {
+        survivorLabel: 'Dan',
+        deceasedMonthly: 1780,
+        survivorOwnMonthly: 1760,
+        survivorUnder60: false,
+      },
     } as HouseholdAnalysis;
     const { getByTestId } = render(<HouseholdPanel analysis={analysis} annualCola={0} />);
     expect(getByTestId('survivor-gap-note').textContent).toContain('no step-up is shown for Dan');

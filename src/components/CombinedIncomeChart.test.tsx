@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
+import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { CombinedTimelinePoint } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 
@@ -85,21 +86,69 @@ describe('CombinedIncomeChart', () => {
     expect(screen.queryByTestId('combined-income-caveat')).toBeNull();
   });
 
+  // The three survivor-gap shapes, carrying the exact figures
+  // `methodologyCopy.test.ts` pins against real `analyzeHousehold` output.
+  const contemporaneous: SurvivorGap = {
+    survivorLabel: 'Sarah',
+    deceasedMonthly: 1780,
+    survivorOwnMonthly: 1760,
+    survivorUnder60: false,
+  };
+  const notFiled: SurvivorGap = {
+    survivorLabel: 'Sarah',
+    deceasedMonthly: 1780,
+    survivorOwnMonthly: null,
+    survivorUnder60: false,
+  };
+  const under60: SurvivorGap = {
+    survivorLabel: 'Sarah',
+    deceasedMonthly: 2016,
+    survivorOwnMonthly: null,
+    survivorUnder60: true,
+  };
+
   // The caption above says each band includes "any spousal or survivor
   // benefit". For the one survivor direction the engine does not model that is
   // false, and the survivor's figures are too low — so that household gets a
   // second, conditional sentence saying so.
   it('discloses the unmodeled survivor direction when there is one', () => {
     render(
-      <CombinedIncomeChart
-        timeline={timeline}
-        people={people}
-        survivorGap={{ survivorLabel: 'Sarah', survivorOwnMonthly: 1760, deceasedMonthly: 1780 }}
-      />,
+      <CombinedIncomeChart timeline={timeline} people={people} survivorGap={contemporaneous} />,
     );
     const note = screen.getByTestId('survivor-gap-note');
     expect(note.textContent).toMatch(/no step-up is shown for Sarah/i);
     expect(note.textContent).toMatch(/lower than SSA would pay/i);
+    expect(note.textContent).toContain('$1,780.00/mo');
+    expect(note.textContent).toContain('$1,760.00/mo');
+  });
+
+  // The caption is the sentence the note contradicts, so it must stop making
+  // the survivor claim for exactly the households that get a note. Both were
+  // rendered unconditionally while the note beneath said otherwise.
+  it('stops claiming survivor benefits are included when they are not', () => {
+    render(
+      <CombinedIncomeChart timeline={timeline} people={people} survivorGap={contemporaneous} />,
+    );
+    const caveat = screen.getByTestId('combined-income-caveat');
+    expect(caveat.textContent).not.toMatch(/or survivor benefit/i);
+    expect(caveat.textContent).toMatch(/No survivor benefit is included for this household/i);
+  });
+
+  it('quotes no figure on screen for a survivor who has not filed at the death', () => {
+    render(<CombinedIncomeChart timeline={timeline} people={people} survivorGap={notFiled} />);
+    const note = screen.getByTestId('survivor-gap-note');
+    expect(note.textContent).toMatch(/has not filed on their own record by then/i);
+    // Exactly one dollar figure, and it is the deceased's — the survivor is
+    // being paid nothing that month and none may be asserted for them.
+    expect(note.textContent!.match(/\$[\d,]+\.\d\d/g)).toEqual(['$1,780.00']);
+  });
+
+  it('says on screen that a step-up cannot begin before 60', () => {
+    render(<CombinedIncomeChart timeline={timeline} people={people} survivorGap={under60} />);
+    const note = screen.getByTestId('survivor-gap-note');
+    expect(note.textContent).toMatch(/is under 60 then/i);
+    expect(note.textContent).toMatch(/from age 60 onward/i);
+    expect(note.textContent!.match(/\$[\d,]+\.\d\d/g)).toEqual(['$2,016.00']);
   });
 
   it('shows no survivor-gap note when the engine models the direction', () => {

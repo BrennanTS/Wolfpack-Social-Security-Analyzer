@@ -132,7 +132,18 @@ describe('analyzeHousehold — married', () => {
       asOf,
     );
     expect(result.spousalTopUp!.atFra).toBeCloseTo(1200, 0); // half of Dan's 2400
-    expect(result.spousalTopUp!.atRecommendedFilingAge).toBeGreaterThanOrEqual(0);
+    // Pinned, not bounded: `Money` clamps every negative path to zero, so
+    // `>= 0` could not fail — forcing `spousalFiguresFrom` to return 0 used to
+    // pass this whole file. The figure is exactly derivable. Dan files at
+    // 68y10m (Apr 1962 + 68y10m = Feb 2031). Sarah has no record of her own,
+    // so `strategy-calc.ts:63-69` moves her filing date up to his, and the
+    // spousal band starts at max(Feb 2031, Feb 2031) = Feb 2031 — when she is
+    // exactly 67y0m (Feb 1964 + 67y = Feb 2031), her own FRA. Zero months
+    // early, and delayed credits never apply to a spousal benefit, so the
+    // $1,200 entitlement is paid unreduced.
+    expect(result.spousalTopUp!.atRecommendedFilingAge).toBe(1200);
+    expect(result.spousalTopUp!.startsAtSpouseAge).toBe('67');
+    expect(result.people[0].recommendedFilingAge.label).toBe('68 years, 10 months');
     expect(result.spousalTopUp!.lowerEarnerLabel).toBe('Sarah');
   });
 
@@ -205,7 +216,14 @@ describe('analyzeHousehold — married', () => {
     const spousal = result.spousalTopUp!;
     // Half of Dan's PIA, since she has no record of her own.
     expect(spousal.atFra).toBeCloseTo(dan.piaMonthly / 2, 0);
-    expect(spousal.atRecommendedFilingAge).toBeLessThanOrEqual(spousal.atFra);
+    // `<= atFra` was satisfied by zero, so this too passed with the paid
+    // figure forced to 0. Pinned instead — the band starts exactly at Sarah's
+    // own FRA, so the two figures coincide here and the reduction is nil (see
+    // the derivation in "reports a spousal top-up for a spouse with no
+    // record"). They are still two distinct quantities: `atFra` is dateless,
+    // `atRecommendedFilingAge` is read off the engine's Spousal band.
+    expect(spousal.atRecommendedFilingAge).toBe(1200);
+    expect(spousal.atFra).toBe(1200);
   });
 
   it('uses each person own gender for mortality, not an assumed opposite', async () => {
@@ -356,9 +374,9 @@ describe('engine periods', () => {
   });
 
   it('reports the survivor gap the optimizer can actually produce', async () => {
-    // The engine pays survivor benefits only to the lower-PIA spouse, so when
-    // the HIGHER-PIA spouse outlives the other no survivor band exists — and
-    // if that survivor holds the smaller benefit, the chart understates them.
+    // The engine pays survivor benefits only to the lower-PIA dependent, so
+    // when the EARNER outlives the dependent no survivor band exists — and if
+    // that survivor holds the smaller benefit, the chart understates them.
     //
     // Reaching it through the optimizer needs the two benefits close and the
     // person with the LARGER benefit to die first. An older spouse with a
@@ -366,9 +384,14 @@ describe('engine periods', () => {
     // 68y10m earns more delayed credits than the younger spouse filing at
     // 68y3m against an FRA of 67. None of the golden scenarios hit this, which
     // is why it needs pinning here.
+    //
+    // Avery's plan-to age of 85 (rather than the 75 this fixture used to
+    // carry) puts her death in Mar 2042 — AFTER Blake files in Dec 2038 — so
+    // both disclosed figures are genuinely contemporaneous. The 75 variant is
+    // covered as its own branch in methodologyCopy.test.ts.
     const older: Person = {
       id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
-      gender: 'female', piaMonthly: 1500, lifeExpectancy: 75,
+      gender: 'female', piaMonthly: 1500, lifeExpectancy: 85,
     };
     const younger: Person = {
       id: 'b', name: 'Blake', birthYear: 1970, birthMonth: 9,
@@ -387,14 +410,23 @@ describe('engine periods', () => {
     // The disclosed figures are the engine's own, and the survivor really is
     // the one holding the smaller benefit.
     expect(result.survivorGap!.deceasedMonthly).toBeGreaterThan(
-      result.survivorGap!.survivorOwnMonthly,
+      result.survivorGap!.survivorOwnMonthly!,
     );
-    const bandFor = (id: string) =>
-      result.periods
-        .filter((b) => b.personId === id && b.type === 'personal')
-        .reduce((latest, b) => (b.startIndex > latest.startIndex ? b : latest));
-    expect(result.survivorGap!.survivorOwnMonthly).toBe(bandFor('b').monthlyAmount);
-    expect(result.survivorGap!.deceasedMonthly).toBe(bandFor('a').monthlyAmount);
+    // Read at the month of the death, not at the end of life: the band paying
+    // each person in Mar 2042 (Avery's final month) and Apr 2042 (the month a
+    // survivor benefit would begin).
+    const death = (1957 + 85) * 12 + 2;
+    const paidAt = (id: string, monthIndex: number) =>
+      result.periods.find(
+        (b) =>
+          b.personId === id &&
+          b.type === 'personal' &&
+          b.startIndex <= monthIndex &&
+          monthIndex <= b.endIndex,
+      )!;
+    expect(result.survivorGap!.survivorOwnMonthly).toBe(paidAt('b', death + 1).monthlyAmount);
+    expect(result.survivorGap!.deceasedMonthly).toBe(paidAt('a', death).monthlyAmount);
+    expect(result.survivorGap!.survivorUnder60).toBe(false);
   });
 
   it("matches each person's recommendedMonthly to their final personal band", async () => {

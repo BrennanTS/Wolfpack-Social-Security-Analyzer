@@ -70,6 +70,23 @@ export interface ScenarioExpected {
   startsAtSpouseAge: string | null;
   /** Indexed like inputs.people. */
   optimalAgeRangeByPerson: [number, number][];
+  /**
+   * The filing age the optimizer actually recommends for each person, indexed
+   * like inputs.people. Null for 'factorsOnly' scenarios, which never run the
+   * optimizer.
+   *
+   * **Engine-recorded, not hand-derived.** Unlike every other expected value
+   * in this file, these are optimizer outputs over empirical SSA/CDC life
+   * tables — there is no published closed form to derive them from, which is
+   * precisely why `optimalAgeRangeByPerson` was left as the permissive
+   * `[62, 70]` window. But `[62, 70]` is the whole legal range, so running the
+   * golden suite could not detect a moved filing age at all, and "every
+   * recommended filing age is unchanged" was an unguarded claim. Recording
+   * them makes the suite a regression detector for the one invariant the
+   * benefit-periods rebase turns on. If one of these ever changes, do NOT
+   * re-record it to make the suite green: find out what moved the optimizer.
+   */
+  recommendedFilingAgeByPerson: { years: number; months: number }[] | null;
   invariants: string[];
 }
 

@@ -174,9 +174,9 @@ describe('householdPeriods — the January bump under a survivor band', () => {
 });
 
 describe('householdPeriods — the unmodeled survivor direction', () => {
-  // The engine pays survivor benefits only to the lower-PIA person. Here the
-  // HIGHER earner outlives the lower one: A has the larger PIA but files at
-  // 62, B files at 70, and B dies first. SSA would step A up; the engine
+  // The engine pays survivor benefits only to the lower-PIA dependent. Here
+  // the engine's EARNER outlives the dependent: A has the larger PIA but files
+  // at 62, B files at 70, and B dies first. SSA would step A up; the engine
   // emits no survivor band at all. That must be disclosed, not computed.
   const a = person('a', 1958, 3, 2000, 'male', 88);
   const b = person('b', 1960, 9, 1600, 'female', 80);
@@ -199,7 +199,65 @@ describe('householdPeriods — the unmodeled survivor direction', () => {
     // The disclosed figures are the engine's own, not a re-derivation.
     expect(survivorGap!.survivorOwnMonthly).toBe(own.monthlyAmount);
     expect(survivorGap!.deceasedMonthly).toBe(deceased.monthlyAmount);
-    expect(survivorGap!.deceasedMonthly).toBeGreaterThan(survivorGap!.survivorOwnMonthly);
+    expect(survivorGap!.deceasedMonthly).toBeGreaterThan(survivorGap!.survivorOwnMonthly!);
+    // Both bands genuinely cover the death month (Sep 2040) and the month
+    // after it, so these two figures really are contemporaneous — the case
+    // the branch below exists to distinguish this one from.
+    const death = 2040 * 12 + 8;
+    expect(own.startIndex).toBeLessThanOrEqual(death + 1);
+    expect(own.endIndex).toBeGreaterThanOrEqual(death + 1);
+    expect(deceased.endIndex).toBe(death);
+    expect(survivorGap!.survivorUnder60).toBe(false);
+  });
+
+  it('quotes no amount when the survivor has not filed at the death', () => {
+    // Avery files at 70 — Mar 2028 — and Blake dies Sep 2027, so Avery is
+    // paid nothing at all in the month a survivor benefit would begin. The
+    // amount his LAST personal band pays is $2,533, and asserting that in the
+    // present tense is the C1 defect: it is a dollar figure he is not
+    // receiving, printed above a chart showing him at $0.
+    const shortLived = person('b', 1960, 9, 1600, 'female', 67);
+    const { bands, survivorGap } = householdPeriods(
+      [a, shortLived],
+      [recipientFor(a), recipientFor(shortLived)],
+      [age(70), age(62)],
+      ['Avery', 'Blake'],
+    );
+    expect(bands.filter((x) => x.type === 'survivor')).toHaveLength(0);
+
+    const own = bands.find((x) => x.personId === 'a' && x.type === 'personal')!;
+    const deceased = bands.find((x) => x.personId === 'b' && x.type === 'personal')!;
+    const death = 2027 * 12 + 8; // Sep 2027, Blake's final month.
+    expect(deceased.endIndex).toBe(death);
+    // Guard: Avery's own band starts strictly after the death month, so there
+    // is genuinely nothing contemporaneous to quote.
+    expect(own.startIndex).toBeGreaterThan(death + 1);
+    expect(own.monthlyAmount).toBe(2533);
+
+    expect(survivorGap).not.toBeNull();
+    expect(survivorGap!.survivorLabel).toBe('Avery');
+    expect(survivorGap!.survivorOwnMonthly).toBeNull();
+    expect(survivorGap!.deceasedMonthly).toBe(deceased.monthlyAmount);
+    expect(survivorGap!.survivorUnder60).toBe(false);
+  });
+
+  it('flags a survivor who is under 60 at the death', () => {
+    // Avery (b. Jun 1985) is 42 when Blake (b. Jun 1955, plan-to 72) dies in
+    // Jun 2027. No widow(er) benefit is payable to anyone under 60, so the
+    // chart's $0 is right for those years and the disclosure must say when the
+    // shortfall actually starts rather than assert an immediate one.
+    const young = person('a', 1985, 6, 2000, 'male', 90);
+    const old = person('b', 1955, 6, 1600, 'female', 72);
+    const { survivorGap } = householdPeriods(
+      [young, old],
+      [recipientFor(young), recipientFor(old)],
+      [age(62), age(62)],
+      ['Avery', 'Blake'],
+    );
+    expect(survivorGap).not.toBeNull();
+    expect(survivorGap!.survivorUnder60).toBe(true);
+    expect(survivorGap!.survivorOwnMonthly).toBeNull();
+    expect(survivorGap!.deceasedMonthly).toBe(1186);
   });
 
   it('stays silent when the survivor already holds the larger benefit', () => {
@@ -211,6 +269,33 @@ describe('householdPeriods — the unmodeled survivor direction', () => {
       [age(62), age(62)],
       ['Avery', 'Blake'],
     );
+    expect(survivorGap).toBeNull();
+  });
+
+  it('stays silent when the DEPENDENT is the survivor and the engine declined the step-up', () => {
+    // The other way a couple ends up with no survivor band at all, and not a
+    // gap: Blake (PIA $1,900) is the engine's dependent and outlives Avery
+    // (PIA $2,000), but Blake's own $1,330 already exceeds the reduced widower
+    // benefit, so `strategy-calc.ts:88-98` declines the step-up. That is the
+    // engine MODELLING this direction, not failing to.
+    //
+    // The predicate that only asked who outlives whom fired here, claiming
+    // "survivor benefits are modeled only for the lower-earning spouse, so no
+    // step-up is shown for Blake" — when Blake IS the lower-earning spouse.
+    // Avery's $1,433 exceeds Blake's $1,330, so the amount comparison alone
+    // does not rule it out; only the earner/dependent test does.
+    const earner = person('a', 1958, 6, 2000, 'male', 66);
+    const dependent = person('b', 1966, 6, 1900, 'male', 85);
+    const { bands, survivorGap } = householdPeriods(
+      [earner, dependent],
+      [recipientFor(earner), recipientFor(dependent)],
+      [age(62), age(62)],
+      ['Avery', 'Blake'],
+    );
+    expect(bands.filter((x) => x.type === 'survivor')).toHaveLength(0);
+    const earnerBand = bands.find((x) => x.personId === 'a')!;
+    const dependentBand = bands.find((x) => x.personId === 'b')!;
+    expect(earnerBand.monthlyAmount).toBeGreaterThan(dependentBand.monthlyAmount);
     expect(survivorGap).toBeNull();
   });
 });

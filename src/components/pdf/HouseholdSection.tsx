@@ -3,7 +3,7 @@ import { Page, Text, View, Svg, Line, Rect } from '@react-pdf/renderer';
 import type { CombinedTimelinePoint, HouseholdAnalysis, HouseholdStrategy } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../../lib/format';
-import { spousalSummary, survivorGapNote } from '../methodologyCopy';
+import { combinedIncomeCaption, spousalSummary, survivorGapNote } from '../methodologyCopy';
 import { BORDER, CONTENT_W, GOLD, INK, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
 
@@ -167,12 +167,12 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       <StrategyTable comparisons={analysis.comparisons} people={people} />
 
       <Text style={styles.sectionTitle}>Combined Household Income</Text>
+      {/* Same function as the on-screen chart caption: the two were a verbatim
+          duplicate, and both claimed survivor benefits were included even for
+          the households whose gap note directly beneath said they were not. */}
       <Text style={styles.sectionDesc}>
-        Annual Social Security income by year under the recommended filing strategy. Each
-        person&rsquo;s band is everything they are paid that year — their own benefit plus
-        any spousal or survivor benefit — counting only the months actually paid, so a
-        filing year or a final year is shorter than a full one. Amounts are in
-        today&rsquo;s dollars, before any cost-of-living adjustment.
+        Annual Social Security income by year under the recommended filing strategy.{' '}
+        {combinedIncomeCaption(analysis.survivorGap)}
       </Text>
       {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
       <View style={styles.chartBox}>

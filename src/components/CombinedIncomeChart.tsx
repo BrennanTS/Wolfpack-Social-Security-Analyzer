@@ -4,7 +4,7 @@ import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { CombinedTimelinePoint } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../lib/format';
-import { survivorGapNote } from './methodologyCopy';
+import { combinedIncomeCaption, survivorGapNote } from './methodologyCopy';
 import {
   CHART_AXIS_LINE,
   CHART_GOLD,
@@ -40,7 +40,8 @@ const PERSON_COLORS = [CHART_GOLD, CHART_INK, CHART_GREY_MID];
  * so the household tab doesn't look like a different app.
  */
 export function CombinedIncomeChart({ timeline, people, survivorGap }: CombinedIncomeChartProps) {
-  const gapNote = survivorGapNote(survivorGap ?? null);
+  const gap = survivorGap ?? null;
+  const gapNote = survivorGapNote(gap);
   const series = useMemo(
     () =>
       people.map((p, i) => ({
@@ -58,10 +59,7 @@ export function CombinedIncomeChart({ timeline, people, survivorGap }: CombinedI
         <p>Annual Social Security income by year under the recommended filing strategy</p>
         {people.length > 1 && (
           <p className="chart-caveat" data-testid="combined-income-caveat">
-            Each person&rsquo;s band is everything they are paid that year — their own
-            benefit plus any spousal or survivor benefit — counting only the months
-            actually paid, so a filing year or a final year is shorter than a full one.
-            Amounts are in today&rsquo;s dollars, before any cost-of-living adjustment.
+            {combinedIncomeCaption(gap)}
           </p>
         )}
         {gapNote && (

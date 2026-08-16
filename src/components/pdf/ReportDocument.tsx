@@ -5,7 +5,7 @@ import { fraLabel } from '../../lib/format';
 import type { HouseholdAnalysis } from '../../lib/household';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../../lib/lifeExpectancy';
 import { formatVersionLabel } from '../../lib/version';
-import { spousalSummary } from '../methodologyCopy';
+import { SINGLE_CLAIMANT_BENEFIT_NOTE, spousalSummary } from '../methodologyCopy';
 import { HouseholdSection } from './HouseholdSection';
 import { PersonSection } from './PersonSection';
 import { styles } from './theme';
@@ -111,13 +111,20 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
       },
       {
         title: 'Lifetime Benefit Projection',
-        body: `Lifetime totals use SSA cost-of-living adjustments (ssa.tools), undiscounted, through age ${rep.person.lifeExpectancy}.`,
+        // The engine projects no future COLA — only the historical COLAs
+        // already baked into the PIA — so every dollar figure in this report
+        // is in today's dollars. The household page says exactly this; these
+        // two strings used to claim the opposite on the same printed page.
+        body: `Lifetime totals are in today's dollars, before any future cost-of-living adjustment, undiscounted, through age ${rep.person.lifeExpectancy}.`,
       },
     ],
     [
       {
         title: 'Inflation / COLA',
-        body: `${formatPercent(annualCola, 2)} annual COLA. BLS CPI-U ${cpi.startYear}–${cpi.endYear} avg ${formatPercent(cpi.arithmeticMean, 2)}.`,
+        // Stated as the assumption it is: this slider reaches the break-even
+        // ages and nothing else, so it must not read as if benefit amounts
+        // were inflated by it.
+        body: `${formatPercent(annualCola, 2)} annual COLA, applied to break-even ages only. BLS CPI-U ${cpi.startYear}–${cpi.endYear} avg ${formatPercent(cpi.arithmeticMean, 2)}.`,
       },
       {
         title: 'Life Expectancy',
@@ -127,11 +134,13 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
     [
       {
         title: 'Spousal Benefit',
-        // Same function as the household page and the on-screen panel, so the
-        // three cannot branch differently on an absent start date again.
+        // Both arms are shared with the household page and the on-screen
+        // panel: the married one so the three cannot branch differently on an
+        // absent start date again, the single one so they cannot make three
+        // different claims about what a single claimant is and is not shown.
         body: spousal
           ? spousalSummary(spousal, 'the lower earner')
-          : 'Single claimant — spousal benefits not modeled.',
+          : SINGLE_CLAIMANT_BENEFIT_NOTE,
       },
       {
         title: 'Data Sources',
@@ -155,11 +164,11 @@ function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis }) {
         <Text style={styles.disclaimerTitle}>Important Disclosures</Text>
         <Text style={styles.disclaimerText}>
           Prepared by {BRAND_NAME} using the open-source ssa.tools engine for educational
-          planning only. Not affiliated with the SSA. Benefit amounts reflect SSA
-          cost-of-living adjustments;{' '}
+          planning only. Not affiliated with the SSA. Benefit amounts are in today&rsquo;s
+          dollars, before any future cost-of-living adjustment.{' '}
           {hasSpouse
-            ? 'the spousal top-up is modeled via the ssa.tools couple optimizer. '
-            : 'spousal benefits are not modeled for single claimants. '}
+            ? 'The spousal top-up and survivor benefits are modeled via the ssa.tools couple optimizer. '
+            : `${SINGLE_CLAIMANT_BENEFIT_NOTE} `}
           Projections exclude taxation, earnings limits, and future rule changes. Data:{' '}
           {BLS_CPI_URL}. Verify at ssa.gov before claiming.
         </Text>

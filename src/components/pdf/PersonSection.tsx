@@ -123,8 +123,8 @@ export function PersonSection({ analysis, index, annualCola, footerText, appendi
 
       <Text style={styles.sectionTitle}>Benefit Comparison by Claiming Age</Text>
       <Text style={styles.sectionDesc}>
-        Monthly benefit and lifetime total through age {person.lifeExpectancy}, using SSA
-        cost-of-living adjustments (ssa.tools), undiscounted
+        Monthly benefit and lifetime total through age {person.lifeExpectancy}, in
+        today&rsquo;s dollars before any future cost-of-living adjustment, undiscounted
       </Text>
       <BenefitTable claimingOptions={claimingOptions} optimal={optimal} optimalAge={optimalAge} />
 
