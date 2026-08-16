@@ -64,6 +64,17 @@ export function breakEvenAge(
   laterMonthly: number,
   annualCola = 0,
 ): number | null {
+  // Two streams of nothing never cross. Without this, the loop's very first
+  // iteration compares 0 >= 0, "finds" a break-even at `laterAge`, and the UI
+  // prints a confident verdict ("Delaying to 70 wins") for a person who
+  // receives nothing on their own record. The guard below does not catch it:
+  // it only fires at exactly 0% COLA, and the default COLA is the CPI average.
+  //
+  // Reachable since the benefit floor was dropped to $0 — a spouse with no
+  // work record of their own now has a PIA of $0 and every claiming option at
+  // $0. See `formBounds.ts` on why the $500 floor went away.
+  if (earlierMonthly <= 0 && laterMonthly <= 0) return null;
+
   if (laterMonthly <= earlierMonthly && annualCola === 0) return null;
 
   for (let t = laterAge * 10; t <= 1200; t++) {

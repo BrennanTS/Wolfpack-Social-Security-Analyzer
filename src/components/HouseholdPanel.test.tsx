@@ -115,4 +115,41 @@ describe('HouseholdPanel', () => {
     const { getByTestId } = render(<HouseholdPanel analysis={unnamed} annualCola={0} />);
     expect(getByTestId('break-even-attribution').textContent).toContain('Break-even for You');
   });
+
+  // Newly reachable since the benefit floor dropped to $0: person A can have
+  // no work record of their own, so every claiming option is $0. The
+  // break-even loop used to "find" a crossover at the later age on its first
+  // iteration (0 >= 0) and the tab rendered three cards reading "Break-even
+  // age 67 / 70 / 70 — Delaying to 70 wins" for someone receiving nothing.
+  // The section must be absent entirely, not present-but-empty.
+  it('renders no break-even section at all when person A has a zero benefit', () => {
+    const analysis = buildAnalysis();
+    const zeroPia = {
+      ...analysis,
+      people: [
+        {
+          ...analysis.people[0],
+          person: { ...analysis.people[0].person, piaMonthly: 0 },
+          claimingOptions: analysis.people[0].claimingOptions.map((o) => ({
+            ...o,
+            monthlyBenefit: 0,
+            lifetimeBenefits: 0,
+          })),
+        },
+      ],
+    } as HouseholdAnalysis;
+
+    // 2.5 is the CPI default the app actually ships — the value the old
+    // `annualCola === 0` guard could never catch.
+    const { container, queryByTestId, queryByText } = render(
+      <HouseholdPanel analysis={zeroPia} annualCola={2.5} />,
+    );
+    expect(queryByText('Break-Even Analysis')).toBeNull();
+    expect(queryByTestId('break-even-attribution')).toBeNull();
+    expect(container.querySelectorAll('.be-age-value')).toHaveLength(0);
+    expect(container.querySelectorAll('.breakeven-section')).toHaveLength(0);
+    // The rest of the tab still renders — the recommendation is spousal-aware
+    // and remains correct for this household.
+    expect(queryByTestId('recommendation-title')).not.toBeNull();
+  });
 });

@@ -51,6 +51,41 @@ describe('breakEvenAge', () => {
     expect(be).toBeGreaterThan(79);
     expect(be).toBeLessThan(82);
   });
+
+  // The combination the `annualCola === 0` guard misses. A person with no work
+  // record of their own has a $0 PIA, so every claiming option is $0 — and the
+  // default COLA is the CPI average, never 0. Without an explicit zero/zero
+  // guard the loop returns `laterAge` on its first iteration and the Household
+  // tab renders "Break-even age 70 — delaying to 70 wins" for someone who
+  // receives nothing.
+  it('returns null for two zero streams even with a non-zero COLA', () => {
+    expect(breakEvenAge(62, 0, 70, 0, 2.5)).toBeNull();
+    expect(breakEvenAge(67, 0, 70, 0, 8)).toBeNull();
+  });
+
+  it('returns null for two zero streams at 0% COLA as well', () => {
+    expect(breakEvenAge(62, 0, 70, 0, 0)).toBeNull();
+  });
+});
+
+describe('computeBreakEvens for a zero-PIA person', () => {
+  const zeroOptions: ClaimingOption[] = [62, 67, 70].map((age) => ({
+    age,
+    monthlyBenefit: 0,
+    percentOfPia: 0,
+    lifetimeBenefits: 0,
+    yearsOfPayments: 0,
+    isEligible: true,
+    monthsFromFra: 0,
+  }));
+
+  it('produces no pairs at the default CPI COLA, so no cards are rendered', () => {
+    expect(computeBreakEvens(zeroOptions, 2.5)).toEqual([]);
+  });
+
+  it('produces no pairs at 0% COLA either', () => {
+    expect(computeBreakEvens(zeroOptions, 0)).toEqual([]);
+  });
 });
 
 describe('computeBreakEvens', () => {
