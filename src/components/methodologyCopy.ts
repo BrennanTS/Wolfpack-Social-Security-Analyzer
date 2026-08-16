@@ -8,7 +8,8 @@
  */
 import type { BandType, SurvivorGap } from '../lib/benefitPeriods';
 import type { HouseholdAnalysis } from '../lib/household';
-import { formatCurrencyPrecise } from '../lib/format';
+import type { IncomeCliff } from '../lib/incomeCliff';
+import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 
 type SpousalTopUp = NonNullable<HouseholdAnalysis['spousalTopUp']>;
 
@@ -270,5 +271,53 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
   return (
     'Married households are optimized jointly by ssa.tools, including the spousal top-up. ' +
     `${spousalSummary(spousal, spousal.lowerEarnerLabel)} ${survivor}`
+  );
+}
+
+/**
+ * The income-cliff sentence — the one an adviser says out loud: what happens
+ * to household income at the first death, in the numbers a client actually
+ * sees on the chart. Shared by the on-screen callout (`IncomeCliffCallout`)
+ * and `pdf/HouseholdSection` so, as with every other sentence in this module,
+ * it cannot be hand-retyped into one surface and drift from the other.
+ *
+ * Deliberately does not assert "income falls": `dropPercent === 0` is
+ * reachable whenever the survivor's own benefit plus any step-up equals or
+ * exceeds the household's prior total, and stating a fall then would be
+ * false. The two branches below are the only two truths available — either
+ * it fell by some positive amount, or it did not — and both name both
+ * figures either way, since the number is the point of the sentence.
+ *
+ * Says nothing about `survivorGap`: when the engine cannot model the
+ * survivor direction a household would actually experience, the `after`
+ * figure here is understated by exactly the amount `survivorGapNote`
+ * describes. Callers render that note in the same callout rather than this
+ * function growing a second clause about it — the wording already exists
+ * once, in `survivorGapNote`, and duplicating it here is exactly the
+ * hand-maintained-in-two-places pattern behind the prior defects on this
+ * project.
+ *
+ * Deliberately says nothing about *how* the survivor's benefit is
+ * determined ("steps up to the larger of the two", SSA's actual rule) —
+ * that claim is true for most households but specifically false for a
+ * `survivorGap` household, where `after` is the survivor's own smaller
+ * benefit continuing unchanged because the engine did not model the step-up
+ * in that direction. Asserting the mechanism here would be exactly this
+ * project's recurring defect: a claim beside a number the number does not
+ * support for every household shape. Naming the survivor and the two full
+ * years' totals is the part that is true unconditionally.
+ */
+export function incomeCliffSentence(cliff: IncomeCliff): string {
+  const { deathYear, before, after, dropPercent, survivorLabel } = cliff;
+  const change =
+    dropPercent > 0
+      ? `falls ${dropPercent.toFixed(1)}%, from ${formatCurrency(before)}/yr the year before to ` +
+        `${formatCurrency(after)}/yr the year after`
+      : `does not fall — ${formatCurrency(before)}/yr the year before, ` +
+        `${formatCurrency(after)}/yr the year after`;
+
+  return (
+    `At the first death, projected for ${deathYear}, household income ${change}, once ` +
+    `${survivorLabel} is the only one still collecting.`
   );
 }

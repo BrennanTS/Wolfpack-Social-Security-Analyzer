@@ -3,6 +3,7 @@ import { computeBreakEvens } from '../lib/benefitMath';
 import { personLabel } from '../lib/format';
 import { StrategyComparisonTable } from './StrategyComparisonTable';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
+import { IncomeCliffCallout } from './IncomeCliffCallout';
 import { BreakEvenSection } from './BreakEvenSection';
 
 interface HouseholdPanelProps {
@@ -51,6 +52,8 @@ export function HouseholdPanel({ analysis, annualCola }: HouseholdPanelProps) {
         survivorGap={analysis.survivorGap}
         finalIndexByPersonId={analysis.finalIndexByPersonId}
       />
+
+      <IncomeCliffCallout analysis={analysis} />
 
       <BreakEvenSection
         breakEvens={breakEvens}

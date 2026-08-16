@@ -221,6 +221,63 @@ describe('HouseholdSection — the household page as the report composes it', ()
 });
 
 /**
+ * The printed income-cliff callout — the same `incomeCliffSentence` the
+ * on-screen `IncomeCliffCallout` renders, printed by `HouseholdSection`
+ * itself rather than a component of its own (there is no PDF equivalent of
+ * `IncomeCliffCallout`; the section prints the sentence directly).
+ *
+ * `analysisWith` above has only a single-year `combinedTimeline` and no
+ * `finalIndexByPersonId`, so `incomeCliff` returns null against it and none
+ * of those tests exercise this block — this fixture adds the fields
+ * `incomeCliff` actually reads.
+ */
+function analysisWithCliff(survivorGap: SurvivorGap | null): HouseholdAnalysis {
+  return {
+    ...analysisWith(survivorGap),
+    finalIndexByPersonId: { a: 2047 * 12 + 2, b: 2052 * 12 + 0 },
+    combinedTimeline: [
+      { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
+      { year: 2047, bySeries: {}, byPersonId: {}, total: 55000 },
+      { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
+    ],
+  } as unknown as HouseholdAnalysis;
+}
+
+describe('HouseholdSection — the printed income-cliff callout', () => {
+  it('prints the cliff sentence with the full-year figures either side of the first death', () => {
+    const text = collectText(
+      HouseholdSection({ analysis: analysisWithCliff(null), footerText: 'f' }),
+    ).join(' ');
+    expect(text).toContain('Income at the First Death');
+    expect(text).toContain('2047');
+    expect(text).toContain('$60,000');
+    expect(text).toContain('$38,000');
+  });
+
+  it('prints the reused survivor-gap note alongside the cliff sentence when the gap is set', () => {
+    const gap: SurvivorGap = {
+      survivorLabel: 'Blake',
+      deceasedMonthly: 1780,
+      survivorOwnMonthly: 1760,
+      survivorUnder60: false,
+    };
+    const text = collectText(
+      HouseholdSection({ analysis: analysisWithCliff(gap), footerText: 'f' }),
+    ).join(' ');
+    expect(text).toContain('no step-up is shown for Blake');
+    expect(text).toContain('$1,780.00/mo');
+    expect(text).toContain('$1,760.00/mo');
+  });
+
+  it('prints nothing for the cliff section when the first death falls outside the timeline', () => {
+    const text = collectText(
+      HouseholdSection({ analysis: analysisWith(null), footerText: 'f' }),
+    ).join(' ');
+    expect(text).not.toContain('Income at the First Death');
+  });
+});
+
+/**
  * `CombinedIncomeBars`' own decomposition — one legend entry per benefit
  * type, sourced from `benefitSeriesLabel`, the exact same function
  * `CombinedIncomeChart` calls on screen. Retyping the label here (rather than

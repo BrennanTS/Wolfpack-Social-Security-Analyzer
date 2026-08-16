@@ -7,9 +7,16 @@ import {
   type HouseholdStrategy,
 } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
+import { incomeCliff } from '../../lib/incomeCliff';
 import { seriesColor } from '../../lib/chartTheme';
 import { formatCurrency, personLabel } from '../../lib/format';
-import { benefitSeriesLabel, combinedIncomeCaption, spousalSummary, survivorGapNote } from '../methodologyCopy';
+import {
+  benefitSeriesLabel,
+  combinedIncomeCaption,
+  incomeCliffSentence,
+  spousalSummary,
+  survivorGapNote,
+} from '../methodologyCopy';
 import { BORDER, CONTENT_W, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
 
@@ -160,6 +167,7 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
   const people = analysis.people.map((p) => p.person);
   const spousal = analysis.spousalTopUp;
   const gapNote = survivorGapNote(analysis.survivorGap);
+  const cliff = incomeCliff(analysis);
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -197,6 +205,16 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       <View style={styles.chartBox}>
         <CombinedIncomeBars timeline={analysis.combinedTimeline} people={people} />
       </View>
+
+      {cliff && (
+        <>
+          <Text style={styles.sectionTitle}>Income at the First Death</Text>
+          {/* Same function the on-screen callout calls — the sentence an
+              adviser says out loud must read identically in print. */}
+          <Text style={styles.sectionDesc}>{incomeCliffSentence(cliff)}</Text>
+          {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
+        </>
+      )}
 
       {appendix}
 
