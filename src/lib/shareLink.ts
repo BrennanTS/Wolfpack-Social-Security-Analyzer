@@ -1,3 +1,4 @@
+import type { DollarsMode } from './dollarsMode';
 import {
   COLA_BOUNDS,
   isBenefitInRange,
@@ -67,6 +68,17 @@ function readLifeExpectancy(params: URLSearchParams, key: string): number | null
   return value;
 }
 
+/**
+ * `dollars=nominal` is the only value that changes anything; everything
+ * else — absent, `real`, or garbage — leaves the default. Unlike the
+ * numeric fields above, there is no bounds check to fail: this is dropped
+ * rather than clamped by recognizing exactly one non-default spelling
+ * instead of rejecting a range.
+ */
+function readDollarsMode(params: URLSearchParams): DollarsMode {
+  return params.get('dollars') === 'nominal' ? 'nominal' : BLANK_FORM.dollarsMode;
+}
+
 function readPerson(params: URLSearchParams, prefix: 'a' | 'b'): PersonFormFields {
   return {
     // Deliberately never decoded — see the module comment.
@@ -100,6 +112,7 @@ export function toShareParams(form: AnalyzerFormState): URLSearchParams {
   // `dr` travels as a PERCENT so the link is human-readable and matches the
   // slider; the form stores a fraction. Convert on both sides.
   params.set('dr', String(form.discountRate * 100));
+  params.set('dollars', form.dollarsMode);
   return params;
 }
 
@@ -146,6 +159,7 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
       discountFraction !== null && isDiscountRateInBounds(discountFraction)
         ? discountFraction
         : BLANK_FORM.discountRate,
+    dollarsMode: readDollarsMode(params),
   };
 }
 

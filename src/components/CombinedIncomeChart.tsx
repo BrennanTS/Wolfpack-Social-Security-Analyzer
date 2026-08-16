@@ -1,5 +1,6 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { SurvivorGap } from '../lib/benefitPeriods';
+import type { DollarsMode } from '../lib/dollarsMode';
 import { visibleBenefitSeries, type CombinedTimelinePoint } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../lib/format';
@@ -13,6 +14,12 @@ import {
 } from '../lib/chartTheme';
 
 interface CombinedIncomeChartProps {
+  /**
+   * Already in the units the caller wants shown — `HouseholdPanel` is the
+   * one place that calls `toNominal`, so the chart, the caption below it and
+   * every other reader of this same timeline can never disagree about which
+   * dollars they're looking at.
+   */
   timeline: CombinedTimelinePoint[];
   people: Person[];
   /**
@@ -28,6 +35,20 @@ interface CombinedIncomeChartProps {
    * for a couple regardless, since one person alone has no "first" death.
    */
   finalIndexByPersonId?: Record<string, number>;
+  /**
+   * Decides only the caption's closing sentence — `timeline` above already
+   * carries the actual real-or-nominal figures. Defaults to `'real'` so
+   * every test written before the toggle existed keeps asserting the
+   * sentence that was already correct.
+   */
+  dollarsMode?: DollarsMode;
+  /**
+   * Renders the toggle in the chart header when provided. Omitted by every
+   * existing test call site and by the PDF's analogue (`CombinedIncomeBars`,
+   * which has no interactive control at all) — print can't toggle, and a
+   * caller with nothing to do on change has nothing to pass here.
+   */
+  onDollarsModeChange?: (mode: DollarsMode) => void;
 }
 
 /**
@@ -49,6 +70,8 @@ export function CombinedIncomeChart({
   people,
   survivorGap,
   finalIndexByPersonId = {},
+  dollarsMode = 'real',
+  onDollarsModeChange,
 }: CombinedIncomeChartProps) {
   const gap = survivorGap ?? null;
   const gapNote = survivorGapNote(gap);
@@ -93,9 +116,33 @@ export function CombinedIncomeChart({
       <div className="chart-header">
         <h3>Combined Household Income</h3>
         <p>Annual Social Security income by year under the recommended filing strategy</p>
+        {onDollarsModeChange && (
+          <div
+            className="segmented-control dollars-mode-control"
+            role="group"
+            aria-label="Dollars"
+          >
+            <button
+              type="button"
+              className={`segment-btn${dollarsMode === 'real' ? ' segment-btn-active' : ''}`}
+              aria-pressed={dollarsMode === 'real'}
+              onClick={() => onDollarsModeChange('real')}
+            >
+              Today’s dollars
+            </button>
+            <button
+              type="button"
+              className={`segment-btn${dollarsMode === 'nominal' ? ' segment-btn-active' : ''}`}
+              aria-pressed={dollarsMode === 'nominal'}
+              onClick={() => onDollarsModeChange('nominal')}
+            >
+              Future (nominal) dollars
+            </button>
+          </div>
+        )}
         {people.length > 1 && (
           <p className="chart-caveat" data-testid="combined-income-caveat">
-            {combinedIncomeCaption(gap)}
+            {combinedIncomeCaption(gap, dollarsMode)}
           </p>
         )}
         {gapNote && (

@@ -1,4 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
+import type { DollarsMode } from '../lib/dollarsMode';
 import type { HouseholdAnalysis } from '../lib/household';
 import { personLabel } from '../lib/format';
 import { HouseholdPanel } from './HouseholdPanel';
@@ -7,6 +8,15 @@ import { PersonPanel } from './PersonPanel';
 interface HouseholdViewProps {
   analysis: HouseholdAnalysis;
   annualCola: number;
+  /**
+   * Passed straight through to `HouseholdPanel` — the toggle only exists on
+   * the Household tab (the per-person tabs have no combined timeline to
+   * toggle). Optional, defaulting to `'real'`, so every existing call site
+   * (this component's own tests, written before the toggle existed) keeps
+   * working unchanged.
+   */
+  dollarsMode?: DollarsMode;
+  onDollarsModeChange?: (mode: DollarsMode) => void;
 }
 
 interface TabDef {
@@ -25,7 +35,12 @@ interface TabDef {
  * arrow keys move both selection and focus, wrapping at both ends. Only the
  * active panel is rendered, so exactly one `tabpanel` exists at a time.
  */
-export function HouseholdView({ analysis, annualCola }: HouseholdViewProps) {
+export function HouseholdView({
+  analysis,
+  annualCola,
+  dollarsMode = 'real',
+  onDollarsModeChange = () => {},
+}: HouseholdViewProps) {
   const tabs: TabDef[] =
     analysis.status === 'married'
       ? [
@@ -86,7 +101,12 @@ export function HouseholdView({ analysis, annualCola }: HouseholdViewProps) {
         className="household-tabpanel"
       >
         {active === 0 ? (
-          <HouseholdPanel analysis={analysis} annualCola={annualCola} />
+          <HouseholdPanel
+            analysis={analysis}
+            annualCola={annualCola}
+            dollarsMode={dollarsMode}
+            onDollarsModeChange={onDollarsModeChange}
+          />
         ) : (
           <PersonPanel
             analysis={analysis.people[active - 1]}

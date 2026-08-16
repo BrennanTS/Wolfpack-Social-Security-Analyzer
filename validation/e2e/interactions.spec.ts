@@ -119,6 +119,50 @@ test('recomputes break-evens when the COLA slider moves', async ({ page }) => {
   await expect(page.getByTestId('break-even-62-70')).not.toHaveText(zeroColaText ?? '');
 });
 
+test('toggles dollars mode and moves the chart, the income-cliff callout and the survivor-income column together', async ({ page }) => {
+  await page.goto('/');
+  await fillScenarioForm(page, married);
+  await expect(page.getByTestId('strategy-table')).toBeVisible();
+
+  // Real is the default — the honest view needs no arithmetic, so it's the
+  // one the reader sees without asking.
+  const dollarsGroup = page.getByRole('group', { name: 'Dollars' });
+  const realBtn = dollarsGroup.getByRole('button', { name: /today/i });
+  const nominalBtn = dollarsGroup.getByRole('button', { name: /future/i });
+  await expect(realBtn).toHaveAttribute('aria-pressed', 'true');
+  await expect(nominalBtn).toHaveAttribute('aria-pressed', 'false');
+
+  const captionBefore = await page.getByTestId('combined-income-caveat').textContent();
+  const cliffBefore = await page.getByTestId('income-cliff-sentence').textContent();
+  const survivorCellBefore = await page.getByTestId('cell-survivor-optimal').textContent();
+  expect(captionBefore).toContain('today’s dollars');
+
+  await nominalBtn.click();
+
+  await expect(nominalBtn).toHaveAttribute('aria-pressed', 'true');
+  await expect(realBtn).toHaveAttribute('aria-pressed', 'false');
+
+  // Every figure the toggle governs must move together — a chart in nominal
+  // beside a callout still in real would be the same defect class as a wrong
+  // caption, just harder to spot.
+  const captionAfter = await page.getByTestId('combined-income-caveat').textContent();
+  expect(captionAfter).toContain('nominal');
+  expect(captionAfter).not.toBe(captionBefore);
+
+  const cliffAfter = await page.getByTestId('income-cliff-sentence').textContent();
+  expect(cliffAfter).not.toBe(cliffBefore);
+
+  const survivorCellAfter = await page.getByTestId('cell-survivor-optimal').textContent();
+  expect(survivorCellAfter).not.toBe(survivorCellBefore);
+
+  // Toggling back restores every figure exactly, not just the button state.
+  await realBtn.click();
+  await expect(realBtn).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('combined-income-caveat')).toHaveText(captionBefore ?? '');
+  await expect(page.getByTestId('income-cliff-sentence')).toHaveText(cliffBefore ?? '');
+  await expect(page.getByTestId('cell-survivor-optimal')).toHaveText(survivorCellBefore ?? '');
+});
+
 test('toggles the settings drawer open and closed', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#settings-drawer')).toBeVisible();

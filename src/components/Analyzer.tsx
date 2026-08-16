@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { genderLabel } from '../lib/lifeExpectancy';
+import type { DollarsMode } from '../lib/dollarsMode';
 import type { HouseholdAnalysis } from '../lib/household';
 import { BRAND_NAME } from '../lib/brand';
 import {
@@ -47,6 +48,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [hasSpouse, setHasSpouse] = useState<boolean | null>(initialForm.hasSpouse);
   const [annualCola, setAnnualCola] = useState(initialForm.annualCola);
   const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
+  const [dollarsMode, setDollarsMode] = useState<DollarsMode>(initialForm.dollarsMode);
 
   // Strip the query string separately, because this is a side effect and
   // StrictMode double-invokes state initializers. replaceState is idempotent,
@@ -79,8 +81,9 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       hasSpouse,
       annualCola,
       discountRate,
+      dollarsMode,
     }),
-    [personA, personB, hasSpouse, annualCola, discountRate],
+    [personA, personB, hasSpouse, annualCola, discountRate, dollarsMode],
   );
 
   const inputsComplete = isFormComplete(form);
@@ -91,6 +94,9 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   // recomputed cheaply from `analysis.people[0].claimingOptions` where they're
   // needed (see `HouseholdPanel`); the PDF export instead uses the analysis's
   // own baked-in `assumptions.annualCola`, since it's a point-in-time snapshot.
+  // `dollarsMode` is excluded for the same reason: it's a pure display
+  // transform (`lib/dollarsMode.ts`) applied on top of `analysis.combinedTimeline`
+  // in `HouseholdPanel`, never sent to the engine.
   useEffect(() => {
     if (!isFormComplete(form)) {
       setAnalysis(null);
@@ -325,7 +331,12 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             </div>
           ) : (
             <>
-              <HouseholdView analysis={analysis} annualCola={annualCola} />
+              <HouseholdView
+                analysis={analysis}
+                annualCola={annualCola}
+                dollarsMode={dollarsMode}
+                onDollarsModeChange={setDollarsMode}
+              />
 
               <div className="methodology">
                 <h3>How This Works</h3>

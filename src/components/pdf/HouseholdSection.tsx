@@ -7,6 +7,7 @@ import {
   type HouseholdStrategy,
 } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
+import { toNominalAmount } from '../../lib/dollarsMode';
 import { incomeCliff } from '../../lib/incomeCliff';
 import { seriesColor } from '../../lib/chartTheme';
 import { formatCurrency, personLabel } from '../../lib/format';
@@ -15,6 +16,7 @@ import {
   combinedIncomeCaption,
   incomeCliffSentence,
   INCOME_CLIFF_HEADING,
+  nominalFirstDeathNote,
   spousalSummary,
   survivorGapNote,
   survivorIncomeCaption,
@@ -185,6 +187,20 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
   const spousal = analysis.spousalTopUp;
   const gapNote = survivorGapNote(analysis.survivorGap);
   const cliff = incomeCliff(analysis);
+  // Print always renders real dollars (`combinedIncomeCaption` below is
+  // called with `'real'` explicitly) and offers no toggle, so this is the
+  // one nominal figure preserved in prose — the exact `after` amount,
+  // compounded forward to the calendar year it lands in, using the
+  // analysis's own baked-in COLA assumption rather than a live slider that
+  // doesn't exist on a printed page.
+  const nominalAfterFirstDeath = cliff
+    ? toNominalAmount(
+        cliff.after,
+        analysis.assumptions.annualCola,
+        analysis.asOf.getFullYear(),
+        cliff.deathYear + 1,
+      )
+    : null;
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -216,10 +232,13 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       <Text style={styles.sectionTitle}>Combined Household Income</Text>
       {/* Same function as the on-screen chart caption: the two were a verbatim
           duplicate, and both claimed survivor benefits were included even for
-          the households whose gap note directly beneath said they were not. */}
+          the households whose gap note directly beneath said they were not.
+          `'real'` is explicit, not the function's default, because print has
+          no toggle and always renders real dollars regardless of what the
+          default happens to be. */}
       <Text style={styles.sectionDesc}>
         Annual Social Security income by year under the recommended filing strategy.{' '}
-        {combinedIncomeCaption(analysis.survivorGap)}
+        {combinedIncomeCaption(analysis.survivorGap, 'real')}
       </Text>
       {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
       <View style={styles.chartBox}>
@@ -236,8 +255,21 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
               caption right before it says "see the note below" pointing at
               that one copy. Printing it again here put the identical
               paragraph on the page twice — the disclosure belongs exactly
-              once, at the chart it annotates. */}
-          <Text style={styles.sectionDesc}>{incomeCliffSentence(cliff)}</Text>
+              once, at the chart it annotates.
+
+              `nominalFirstDeathNote` extends this same paragraph rather than
+              adding a second one: print can't offer the on-screen toggle, so
+              this is the one nominal number preserved in prose — what the
+              survivor's income actually will be, in the dollars they'll
+              receive that year, not today's. */}
+          <Text style={styles.sectionDesc}>
+            {incomeCliffSentence(cliff)}{' '}
+            {nominalFirstDeathNote(
+              cliff,
+              nominalAfterFirstDeath as number,
+              analysis.assumptions.annualCola,
+            )}
+          </Text>
         </>
       )}
 

@@ -6,6 +6,7 @@ import {
   combinedIncomeCaption,
   coupleModelingNote,
   incomeCliffSentence,
+  nominalFirstDeathNote,
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalMethodologyCopy,
   spousalSummary,
@@ -557,6 +558,37 @@ describe('combinedIncomeCaption', () => {
     });
     expect(gap).toMatch(/survivor segment is the increment above the personal band/i);
   });
+
+  // The toggle's whole reason for existing: a chart in nominal dollars beside
+  // a caption still claiming "today's dollars" would be exactly the recurring
+  // defect this project keeps finding — a right number with wrong text next
+  // to it. `mode` defaults to 'real' so every call above, written before the
+  // toggle existed, keeps asserting the sentence that was already correct.
+  describe('dollars mode', () => {
+    it('defaults to the today’s-dollars sentence when mode is omitted', () => {
+      expect(combinedIncomeCaption(null)).toContain(
+        'today’s dollars, before any cost-of-living adjustment',
+      );
+    });
+
+    it('states today’s dollars explicitly in real mode', () => {
+      const caption = combinedIncomeCaption(null, 'real');
+      expect(caption).toContain('today’s dollars, before any cost-of-living adjustment');
+      expect(caption).not.toMatch(/nominal/i);
+    });
+
+    it('says nominal in nominal mode, and stops claiming today’s dollars', () => {
+      const caption = combinedIncomeCaption(null, 'nominal');
+      expect(caption).toMatch(/nominal/i);
+      expect(caption).not.toContain('today’s dollars, before any cost-of-living adjustment');
+    });
+
+    it('keeps every other claim unchanged by the mode', () => {
+      const real = combinedIncomeCaption(null, 'real').replace(/Amounts are.*$/, '');
+      const nominal = combinedIncomeCaption(null, 'nominal').replace(/Amounts are.*$/, '');
+      expect(nominal).toBe(real);
+    });
+  });
 });
 
 /**
@@ -642,6 +674,38 @@ describe('incomeCliffSentence', () => {
     const sentence = incomeCliffSentence(base);
     expect(sentence).not.toMatch(/larger/i);
     expect(sentence).not.toMatch(/steps? (up|into)/i);
+  });
+});
+
+/**
+ * The print-only sentence stating the nominal-dollar equivalent of the
+ * income cliff's `after` figure — the one nominal number clients ask about,
+ * preserved in prose since the PDF can't offer the on-screen toggle. Takes
+ * the nominal figure already computed (by `lib/dollarsMode.ts`) rather than
+ * computing it, so these tests pin only the wording, not the compounding
+ * arithmetic — that's `dollarsMode.test.ts`'s job.
+ */
+describe('nominalFirstDeathNote', () => {
+  const base: IncomeCliff = {
+    deathYear: 2047,
+    before: 60000,
+    after: 38000,
+    dropPercent: 36.666666666666664,
+    survivorLabel: 'Sarah',
+  };
+
+  it('states the year after the death, the nominal figure, and the COLA assumed', () => {
+    const note = nominalFirstDeathNote(base, 48620.15, 2.5);
+    expect(note).toContain('2048');
+    expect(note).toContain('$48,620');
+    expect(note).toContain('2.50%');
+    expect(note).toMatch(/nominal/i);
+  });
+
+  it('is the identity at a zero COLA — same figure, still labeled nominal', () => {
+    const note = nominalFirstDeathNote(base, 38000, 0);
+    expect(note).toContain('$38,000');
+    expect(note).toContain('0.00%');
   });
 });
 

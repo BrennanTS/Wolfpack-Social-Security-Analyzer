@@ -234,6 +234,9 @@ describe('HouseholdSection — the household page as the report composes it', ()
 function analysisWithCliff(survivorGap: SurvivorGap | null): HouseholdAnalysis {
   return {
     ...analysisWith(survivorGap),
+    // `nominalFirstDeathNote` needs a year to compound from — `incomeCliff`
+    // itself doesn't read `asOf`, so no earlier test here needed one.
+    asOf: new Date(2026, 0, 15),
     finalIndexByPersonId: { a: 2047 * 12 + 2, b: 2052 * 12 + 0 },
     combinedTimeline: [
       { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
@@ -287,6 +290,26 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
       HouseholdSection({ analysis: analysisWith(null), footerText: 'f' }),
     ).join(' ');
     expect(text).not.toContain('Income at the First Death');
+  });
+
+  // Print always renders real dollars and has no toggle, so this is the one
+  // nominal number preserved in prose. Pinned with a non-zero COLA — every
+  // other fixture in this file uses `annualCola: 0`, under which nominal and
+  // real are numerically identical and this addition couldn't be told apart
+  // from a no-op.
+  it('states the nominal first-death figure in prose, compounded from the analysis’s own COLA', () => {
+    const analysis = {
+      ...analysisWithCliff(null),
+      assumptions: { annualCola: 2.5, discountRate: 0.025 },
+    };
+    const text = collectText(HouseholdSection({ analysis, footerText: 'f' })).join(' ');
+    expect(text).toContain('Income at the First Death');
+    expect(text).toMatch(/nominal/i);
+    expect(text).toContain('2.50%');
+    // 2048 is `deathYear + 1` (2047 + 1); household total that year is
+    // $38,000 real. `asOf` is 2026, so this is 22 years of 2.5% compounding:
+    // 38000 * 1.025^22 ≈ $65,420.
+    expect(text).toContain('$65,420');
   });
 });
 

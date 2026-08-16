@@ -7,6 +7,8 @@
  * the component file keeps exporting only components).
  */
 import type { BandType, SurvivorGap } from '../lib/benefitPeriods';
+import { formatPercent } from '../lib/cpiHistory';
+import type { DollarsMode } from '../lib/dollarsMode';
 import type { HouseholdAnalysis } from '../lib/household';
 import type { IncomeCliff } from '../lib/incomeCliff';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
@@ -114,14 +116,34 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * parse the chart at all — that a survivor segment is the increment above
  * the personal band beneath it, not a replacement for it — since that is the
  * exact misconception this whole display phase exists to correct.
+ *
+ * `mode` decides only the closing sentence. Everything above it is true
+ * regardless of dollars mode — the segment decomposition and the
+ * months-actually-paid rule are facts about the engine's bands, not about
+ * how they're being displayed. Defaults to `'real'` so every existing call
+ * site (and every test written before the toggle existed) keeps reading the
+ * sentence that was already correct for them. The print surface is the one
+ * caller that always passes `'real'` explicitly, since it can't toggle.
  */
-export function combinedIncomeCaption(gap: SurvivorGap | null | undefined): string {
+export function combinedIncomeCaption(
+  gap: SurvivorGap | null | undefined,
+  mode: DollarsMode = 'real',
+): string {
   const included = gap
     ? 'their own benefit, plus any spousal segment'
     : 'their own benefit, plus any spousal or survivor segment';
   const survivorCaveat = gap
     ? ' No survivor segment is included for this household — see the note below.'
     : '';
+  // This is the one sentence in the caption that `mode` can falsify: the
+  // engine's bands never carry a COLA, so "today's dollars" is true only
+  // while nothing downstream of them has compounded one forward. The nominal
+  // toggle does exactly that, so the sentence has to say so instead.
+  const dollarsClause =
+    mode === 'nominal'
+      ? 'Amounts are in future (nominal) dollars — the engine’s own today’s-dollars figures, ' +
+        'compounded forward using the assumed COLA — not today’s purchasing power.'
+      : 'Amounts are in today’s dollars, before any cost-of-living adjustment.';
   // Typographic apostrophes, matching the `&rsquo;` the two duplicated copies
   // carried before extraction. This sentence prints beside copy that uses
   // them — the PDF disclaimer's "today’s dollars" is on the same page — so
@@ -134,7 +156,7 @@ export function combinedIncomeCaption(gap: SurvivorGap | null | undefined): stri
     ' A survivor segment is the increment above the personal band beneath it: that ' +
     'personal band keeps paying what it already was, and the survivor segment stacked on ' +
     'top of it is only the increase.' +
-    ' Amounts are in today’s dollars, before any cost-of-living adjustment.'
+    ` ${dollarsClause}`
   );
 }
 
@@ -330,6 +352,31 @@ export function incomeCliffSentence(cliff: IncomeCliff): string {
   return (
     `At the first death, projected for ${deathYear}, household income ${change}, once ` +
     `${survivorLabel} is the household's only remaining member.`
+  );
+}
+
+/**
+ * The nominal-dollar equivalent of the income cliff's `after` figure, stated
+ * in prose for the print surface only — the one nominal number clients
+ * actually ask about ("but what will that really be, the year it happens?"),
+ * preserved in words since the PDF cannot offer the on-screen toggle.
+ *
+ * Takes `nominalAfter` already computed rather than computing it here: this
+ * module states figures, it never derives one — `lib/dollarsMode.ts`'s
+ * `toNominalAmount` does the compounding, at the exact calendar year
+ * (`cliff.deathYear + 1`) `incomeCliffSentence`'s own `after` figure is
+ * priced at, so the two sentences can never disagree about which year they
+ * mean.
+ */
+export function nominalFirstDeathNote(
+  cliff: IncomeCliff,
+  nominalAfter: number,
+  annualCola: number,
+): string {
+  return (
+    `In future (nominal) dollars — compounding the assumed ${formatPercent(annualCola, 2)} COLA ` +
+    `forward from today — that ${cliff.deathYear + 1} figure is approximately ` +
+    `${formatCurrency(nominalAfter)}.`
   );
 }
 

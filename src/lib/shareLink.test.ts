@@ -46,6 +46,11 @@ describe('round trip', () => {
     expect(restored.personA.birthYear).toBe(1962);
     expect(restored.personB).toEqual(BLANK_FORM.personB);
   });
+
+  it('round-trips a nominal dollars mode, not just the default', () => {
+    const nominal: AnalyzerFormState = { ...single, dollarsMode: 'nominal' };
+    expect(fromShareParams(toShareParams(nominal)).dollarsMode).toBe('nominal');
+  });
 });
 
 describe('names are never encoded', () => {
@@ -95,6 +100,15 @@ describe('invalid parameters are dropped, never clamped', () => {
     expect(parse('cola=99').annualCola).toBe(BLANK_FORM.annualCola);
     expect(parse('dr=99').discountRate).toBe(BLANK_FORM.discountRate);
     expect(parse('le=200').personA.lifeExpectancy).toBeNull();
+  });
+
+  // Unlike the numeric fields above, there is no bounds check to fail here —
+  // `dollars` is dropped by recognizing exactly one non-default spelling
+  // ('nominal') rather than validating a range, so an unrecognized value
+  // must fall back to the default rather than throwing or passing through.
+  it('falls back to real for an unrecognized dollars value, rather than erroring', () => {
+    expect(parse('dollars=bogus').dollarsMode).toBe('real');
+    expect(parse('').dollarsMode).toBe('real');
   });
 
   // `dr` travels as a percent and is stored as a fraction. Without the
