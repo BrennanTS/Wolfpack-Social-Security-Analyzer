@@ -124,7 +124,6 @@ describe('survivorClaimAlternative', () => {
     // household would have returned null.
     const younger = person('b', 1974, 5, 1200, 'female', 92);
     const result = alternativeFor([dan, younger], [age(70), age(63)], ['Dan', 'Sarah'])!;
-    expect(result).not.toBeNull();
     expect(result.claimIndex).toBe(2041 * 12 + 4); // May 2041, survivor-FRA
     expect(result.claimIndex).toBeGreaterThan(2037 * 12 + 4); // beyond her own filing
     expect(result.claimAge).toBe('67');
@@ -151,12 +150,60 @@ describe('survivorClaimAlternative', () => {
     // the answer 75 months later.
     const younger = person('b', 1978, 5, 2000, 'female', 90);
     const result = alternativeFor([dan, younger], [age(70), age(70)], ['Dan', 'Sarah'])!;
-    expect(result).not.toBeNull();
     expect(result.claimIndex).toBe(2038 * 12 + 4); // May 2038, SSA age 60
     expect(result.claimAge).toBe('60');
     expect(result.baselineTotal).toBe(732640);
     expect(result.bestTotal).toBe(858440);
     expect(result.gain).toBe(125800);
+  });
+
+  it('picks a strictly interior claim month, on neither end of the range', () => {
+    // The only fixture in this file whose optimum is neither `lo` nor `hi`, so
+    // the only one that can catch a search that merely compares the two ends.
+    // Sarah b. May 1978, PIA $1,200, files at 70 — SSA age 60 is May 2038
+    // (24460), survivor-FRA May 2045 (24544), optimum Aug 2044 (24535).
+    //
+    // She holds no personal band, and her own $1,488 at 70 never beats the
+    // widow's benefit, so the trade is purely months-against-reduction:
+    // claiming at c pays 0.715 + 0.285 x (c - 24460)/84 of the $3,040 base for
+    // every month from c to her death in May 2068.
+    //   at 24460 (lo):  120 x $2,173 + 241 x $2,173 = $784,453
+    //   at 24535:        45 x $2,947 + 241 x $2,947 = $842,842  <- best
+    //   at 24544 (hi):   36 x $3,040 + 241 x $3,040 = $842,080
+    // Against a baseline of 241 x $3,040 = $732,640, the gain is $110,202.
+    const younger = person('b', 1978, 5, 1200, 'female', 90);
+    const result = alternativeFor([dan, younger], [age(70), age(70)], ['Dan', 'Sarah'])!;
+    expect(result.claimIndex).toBe(2044 * 12 + 7); // Aug 2044
+    expect(result.claimIndex).toBeGreaterThan(2038 * 12 + 4); // strictly above lo
+    expect(result.claimIndex).toBeLessThan(2045 * 12 + 4); // strictly below hi
+    expect(result.claimAge).toBe('66 years, 3 months');
+    expect(result.baselineTotal).toBe(732640);
+    expect(result.bestTotal).toBe(842842);
+    expect(result.gain).toBe(110202);
+  });
+
+  it('takes the pre-bump personal band at its own amount, not the post-bump figure', () => {
+    // `ownFiled` is read a year after filing, so it is always the post-January
+    // bump amount, while the engine emits the filing year at the PRE-bump
+    // amount. A max() of the two would never select the band and would quietly
+    // lift those months — so where a band exists it must simply win.
+    //
+    // Bob b. May 1975, PIA $2,400, files at 68 (May 2043): the engine emits 8
+    // months at $2,528 then $2,592 for life. His wife dies at 62 in May 2027
+    // having never filed, so there is no survivor band and his personal bands
+    // survive. His widower's benefit at 60 is 0.715 x her $1,200 PIA = $858,
+    // paid for the 96 months from May 2035 to his own filing:
+    //   baseline 8 x $2,528 + 257 x $2,592 = $686,368
+    //   best     $686,368 + 96 x $858      = $768,736,  gain $82,368.
+    // Under the max() those 8 months scored $2,592 and the gain read $82,880 —
+    // $512 the app never displays.
+    const early = person('a', 1965, 5, 1200, 'female', 62);
+    const later = person('b', 1975, 5, 2400, 'male', 90);
+    const result = alternativeFor([early, later], [age(70), age(68)], ['Ann', 'Bob'])!;
+    expect(result.claimIndex).toBe(2035 * 12 + 4); // May 2035, SSA age 60
+    expect(result.baselineTotal).toBe(686368);
+    expect(result.bestTotal).toBe(768736);
+    expect(result.gain).toBe(82368);
   });
 
   it('flags a household whose displayed baseline holds no survivor benefit at all', () => {
@@ -171,7 +218,6 @@ describe('survivorClaimAlternative', () => {
     const early = person('a', 1965, 5, 1200, 'female', 62);
     const later = person('b', 1975, 5, 2400, 'male', 90);
     const result = alternativeFor([early, later], [age(70), age(70)], ['Ann', 'Bob'])!;
-    expect(result).not.toBeNull();
     expect(result.baselineHasSurvivorBand).toBe(false);
     expect(result.survivorLabel).toBe('Bob');
     expect(result.gain).toBe(102960);
