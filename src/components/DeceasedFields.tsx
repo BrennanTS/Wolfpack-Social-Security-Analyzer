@@ -97,147 +97,206 @@ export function DeceasedFields({
   }, [deceased.checkAmount]);
 
   return (
-    <fieldset className="person-fields" aria-label="Deceased spouse">
-      <legend>Deceased Spouse</legend>
+    <>
+      <fieldset className="person-fields" aria-label="Deceased spouse">
+        <legend>Deceased Spouse</legend>
 
-      <div className="field">
-        <label htmlFor="dec-birth">Date of Birth</label>
-        <div className="birth-row">
-          <select
-            id="dec-birth-month"
-            value={deceased.birthMonth}
-            onChange={(e) => {
-              const month = e.target.value === '' ? '' : Number(e.target.value);
-              setDeceased({ birthMonth: month });
-            }}
-            aria-label="Deceased spouse birth month"
-          >
-            {MONTH_OPTIONS}
-          </select>
-          <select
-            id="dec-birth"
-            value={deceased.birthYear}
-            onChange={(e) => {
-              const year = e.target.value === '' ? '' : Number(e.target.value);
-              setDeceased({ birthYear: year });
-            }}
-            aria-label="Deceased spouse birth year"
-          >
-            {YEAR_OPTIONS}
-          </select>
-        </div>
-      </div>
-
-      <div className="field">
-        <label htmlFor="dec-death">Date of Death</label>
-        <div className="birth-row">
-          <select
-            id="dec-death-month"
-            value={deceased.deathMonth}
-            onChange={(e) => {
-              const month = e.target.value === '' ? '' : Number(e.target.value);
-              setDeceased({ deathMonth: month });
-            }}
-            aria-label="Deceased spouse death month"
-          >
-            {MONTH_OPTIONS}
-          </select>
-          <select
-            id="dec-death"
-            value={deceased.deathYear}
-            onChange={(e) => {
-              const year = e.target.value === '' ? '' : Number(e.target.value);
-              setDeceased({ deathYear: year });
-            }}
-            aria-label="Deceased spouse death year"
-          >
-            {YEAR_OPTIONS}
-          </select>
-        </div>
-        {errors.death && <span className="field-error">{ERROR_TEXT[errors.death]}</span>}
-      </div>
-
-      <div className="field">
-        <span className="field-label">How do you know their benefit?</span>
-        <div
-          className="segmented-control"
-          role="group"
-          aria-label="Deceased spouse benefit source"
-        >
-          <button
-            type="button"
-            className={`segment-btn ${deceased.recordKind === 'pia' ? 'segment-btn-active' : ''}`}
-            onClick={() => setDeceased({ recordKind: 'pia' })}
-            aria-pressed={deceased.recordKind === 'pia'}
-          >
-            Benefit at full retirement age
-          </button>
-          <button
-            type="button"
-            className={`segment-btn ${
-              deceased.recordKind === 'checkAmount' ? 'segment-btn-active' : ''
-            }`}
-            onClick={() => setDeceased({ recordKind: 'checkAmount' })}
-            aria-pressed={deceased.recordKind === 'checkAmount'}
-          >
-            Monthly check they received
-          </button>
-        </div>
-      </div>
-
-      {deceased.recordKind === 'pia' ? (
-        <>
-          <div className="field">
-            <label htmlFor="dec-pia-amount">Benefit at full retirement age</label>
-            <div className="currency-input">
-              <span className="currency-prefix">$</span>
-              <input
-                id="dec-pia-amount"
-                type="text"
-                inputMode="numeric"
-                maxLength={7}
-                value={piaText}
-                placeholder="0"
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/[^0-9]/g, '');
-                  setPiaText(digits);
-                  setDeceased({ piaMonthly: digits === '' ? '' : Number(digits) });
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <span className="field-label">Had they filed before they died?</span>
-            <div
-              className="segmented-control"
-              role="group"
-              aria-label="Had they filed before they died?"
+        <div className="field">
+          <label htmlFor="dec-birth">Date of Birth</label>
+          <div className="birth-row">
+            <select
+              id="dec-birth-month"
+              value={deceased.birthMonth}
+              onChange={(e) => {
+                const month = e.target.value === '' ? '' : Number(e.target.value);
+                setDeceased({ birthMonth: month });
+              }}
+              aria-label="Deceased spouse birth month"
             >
-              <button
-                type="button"
-                className={`segment-btn ${
-                  deceased.hadFiled === true ? 'segment-btn-active' : ''
-                }`}
-                onClick={() => setDeceased({ hadFiled: true })}
-                aria-pressed={deceased.hadFiled === true}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                className={`segment-btn ${
-                  deceased.hadFiled === false ? 'segment-btn-active' : ''
-                }`}
-                onClick={() => setDeceased({ hadFiled: false, filedYear: '', filedMonth: '' })}
-                aria-pressed={deceased.hadFiled === false}
-              >
-                No
-              </button>
-            </div>
+              {MONTH_OPTIONS}
+            </select>
+            <select
+              id="dec-birth"
+              value={deceased.birthYear}
+              onChange={(e) => {
+                const year = e.target.value === '' ? '' : Number(e.target.value);
+                setDeceased({ birthYear: year });
+              }}
+              aria-label="Deceased spouse birth year"
+            >
+              {YEAR_OPTIONS}
+            </select>
           </div>
+        </div>
 
-          {deceased.hadFiled === true && (
+        <div className="field" data-testid="dec-death-field">
+          <label htmlFor="dec-death">Date of Death</label>
+          <div className="birth-row">
+            <select
+              id="dec-death-month"
+              value={deceased.deathMonth}
+              onChange={(e) => {
+                const month = e.target.value === '' ? '' : Number(e.target.value);
+                setDeceased({ deathMonth: month });
+              }}
+              aria-label="Deceased spouse death month"
+            >
+              {MONTH_OPTIONS}
+            </select>
+            <select
+              id="dec-death"
+              value={deceased.deathYear}
+              onChange={(e) => {
+                const year = e.target.value === '' ? '' : Number(e.target.value);
+                setDeceased({ deathYear: year });
+              }}
+              aria-label="Deceased spouse death year"
+            >
+              {YEAR_OPTIONS}
+            </select>
+          </div>
+          {errors.death && <span className="field-error">{ERROR_TEXT[errors.death]}</span>}
+        </div>
+
+        <div className="field">
+          <span className="field-label">How do you know their benefit?</span>
+          <div
+            className="segmented-control"
+            role="group"
+            aria-label="Deceased spouse benefit source"
+          >
+            <button
+              type="button"
+              className={`segment-btn ${
+                deceased.recordKind === 'pia' ? 'segment-btn-active' : ''
+              }`}
+              onClick={() => setDeceased({ recordKind: 'pia' })}
+              aria-pressed={deceased.recordKind === 'pia'}
+            >
+              Benefit at full retirement age
+            </button>
+            <button
+              type="button"
+              className={`segment-btn ${
+                deceased.recordKind === 'checkAmount' ? 'segment-btn-active' : ''
+              }`}
+              onClick={() => setDeceased({ recordKind: 'checkAmount' })}
+              aria-pressed={deceased.recordKind === 'checkAmount'}
+            >
+              Monthly check they received
+            </button>
+          </div>
+        </div>
+
+        {deceased.recordKind === 'pia' ? (
+          <>
+            <div className="field">
+              <label htmlFor="dec-pia-amount">Benefit at full retirement age</label>
+              <div className="currency-input">
+                <span className="currency-prefix">$</span>
+                <input
+                  id="dec-pia-amount"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={7}
+                  value={piaText}
+                  placeholder="0"
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/[^0-9]/g, '');
+                    setPiaText(digits);
+                    setDeceased({ piaMonthly: digits === '' ? '' : Number(digits) });
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="field">
+              <span className="field-label">Had they filed before they died?</span>
+              <div
+                className="segmented-control"
+                role="group"
+                aria-label="Had they filed before they died?"
+              >
+                <button
+                  type="button"
+                  className={`segment-btn ${
+                    deceased.hadFiled === true ? 'segment-btn-active' : ''
+                  }`}
+                  onClick={() => setDeceased({ hadFiled: true })}
+                  aria-pressed={deceased.hadFiled === true}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  className={`segment-btn ${
+                    deceased.hadFiled === false ? 'segment-btn-active' : ''
+                  }`}
+                  onClick={() => setDeceased({ hadFiled: false, filedYear: '', filedMonth: '' })}
+                  aria-pressed={deceased.hadFiled === false}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+
+            {deceased.hadFiled === true && (
+              <div className="field">
+                <label htmlFor="dec-filed">Date They Filed</label>
+                <div className="birth-row">
+                  <select
+                    id="dec-filed-month"
+                    value={deceased.filedMonth}
+                    onChange={(e) => {
+                      const month = e.target.value === '' ? '' : Number(e.target.value);
+                      setDeceased({ filedMonth: month });
+                    }}
+                    aria-label="Deceased spouse filing month"
+                  >
+                    {MONTH_OPTIONS}
+                  </select>
+                  <select
+                    id="dec-filed"
+                    value={deceased.filedYear}
+                    onChange={(e) => {
+                      const year = e.target.value === '' ? '' : Number(e.target.value);
+                      setDeceased({ filedYear: year });
+                    }}
+                    aria-label="Deceased spouse filing year"
+                  >
+                    {YEAR_OPTIONS}
+                  </select>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="field" data-testid="dec-check-amount-field">
+              <label htmlFor="dec-check-amount">Monthly check they received</label>
+              <div className="currency-input">
+                <span className="currency-prefix">$</span>
+                <input
+                  id="dec-check-amount"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={7}
+                  value={checkText}
+                  placeholder="0"
+                  aria-describedby="dec-check-amount-hint"
+                  aria-invalid={errors.checkAmount ? true : undefined}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/[^0-9]/g, '');
+                    setCheckText(digits);
+                    setDeceased({ checkAmount: digits === '' ? '' : Number(digits) });
+                  }}
+                />
+              </div>
+              {errors.checkAmount && (
+                <span className="field-error">{ERROR_TEXT[errors.checkAmount]}</span>
+              )}
+            </div>
+
             <div className="field">
               <label htmlFor="dec-filed">Date They Filed</label>
               <div className="birth-row">
@@ -264,130 +323,79 @@ export function DeceasedFields({
                   {YEAR_OPTIONS}
                 </select>
               </div>
+              <span className="field-hint" id="dec-check-amount-hint">
+                This is an estimate — a current check includes every cost-of-living increase
+                since they filed, which the benefit formula does not.
+              </span>
             </div>
-          )}
-        </>
-      ) : (
-        <>
-          <div className="field">
-            <label htmlFor="dec-check-amount">Monthly check they received</label>
-            <div className="currency-input">
-              <span className="currency-prefix">$</span>
-              <input
-                id="dec-check-amount"
-                type="text"
-                inputMode="numeric"
-                maxLength={7}
-                value={checkText}
-                placeholder="0"
-                aria-describedby="dec-check-amount-hint"
-                aria-invalid={errors.checkAmount ? true : undefined}
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/[^0-9]/g, '');
-                  setCheckText(digits);
-                  setDeceased({ checkAmount: digits === '' ? '' : Number(digits) });
-                }}
-              />
-            </div>
-            {errors.checkAmount && (
-              <span className="field-error">{ERROR_TEXT[errors.checkAmount]}</span>
-            )}
-          </div>
-
-          <div className="field">
-            <label htmlFor="dec-filed">Date They Filed</label>
-            <div className="birth-row">
-              <select
-                id="dec-filed-month"
-                value={deceased.filedMonth}
-                onChange={(e) => {
-                  const month = e.target.value === '' ? '' : Number(e.target.value);
-                  setDeceased({ filedMonth: month });
-                }}
-                aria-label="Deceased spouse filing month"
-              >
-                {MONTH_OPTIONS}
-              </select>
-              <select
-                id="dec-filed"
-                value={deceased.filedYear}
-                onChange={(e) => {
-                  const year = e.target.value === '' ? '' : Number(e.target.value);
-                  setDeceased({ filedYear: year });
-                }}
-                aria-label="Deceased spouse filing year"
-              >
-                {YEAR_OPTIONS}
-              </select>
-            </div>
-            <span className="field-hint" id="dec-check-amount-hint">
-              This is an estimate — a current check includes every cost-of-living increase
-              since they filed, which the benefit formula does not.
-            </span>
-          </div>
-        </>
-      )}
-
-      <div className="field">
-        <label htmlFor="ac-survivor-since">Survivor Benefit Started</label>
-        <div className="birth-row">
-          <select
-            id="ac-survivor-since-month"
-            value={alreadyClaimed.survivorSinceMonth}
-            onChange={(e) => {
-              const month = e.target.value === '' ? '' : Number(e.target.value);
-              setAlreadyClaimed({ survivorSinceMonth: month });
-            }}
-            aria-label="Survivor benefit start month"
-          >
-            {MONTH_OPTIONS}
-          </select>
-          <select
-            id="ac-survivor-since"
-            value={alreadyClaimed.survivorSinceYear}
-            onChange={(e) => {
-              const year = e.target.value === '' ? '' : Number(e.target.value);
-              setAlreadyClaimed({ survivorSinceYear: year });
-            }}
-            aria-label="Survivor benefit start year"
-          >
-            {YEAR_OPTIONS}
-          </select>
-        </div>
-        {errors.survivorSince && (
-          <span className="field-error">{ERROR_TEXT[errors.survivorSince]}</span>
+          </>
         )}
-      </div>
+      </fieldset>
 
-      <div className="field">
-        <label htmlFor="ac-own-since">Own Benefit Started</label>
-        <div className="birth-row">
-          <select
-            id="ac-own-since-month"
-            value={alreadyClaimed.ownSinceMonth}
-            onChange={(e) => {
-              const month = e.target.value === '' ? '' : Number(e.target.value);
-              setAlreadyClaimed({ ownSinceMonth: month });
-            }}
-            aria-label="Own benefit start month"
-          >
-            {MONTH_OPTIONS}
-          </select>
-          <select
-            id="ac-own-since"
-            value={alreadyClaimed.ownSinceYear}
-            onChange={(e) => {
-              const year = e.target.value === '' ? '' : Number(e.target.value);
-              setAlreadyClaimed({ ownSinceYear: year });
-            }}
-            aria-label="Own benefit start year"
-          >
-            {YEAR_OPTIONS}
-          </select>
+      <fieldset className="person-fields" aria-label="Benefits you already receive">
+        <legend>Benefits You Already Receive</legend>
+
+        <div className="field" data-testid="ac-survivor-since-field">
+          <label htmlFor="ac-survivor-since">Your survivor benefit started</label>
+          <div className="birth-row">
+            <select
+              id="ac-survivor-since-month"
+              value={alreadyClaimed.survivorSinceMonth}
+              onChange={(e) => {
+                const month = e.target.value === '' ? '' : Number(e.target.value);
+                setAlreadyClaimed({ survivorSinceMonth: month });
+              }}
+              aria-label="Survivor benefit start month"
+            >
+              {MONTH_OPTIONS}
+            </select>
+            <select
+              id="ac-survivor-since"
+              value={alreadyClaimed.survivorSinceYear}
+              onChange={(e) => {
+                const year = e.target.value === '' ? '' : Number(e.target.value);
+                setAlreadyClaimed({ survivorSinceYear: year });
+              }}
+              aria-label="Survivor benefit start year"
+            >
+              {YEAR_OPTIONS}
+            </select>
+          </div>
+          {errors.survivorSince && (
+            <span className="field-error">{ERROR_TEXT[errors.survivorSince]}</span>
+          )}
         </div>
-        {errors.ownSince && <span className="field-error">{ERROR_TEXT[errors.ownSince]}</span>}
-        <span className="field-hint">Leave blank if they have not started that benefit yet.</span>
-      </div>
-    </fieldset>
+
+        <div className="field" data-testid="ac-own-since-field">
+          <label htmlFor="ac-own-since">Your own benefit started</label>
+          <div className="birth-row">
+            <select
+              id="ac-own-since-month"
+              value={alreadyClaimed.ownSinceMonth}
+              onChange={(e) => {
+                const month = e.target.value === '' ? '' : Number(e.target.value);
+                setAlreadyClaimed({ ownSinceMonth: month });
+              }}
+              aria-label="Own benefit start month"
+            >
+              {MONTH_OPTIONS}
+            </select>
+            <select
+              id="ac-own-since"
+              value={alreadyClaimed.ownSinceYear}
+              onChange={(e) => {
+                const year = e.target.value === '' ? '' : Number(e.target.value);
+                setAlreadyClaimed({ ownSinceYear: year });
+              }}
+              aria-label="Own benefit start year"
+            >
+              {YEAR_OPTIONS}
+            </select>
+          </div>
+          {errors.ownSince && <span className="field-error">{ERROR_TEXT[errors.ownSince]}</span>}
+          <span className="field-hint">Leave blank if they have not started that benefit yet.</span>
+        </div>
+      </fieldset>
+    </>
   );
 }

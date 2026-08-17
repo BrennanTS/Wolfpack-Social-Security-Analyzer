@@ -207,8 +207,20 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
         )
       : {};
 
+  // `householdDisplayShape` (in `lib/household.ts`) still throws for a
+  // widowed household — deliberately, until Phase 3B-ii-b builds its display.
+  // This task makes that status reachable from the UI for the first time
+  // (directly, and via a shared link Task 4 already taught to round-trip
+  // `m=w`), so every surface that calls it must be checked BEFORE reaching
+  // it, not after: `HouseholdView` (main output) and `ReportDocument` (PDF
+  // export) both call it unconditionally. Gating on `analysis.status` rather
+  // than `maritalStatus` covers the share-link route too — a link can set
+  // `maritalStatus` to `'widowed'` and `analysis` still be null (analyzing)
+  // or belong to a form the adviser has since edited back to single/married.
+  const widowedAnalysisUnavailable = analysis?.status === 'widowed';
+
   async function handleExportPdf() {
-    if (!analysis) return;
+    if (!analysis || analysis.status === 'widowed') return;
     setExportError(null);
     setExporting(true);
     try {
@@ -255,7 +267,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             type="button"
             className="btn-export"
             onClick={handleExportPdf}
-            disabled={exporting || !inputsComplete}
+            disabled={exporting || !inputsComplete || widowedAnalysisUnavailable}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path
@@ -267,7 +279,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             </svg>
             {exporting ? 'Generating…' : 'Export PDF'}
           </button>
-          <CopyLinkButton form={form} disabled={!inputsComplete} />
+          <CopyLinkButton form={form} disabled={!inputsComplete || widowedAnalysisUnavailable} />
           {exportError && <span className="export-error">{exportError}</span>}
           <button type="button" className="btn-ghost" onClick={onLogout}>
             Sign out
@@ -398,6 +410,24 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               <p>
                 Enter your date of birth, gender, marital status, and estimated benefit at full
                 retirement age to see your optimal claiming strategy.
+              </p>
+            </div>
+          ) : analysis.status === 'widowed' ? (
+            // `HouseholdView` calls `householdDisplayShape`, which throws for
+            // `'widowed'` on purpose (see `lib/household.ts`) — that guard is
+            // not touched here. This branch is what keeps the throw from
+            // reaching the user as a blank page: nothing about this household
+            // is rendered, not a partial figure and not the single-claimant
+            // view, until Phase 3B-ii-b builds the real display.
+            <div className="empty-state" data-testid="widowed-analysis-unavailable">
+              <div className="empty-state-icon" aria-hidden="true">
+                <span />
+              </div>
+              <h3>Widowed analysis isn&rsquo;t available yet</h3>
+              <p>
+                This tool doesn&rsquo;t display widowed-household results yet. Nothing is shown
+                here — not a partial figure, not your own-record-only view — until that screen
+                ships.
               </p>
             </div>
           ) : (
