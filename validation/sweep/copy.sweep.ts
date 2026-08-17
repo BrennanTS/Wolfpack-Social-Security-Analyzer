@@ -158,6 +158,67 @@ describe('rendered copy', () => {
   });
 });
 
+/**
+ * Sentences both surfaces render, keyed by the component that renders each.
+ * In REAL dollars the two must be byte-identical: the PDF hardcodes 'real'
+ * and the screen defaults to it, and both read the same analysis.
+ *
+ * This is the invariant the on-screen spousal top-up broke once, when
+ * `Analyzer.tsx` called the engine directly and got a person-A-anchored
+ * figure while the PDF stayed lower-earner-anchored — $0 on screen and a
+ * positive figure in print, for the same household.
+ *
+ * Only sentences COMPUTED per household are listed. `COMBINED_INCOME_SUBTITLE`
+ * and `INCOME_CLIFF_HEADING` are shared constants, and `surfaces.ts` reads the
+ * constant for both surfaces — comparing them here would compare a value to
+ * itself and could never fail, whatever the components did. Their real risk is
+ * a component hardcoding a literal instead of importing the constant, which
+ * this model cannot see and which is not worth pretending to check.
+ */
+const SHARED: [screen: string, pdf: string][] = [
+  ['StrategyComparisonTable.survivorIncomeCaption', 'pdf/HouseholdSection.survivorIncomeCaption'],
+  ['CombinedIncomeChart.combinedIncomeCaption', 'pdf/HouseholdSection.combinedIncomeCaption'],
+  ['CombinedIncomeChart.survivorGapNote', 'pdf/HouseholdSection.survivorGapNote'],
+  ['IncomeCliffCallout.incomeCliffSentence', 'pdf/HouseholdSection.incomeCliffSentence'],
+  ['SurvivorClaimNote.survivorClaimNote', 'pdf/HouseholdSection.survivorClaimNote'],
+];
+
+describe('screen and print agree', () => {
+  it(`state the same sentences in real dollars across ${COUNT} households`, async () => {
+    const findings: Finding[] = [];
+
+    for (let index = 0; index < COUNT; index++) {
+      const { household, label } = householdAt(index);
+      if (household.status !== 'married') continue; // the PDF household page is married-only
+      const analysis = await analyze(household);
+
+      const screen = new Map(screenSurface(analysis, 'real').map((l) => [l.source, l.text]));
+      const pdf = new Map(pdfSurface(analysis).map((l) => [l.source, l.text]));
+
+      for (const [screenKey, pdfKey] of SHARED) {
+        const a = screen.get(screenKey);
+        const b = pdf.get(pdfKey);
+        // Absent on both is agreement — the section renders on neither.
+        if (a === undefined && b === undefined) continue;
+        if (a === undefined || b === undefined) {
+          findings.push({
+            index,
+            label,
+            detail: `${screenKey} ${a === undefined ? 'absent' : 'present'} but ${pdfKey} ${b === undefined ? 'absent' : 'present'}`,
+          });
+          continue;
+        }
+        if (a !== b) {
+          findings.push({ index, label, detail: `${screenKey} != ${pdfKey}:\n  "${a}"\n  "${b}"` });
+        }
+      }
+    }
+
+    console.log(summarize('screen vs print', findings));
+    expect(findings).toEqual([]);
+  });
+});
+
 describe('branch reachability', () => {
   it(`reports which copy branches and comparison rows ${COUNT} households reach`, async () => {
     const strategyKeys = new Set<string>();

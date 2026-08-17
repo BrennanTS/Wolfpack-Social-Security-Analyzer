@@ -111,6 +111,7 @@ Negative results are the point of a sweep, and these are strong ones.
 | Nominal differs from real by exactly the deflator | 1,500 households, keys and order preserved | **0 failures** |
 | `toNominalAmount` agrees with `toNominal` | 1,500 households, per year | **0 failures** |
 | No sentinel or empty substitution in rendered copy | 2,000 households × 2 modes, after fix 1 | **0 failures** |
+| Screen and print state the same sentences in real dollars | every shared sentence, married households | **0 failures** |
 
 Full run: **17 tests across 4 sweep files, all passing, 1,500 households, ~131s.**
 
