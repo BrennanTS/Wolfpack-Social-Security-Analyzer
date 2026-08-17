@@ -73,6 +73,14 @@ export interface WidowedOutcome {
    * through `JSON.stringify` as `null` rather than failing loudly.
    */
   finalIndex: number;
+  /**
+   * Whether the deceased's PIA was RECOVERED from a check amount rather than
+   * known. Carried on the outcome for the same reason `finalIndex` is: it is
+   * a fact about the search's inputs that the caller needs and would otherwise
+   * have to re-derive by re-running `deceasedContext`, whose bisection is the
+   * expensive part.
+   */
+  piaEstimated: boolean;
 }
 
 const ageDuration = (years: number): MonthDuration =>
@@ -259,6 +267,7 @@ function outcomeFromContext(
       .label,
     lifetimeTotal: roundCents(total),
     finalIndex,
+    piaEstimated: ctx.dec.piaEstimated,
   };
 }
 

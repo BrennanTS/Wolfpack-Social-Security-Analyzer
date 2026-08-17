@@ -15,6 +15,7 @@ import {
 import type { BenefitBand } from './benefitPeriods';
 import { incomeCliff } from './incomeCliff';
 import type { Person } from './personAnalysis';
+import { createPiaRecipient, ssaMonthlyBenefitAtFilingAge } from './ssaTools';
 import { survivorIncomeCaption } from '../components/methodologyCopy';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -1568,5 +1569,88 @@ describe('analyzeHousehold — widowed', () => {
         expect(c.survivorClaimDate).toBeNull();
       }
     });
+  });
+
+  it('publishes no own-record claiming options or break-evens for a widow', async () => {
+    // Her own benefit may be smaller than the survivor benefit in EVERY month
+    // she is alive, so a table of "what you'd get claiming at 62 through 70"
+    // describes income she would never receive, and a break-even between two
+    // of those ages compares two irrelevant quantities. Empty rather than
+    // wrong: `BreakEvenSection` renders nothing on an empty array, so the
+    // misleading section disappears by construction.
+    const { people } = await analyzeHousehold(household, assumptions, asOf);
+    expect(people[0].claimingOptions).toEqual([]);
+    expect(people[0].breakEvens).toEqual([]);
+  });
+
+  it('still publishes them for single and married households', async () => {
+    // The guard above must be scoped to widowed. An implementation that
+    // returns empty for every status would satisfy the previous test.
+    const single = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
+    expect(single.people[0].claimingOptions.length).toBeGreaterThan(0);
+    expect(single.people[0].breakEvens.length).toBeGreaterThan(0);
+
+    const married = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] }, assumptions, asOf,
+    );
+    expect(married.people[0].claimingOptions.length).toBeGreaterThan(0);
+  });
+
+  it('reports the income she is actually recommended to receive', async () => {
+    // Steady state: the month the LATER of the two recommended dates falls,
+    // once both benefits are running. Equal to the summed bands at that month,
+    // which stack to max(own, survivor) by construction.
+    const result = await analyzeHousehold(household, assumptions, asOf);
+    const { optimal, periods, people } = result;
+    const steadyMonth = Math.max(
+      optimal.survivorClaimDate!.monthIndex,
+      optimal.filingAges[0].monthDuration.asMonths() +
+        (household.people[0].birthYear * 12 + (household.people[0].birthMonth - 1)),
+    );
+    const banded = periods
+      .filter((b) => b.startIndex <= steadyMonth && steadyMonth <= b.endIndex)
+      .reduce((t, b) => t + b.monthlyAmount, 0);
+    expect(banded).toBeGreaterThan(0);
+    expect(people[0].recommendedMonthly).toBeCloseTo(banded, 2);
+  });
+
+  it('does not report her own-record benefit as the recommended monthly', async () => {
+    // The defect this replaces: `analyzePerson` returned her benefit at her own
+    // filing age, which omits the survivor benefit entirely. For this fixture
+    // the survivor benefit dominates, so the two differ.
+    const { people } = await analyzeHousehold(household, assumptions, asOf);
+    const ownRecordOnly = ssaMonthlyBenefitAtFilingAge(
+      createPiaRecipient(
+        household.people[0].birthYear,
+        household.people[0].birthMonth,
+        household.people[0].piaMonthly,
+        household.people[0].gender,
+      ),
+      people[0].recommendedFilingAge.monthDuration,
+    ).benefit;
+    expect(people[0].recommendedMonthly).toBeGreaterThan(ownRecordOnly);
+  });
+
+  it('carries whether the deceased PIA was estimated', async () => {
+    const known = await analyzeHousehold(household, assumptions, asOf);
+    expect(known.piaEstimated).toBe(false);
+
+    const fromCheck = await analyzeHousehold(
+      {
+        ...household,
+        deceased: {
+          ...household.deceased,
+          record: { kind: 'checkAmount', monthlyAmount: 2400, filed: { year: 2022, month: 5 } },
+        },
+      },
+      assumptions,
+      asOf,
+    );
+    expect(fromCheck.piaEstimated).toBe(true);
+  });
+
+  it('leaves piaEstimated null where there is no deceased record', async () => {
+    const single = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
+    expect(single.piaEstimated).toBeNull();
   });
 });

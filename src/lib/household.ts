@@ -241,6 +241,16 @@ export interface HouseholdAnalysis {
   recommendationDetail: string;
   assumptions: Assumptions;
   asOf: Date;
+  /**
+   * Whether the deceased's PIA was recovered from a check amount rather than
+   * known — a current check carries every COLA since filing, which the
+   * engine's PIA does not, so the recovered figure is in that year's dollars.
+   *
+   * Null where there is no deceased record at all (single and married). A
+   * display layer must label a `true` as an estimate rather than presenting it
+   * as equivalent to a known PIA.
+   */
+  piaEstimated: boolean | null;
 }
 
 const LABELS: Record<CoupleStrategyKey, { single: string; married: string }> = {
@@ -914,13 +924,40 @@ async function analyzeWidowed(
   ];
 
   const bands = widowedBands(input, best);
+
+  // The month the LATER of the two recommended dates falls: once both benefits
+  // are running, the amount stops changing. The bands stack to
+  // `max(own, survivor)` by construction, so summing the bands covering that
+  // month IS the engine's answer — no benefit rule is computed here.
+  const steadyMonth = Math.max(best.survivorClaimIndex, best.ownFilingIndex);
+  const steadyMonthly = roundCents(
+    bands
+      .filter((b) => b.startIndex <= steadyMonth && steadyMonth <= b.endIndex)
+      .reduce((total, b) => total + b.monthlyAmount, 0),
+  );
+
+  // `analyzePerson` computes `claimingOptions`, `breakEvens` and
+  // `recommendedMonthly` from this person's OWN record alone. For a widow those
+  // are not merely incomplete, they are misleading: her own benefit may be
+  // smaller than the survivor benefit in every month she is alive, so a table
+  // of "what you'd get claiming at 62 through 70" describes income she would
+  // never receive, and a break-even between two of those ages compares two
+  // irrelevant quantities. Measured: break-evens came out byte-identical
+  // across every widowed golden fixture regardless of the deceased's PIA.
+  //
+  // Emptied HERE rather than guarded in each display component, so the
+  // misleading section disappears by construction — `BreakEvenSection` already
+  // renders nothing on an empty array. Every component remembering to check a
+  // status is exactly the failure mode that put a survivor-blind break-even in
+  // front of a widow in the first place.
+  const own = analyzePerson(
+    person,
+    formatFilingAge(monthDurationBetween(person, best.ownFilingIndex)),
+    assumptions.annualCola,
+    asOf,
+  );
   const people = [
-    analyzePerson(
-      person,
-      formatFilingAge(monthDurationBetween(person, best.ownFilingIndex)),
-      assumptions.annualCola,
-      asOf,
-    ),
+    { ...own, claimingOptions: [], breakEvens: [], recommendedMonthly: steadyMonthly },
   ];
 
   const toStrategy = (
@@ -988,6 +1025,7 @@ async function analyzeWidowed(
       `lifetime — a straight sum of dollars in today's dollars, not a present value.`,
     assumptions,
     asOf,
+    piaEstimated: best.piaEstimated,
   };
 }
 
@@ -1141,6 +1179,7 @@ export async function analyzeHousehold(
       ),
       assumptions,
       asOf,
+      piaEstimated: null,
     };
   }
 
@@ -1207,5 +1246,6 @@ export async function analyzeHousehold(
       `present value, ${formatCurrency(optimal.expectedNpv)}.`,
     assumptions,
     asOf,
+    piaEstimated: null,
   };
 }
