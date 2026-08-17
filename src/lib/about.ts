@@ -41,13 +41,6 @@ export const ABOUT_CARDS: AboutCard[] = [
       "SSA's 2021 period life table supplies a suggested planning age for each person. " +
       'Adjust it under Planning assumptions — every lifetime total moves with it.',
   },
-  {
-    title: 'Spousal benefits',
-    body:
-      'Married households are optimized jointly, including the spousal top-up: half the ' +
-      "higher earner's amount at full retirement age, less the lower earner's own benefit, " +
-      'and payable only once both have filed.',
-  },
 ];
 
 /**

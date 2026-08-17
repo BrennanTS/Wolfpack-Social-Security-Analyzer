@@ -209,3 +209,11 @@ describe('AssumptionsPanel per-person life expectancy', () => {
     expect(onChangeB).toHaveBeenCalledWith(86);
   });
 });
+
+it('no longer renders the thirty-year CPI history', () => {
+  // Moved to the About panel. The COLA slider and its hint stay here; only
+  // the reference table left.
+  renderPanel();
+  expect(screen.queryByText(/BLS CPI-U/)).not.toBeInTheDocument();
+  expect(screen.queryByText('30-yr average')).not.toBeInTheDocument();
+});

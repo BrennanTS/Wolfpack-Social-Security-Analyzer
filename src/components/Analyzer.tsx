@@ -20,6 +20,7 @@ import {
   type AlreadyClaimedFormFields,
   type DeceasedFormFields,
 } from '../lib/widowedForm';
+import { AboutPanel } from './AboutPanel';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
@@ -82,6 +83,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -255,6 +257,22 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           </div>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="btn-resources"
+            onClick={() => setAboutOpen(true)}
+            aria-haspopup="dialog"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM8 7v4.5M8 4.75v.75"
+                stroke="currentColor"
+                strokeWidth="1.1"
+                strokeLinecap="round"
+              />
+            </svg>
+            About
+          </button>
           <button
             type="button"
             className="btn-resources"
@@ -452,36 +470,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 <h3>How This Works</h3>
                 <div className="method-grid">
                   <div>
-                    <strong>ssa.tools engine</strong>
-                    <p>
-                      Benefit amounts, FRA, spousal/survivor rules, and optimal filing use the open-source{' '}
-                      <a href="https://ssa.tools" target="_blank" rel="noopener noreferrer">ssa.tools</a>{' '}
-                      calculator with SSA mortality tables and expected present value.
-                    </p>
-                  </div>
-                  <div>
-                    <strong>Early claiming (before FRA)</strong>
-                    <p>
-                      Benefits are reduced 5/9 of 1% per month for the first 36 months early, then
-                      5/12 of 1% per month thereafter.
-                    </p>
-                  </div>
-                  <div>
-                    <strong>Delayed credits (after FRA)</strong>
-                    <p>
-                      Benefits increase 2/3 of 1% per month (8% per year) until age 70.
-                    </p>
-                  </div>
-                  <div>
-                    <strong>Life expectancy by gender</strong>
-                    <p>
-                      SSA 2021 period life table suggests planning to age{' '}
-                      {analysis.people[0].ssaSuggestedLifeExpectancy} for a{' '}
-                      {genderLabel(analysis.people[0].person.gender).toLowerCase()} at age{' '}
-                      {analysis.people[0].currentAge.years}. Adjust under Planning assumptions.
-                    </p>
-                  </div>
-                  <div>
                     <strong>Spousal benefits</strong>
                     <p data-testid="methodology-spousal">{spousalMethodologyCopy(analysis)}</p>
                   </div>
@@ -493,6 +481,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       </main>
 
       <ResourcesPanel open={resourcesOpen} onClose={() => setResourcesOpen(false)} />
+      <AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />
 
       <footer className="footer">
         <p>

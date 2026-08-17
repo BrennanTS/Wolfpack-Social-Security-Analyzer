@@ -130,4 +130,20 @@ describe('Analyzer', () => {
       );
     });
   });
+
+  describe('the About panel', () => {
+    it('opens from the header and is closed by default', async () => {
+      renderAnalyzer();
+      expect(screen.queryByText(/How This Works/i)).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: /^about$/i }));
+      expect(screen.getByText(/How This Works/i)).toBeInTheDocument();
+    });
+
+    it('no longer renders How This Works on the main surface', () => {
+      // It moved to About. If this starts passing with the panel CLOSED, the
+      // block was left behind rather than moved.
+      renderAnalyzer();
+      expect(screen.queryByText('Full Retirement Age (FRA)')).not.toBeInTheDocument();
+    });
+  });
 });
