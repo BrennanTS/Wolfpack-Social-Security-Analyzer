@@ -719,12 +719,21 @@ describe('survivorIncomeCaption', () => {
  * person could hold an own-benefit segment alongside a separate spousal or
  * survivor segment. These tests pin the corrected "segments sum to" wording
  * and the new survivor-increment explanation against drifting back.
+ *
+ * Rewritten a third time when `buildCombinedTimeline` stopped prorating a
+ * filing or final year to the months actually paid and started crediting the
+ * full annual rate instead: "segments... sum to what they were actually
+ * paid... counting only the months actually paid" became false in the most
+ * direct way — a filing year and a final year now render at full height. The
+ * tests below pin the "annual rate... not what actually changed hands"
+ * wording that replaced it.
  */
 describe('combinedIncomeCaption', () => {
   it('claims spousal and survivor segments are included when they are', () => {
     const caption = combinedIncomeCaption(null);
     expect(caption).toContain('their own benefit, plus any spousal or survivor segment');
-    expect(caption).toContain('only the months actually paid');
+    expect(caption).toContain('annual rate');
+    expect(caption).toContain('only part of each is actually paid');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
     expect(caption).not.toContain('No survivor segment is included');
   });
@@ -740,8 +749,16 @@ describe('combinedIncomeCaption', () => {
     expect(caption).toContain('their own benefit, plus any spousal segment');
     expect(caption).toContain('No survivor segment is included for this household');
     // The parts that stay true either way.
-    expect(caption).toContain('only the months actually paid');
+    expect(caption).toContain('annual rate');
+    expect(caption).toContain('only part of each is actually paid');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
+  });
+
+  it('says the filing and final year render at full height though only part is paid', () => {
+    const caption = combinedIncomeCaption(null);
+    expect(caption).toMatch(/filing year and a final year render at the same height as a full one/i);
+    expect(caption).not.toMatch(/shorter than a full one/i);
+    expect(caption).not.toMatch(/counting only the months actually paid/i);
   });
 
   it('treats an unpassed gap the same as no gap', () => {

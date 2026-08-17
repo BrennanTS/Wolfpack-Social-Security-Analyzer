@@ -117,11 +117,23 @@ describe('HouseholdSection — the printed combined-income caption', () => {
   // became false the moment a spousal or survivor segment could sit beside
   // the personal one. Printed unconditionally — it's a statement about how
   // the chart works, not a claim about this particular household's bands.
-  it("prints that each person's segments sum to what they were paid, and explains the survivor increment", () => {
+  it("prints that each person's segments show the annual rate, and explains the survivor increment", () => {
     const text = printed(null);
-    expect(text).toContain('Each person’s segments for the year sum to what they were actually paid');
+    expect(text).toContain('Each person’s segments show the annual rate they’re paid');
     expect(text).toMatch(/survivor segment is the increment above the personal band/i);
     expect(text).not.toMatch(/band is everything they are paid/i);
+    expect(text).not.toContain('sum to what they were actually paid');
+  });
+
+  // The caption's third rewrite: `buildCombinedTimeline` stopped prorating a
+  // filing or final year to the months actually paid and started crediting
+  // the full annual rate instead, so the printed page has to disclose the
+  // same cost the screen caption does.
+  it('prints that a filing year and a final year render at full height though only part is paid', () => {
+    const text = printed(null);
+    expect(text).toMatch(/filing year and a final year render at the same height as a full one/i);
+    expect(text).toMatch(/only part of each is actually paid/i);
+    expect(text).not.toMatch(/shorter than a full one/i);
   });
 });
 

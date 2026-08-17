@@ -161,10 +161,11 @@ describe('CombinedIncomeChart', () => {
 
   // `buildCombinedTimeline` now sums the engine's benefit-period bands, so a
   // person's band is their personal benefit PLUS any spousal and survivor
-  // benefit, credited only for the months actually paid. The caption used to
-  // say the exact opposite of all three — that bands were own-benefit-only,
-  // that a no-record spouse showed as $0, and that survivor benefits were
-  // unmodeled. These guard the corrected caption against drifting back.
+  // benefit, credited at its full annual rate for every year it pays at
+  // least one month. The caption used to say the exact opposite of all
+  // three — that bands were own-benefit-only, that a no-record spouse showed
+  // as $0, and that survivor benefits were unmodeled. These guard the
+  // corrected caption against drifting back.
   it('says the bands include spousal and survivor benefits, for a couple', () => {
     render(<CombinedIncomeChart timeline={timeline} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
@@ -183,20 +184,35 @@ describe('CombinedIncomeChart', () => {
   // explanation that a survivor segment is stacked ON the personal band
   // rather than replacing it, against drifting back to either the old
   // wording or silence.
-  it("says each person's segments sum to what they were paid, and explains the survivor increment", () => {
+  it("says each person's segments show the annual rate, and explains the survivor increment", () => {
     render(<CombinedIncomeChart timeline={timeline} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
-    expect(caveat.textContent).toMatch(/segments for the year sum to what they were actually paid/i);
+    expect(caveat.textContent).toMatch(/segments show the annual rate they.re paid/i);
     expect(caveat.textContent).toMatch(/survivor segment is the increment above the personal band/i);
     expect(caveat.textContent).toMatch(/personal band keeps paying what it already was/i);
-    // The old, now-false claim.
+    // The old, now-false claims.
     expect(caveat.textContent).not.toMatch(/band is everything they are paid/i);
+    expect(caveat.textContent).not.toMatch(/sum to what they were actually paid/i);
   });
 
-  it('says partial years are credited only the months actually paid', () => {
+  // `buildCombinedTimeline` now credits a band's full annual rate to every
+  // year it pays at least one month, rather than prorating a filing or final
+  // year to the months actually paid — the change that turns the misleading
+  // slope at the start and end of every band into a flat line with a clean
+  // step. The caption has to disclose the resulting cost: a filing year and
+  // a final year render at full height though only part of each is paid.
+  it('discloses that a filing year and a final year render at full height though only part is paid', () => {
     render(<CombinedIncomeChart timeline={timeline} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
-    expect(caveat.textContent).toMatch(/only the months\s+actually paid/i);
+    expect(caveat.textContent).toMatch(/annual rate/i);
+    expect(caveat.textContent).toMatch(
+      /filing year and a final year render at the same height as a full one/i,
+    );
+    expect(caveat.textContent).toMatch(/only part of each is actually paid/i);
+    // The old, now-false claim: the previous wording said a partial year was
+    // shorter than a full one, which stopped being true once the bands
+    // stopped prorating.
+    expect(caveat.textContent).not.toMatch(/shorter than a full one/i);
   });
 
   it('states that the amounts carry no cost-of-living adjustment', () => {

@@ -430,15 +430,35 @@ function monthDateAt(index: number): MonthDate {
 }
 
 /**
- * Household income per calendar year under the recommended strategy.
+ * Household income per calendar year under the recommended strategy —
+ * the ANNUAL RATE each band pays, not the calendar-year sum.
  *
- * Every figure is the engine's: each band contributes
- * `monthsInYear × monthlyAmount`, so a filing year, a death year and a
- * mid-year survivor step-up all carry their true number of payments rather
- * than a flat twelve. The bands carry no COLA and no consumer applies one, so
- * these are constant (real) dollars. (The previous comment here claimed the
- * chart layer applied the COLA slider; `HouseholdPanel` passes the timeline
- * straight through, so it never did.)
+ * A band contributes its full `monthlyAmount * 12` to every year in which it
+ * pays at least one month (via `monthsInYear(band, year) > 0`, reused for
+ * that boolean rather than its count), and nothing to a year it does not
+ * touch at all. A filing year and a final year therefore render at the same
+ * height as every full year beside them, even though only part of each was
+ * actually paid — the cost this buys is a chart that is FLAT from filing to
+ * death, with a clean step at every transition, rather than a chart that
+ * ramps up and down at both ends of every band and reads as income rising or
+ * falling when only the calendar is short. The bands carry no COLA and no
+ * consumer applies one, so these are constant (real) dollars. (The previous
+ * comment here claimed the chart layer applied the COLA slider;
+ * `HouseholdPanel` passes the timeline straight through, so it never did.)
+ *
+ * This reverses an earlier, arithmetically-correct version that prorated a
+ * partial year to `monthsInYear × monthlyAmount`: precise, but the precision
+ * bought nothing, because it is consumed only by this chart and its PDF
+ * twin — `incomeCliff` and `survivorIncome` (`incomeCliff.ts`, `household.ts`
+ * below) read full calendar years on either side of a death, not the partial
+ * ones this function now flattens. (Both are reachable at a partial year
+ * too, in edge-case households where a filing or a second death lands inside
+ * the very year being read — verified separately and unaffected by this
+ * change, since it changes what a PARTIAL year renders as, not which years
+ * `incomeCliff`/`survivorIncome` pick.) What it cost instead was the shape:
+ * a partial year rendered as a slope, at both ends of every band, which is
+ * why the first death used to render as a two-year descent rather than a
+ * step.
  *
  * `bySeries` keys each figure `${personId}:${type}` — the chart's stacked
  * series. `byPersonId` is derived from it by summing each person's series, so
@@ -462,7 +482,7 @@ function buildCombinedTimeline(
 
     const bySeries: Record<string, number> = {};
     for (const band of bands) {
-      const amount = monthsInYear(band, year) * band.monthlyAmount;
+      const amount = monthsInYear(band, year) > 0 ? band.monthlyAmount * 12 : 0;
       const seriesKey = `${band.personId}:${band.type}`;
       bySeries[seriesKey] = (bySeries[seriesKey] ?? 0) + amount;
     }

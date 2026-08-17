@@ -410,10 +410,15 @@ describe('engine periods', () => {
     expect(result.periods.some((b) => b.personId === 'b' && b.type === 'survivor')).toBe(true);
   });
 
-  it('credits only the months a person is actually paid, not a flat twelve', async () => {
-    // The old timeline credited 12 payments in every year from the filing
-    // year to the plan-to year inclusive. Dan is born in April with a plan-to
-    // age of 85, so his last calendar year pays four months, not twelve.
+  it('credits the full annual rate to a final year, not a prorated amount', async () => {
+    // The chart shows the annual RATE a band pays, not the calendar-year sum
+    // — a deliberate reversal of the older, arithmetically-precise timeline
+    // that credited only the months actually paid (see `buildCombinedTimeline`
+    // for why: the precision bought nothing but a misleading slope at both
+    // ends of every band). Dan is born in April with a plan-to age of 85, so
+    // by calendar count his last year pays only four months — but it must
+    // still render at the SAME height as a full year beside it, not 4/12 of
+    // one.
     //
     // The partial year asserted here is the *last* one rather than the first:
     // the optimizer's chosen filing age for this fixture lands in January
@@ -426,12 +431,44 @@ describe('engine periods', () => {
     const monthsPaid = (end % 12) + 1;
     expect(lastYear).toBe(dan.birthYear + dan.lifeExpectancy);
     expect(monthsPaid).toBe(dan.birthMonth); // April → Jan–Apr
+    expect(monthsPaid).toBeLessThan(12); // guard: the fixture must stay genuinely partial
 
     const point = result.combinedTimeline.find((p) => p.year === lastYear)!;
     const prior = result.combinedTimeline.find((p) => p.year === lastYear - 1)!;
-    expect(point.total).toBeLessThan(prior.total);
-    // And short by exactly the months he is not paid, not some other amount.
-    expect(point.total).toBeCloseTo((prior.total / 12) * monthsPaid, 2);
+    // Same band, same monthly amount, on both sides of the calendar boundary
+    // — so the annual-rate figure is identical, not shorter.
+    expect(point.total).toBeCloseTo(prior.total, 2);
+  });
+
+  it('credits the full annual rate to a filing year, not a prorated amount', async () => {
+    // Mirrors the final-year test above from the other end of a band. A
+    // spouse with no record of her own draws a spousal band on Dan's record
+    // (see "sums every band into the year totals, spousal included" below)
+    // — the filing month is whatever the optimizer picks, not necessarily
+    // January, so this is the genuinely partial first year that test
+    // deliberately skips past.
+    const noRecord: Person = { ...sarah, piaMonthly: 0 };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, noRecord] },
+      assumptions,
+      asOf,
+    );
+    const spousal = result.periods.find((b) => b.type === 'spousal')!;
+    expect(spousal).toBeDefined();
+    const filingYear = Math.floor(spousal.startIndex / 12);
+    const monthsPaidInFilingYear = 12 - (spousal.startIndex % 12);
+    // Guard: without this, a spousal band that happens to start in January
+    // would make the assertion below pass vacuously — there would be no
+    // proration for the flat-rate change to avoid.
+    expect(monthsPaidInFilingYear).toBeLessThan(12);
+
+    const point = result.combinedTimeline.find((p) => p.year === filingYear)!;
+    const next = result.combinedTimeline.find((p) => p.year === filingYear + 1)!;
+    // Both years hold exactly the spousal band and nothing else for the
+    // no-record spouse (`byPersonId.b`), so they must match — the filing
+    // year is not credited fewer months than the full year right after it.
+    expect(point.byPersonId.b).toBeCloseTo(next.byPersonId.b, 2);
+    expect(point.byPersonId.b).toBeCloseTo(spousal.monthlyAmount * 12, 2);
   });
 
   it('sums every band into the year totals, spousal included', async () => {

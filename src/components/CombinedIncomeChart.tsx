@@ -197,7 +197,19 @@ export function CombinedIncomeChart({
             {series.map((s) => (
               <Area
                 key={s.key}
-                type="monotone"
+                // `buildCombinedTimeline` now holds each band flat at its
+                // annual rate for every year it pays at least one month, so
+                // the only genuine slope left to draw is the transition
+                // itself — and that should render as a step at the year
+                // boundary, not a ramp across it. `linear` still draws a
+                // diagonal across the one-year gap between a full year and
+                // the zero (or full) year beside it, because Recharts
+                // interpolates directly between adjacent yearly points with
+                // no boundary point of its own; `stepAfter` holds each
+                // point's value flat until the next year, then jumps —
+                // exactly the "flat until death, then a step" shape the
+                // user asked for.
+                type="stepAfter"
                 dataKey={(point: CombinedTimelinePoint) => point.bySeries[s.key] ?? 0}
                 name={s.name}
                 stackId="household"
