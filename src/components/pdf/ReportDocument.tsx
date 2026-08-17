@@ -184,7 +184,7 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
       <View style={styles.disclaimer}>
         <Text style={styles.disclaimerTitle}>Important Disclosures</Text>
         <Text style={styles.disclaimerText}>
-          Prepared by {BRAND_NAME} using the open-source ssa.tools engine for educational
+          Prepared by {BRAND_NAME} for educational
           planning only. Not affiliated with the SSA. Benefit amounts are in today&rsquo;s
           dollars, before any future cost-of-living adjustment.{' '}
           {hasSpouse

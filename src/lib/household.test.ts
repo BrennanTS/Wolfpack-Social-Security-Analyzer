@@ -1281,7 +1281,7 @@ describe('analyzeHousehold — entry order', () => {
         asOf,
       );
       expect(result.recommendationDetail).toContain(
-        'The ssa.tools couple optimizer maximizes combined expected present value',
+        'The couple optimizer maximizes combined expected present value',
       );
       expect(result.recommendationDetail).not.toContain('Both spouses have the same PIA');
     });

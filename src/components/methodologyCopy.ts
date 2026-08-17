@@ -389,10 +389,10 @@ export function combinedIncomeCaption(
  */
 export function coupleModelingNote(gap: SurvivorGap | null | undefined): string {
   return gap
-    ? 'The spousal top-up is modeled via the ssa.tools couple optimizer; the survivor ' +
+    ? 'The spousal top-up is modeled via the couple optimizer; the survivor ' +
         'benefit this household would actually receive is not — see the note on the ' +
         'household page.'
-    : 'The spousal top-up and survivor benefits are both modeled via the ssa.tools couple ' +
+    : 'The spousal top-up and survivor benefits are both modeled via the couple ' +
         'optimizer.';
 }
 
@@ -532,7 +532,7 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
     'Survivor benefits are included in the recommendation and in the combined income timeline.';
 
   return (
-    'Married households are optimized jointly by ssa.tools, including the spousal top-up. ' +
+    'Married households are optimized jointly, including the spousal top-up. ' +
     `${spousalSummary(spousal, spousal.lowerEarnerLabel)} ${survivor}`
   );
 }
@@ -773,7 +773,7 @@ export function survivorIncomeCaption(
     : gap.survivorUnder60
       ? ' The survivor has not yet reached the age a widow(er) benefit can start — see the ' +
         'note below for what changes from age 60 onward.'
-      : ' The ssa.tools engine does not model survivor benefits in this household’s ' +
+      : ' The engine does not model survivor benefits in this household’s ' +
         'direction, so these figures understate what the survivor would actually receive — ' +
         'see the note below.';
 

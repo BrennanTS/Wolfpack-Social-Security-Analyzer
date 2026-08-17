@@ -884,7 +884,7 @@ function coupleRecommendationDetail(
   }
 
   return (
-    `The ssa.tools couple optimizer maximizes combined expected present value at ` +
+    `The couple optimizer maximizes combined expected present value at ` +
     `${formatCurrency(expectedNpv)} when ${labels[0]} files at age ${ages[0]} and ` +
     `${labels[1]} files at age ${ages[1]}.`
   );
@@ -1241,7 +1241,7 @@ export async function analyzeHousehold(
     finalIndexByPersonId,
     recommendation: `Claim at age ${optimal.filingAges[0].label}`,
     recommendationDetail:
-      `ssa.tools recommends filing at age ${optimal.filingAges[0].label} ` +
+      `The optimizer recommends filing at age ${optimal.filingAges[0].label} ` +
       `(${formatCurrency(people[0].recommendedMonthly)}/month) for the highest expected ` +
       `present value, ${formatCurrency(optimal.expectedNpv)}.`,
     assumptions,
