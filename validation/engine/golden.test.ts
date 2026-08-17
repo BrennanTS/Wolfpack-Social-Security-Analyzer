@@ -242,6 +242,29 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     expect(actual).toEqual(expectedAges);
   });
 
+  it("matches the engine-recorded survivor-claim alternative", async () => {
+    // Like recommendedFilingAgeByPerson (the test above), this is
+    // ENGINE-RECORDED rather than hand-derived: survivorClaimAlternative
+    // (src/lib/survivorClaim.ts) searches over the optimizer's own chosen
+    // filing ages, which have no published closed form to re-derive from —
+    // see survivorClaim in scenarios.ts and gen-fixtures.mjs's preserve-or-
+    // throw handling of it. Every one of this file's original 30 scenarios
+    // records null here (they all give both people a plan-to age of 85,
+    // which makes the survivor-start rule bit-exact across every filing-age
+    // combination the optimizer considers for them — see
+    // docs/reference/survivor-start-impact.md §3), so this assertion is
+    // non-vacuous only because later scenarios (differing plan-to ages) were
+    // added specifically to reach a non-null case.
+    const result = await run(scenario);
+    if (scenario.expected.survivorClaim === null) {
+      expect(result.survivorClaim).toBeNull();
+    } else {
+      expect(result.survivorClaim).not.toBeNull();
+      expect(result.survivorClaim!.claimAge).toBe(scenario.expected.survivorClaim.claimAge);
+      expect(result.survivorClaim!.gain).toBe(scenario.expected.survivorClaim.gain);
+    }
+  });
+
   it('satisfies structural invariants', async () => {
     const result = await run(scenario);
 
