@@ -63,6 +63,29 @@ test('reveals spouse fields and refuses to analyze until they are complete', asy
   await expect(page.locator('#b-birth')).toBeVisible();
 });
 
+test('reveals the deceased fields when Widowed is chosen', async ({ page }) => {
+  await page.goto('/');
+  await fillScenarioForm(page, single);
+  await expect(page.getByTestId('benefit-table')).toBeVisible();
+
+  await page
+    .getByRole('group', { name: 'Marital status' })
+    .getByRole('button', { name: 'Widowed' })
+    .click();
+
+  // The deceased's fields are now required, so the previous analysis must clear.
+  await expect(page.getByTestId('benefit-table')).toHaveCount(0);
+  // A CSS locator rather than `getByLabel`, matching the "reveals spouse
+  // fields" test above: `DeceasedFields` mirrors `PersonFields`' date-of-birth
+  // markup exactly, where the year select carries its own `aria-label`
+  // ("Deceased spouse death year") alongside the `<label for>` reading "Date
+  // of Death". Per the accessible-name spec an element's `aria-label`
+  // overrides an associated `<label>`, so the browser's computed name for
+  // that select is the aria-label, not "Date of Death" — `getByLabel` would
+  // never find it here, in production markup or in `PersonFields`' own.
+  await expect(page.locator('#dec-death')).toBeVisible();
+});
+
 test('switches between household and person tabs', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, married);

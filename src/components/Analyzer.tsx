@@ -15,7 +15,13 @@ import {
 import { personLabel } from '../lib/format';
 import { downloadPdfReport } from '../lib/printReport';
 import { fromShareParams } from '../lib/shareLink';
+import {
+  widowedErrors,
+  type AlreadyClaimedFormFields,
+  type DeceasedFormFields,
+} from '../lib/widowedForm';
 import { AssumptionsPanel } from './AssumptionsPanel';
+import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
 import { PersonFields } from './PersonFields';
 import { DarkModeToggle } from './DarkModeToggle';
@@ -47,6 +53,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [personB, setPersonB] = useState<PersonFormFields>(initialForm.personB);
   const [maritalStatus, setMaritalStatus] = useState<AnalyzerFormState['maritalStatus']>(
     initialForm.maritalStatus,
+  );
+  const [deceased, setDeceased] = useState<DeceasedFormFields>(initialForm.deceased);
+  const [alreadyClaimed, setAlreadyClaimed] = useState<AlreadyClaimedFormFields>(
+    initialForm.alreadyClaimed,
   );
   const [annualCola, setAnnualCola] = useState(initialForm.annualCola);
   const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
@@ -81,16 +91,22 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       personA,
       personB,
       maritalStatus,
-      // Widowed intake (deceased/already-claimed fields) is Task 5's
-      // deliverable — this UI never sets maritalStatus to 'widowed', so these
-      // stay at their blank defaults.
-      deceased: BLANK_FORM.deceased,
-      alreadyClaimed: BLANK_FORM.alreadyClaimed,
+      deceased,
+      alreadyClaimed,
       annualCola,
       discountRate,
       dollarsMode,
     }),
-    [personA, personB, maritalStatus, annualCola, discountRate, dollarsMode],
+    [
+      personA,
+      personB,
+      maritalStatus,
+      deceased,
+      alreadyClaimed,
+      annualCola,
+      discountRate,
+      dollarsMode,
+    ],
   );
 
   const inputsComplete = isFormComplete(form);
@@ -135,7 +151,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personA, personB, maritalStatus, discountRate]);
+  }, [personA, personB, maritalStatus, deceased, alreadyClaimed, discountRate]);
 
   // Re-seeds the suggested life expectancy only when the identity inputs
   // (date of birth, gender) actually changed — not on every edit to a
@@ -173,9 +189,23 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       : []),
   ];
 
-  function handleMaritalChange(married: boolean) {
-    setMaritalStatus(married ? 'married' : 'single');
+  function handleMaritalChange(status: 'single' | 'married' | 'widowed') {
+    setMaritalStatus(status);
   }
+
+  // `widowedErrors` needs a complete `{year, month}` for the survivor
+  // (person A). Their birth fields may still be blank while the adviser is
+  // typing, so this guards the call rather than passing a partial date —
+  // no errors is the honest answer for an incomplete form, not a crash.
+  const deceasedErrors =
+    maritalStatus === 'widowed' && personA.birthYear !== '' && personA.birthMonth !== ''
+      ? widowedErrors(
+          deceased,
+          alreadyClaimed,
+          { year: personA.birthYear, month: personA.birthMonth },
+          new Date(),
+        )
+      : {};
 
   async function handleExportPdf() {
     if (!analysis) return;
@@ -256,13 +286,17 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
 
             <div className="field">
               <span className="field-label">Marital status</span>
-              <div className="segmented-control" role="group" aria-label="Marital status">
+              <div
+                className="segmented-control marital-status-control"
+                role="group"
+                aria-label="Marital status"
+              >
                 <button
                   type="button"
                   className={`segment-btn ${
                     maritalStatus === 'single' ? 'segment-btn-active' : ''
                   }`}
-                  onClick={() => handleMaritalChange(false)}
+                  onClick={() => handleMaritalChange('single')}
                   aria-pressed={maritalStatus === 'single'}
                 >
                   Single
@@ -272,19 +306,40 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                   className={`segment-btn ${
                     maritalStatus === 'married' ? 'segment-btn-active' : ''
                   }`}
-                  onClick={() => handleMaritalChange(true)}
+                  onClick={() => handleMaritalChange('married')}
                   aria-pressed={maritalStatus === 'married'}
                 >
                   Married
                 </button>
+                <button
+                  type="button"
+                  className={`segment-btn ${
+                    maritalStatus === 'widowed' ? 'segment-btn-active' : ''
+                  }`}
+                  onClick={() => handleMaritalChange('widowed')}
+                  aria-pressed={maritalStatus === 'widowed'}
+                >
+                  Widowed
+                </button>
               </div>
               <span className="field-hint">
-                Married uses ssa.tools couple optimizer (includes the spousal top-up)
+                Married uses the ssa.tools couple optimizer. Widowed models the survivor
+                benefit and your own, claimed on separate dates.
               </span>
             </div>
 
             {maritalStatus === 'married' && (
               <PersonFields person={personB} index={1} onChange={handlePersonBChange} />
+            )}
+
+            {maritalStatus === 'widowed' && (
+              <DeceasedFields
+                deceased={deceased}
+                alreadyClaimed={alreadyClaimed}
+                errors={deceasedErrors}
+                onDeceasedChange={setDeceased}
+                onAlreadyClaimedChange={setAlreadyClaimed}
+              />
             )}
 
             <AssumptionsPanel
@@ -303,7 +358,11 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               {inputsComplete && personA.gender ? (
                 <>
                   Analyzing <strong>{genderLabel(personA.gender)}</strong>
-                  {maritalStatus === 'married' ? ', married (ssa.tools couple)' : ', single'}{' '}
+                  {maritalStatus === 'married'
+                    ? ', married (ssa.tools couple)'
+                    : maritalStatus === 'widowed'
+                      ? ', widowed (survivor + own)'
+                      : ', single'}{' '}
                   claimant —
                   benefits via <strong>ssa.tools</strong> engine.
                 </>

@@ -882,6 +882,10 @@
   border-radius: var(--radius);
 }
 
+.marital-status-control {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .segment-btn {
   padding: 10px 12px;
   min-height: 42px;
@@ -1000,6 +1004,14 @@
   display: block;
   font-size: 0.75rem;
   color: var(--text-subtle);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.field-error {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--red);
   margin-top: 6px;
   line-height: 1.4;
 }
