@@ -44,8 +44,8 @@ project future COLAs — all amounts are constant **today's dollars** (§2.4).
    to be safe. See §5.2 and §5.3 for the exact overlap rules.
 2. **`recipientIndex` follows the caller's input order**, but *which* index receives Spousal and
    Survivor periods is decided by a PIA comparison inside the engine, with a `>` tie-break that puts
-   `recipients[1]` in the earner role on an exact tie (§4.4). Our app assumes the opposite tie-break
-   (§6.4).
+   `recipients[1]` in the earner role on an exact tie (§4.4). On a tie that makes the engine's whole
+   output — recommended filing ages included — a function of the argument order (§6.4).
 3. **`strategySumPeriodsOptimized` does not apply the zero-PIA filing-date bump that its own NPV
    caller applies**, so calling it directly can silently disagree with `strategySumPeriodsCouple`
    (§4.2).
@@ -262,6 +262,12 @@ retirement FRA + 2 years of cohort shift.
 71.5% via `Math.max(0, ...)` at line 527 rather than erroring), disabled-widow(er) benefits at 50,
 child-in-care survivor benefits, and the one-time lump-sum death payment.
 
+**Nor is the age-60 START.** The amount arithmetic above is only reached once a survivor period
+exists, and `strategy-calc.ts:71-77` will not begin one before the survivor's own filing date, where
+SSA pays a widow(er) from 60 regardless of it. That produces $0 household income for months a
+survivor would really be paid, and it is visible in the strategy table's survivor-income column —
+see §5.2.
+
 ### 2.4 COLA and wage-indexing machinery — implemented
 
 All in `pia.ts` and `earnings-manager.ts`:
@@ -463,13 +469,16 @@ return { earner: recipients[1], ..., earnerIndex: 1, dependentIndex: 0 };
 ```
 
 **On an exact PIA tie, `recipients[1]` is the earner and `recipients[0]` is the dependent**
-(`earner-dependent.ts:23-28`). Our app assumes the opposite (§6.4). On a tie the spousal amount is
-$0 either way, but the *Survivor* period would be assigned to `recipients[0]`, which matters.
+(`earner-dependent.ts:23-28`) — a positional default, not a fact about either person. The spousal
+amount is $0 either way, but the *Survivor* period is assigned to `recipients[0]`, and the
+optimizer's chosen filing ages move with it: on a tie the ARGUMENT ORDER changes the recommendation.
+Measured evidence and how the app canonicalizes around it are in §6.4.
 
 `expectedNPVCoupleOptimized` returns `filingAges` in **original recipient order** — the docstring
 says so at `expected-npv.ts:349-353`, and the push at `expected-npv.ts:816-819` uses the loop
 variables `f0`/`f1` that index `recipients[0]`/`recipients[1]` (see the role mapping at
-`expected-npv.ts:638-644`). Our adapter relies on this correctly (§6, `src/lib/household.ts:193`).
+`expected-npv.ts:638-644`). Our adapter relies on this correctly, and maps that order back to
+display order after canonicalizing the pair (§6.4).
 
 ---
 
@@ -543,6 +552,38 @@ if (dependentFinalPersonalBenefit.cents() < survivorBenefitAmount.cents()) {
 If the survivor's own (fully-credited) benefit is greater or equal, **no Survivor period is emitted
 at all** and the dependent keeps their Personal benefit for life. Note the comparison deliberately
 uses the post-January-bump amount even though the actual month of the switch might be earlier.
+
+**The survivor benefit cannot start before the survivor's OWN filing date — and that is a
+divergence from SSA's rule.** `strategy-calc.ts:71-77`:
+
+```ts
+// Determine the start date for survivor benefits. This is the later of:
+// 1. The month after the earner's death date.
+// 2. The dependent's filing date.
+const survivorStartDate = MonthDate.max(
+  earnerFinalDate.addDuration(new MonthDuration(1)),
+  dependentStratDate
+);
+```
+
+SSA pays a widow(er) benefit from **age 60** (50 if disabled), independent of whether the widow(er)
+has filed on their own retirement record — indeed the standard planning move is to take one benefit
+first and switch to the other later. The engine instead pays nothing until the survivor's own filing
+date, so a household in which the survivor files late shows **$0 of household income for every month
+between the death and that filing**, even when the survivor is well past 60.
+
+**This is visible in the product**, in the strategy table's survivor-income column: for an older
+higher earner with a much younger spouse (PIA 2400 plan-to 78 / PIA 1200 plan-to 90), the "both
+delay to 70" row reads $0 while the optimum reads $36,480. The survivor is 69 in that year — SSA
+would be paying her a widow's benefit; the model is not. **The $0 is a model artifact, not a
+planning result.**
+
+**Ruled ship-as-is; Phase 3 item.** Nothing in the app currently corrects for it, and the
+`survivorIncomeCaption` sentence that explains the $0 ("a strategy under which the survivor's own
+benefit has not started by then shows $0") describes *the model*, correctly, and is **not** a
+statement of SSA's rule. A Phase 3 fix has to decide whether to model the age-60 start itself
+(a benefit rule the app would then own, which this codebase has so far refused to do) or to
+disclose the divergence in copy. Until then, do not read the column as advice to file early.
 
 ### 5.3 Can periods overlap?
 
@@ -725,16 +766,49 @@ filing *dates* for both people. Three concrete divergences follow:
 Argument order is correct: `baseSpousalBenefit(higher, lower)` per `benefit-calculator.ts:247`, and
 `src/lib/household.ts:214` passes `(higher, lower)`.
 
-### 6.4 Earner/dependent tie-break disagrees with the engine
+### 6.4 On an exact PIA tie the engine's output depends on argument order — the app canonicalizes around it
 
-`src/lib/household.ts:199`: `const aIsHigher = personA.piaMonthly >= personB.piaMonthly;` — person A
-wins a tie. The engine's `higherEarningsThan` is a strict `>` (`benefit-calculator.ts:231-236`), so
-`classifyEarnerDependent` makes **`recipients[1]` the earner on a tie** (`earner-dependent.ts:15-28`).
+**This is an engine-side order dependence, not an app tie-break bug.** The original form of this
+section described the app's own `personA.piaMonthly >= personB.piaMonthly` tie-break at
+`src/lib/household.ts:199`. That line no longer exists — the app now calls the engine's own
+`classifyEarnerDependent` — but the underlying warning was never resolved by that change and is
+still live, so it is restated here against the engine.
 
-The comment at `src/lib/household.ts:197-198` argues this is harmless because the top-up is `$0`
-either way. That is true for the top-up. It will **not** be true once we consume periods: on a tie
-the engine assigns the Survivor period to `recipients[0]` (person A) while our code labels person B
-as the lower earner. Align the tie-break before rebuilding on periods.
+`higherEarningsThan` is a strict `>` (`benefit-calculator.ts:231-236`), so on an exact tie it is
+false **both ways** and `classifyEarnerDependent` falls through to a fixed positional default:
+`recipients[1]` becomes the earner, `recipients[0]` the dependent (`earner-dependent.ts:15-28`).
+The dependent slot is the only one that can hold a Spousal or Survivor period at all
+(`strategy-calc.ts:104`), and that default reaches the engine through **both**
+`rankedCoupleStrategies` (via `expectedNPVCoupleOptimized`) and `strategySumPeriodsCouple`. So on a
+tie the argument order decides the recommended filing ages, not only who is labelled what.
+
+Measured on a two-PIA-2200 household (Dan b. 1962-04 plan-to 85, Sarah b. 1964-02 plan-to 88,
+`asOf` 2026-01-15):
+
+| | passed as `[Dan, Sarah]` | passed as `[Sarah, Dan]` |
+|---|---|---|
+| Recommended ages | Dan 63y9m, Sarah 70 | Dan 70, Sarah 62y1m |
+| Survivor period | none emitted | `survivor: $1,179/mo` to Sarah |
+| Income cliff | $53,520 → $32,736 (−38.8%) | $51,324 → $32,736 (−36.2%) |
+
+Two recommendations, two charts, two cliff percentages, for one household — and no disclosure,
+since `survivorGap` is null both ways.
+
+**How the app handles it.** The engine cannot be changed (vendored), so the app makes the argument
+order a function of the household rather than of data entry. `compareForEngine`
+(`src/lib/household.ts`) canonicalizes the pair once, at the single point it enters the engine, and
+maps the two-element results back to display order; everything else is keyed by `personId` and needs
+no mapping. The keys are PIA descending, then projected final month descending (so the person the
+household's own plan-to inputs say outlives the other occupies the dependent slot, the only slot the
+engine can pay a survivor benefit to), then birth date descending, gender and name for determinism.
+`analyzeHousehold`'s equal-PIA tests assert the WHOLE analysis is equal under a swap — periods,
+timeline, cliff, filing ages, row order, survivor gap — not a hand-listed subset, which is how the
+defect above survived a pass that fixed only the "lower earner" label.
+
+The residual, unfixable part: **which** of the two engine-admissible framings a tie household is
+shown is still a choice the app makes, and the alternative choice yields different filing ages. The
+choice is documented at `compareForEngine`; it is not a benefit rule, and every amount in either
+framing is the engine's own.
 
 ### 6.5 The displayed monthly is the eventual amount, not the first-year amount
 

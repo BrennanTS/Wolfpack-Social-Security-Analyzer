@@ -3,14 +3,23 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
+  COMBINED_INCOME_SUBTITLE,
   combinedIncomeCaption,
   coupleModelingNote,
+  incomeCliffSentence,
+  nominalFirstDeathNote,
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalMethodologyCopy,
   spousalSummary,
   survivorGapNote,
+  survivorIncomeCaption,
 } from './methodologyCopy';
-import { analyzeHousehold, type HouseholdAnalysis } from '../lib/household';
+import {
+  analyzeHousehold,
+  type HouseholdAnalysis,
+  type HouseholdStrategy,
+} from '../lib/household';
+import type { IncomeCliff } from '../lib/incomeCliff';
 import type { Person } from '../lib/personAnalysis';
 
 /**
@@ -65,7 +74,7 @@ describe('spousalMethodologyCopy', () => {
         atFra: 500,
         atRecommendedFilingAge: 500,
         startsAtSpouseAge: '67',
-        lowerEarnerLabel: 'You',
+        lowerEarnerLabel: 'Client',
       }),
     );
     expect(copy).not.toContain('50%');
@@ -78,11 +87,11 @@ describe('spousalMethodologyCopy', () => {
         atFra: 0,
         atRecommendedFilingAge: 0,
         startsAtSpouseAge: null,
-        lowerEarnerLabel: 'You',
+        lowerEarnerLabel: 'Client',
       }),
     );
     expect(copy).toContain('No top-up applies');
-    expect(copy).toContain("does not exceed You's own benefit");
+    expect(copy).toContain("does not exceed Client's own benefit");
   });
 
   it('qualifies the zero-entitlement comparison to the FRA benefit it actually makes', () => {
@@ -97,10 +106,10 @@ describe('spousalMethodologyCopy', () => {
         atFra: 0,
         atRecommendedFilingAge: 0,
         startsAtSpouseAge: null,
-        lowerEarnerLabel: 'You',
+        lowerEarnerLabel: 'Client',
       }),
     );
-    expect(copy).toContain("does not exceed You's own benefit at their own FRA");
+    expect(copy).toContain("does not exceed Client's own benefit at their own FRA");
   });
 
   it('states when the spousal benefit begins', () => {
@@ -205,6 +214,32 @@ describe('spousalSummary', () => {
     );
     expect(copy).toContain("beginning at Blythe's age 72 years, 3 months");
     expect(copy).toContain('$0.00/mo');
+  });
+
+  // `subject === null` is how `household.ts` reports an exact PIA tie: there
+  // is no lower earner, so no name should reach the sentence at all. And the
+  // sentence must claim only what the guard establishes — an exact PIA
+  // match, not "identical records": two people can share a PIA with
+  // completely different earnings histories, ages, or genders.
+  //
+  // Asserted as an EXACT match, not a substring check, and independent of
+  // `atFra`: a `subject ?? 'the lower earner'`-style fallback would silently
+  // route this branch through the SAME `atFra`-driven templates the
+  // named-subject tests above exercise (e.g. "does not exceed the lower
+  // earner's own benefit"), which also contain the words "the lower earner"
+  // — a substring check on that phrase cannot tell the real null-branch
+  // sentence apart from that fallback, and would pass either way.
+  it('renders the exact PIA-scoped, name-agnostic sentence when subject is null, regardless of atFra', () => {
+    for (const atFra of [0, 1000]) {
+      const copy = spousalSummary(
+        { ...base, atFra, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: null },
+        null,
+      );
+      expect(copy).toBe(
+        `Both spouses have the same Primary Insurance Amount, so neither is the lower earner — ` +
+          `there is no spousal top-up to claim on the other's record.`,
+      );
+    }
   });
 });
 
@@ -329,6 +364,79 @@ describe('the printed spousal sentence, over real households', () => {
 });
 
 /**
+ * The on-screen path specifically — `spousalMethodologyCopy` interpolates
+ * `analysis.spousalTopUp.lowerEarnerLabel` as a name
+ * (`methodologyCopy.ts:330`), unlike the PDF's `printed` helper above, which
+ * always passes the generic literal `'the lower earner'`. On an exact PIA
+ * tie that is exactly where a positional tie-break would leak: the engine's
+ * `classifyEarnerDependent` still has to pick a slot on a tie
+ * (`earner-dependent.ts:15-28`, falling through to a fixed `else`), and an
+ * earlier version of `household.ts` mirrored that pick into
+ * `lowerEarnerLabel` — internally consistent with the engine, but still
+ * naming whichever spouse happened to be entered first. A test that
+ * recomputes the classifier the same way `household.ts` does, with the same
+ * array order, cannot catch this (it is a tautology); this drives a real
+ * household through BOTH entry orders and diffs the rendered sentence.
+ */
+describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
+  const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
+
+  beforeAll(() => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      const contents = await readFile(path.join(publicDir, String(url).replace(/^\//, '')), 'utf8');
+      return { ok: true, json: async () => JSON.parse(contents) } as Response;
+    });
+  });
+  afterAll(() => vi.unstubAllGlobals());
+
+  const asOf = new Date(2026, 0, 15);
+  const assumptions = { annualCola: 2.5, discountRate: 0.025 };
+
+  const equalA: Person = {
+    id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+    gender: 'male', piaMonthly: 2200, lifeExpectancy: 85,
+  };
+  const equalB: Person = {
+    id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+    gender: 'female', piaMonthly: 2200, lifeExpectancy: 88,
+  };
+
+  it('prints the identical sentence whichever spouse is entered first, naming neither', async () => {
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [equalA, equalB] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...equalB, id: 'a' }, { ...equalA, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+
+    // Guards this really is the tie this test means to exercise.
+    expect(forward.spousalTopUp!.lowerEarnerLabel).toBeNull();
+    expect(swapped.spousalTopUp!.lowerEarnerLabel).toBeNull();
+
+    const forwardCopy = spousalMethodologyCopy(forward);
+    const swappedCopy = spousalMethodologyCopy(swapped);
+    expect(swappedCopy).toBe(forwardCopy);
+    expect(forwardCopy).not.toContain('Dan');
+    expect(forwardCopy).not.toContain('Sarah');
+    // The exact null-subject sentence, not a substring check on "Primary
+    // Insurance Amount" or "the lower earner" alone: either would also pass
+    // for a `subject ?? 'the lower earner'`-style fallback that silently
+    // routed this branch through the named-subject templates instead (see
+    // `spousalSummary`'s equivalent guard above for the full reasoning), and
+    // this also re-proves the overclaim fix — "identical records" would fail
+    // this exact match too.
+    expect(forwardCopy).toContain(
+      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner — ` +
+        `there is no spousal top-up to claim on the other's record.`,
+    );
+  });
+});
+
+/**
  * The disclosure for the survivor direction the engine does not model. The
  * combined-income caption affirmatively says each band includes "any spousal
  * or survivor benefit"; for these households that is false, and the figures
@@ -426,18 +534,232 @@ describe('survivorGapNote', () => {
 });
 
 /**
+ * Comparison rows carrying only what the caption reads: each row's filing
+ * ages (for the total-delay ordering) and its survivor-income figure. The
+ * cast is the same device `analysisWith` above uses and for the same reason —
+ * a full `HouseholdStrategy` carries engine objects (`MonthDuration`), and
+ * this is a copy test, not an engine test. The engine-fed version of these
+ * assertions lives in `household.test.ts`, on a real household.
+ */
+function rowsWith(...entries: [ages: number[], income: number | null][]): HouseholdStrategy[] {
+  return entries.map(([ages, income], i) => ({
+    key: `row-${i}`,
+    filingAges: ages.map((decimalYears) => ({ decimalYears })),
+    survivorIncome: income,
+  })) as unknown as HouseholdStrategy[];
+}
+
+/** Delaying genuinely does raise the survivor's income for this household. */
+const RISING = rowsWith([[67, 67], 44000], [[70, 70], 52000], [[70, 64], 48000]);
+
+/**
+ * The household that falsified the old unbranched claim, in row form: Dan
+ * b. 1958 PIA 2400 plan-to 78 with Sarah b. 1968 PIA 1200 plan-to 90. The
+ * optimum (Dan 70, Sarah 62y1m) leaves the survivor $36,480; delaying both to
+ * 70 leaves her $0, because she has not filed by the year after his death.
+ * `survivorGap` is null for it — no gap branch ever covered this.
+ */
+const FALLING = rowsWith([[70, 62.08], 36480], [[70, 70], 0]);
+
+describe('survivorIncomeCaption', () => {
+  it('states the figure assumes the life-expectancy-implied death direction, without naming one', () => {
+    const caption = survivorIncomeCaption(RISING, null);
+    expect(caption).toContain("each spouse's own life-expectancy input");
+    // The earlier version hardcoded a direction — false for a household whose
+    // higher earner happens to be the one projected to survive, with no gap
+    // firing to correct it (that direction is a fact about who dies first
+    // per life expectancy, not about who earns more).
+    expect(caption).not.toContain('lower-earning spouse outliving the higher earner');
+    // Nothing here claims this household's gap is unmodeled — there is none.
+    expect(caption).not.toContain('understate');
+  });
+
+  it('makes the delay claim when the rows beneath it actually rise', () => {
+    const caption = survivorIncomeCaption(RISING, null);
+    expect(caption).toContain('Delaying raises this figure for this household');
+    expect(caption).not.toContain('not simply larger for later filing');
+  });
+
+  it('states the composition fact instead when delaying LOWERS the figure', () => {
+    // The critical case: no gap at all, so nothing else in the caption would
+    // have caught it. The old copy said "Delaying raises this every year the
+    // survivor lives through it" directly beneath a column reading $36,480
+    // for the optimum and $0 for "both delay to 70".
+    const caption = survivorIncomeCaption(FALLING, null);
+    expect(caption).not.toContain('Delaying raises');
+    expect(caption).toContain('not simply larger for later filing');
+    expect(caption).toContain('whether the survivor has begun collecting by that year');
+    expect(caption).toContain('shows $0');
+    // Both drivers named, not just the survivor's own filing age: the figure
+    // is a survivor benefit derived from the first-to-die's record too.
+    expect(caption).toContain('what the first spouse to die had filed for');
+  });
+
+  it('does not read a flat all-zero column as rising', () => {
+    const caption = survivorIncomeCaption(rowsWith([[67, 67], 0], [[70, 70], 0]), null);
+    expect(caption).not.toContain('Delaying raises');
+  });
+
+  it('claims nothing about figures when no row has one', () => {
+    // Both people reach their plan-to age in the same month: `firstDeath`
+    // returns null, every cell is an em dash. Both surfaces hide the column
+    // and this caption; if one ever renders it anyway, it must not assert
+    // figures — or a dollars basis for figures that are not there.
+    const caption = survivorIncomeCaption(rowsWith([[67, 67], null], [[70, 70], null]), null);
+    expect(caption).toContain('No strategy in this table has a figure');
+    expect(caption).not.toContain('Delaying raises');
+    expect(caption).not.toMatch(/today.s dollars/i);
+  });
+
+  it('renders the same for undefined as for null, so a caller need not pass the field', () => {
+    expect(survivorIncomeCaption(RISING, undefined)).toBe(survivorIncomeCaption(RISING, null));
+  });
+
+  it('points at the existing gap note rather than restating its figures, when the survivor has already reached 60', () => {
+    const gap = {
+      survivorLabel: 'Blake',
+      deceasedMonthly: 1780,
+      survivorOwnMonthly: 1760,
+      survivorUnder60: false,
+    };
+    const caption = survivorIncomeCaption(RISING, gap);
+    expect(caption).toContain('understate what the survivor would actually receive');
+    expect(caption).toContain('see the note below');
+    expect(caption).toContain('Delaying raises this figure for this household');
+    // The gap note's own figures belong to `survivorGapNote`, not here — a
+    // second rendering of them is the exact duplication three of this
+    // project's prior defects were made of.
+    expect(caption).not.toContain('1,780');
+    expect(caption).not.toContain('1,760');
+    expect(caption).not.toContain('Blake');
+  });
+
+  it('makes neither the delay claim nor the understate claim when the survivor is under 60', () => {
+    // Reachable household: the survivor is the engine's earner (so no
+    // step-up is modeled for them at all) and is under 60 at the death, with
+    // no personal band that month. Every named row shares the same death
+    // month (filing strategy doesn't move it — see `withSurvivorIncome`), and
+    // every row's own filing age is >= 62, so no row's survivor benefit has
+    // started either. The column reads $0 across every strategy — which the
+    // rise check now reads off the rows rather than inferring from the guard.
+    const gap = {
+      survivorLabel: 'Blake',
+      deceasedMonthly: 2016,
+      survivorOwnMonthly: null,
+      survivorUnder60: true,
+    };
+    const caption = survivorIncomeCaption(rowsWith([[67, 67], 0], [[70, 70], 0]), gap);
+    expect(caption).toContain('has not yet reached the age a widow(er) benefit can start');
+    expect(caption).toContain('see the note below');
+    expect(caption).not.toContain('Delaying raises');
+    expect(caption).not.toContain('understate');
+  });
+
+  // The column sits directly beside "Combined PV", which stays in
+  // present-value dollars no matter what this toggle does — two unmarked
+  // unit systems in one table otherwise. Covered across all three gap
+  // branches, since the basis clause is appended in every one of them.
+  describe('dollars mode', () => {
+    it('defaults to naming today’s dollars when mode is omitted', () => {
+      expect(survivorIncomeCaption(RISING, null)).toMatch(
+        /today.s dollars, before any cost-of-living/i,
+      );
+    });
+
+    it('names today’s dollars in real mode, in the no-gap branch', () => {
+      const caption = survivorIncomeCaption(RISING, null, 'real');
+      expect(caption).toMatch(/today.s dollars, before any cost-of-living/i);
+      expect(caption).not.toMatch(/nominal/i);
+    });
+
+    it('names nominal dollars and calls out Combined PV by contrast, in the no-gap branch', () => {
+      const caption = survivorIncomeCaption(RISING, null, 'nominal');
+      expect(caption).toMatch(/nominal/i);
+      expect(caption).toMatch(/Combined PV/);
+      expect(caption).not.toMatch(/today.s dollars, before any cost-of-living/i);
+    });
+
+    it('states the dollars basis in the falling branch too', () => {
+      expect(survivorIncomeCaption(FALLING, null, 'real')).toMatch(/today.s dollars/i);
+      expect(survivorIncomeCaption(FALLING, null, 'nominal')).toMatch(/nominal/i);
+    });
+
+    it('states the dollars basis in the under-60 branch too', () => {
+      const gap = {
+        survivorLabel: 'Blake',
+        deceasedMonthly: 2016,
+        survivorOwnMonthly: null,
+        survivorUnder60: true,
+      };
+      const zeroed = rowsWith([[67, 67], 0], [[70, 70], 0]);
+      expect(survivorIncomeCaption(zeroed, gap, 'real')).toMatch(/today.s dollars/i);
+      expect(survivorIncomeCaption(zeroed, gap, 'nominal')).toMatch(/nominal/i);
+    });
+
+    it('states the dollars basis in the gap branch too', () => {
+      const gap = {
+        survivorLabel: 'Blake',
+        deceasedMonthly: 1780,
+        survivorOwnMonthly: 1760,
+        survivorUnder60: false,
+      };
+      expect(survivorIncomeCaption(RISING, gap, 'real')).toMatch(/today.s dollars/i);
+      expect(survivorIncomeCaption(RISING, gap, 'nominal')).toMatch(/nominal/i);
+    });
+  });
+});
+
+/**
  * The chart caption, shared by the on-screen chart and the PDF household page.
  * It was a verbatim duplicate across those two files, and both copies claimed
  * unconditionally that a band includes "any spousal or survivor benefit" —
  * contradicting the gap note directly beneath them.
+ *
+ * Rewritten a second time once the chart stopped drawing one band per person:
+ * "each person's band is everything they are paid" became false the moment a
+ * person could hold an own-benefit segment alongside a separate spousal or
+ * survivor segment. These tests pin the corrected "segments sum to" wording
+ * and the new survivor-increment explanation against drifting back.
+ *
+ * Rewritten a third time (crediting a band's full annual rate to every year
+ * it merely touched) and partly undone in a fourth once that version turned
+ * out to double-count a transition year shared by an outgoing and an
+ * incoming band — the chart moved to its own MONTHLY series instead
+ * (`buildMonthlyIncomeSeries` in `household.ts`), which has no year-bucket
+ * artifact left to disclose. The third rewrite's added clause ("a filing
+ * year and a final year render at the same height as a full one") is
+ * therefore gone, not reworded again; the tests below pin its absence
+ * alongside the "annual rate" framing that survives every version.
  */
+/**
+ * The subtitle directly above `combinedIncomeCaption`'s own sentence —
+ * they used to be independently hand-typed strings in `CombinedIncomeChart`
+ * and `HouseholdSection`, and in print the two are concatenated straight
+ * into the SAME `<Text>`, so a reader hits both in one breath. It used to
+ * say "Annual Social Security income BY YEAR", which stopped being true the
+ * moment the chart moved off calendar-year buckets — a filing year and a
+ * final year plot at full height, not by-year. These pin that the wording
+ * agrees with `combinedIncomeCaption`'s own "annual rate" framing rather
+ * than contradicting it.
+ */
+describe('COMBINED_INCOME_SUBTITLE', () => {
+  it('does not claim the chart is bucketed by year', () => {
+    expect(COMBINED_INCOME_SUBTITLE).not.toMatch(/by year/i);
+  });
+
+  it('states the annual-rate framing, matching combinedIncomeCaption rather than contradicting it', () => {
+    expect(COMBINED_INCOME_SUBTITLE).toMatch(/annual rate/i);
+    expect(combinedIncomeCaption(null)).toMatch(/annual rate/i);
+  });
+});
+
 describe('combinedIncomeCaption', () => {
-  it('claims spousal and survivor benefits are included when they are', () => {
+  it('claims spousal and survivor segments are included when they are', () => {
     const caption = combinedIncomeCaption(null);
-    expect(caption).toContain('their own benefit plus any spousal or survivor benefit');
-    expect(caption).toContain('only the months actually paid');
+    expect(caption).toContain('their own benefit, plus any spousal or survivor segment');
+    expect(caption).toContain('annual rate');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
-    expect(caption).not.toContain('No survivor benefit is included');
+    expect(caption).not.toContain('No survivor segment is included');
   });
 
   it('drops the survivor claim for a household whose survivor benefit is unmodeled', () => {
@@ -447,12 +769,26 @@ describe('combinedIncomeCaption', () => {
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
     });
-    expect(caption).not.toContain('or survivor benefit');
-    expect(caption).toContain('their own benefit plus any spousal benefit');
-    expect(caption).toContain('No survivor benefit is included for this household');
+    expect(caption).not.toContain('or survivor segment is included');
+    expect(caption).toContain('their own benefit, plus any spousal segment');
+    expect(caption).toContain('No survivor segment is included for this household');
     // The parts that stay true either way.
-    expect(caption).toContain('only the months actually paid');
+    expect(caption).toContain('annual rate');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
+  });
+
+  // The clause a briefly-shipped, calendar-year-bucketed version of the
+  // chart needed and a monthly-resolution one does not — a month is either
+  // inside a band or it isn't, so there is no partial-year height to
+  // disclose. Pinned absent rather than left untested, since this exact
+  // clause shipped once already and is the obvious thing to accidentally
+  // reintroduce.
+  it('does not claim a filing or final year renders at full height, now that the chart is monthly', () => {
+    const caption = combinedIncomeCaption(null);
+    expect(caption).not.toMatch(/filing year and a final year render at the same height/i);
+    expect(caption).not.toMatch(/shorter than a full one/i);
+    expect(caption).not.toMatch(/counting only the months actually paid/i);
+    expect(caption).not.toMatch(/only part of each is actually paid/i);
   });
 
   it('treats an unpassed gap the same as no gap', () => {
@@ -464,9 +800,93 @@ describe('combinedIncomeCaption', () => {
     // that still does — the PDF disclaimer's "today’s dollars" shares its
     // page — so ASCII here renders straight quotes next to curly ones.
     const caption = combinedIncomeCaption(null);
-    expect(caption).toContain('Each person’s band');
+    expect(caption).toContain('Each person’s segments');
     expect(caption).toContain('today’s dollars');
     expect(caption).not.toContain("'");
+  });
+
+  // The one fact a reader needs to parse the chart at all: a survivor
+  // segment is stacked ON TOP of the personal band, not a replacement for
+  // it. Asserted for both the modeled and the unmodeled-direction household,
+  // since it's a general statement about how the chart works, not a claim
+  // about this particular household's bands.
+  it('explains that a survivor segment is the increment above the personal band, not a replacement', () => {
+    const noGap = combinedIncomeCaption(null);
+    expect(noGap).toMatch(/survivor segment is the increment above the personal band/i);
+    expect(noGap).toMatch(/personal band keeps paying what it already was/i);
+
+    const gap = combinedIncomeCaption({
+      survivorLabel: 'Blake',
+      deceasedMonthly: 1780,
+      survivorOwnMonthly: 1760,
+      survivorUnder60: false,
+    });
+    expect(gap).toMatch(/survivor segment is the increment above the personal band/i);
+  });
+
+  // The toggle's whole reason for existing: a chart in nominal dollars beside
+  // a caption still claiming "today's dollars" would be exactly the recurring
+  // defect this project keeps finding — a right number with wrong text next
+  // to it. `mode` defaults to 'real' so every call above, written before the
+  // toggle existed, keeps asserting the sentence that was already correct.
+  describe('dollars mode', () => {
+    it('defaults to the today’s-dollars sentence when mode is omitted', () => {
+      expect(combinedIncomeCaption(null)).toContain(
+        'today’s dollars, before any cost-of-living adjustment',
+      );
+    });
+
+    it('states today’s dollars explicitly in real mode', () => {
+      const caption = combinedIncomeCaption(null, 'real');
+      expect(caption).toContain('today’s dollars, before any cost-of-living adjustment');
+      expect(caption).not.toMatch(/nominal/i);
+    });
+
+    it('says nominal in nominal mode, and stops claiming today’s dollars', () => {
+      const caption = combinedIncomeCaption(null, 'nominal');
+      expect(caption).toMatch(/nominal/i);
+      expect(caption).not.toContain('today’s dollars, before any cost-of-living adjustment');
+    });
+
+    // Code-review finding: an earlier version of this test asserted the
+    // caption was byte-identical between modes once the trailing "Amounts
+    // are..." sentence was stripped — which does not verify mode-independence,
+    // it MANDATES it. That is wrong: "that personal band keeps paying what
+    // it already was" is a claim that the band's amount is constant over
+    // time, true in real dollars (the engine applies no COLA) but false in
+    // nominal, where every band compounds forward and a reader checking the
+    // personal band either side of the death year sees it grow. The
+    // structural point the sentence exists to make — a survivor segment is
+    // an increment on top of the personal band, never a replacement for it —
+    // does survive the mode; only the "stays flat" wording is mode-specific.
+    // These three tests replace the single over-broad one, pinning exactly
+    // that boundary instead of erasing it.
+    it('states the segment decomposition and the increment framing identically in both modes', () => {
+      const prefixThroughIncrementFraming = (caption: string) =>
+        caption.split('A survivor segment is the increment above the personal band beneath it:')[0] +
+        'A survivor segment is the increment above the personal band beneath it:';
+      const real = prefixThroughIncrementFraming(combinedIncomeCaption(null, 'real'));
+      const nominal = prefixThroughIncrementFraming(combinedIncomeCaption(null, 'nominal'));
+      expect(nominal).toBe(real);
+    });
+
+    it('claims the personal band stays flat only in real dollars', () => {
+      expect(combinedIncomeCaption(null, 'real')).toContain(
+        'personal band keeps paying what it already was',
+      );
+      expect(combinedIncomeCaption(null, 'nominal')).not.toContain(
+        'personal band keeps paying what it already was',
+      );
+    });
+
+    it('says the personal band keeps compounding on its own in nominal dollars, with the increment framing intact', () => {
+      const nominal = combinedIncomeCaption(null, 'nominal');
+      expect(nominal).toMatch(/personal band keeps growing at the assumed COLA/i);
+      expect(nominal).toContain(
+        'A survivor segment is the increment above the personal band beneath it',
+      );
+      expect(nominal).toMatch(/survivor segment stacked on top of it is only the increase/i);
+    });
   });
 });
 
@@ -492,6 +912,128 @@ describe('coupleModelingNote', () => {
     expect(note).toContain('The spousal top-up is modeled');
     expect(note).toContain('the survivor benefit this household would actually receive is not');
     expect(note).not.toMatch(/survivor benefits are (both )?modeled/);
+  });
+});
+
+/**
+ * The income-cliff sentence — the one an adviser says out loud about what
+ * happens to household income at the first death. Shared by the on-screen
+ * `IncomeCliffCallout` and `pdf/HouseholdSection`.
+ */
+describe('incomeCliffSentence', () => {
+  const base: IncomeCliff = {
+    deathYear: 2047,
+    before: 60000,
+    after: 38000,
+    dropPercent: 36.666666666666664,
+    survivorLabel: 'Sarah',
+  };
+
+  it('states the year, both full-year totals, and the survivor', () => {
+    const sentence = incomeCliffSentence(base);
+    expect(sentence).toContain('2047');
+    expect(sentence).toContain('$60,000');
+    expect(sentence).toContain('$38,000');
+    expect(sentence).toContain('Sarah');
+    expect(sentence).toMatch(/falls 36\.7%/);
+  });
+
+  it('says income does not fall, rather than "falls 0.0%", when dropPercent is zero', () => {
+    const sentence = incomeCliffSentence({ ...base, before: 50000, after: 52000, dropPercent: 0 });
+    expect(sentence).toContain('does not fall');
+    expect(sentence).not.toMatch(/falls \d/);
+    expect(sentence).toContain('$50,000');
+    expect(sentence).toContain('$52,000');
+  });
+
+  // Code-review finding: an earlier draft closed with "once {survivor} is
+  // the only one still collecting" — a payment claim that is false the
+  // moment `after` is $0, which `incomeCliff.test.ts` and a live run against
+  // the engine (the under-60 survivor-gap fixture from
+  // `benefitPeriods.test.ts`, b. Jun 1956 PIA $1,600 plan-to 76 / b. Jun
+  // 1976) both confirm is reachable. The closing clause must be a
+  // household-composition fact, true regardless of the dollar amount.
+  it('never claims the survivor is "collecting" anything, even when after is $0', () => {
+    const sentence = incomeCliffSentence({
+      ...base,
+      before: 24192,
+      after: 0,
+      dropPercent: 100,
+    });
+    expect(sentence).toContain('$0');
+    expect(sentence).not.toMatch(/collecting/i);
+    expect(sentence).toContain("Sarah is the household's only remaining member");
+  });
+
+  it('never asserts how the survivor benefit is determined, only that they are the last one left', () => {
+    // "steps up to the larger of the two" is SSA's real rule but is false for
+    // a survivorGap household, where `after` is understated because the
+    // engine did not model the step-up in that direction. The sentence must
+    // not claim it for any household shape, gap or not.
+    const sentence = incomeCliffSentence(base);
+    expect(sentence).not.toMatch(/larger/i);
+    expect(sentence).not.toMatch(/steps? (up|into)/i);
+  });
+
+  // The boxed callout has no unit statement anywhere else in it — this
+  // clause is the only place the sentence says which dollars `before`/
+  // `after` are in. `mode` states, it does not convert: the caller
+  // (`HouseholdPanel`, via `IncomeCliffCallout`) already fed `cliff` figures
+  // in the right mode; this just names them.
+  describe('dollars mode', () => {
+    it('defaults to stating today’s dollars when mode is omitted', () => {
+      expect(incomeCliffSentence(base)).toMatch(/today.s dollars, before any cost-of-living/i);
+    });
+
+    it('states today’s dollars explicitly in real mode', () => {
+      const sentence = incomeCliffSentence(base, 'real');
+      expect(sentence).toMatch(/today.s dollars, before any cost-of-living/i);
+      expect(sentence).not.toMatch(/nominal/i);
+    });
+
+    it('states nominal dollars in nominal mode, and stops claiming today’s', () => {
+      const sentence = incomeCliffSentence(base, 'nominal');
+      expect(sentence).toMatch(/nominal/i);
+      expect(sentence).not.toMatch(/today.s dollars, before any cost-of-living/i);
+    });
+
+    it('changes only the trailing dollars-basis clause, not the figures or the survivor claim', () => {
+      const real = incomeCliffSentence(base, 'real').replace(/These figures.*$/, '');
+      const nominal = incomeCliffSentence(base, 'nominal').replace(/These figures.*$/, '');
+      expect(nominal).toBe(real);
+    });
+  });
+});
+
+/**
+ * The print-only sentence stating the nominal-dollar equivalent of the
+ * income cliff's `after` figure — the one nominal number clients ask about,
+ * preserved in prose since the PDF can't offer the on-screen toggle. Takes
+ * the nominal figure already computed (by `lib/dollarsMode.ts`) rather than
+ * computing it, so these tests pin only the wording, not the compounding
+ * arithmetic — that's `dollarsMode.test.ts`'s job.
+ */
+describe('nominalFirstDeathNote', () => {
+  const base: IncomeCliff = {
+    deathYear: 2047,
+    before: 60000,
+    after: 38000,
+    dropPercent: 36.666666666666664,
+    survivorLabel: 'Sarah',
+  };
+
+  it('states the year after the death, the nominal figure, and the COLA assumed', () => {
+    const note = nominalFirstDeathNote(base, 48620.15, 2.5);
+    expect(note).toContain('2048');
+    expect(note).toContain('$48,620');
+    expect(note).toContain('2.50%');
+    expect(note).toMatch(/nominal/i);
+  });
+
+  it('is the identity at a zero COLA — same figure, still labeled nominal', () => {
+    const note = nominalFirstDeathNote(base, 38000, 0);
+    expect(note).toContain('$38,000');
+    expect(note).toContain('0.00%');
   });
 });
 

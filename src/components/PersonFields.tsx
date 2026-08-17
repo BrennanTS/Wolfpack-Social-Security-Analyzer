@@ -65,6 +65,7 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
         <input
           id={`${idPrefix}-name`}
           type="text"
+          className="text-input"
           value={person.name}
           placeholder={label}
           onChange={(e) => set({ name: e.target.value })}

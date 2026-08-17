@@ -142,8 +142,15 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
         // panel: the married one so the three cannot branch differently on an
         // absent start date again, the single one so they cannot make three
         // different claims about what a single claimant is and is not shown.
+        //
+        // The subject comes from `lowerEarnerLabel`, exactly as on the
+        // household page and on screen. A hardcoded non-null subject here
+        // made `spousalSummary`'s tie branch unreachable in print, so an
+        // equal-PIA household read "half of the higher earner's PIA does not
+        // exceed the lower earner's own benefit" — about a household with
+        // neither a higher nor a lower earner.
         body: spousal
-          ? spousalSummary(spousal, 'the lower earner')
+          ? spousalSummary(spousal, spousal.lowerEarnerLabel === null ? null : 'the lower earner')
           : SINGLE_CLAIMANT_BENEFIT_NOTE,
       },
       {

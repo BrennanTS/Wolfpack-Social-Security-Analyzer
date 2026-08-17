@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { HouseholdPanel } from './HouseholdPanel';
 import type { HouseholdAnalysis } from '../lib/household';
@@ -54,7 +54,15 @@ function buildAnalysis(): HouseholdAnalysis {
     people: [personA],
     optimal,
     comparisons: [optimal],
-    combinedTimeline: [{ year: 2032, byPersonId: { a: 35_712 }, total: 35_712 }],
+    combinedTimeline: [
+      { year: 2032, bySeries: { 'a:personal': 35_712 }, byPersonId: { a: 35_712 }, total: 35_712 },
+    ],
+    // `HouseholdPanel` now also builds the chart's own monthly series from
+    // `periods` (`buildMonthlyIncomeSeries`, not `combinedTimeline`) — empty
+    // here since none of these tests assert on the chart's rendered bars,
+    // only on the break-even section and the survivor-gap note, neither of
+    // which reads `periods`.
+    periods: [],
     recommendation: 'Claim at age 70',
     recommendationDetail: 'ssa.tools recommends filing at age 70.',
     assumptions: { annualCola: 0, discountRate: 3 },
@@ -126,7 +134,50 @@ describe('HouseholdPanel', () => {
     expect(queryByTestId('survivor-gap-note')).toBeNull();
   });
 
-  it('falls back to the You/Spouse label when person A is unnamed', () => {
+  // Code-review finding: `CombinedIncomeChart` renders `survivorGapNote`
+  // above the chart, and `IncomeCliffCallout` renders below it — on the
+  // FIRST pass both called `survivorGapNote(gap)` themselves, so a married
+  // household with a set `survivorGap` showed the identical disclosure
+  // paragraph twice on one screen. No existing test caught it: this file's
+  // only `survivorGap` fixture (above) is a single-person household, where
+  // `incomeCliff` returns null and the callout never renders at all, so the
+  // duplication path never fired. This is a genuine two-person married
+  // household with `finalIndexByPersonId` and a three-year timeline — the
+  // fields `incomeCliff` needs — so both the chart's note and the callout
+  // are actually on screen together, and the fix (the callout no longer
+  // renders its own copy) is pinned here rather than only at the unit level.
+  it('prints the survivor-gap note exactly once, even though both the chart and the callout are on screen', () => {
+    const personA = buildPersonAnalysis('a', 'Dan');
+    const personB = buildPersonAnalysis('b', 'Sarah');
+    const analysis = {
+      ...buildAnalysis(),
+      status: 'married',
+      people: [personA, personB],
+      finalIndexByPersonId: { a: 2047 * 12 + 3, b: 2052 * 12 + 1 },
+      combinedTimeline: [
+        { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
+        { year: 2047, bySeries: {}, byPersonId: {}, total: 55000 },
+        { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
+      ],
+      survivorGap: {
+        survivorLabel: 'Sarah',
+        deceasedMonthly: 1780,
+        survivorOwnMonthly: 1760,
+        survivorUnder60: false,
+      },
+    } as HouseholdAnalysis;
+
+    render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+
+    // The callout really is on screen (guards against this passing
+    // vacuously because `incomeCliff` returned null).
+    expect(screen.getByTestId('income-cliff-sentence').textContent).toContain('Sarah');
+    // Exactly one copy of the disclosure — not zero (it must still say so
+    // somewhere) and not two (it must not say so twice).
+    expect(screen.getAllByTestId('survivor-gap-note')).toHaveLength(1);
+  });
+
+  it('falls back to the Client/Spouse label when person A is unnamed', () => {
     const analysis = buildAnalysis();
     const unnamed = {
       ...analysis,
@@ -138,7 +189,7 @@ describe('HouseholdPanel', () => {
       ],
     } as HouseholdAnalysis;
     const { getByTestId } = render(<HouseholdPanel analysis={unnamed} annualCola={0} />);
-    expect(getByTestId('break-even-attribution').textContent).toContain('Break-even for You');
+    expect(getByTestId('break-even-attribution').textContent).toContain('Break-even for Client');
   });
 
   // Newly reachable since the benefit floor dropped to $0: person A can have

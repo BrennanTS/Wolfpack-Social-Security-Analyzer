@@ -2,8 +2,19 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { analyzeHousehold, type Household } from './household';
+import {
+  analyzeHousehold,
+  buildMonthlyIncomeSeries,
+  showSurvivorIncomeColumn,
+  survivorIncomeRisesWithDelay,
+  visibleBenefitSeries,
+  type Household,
+  type HouseholdAnalysis,
+} from './household';
+import type { BenefitBand } from './benefitPeriods';
+import { incomeCliff } from './incomeCliff';
 import type { Person } from './personAnalysis';
+import { survivorIncomeCaption } from '../components/methodologyCopy';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
@@ -159,7 +170,7 @@ describe('analyzeHousehold — married', () => {
     expect(result.spousalTopUp!.lowerEarnerLabel).toBe('Dan');
   });
 
-  it('falls back to You/Spouse when a person is unnamed', async () => {
+  it('falls back to Client/Spouse when a person is unnamed', async () => {
     const result = await analyzeHousehold(
       {
         status: 'married',
@@ -281,6 +292,221 @@ describe('combinedTimeline', () => {
     const result = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
     expect(Object.keys(result.combinedTimeline[0].byPersonId)).toEqual(['a']);
   });
+
+  it('keys the timeline by person and benefit type', async () => {
+    // dan/sarah both have substantial records and produce no spousal band
+    // (see "reports no spousal start when there is no entitlement at all"
+    // below), so this needs a pairing that genuinely has one: sarah with no
+    // record of her own draws a spousal band on dan's record.
+    const noRecord: Person = { ...sarah, piaMonthly: 0 };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, noRecord] },
+      assumptions,
+      asOf,
+    );
+    const withSpousal = result.periods.find((b) => b.type === 'spousal');
+    // Guard: without this, `withSpousal!` below would index `undefined` and
+    // fail for an unrelated reason rather than testing anything.
+    expect(withSpousal).toBeDefined();
+    const point = result.combinedTimeline.find(
+      (p) => p.year === Math.floor(withSpousal!.startIndex / 12) + 1,
+    )!;
+    expect(point.bySeries[`${withSpousal!.personId}:spousal`]).toBeGreaterThan(0);
+  });
+
+  it('rolls series up to the same per-person totals', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    for (const point of result.combinedTimeline) {
+      for (const person of result.people) {
+        const id = person.person.id;
+        const summed = Object.entries(point.bySeries)
+          .filter(([key]) => key.startsWith(`${id}:`))
+          .reduce((acc, [, value]) => acc + value, 0);
+        expect(point.byPersonId[id]).toBeCloseTo(summed, 2);
+      }
+    }
+  });
+});
+
+describe('buildMonthlyIncomeSeries', () => {
+  it('returns one point per month, seeded for every person', () => {
+    const bands: BenefitBand[] = [
+      { personId: 'a', type: 'personal', startIndex: 0, endIndex: 2, monthlyAmount: 2000 },
+    ];
+    const points = buildMonthlyIncomeSeries(bands, [{ ...dan, id: 'a' }, { ...sarah, id: 'b' }]);
+    expect(points.map((p) => p.monthIndex)).toEqual([0, 1, 2]);
+    for (const p of points) {
+      expect(Object.keys(p.byPersonId).sort()).toEqual(['a', 'b']);
+      expect(p.byPersonId.b).toBe(0);
+    }
+  });
+
+  it('is flat at the annual rate for every month a band pays, with no ramp at either end', () => {
+    const bands: BenefitBand[] = [
+      { personId: 'a', type: 'personal', startIndex: 10, endIndex: 15, monthlyAmount: 2500 },
+    ];
+    const points = buildMonthlyIncomeSeries(bands, [{ ...dan, id: 'a' }]);
+    // Every month the band pays — first, middle, and last alike — carries
+    // the SAME figure: the full annual rate. Nothing prorates the edges.
+    for (const p of points) {
+      expect(p.total).toBeCloseTo(2500 * 12, 2);
+    }
+  });
+
+  // The exact regression this test file exists to pin: a household where a
+  // band ends the month before another band (for a DIFFERENT person, or a
+  // different type on the SAME person) begins right after it — the precise
+  // shape of a first death, where the deceased's final personal payment and
+  // the survivor's first step-up payment are adjacent but never
+  // simultaneous. Task 8's second attempt (crediting a band's full annual
+  // rate to every YEAR it touched) summed both bands' full rates into the
+  // one calendar year they shared, spiking the household above anything it
+  // ever actually received. At monthly resolution nothing can double up: a
+  // given month has exactly the bands active that month.
+  it('never sums two bands in the same month that were never both live at once', () => {
+    const bands: BenefitBand[] = [
+      // Dan's personal band ends month 11 (his death).
+      { personId: 'a', type: 'personal', startIndex: 0, endIndex: 11, monthlyAmount: 3800 },
+      // Sarah's own personal band runs the whole span.
+      { personId: 'b', type: 'personal', startIndex: 0, endIndex: 23, monthlyAmount: 1844 },
+      // Sarah's survivor step-up starts the very next month.
+      { personId: 'b', type: 'survivor', startIndex: 12, endIndex: 23, monthlyAmount: 1956 },
+    ];
+    const points = buildMonthlyIncomeSeries(bands, [{ ...dan, id: 'a' }, { ...sarah, id: 'b' }]);
+
+    const lastMonthAlive = points.find((p) => p.monthIndex === 11)!;
+    const firstMonthAfter = points.find((p) => p.monthIndex === 12)!;
+
+    // The last month Dan is alive: his personal band plus Sarah's personal
+    // band, and nothing from a survivor band that hasn't started yet.
+    expect(lastMonthAlive.bySeries['a:personal']).toBeCloseTo(3800 * 12, 2);
+    expect(lastMonthAlive.bySeries['b:survivor']).toBeUndefined();
+    expect(lastMonthAlive.total).toBeCloseTo((3800 + 1844) * 12, 2);
+
+    // The month right after: Sarah's personal band plus her survivor
+    // step-up, and NOTHING from Dan — not a trace of his rate carried into
+    // a month he never lived to see.
+    expect(firstMonthAfter.bySeries['a:personal']).toBeUndefined();
+    expect(firstMonthAfter.byPersonId.a).toBe(0);
+    expect(firstMonthAfter.total).toBeCloseTo((1844 + 1956) * 12, 2);
+
+    // The critical invariant: no month's total ever reaches the sum of ALL
+    // THREE bands at once — that sum is what the double-counting bug would
+    // have produced at the transition month.
+    const allThreeAtOnce = (3800 + 1844 + 1956) * 12;
+    for (const p of points) {
+      expect(p.total).toBeLessThan(allThreeAtOnce);
+    }
+  });
+
+  // The exact household the coordinator reported the double-counting spike
+  // on: Client (b. Feb 1958, PIA $3,000, plan-to 84) dies February 2042;
+  // Spouse (b. Mar 1960, PIA $2,000, plan-to 86) survives. Run through the
+  // real engine end to end, not a hand-built band fixture, so this pins the
+  // fix against `analyzeHousehold`'s actual output rather than an
+  // idealization of it.
+  it('does not spike the household above its real combined rate at the first death (real household)', async () => {
+    const client: Person = {
+      id: 'a', name: 'Client', birthYear: 1958, birthMonth: 2,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 84,
+    };
+    const spouse: Person = {
+      id: 'b', name: 'Spouse', birthYear: 1960, birthMonth: 3,
+      gender: 'female', piaMonthly: 2000, lifeExpectancy: 86,
+    };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [client, spouse] },
+      assumptions,
+      asOf,
+    );
+    const people = result.people.map((p) => p.person);
+    const monthly = buildMonthlyIncomeSeries(result.periods, people);
+
+    const deathMonthIndex = Math.min(
+      result.finalIndexByPersonId.a,
+      result.finalIndexByPersonId.b,
+    );
+    // Guard: this fixture is only the regression it's meant to be if Client
+    // really does die first, mid-way through the couple's timeline.
+    expect(deathMonthIndex).toBe(result.finalIndexByPersonId.a);
+
+    const beforeSteadyState = monthly.find((p) => p.monthIndex === deathMonthIndex - 12)!.total;
+    const maxTotal = Math.max(...monthly.map((p) => p.total));
+    // The bug reported ~$99k — well above the ~$68k the household actually
+    // ever receives. The maximum monthly figure anywhere in the series must
+    // be no more than the household's own steady-state combined rate before
+    // the death (Client's own band never runs alongside Sarah's survivor
+    // band, so nothing else can exceed it either).
+    expect(maxTotal).toBeCloseTo(beforeSteadyState, 2);
+    expect(maxTotal).toBeLessThan(90000);
+
+    // The month Client dies still pays his full rate plus Spouse's own —
+    // flat, not prorated down.
+    const lastMonth = monthly.find((p) => p.monthIndex === deathMonthIndex)!;
+    expect(lastMonth.total).toBeCloseTo(beforeSteadyState, 2);
+
+    // The very next month drops to Spouse's own-plus-survivor total, in one
+    // clean step — never both totals at once.
+    const nextMonth = monthly.find((p) => p.monthIndex === deathMonthIndex + 1)!;
+    expect(nextMonth.byPersonId.a).toBe(0);
+    expect(nextMonth.total).toBeLessThan(lastMonth.total);
+  });
+});
+
+describe('visibleBenefitSeries', () => {
+  const a: Person = { ...dan };
+  const b: Person = { ...sarah };
+
+  it('drops a series that is zero at every point', () => {
+    const timeline = [
+      { year: 2030, bySeries: { 'a:personal': 12000, 'b:spousal': 0 }, byPersonId: { a: 12000, b: 0 }, total: 12000 },
+      { year: 2031, bySeries: { 'a:personal': 12000, 'b:spousal': 0 }, byPersonId: { a: 12000, b: 0 }, total: 12000 },
+    ];
+    const series = visibleBenefitSeries(timeline, [a, b]);
+    expect(series.map((s) => s.key)).toEqual(['a:personal']);
+  });
+
+  it('keeps a series that is nonzero in at least one point', () => {
+    const timeline = [
+      { year: 2030, bySeries: { 'a:personal': 12000, 'b:spousal': 0 }, byPersonId: { a: 12000, b: 0 }, total: 12000 },
+      { year: 2031, bySeries: { 'a:personal': 12000, 'b:spousal': 400 }, byPersonId: { a: 12000, b: 400 }, total: 12400 },
+    ];
+    const series = visibleBenefitSeries(timeline, [a, b]);
+    expect(series.map((s) => s.key).sort()).toEqual(['a:personal', 'b:spousal']);
+  });
+
+  it('orders each person own-band first, then spousal, then survivor', () => {
+    const timeline = [
+      {
+        year: 2030,
+        bySeries: { 'b:survivor': 500, 'a:personal': 12000, 'b:spousal': 200, 'b:personal': 100 },
+        byPersonId: { a: 12000, b: 800 },
+        total: 12800,
+      },
+    ];
+    const series = visibleBenefitSeries(timeline, [a, b]);
+    expect(series.map((s) => s.key)).toEqual([
+      'a:personal',
+      'b:personal',
+      'b:spousal',
+      'b:survivor',
+    ]);
+  });
+
+  // A `bySeries` key naming someone absent from `people` means the two
+  // arguments are inconsistent with each other. Defaulting that series to
+  // person 0 used to draw it in person 0's colour under person 0's name — a
+  // wrong label with no visible error. This must fail loudly instead.
+  it('throws rather than silently attributing an unrecognized personId to person 0', () => {
+    const timeline = [
+      { year: 2030, bySeries: { 'c:personal': 1000 }, byPersonId: { c: 1000 }, total: 1000 },
+    ];
+    expect(() => visibleBenefitSeries(timeline, [a, b])).toThrow(/c/);
+  });
 });
 
 describe('engine periods', () => {
@@ -312,9 +538,13 @@ describe('engine periods', () => {
   });
 
   it('credits only the months a person is actually paid, not a flat twelve', async () => {
-    // The old timeline credited 12 payments in every year from the filing
-    // year to the plan-to year inclusive. Dan is born in April with a plan-to
-    // age of 85, so his last calendar year pays four months, not twelve.
+    // `buildCombinedTimeline` (calendar-year sums, read only by `incomeCliff`
+    // and `survivorIncome`) credits 12 payments only for a year a band fully
+    // covers. Dan is born in April with a plan-to age of 85, so his last
+    // calendar year pays four months, not twelve. The chart itself no longer
+    // reads this function at all — see `buildMonthlyIncomeSeries` below —
+    // but this one still has to stay calendar-year-precise for the readers
+    // that do.
     //
     // The partial year asserted here is the *last* one rather than the first:
     // the optimizer's chosen filing age for this fixture lands in January
@@ -526,5 +756,443 @@ describe('engine periods', () => {
     expect(result.spousalTopUp!.atFra).toBeCloseTo(1000, 2); // 3000/2 − 500
     expect(result.periods.some((b) => b.type === 'spousal')).toBe(false);
     expect(result.spousalTopUp!.startsAtSpouseAge).toBeNull();
+  });
+});
+
+describe('analyzeHousehold — survivor income per strategy', () => {
+  it('reports survivor income for every compared strategy', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    expect(result.comparisons.every((s) => s.survivorIncome !== null)).toBe(true);
+
+    // `earliest` (exactly 62 years, 0 months) is unreachable for every
+    // household this app can produce: `createPiaRecipient` fixes every
+    // recipient's birth day at `DEFAULT_BIRTH_DAY = 15` (`ssaTools.ts`), and
+    // `Birthdate.earliestFilingMonth()` rounds anyone not born on the 1st or
+    // 2nd of the month up to 62 years *1* month (`birthday.ts:207-213`) — one
+    // month past the exact age the `earliest` row's `namedAges` entry asks
+    // `findStrategyByAges` to match (`household.ts`: `{ years: 62, months: 0
+    // }`). Asserted directly, rather than left as a silent `if (earliest &&
+    // latest)` guard around the real assertion below: the day someone fixes
+    // the row so `earliest` starts appearing, this line fails and says so,
+    // instead of the guard quietly starting to fire for the first time with
+    // no one having decided that was safe.
+    const earliest = result.comparisons.find((s) => s.key === 'earliest');
+    expect(earliest).toBeUndefined();
+
+    // `fra` and `latest` are both reliably present for this fixture, so this
+    // is the assertion that actually exercises the column's thesis —
+    // delaying raises the survivor's income. Presence is asserted first so
+    // this cannot go vacuous if either ever folds into `optimal`, which
+    // `household.ts` does whenever a named row's ages coincide with the
+    // optimum's.
+    const fra = result.comparisons.find((s) => s.key === 'fra');
+    const latest = result.comparisons.find((s) => s.key === 'latest');
+    expect(fra).toBeDefined();
+    expect(latest).toBeDefined();
+    expect(latest!.survivorIncome!).toBeGreaterThan(fra!.survivorIncome!);
+  });
+
+  it('leaves survivor income null for a single claimant', async () => {
+    const result = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
+    expect(result.comparisons.every((s) => s.survivorIncome === null)).toBe(true);
+  });
+
+  it('leaves survivor income null for every row when the two final months tie', async () => {
+    // Same birth month, same plan-to age: `firstDeath` returns null rather
+    // than inventing a survivor, so no row has a figure and both surfaces
+    // hide the column and its caption (I3).
+    const twinB: Person = { ...sarah, birthYear: dan.birthYear, birthMonth: dan.birthMonth,
+      lifeExpectancy: dan.lifeExpectancy };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, twinB] },
+      assumptions,
+      asOf,
+    );
+    expect(result.comparisons.every((s) => s.survivorIncome === null)).toBe(true);
+    expect(showSurvivorIncomeColumn(result.comparisons, result.people.length)).toBe(false);
+  });
+});
+
+/**
+ * The permanent counter-example to the survivor-income column's old caption,
+ * which asserted "Delaying raises this every year the survivor lives through
+ * it" unbranched, in the no-gap case — the common case.
+ *
+ * An older higher earner with a much younger, lower-earning spouse is the
+ * archetype this whole analysis exists for, not an edge case: under "both
+ * delay to 70" Sarah has not filed by the year after Dan's death, so the
+ * household's survivor income that year is $0, against $36,480 under the
+ * optimum. `survivorGap` is null throughout — nothing else in the caption
+ * would have caught it.
+ */
+describe('analyzeHousehold — survivor income can FALL with a later filing age', () => {
+  const older: Person = {
+    id: 'a', name: 'Dan', birthYear: 1958, birthMonth: 4,
+    gender: 'male', piaMonthly: 2400, lifeExpectancy: 78,
+  };
+  const younger: Person = {
+    id: 'b', name: 'Sarah', birthYear: 1968, birthMonth: 2,
+    gender: 'female', piaMonthly: 1200, lifeExpectancy: 90,
+  };
+
+  it('pays the survivor nothing under "both delay to 70" and $36,480 under the optimum', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [older, younger] },
+      assumptions,
+      asOf,
+    );
+    // No gap: the modeled survivor is the lower-PIA dependent, so the engine
+    // does model her step-up. The old caption had no branch for this.
+    expect(result.survivorGap).toBeNull();
+
+    const latest = result.comparisons.find((s) => s.key === 'latest');
+    const optimal = result.comparisons.find((s) => s.isOptimal);
+    expect(latest).toBeDefined();
+    expect(optimal).toBeDefined();
+    expect(latest!.filingAges.map((f) => f.label)).toEqual(['70', '70']);
+    expect(latest!.survivorIncome).toBe(0);
+    expect(optimal!.survivorIncome).toBe(36480);
+  });
+
+  it('reports that the column does not rise, and the caption states the composition fact', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [older, younger] },
+      assumptions,
+      asOf,
+    );
+    expect(survivorIncomeRisesWithDelay(result.comparisons)).toBe(false);
+
+    // The claim is falsifiable BY THE DATA, end to end: real engine output
+    // into the real caption, no hand-built rows in between.
+    const caption = survivorIncomeCaption(result.comparisons, result.survivorGap);
+    expect(caption).not.toContain('Delaying raises');
+    expect(caption).toContain('not simply larger for later filing');
+  });
+
+  it('still reports a rise for a household where delaying genuinely does raise it', async () => {
+    // Guard against a check that returns false for everything: Dan/Sarah's
+    // own figures do rise, and their caption keeps the delay claim.
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    expect(survivorIncomeRisesWithDelay(result.comparisons)).toBe(true);
+    expect(survivorIncomeCaption(result.comparisons, result.survivorGap)).toContain(
+      'Delaying raises this figure for this household',
+    );
+  });
+});
+
+/**
+ * The whole analysis, reduced to something two entry orders can be compared
+ * on directly.
+ *
+ * The previous swap tests asserted a handful of fields — filing-age labels,
+ * timeline totals, `lowerEarnerLabel` — and the equal-PIA pair asserted only
+ * that `lowerEarnerLabel` was null. That is why an exact PIA tie could return
+ * "Dan 63y9m / Sarah 70" one way round and "Dan 70 / Sarah 62y1m" the other,
+ * with a $1,179/mo survivor band in one and none in the other, while every
+ * test passed: nothing compared the periods, the cliff, the row order or the
+ * filing ages themselves.
+ *
+ * Person ids are positional ('a' then 'b'), so a swapped household's ids are
+ * attached to the other people. Everything id-keyed is therefore re-keyed
+ * onto the person's NAME, which travels with the person, and every collection
+ * is sorted into a canonical order so a difference in array position cannot
+ * masquerade as a difference in content.
+ */
+function canonicalize(analysis: HouseholdAnalysis) {
+  const nameById: Record<string, string> = {};
+  for (const p of analysis.people) nameById[p.person.id] = p.person.name ?? p.person.id;
+  const byName = <T>(record: Record<string, T>): Record<string, T> => {
+    const out: Record<string, T> = {};
+    for (const [id, value] of Object.entries(record)) out[nameById[id] ?? id] = value;
+    return out;
+  };
+
+  return {
+    // Filing ages keyed by person, not by slot.
+    filingAges: Object.fromEntries(
+      analysis.people.map((p, i) => [
+        nameById[p.person.id],
+        analysis.optimal.filingAges[i].label,
+      ]),
+    ),
+    expectedNpv: Math.round(analysis.optimal.expectedNpv * 100) / 100,
+    // Row ORDER included deliberately: the row carrying the "Best" badge
+    // moved between entry orders (I5), which no assertion caught.
+    comparisons: analysis.comparisons.map((c) => ({
+      key: c.key,
+      isOptimal: c.isOptimal,
+      survivorIncome: c.survivorIncome,
+      ages: [...c.filingAges.map((f) => f.label)].sort(),
+    })),
+    periods: analysis.periods
+      .map((b) => ({ ...b, personId: nameById[b.personId] ?? b.personId }))
+      .sort(
+        (x, y) =>
+          x.personId.localeCompare(y.personId) ||
+          x.type.localeCompare(y.type) ||
+          x.startIndex - y.startIndex,
+      ),
+    combinedTimeline: analysis.combinedTimeline.map((point) => ({
+      year: point.year,
+      total: point.total,
+      byPerson: byName(point.byPersonId),
+      bySeries: Object.fromEntries(
+        Object.entries(point.bySeries).map(([key, value]) => {
+          const idx = key.lastIndexOf(':');
+          return [`${nameById[key.slice(0, idx)] ?? key.slice(0, idx)}${key.slice(idx)}`, value];
+        }),
+      ),
+    })),
+    finalIndexes: byName(analysis.finalIndexByPersonId),
+    incomeCliff: incomeCliff(analysis),
+    survivorGap: analysis.survivorGap,
+    spousalTopUp: analysis.spousalTopUp,
+    // Split and sorted: the sentence names the people in display order by
+    // design, so only its per-person clauses are comparable across orders.
+    recommendation: [...analysis.recommendation.split(' · ')].sort(),
+  };
+}
+
+describe('analyzeHousehold — entry order', () => {
+  /**
+   * Entry order is a data-entry accident, not a fact about the household. An
+   * adviser must not have to put the older, younger, higher- or lower-earning
+   * person first.
+   *
+   * Dan (PIA 2400) and Sarah (PIA 2100) have unequal PIAs, so this does NOT
+   * exercise the `personA.piaMonthly >= personB.piaMonthly` seam at
+   * `household.ts` — a strict `>` and a `>=` agree whenever the two values
+   * differ. It only proves that a REAL asymmetry (an actual higher/lower
+   * earner) survives a swap. The equal-PIA case below is what exercises the
+   * seam itself.
+   */
+  it('produces the same analysis whichever person is entered first', async () => {
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...sarah, id: 'a' }, { ...dan, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+
+    // The optimum is a property of the household, so the same two ages come
+    // back — attached to the other slot.
+    expect(swapped.optimal.filingAges[0].label).toBe(forward.optimal.filingAges[1].label);
+    expect(swapped.optimal.filingAges[1].label).toBe(forward.optimal.filingAges[0].label);
+    expect(swapped.optimal.expectedNpv).toBeCloseTo(forward.optimal.expectedNpv, 2);
+
+    // Same money, same years, whichever way round.
+    expect(swapped.combinedTimeline.map((p) => p.total)).toEqual(
+      forward.combinedTimeline.map((p) => p.total),
+    );
+
+    // The spousal top-up accrues to a person, not to a slot.
+    expect(swapped.spousalTopUp?.atRecommendedFilingAge).toBe(
+      forward.spousalTopUp?.atRecommendedFilingAge,
+    );
+    expect(swapped.spousalTopUp?.lowerEarnerLabel).toBe(forward.spousalTopUp?.lowerEarnerLabel);
+
+    // And the whole analysis, not just the fields someone thought to list.
+    // This one line is what would have caught the tie defect below on its
+    // first run.
+    expect(canonicalize(swapped)).toEqual(canonicalize(forward));
+  });
+
+  it('orders the comparison rows the same way whichever person is entered first', async () => {
+    // `buildComparisons` sorted on `filingAges[0]` — person A's slot, not a
+    // property of the strategy. Dan/Sarah have unequal PIAs, so this is not a
+    // tie artefact: the rows came back `fra, latest, optimal` one way and
+    // `optimal, fra, latest` the other, moving the row that carries the
+    // "Best" badge.
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...sarah, id: 'a' }, { ...dan, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+    expect(swapped.comparisons.map((c) => c.key)).toEqual(forward.comparisons.map((c) => c.key));
+    // Not vacuous: there really are several rows, and one of them is best.
+    expect(forward.comparisons.length).toBeGreaterThan(1);
+    expect(forward.comparisons.filter((c) => c.isOptimal)).toHaveLength(1);
+  });
+
+  it('names the same survivor whichever person is entered first', async () => {
+    // Same birth month, same plan-to age: their final months are identical, so
+    // the old tie-break picked whoever happened to be entered first.
+    const twinA = { ...dan, id: 'a' as const, lifeExpectancy: 85 };
+    const twinB = {
+      ...sarah,
+      id: 'b' as const,
+      birthYear: dan.birthYear,
+      birthMonth: dan.birthMonth,
+      lifeExpectancy: 85,
+    };
+
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [twinA, twinB] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...twinB, id: 'a' }, { ...twinA, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+    expect(incomeCliff(swapped)).toEqual(incomeCliff(forward));
+  });
+
+  // Dan and Sarah's PIAs above differ, so neither test above can exercise
+  // `household.ts`'s `personA.piaMonthly >= personB.piaMonthly` seam — a
+  // strict `>` and a non-strict `>=` never disagree except on an exact tie.
+  // This pair is identical in PIA (and otherwise arbitrary) to force that
+  // tie.
+  describe('equal-PIA tie', () => {
+    const equalA: Person = { ...dan, id: 'a', piaMonthly: 2200 };
+    const equalB: Person = { ...sarah, id: 'b', piaMonthly: 2200 };
+
+    // `higherEarningsThan` (the engine's own comparison, `benefit-calculator.ts`)
+    // is a strict `>`. On an exact tie it is false BOTH ways, so the engine's
+    // `classifyEarnerDependent` still has to return some slot — and it always
+    // returns the same one (`earner-dependent.ts:15-28` falls through to a
+    // fixed `else`), regardless of which physical person occupies it. That
+    // slot is not a fact about either person: swap who is in it and the SAME
+    // slot still "wins". There genuinely is no lower earner for this
+    // household, so `lowerEarnerLabel` must be null rather than whichever
+    // name the classifier's positional default happens to attach to.
+    it('reports no lower earner — null, not a name from either slot', async () => {
+      const result = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+      // Half of equal PIAs cancels out, so this is a genuine tie: no amount
+      // changes whichever way the classifier would have broken it.
+      expect(result.spousalTopUp!.atFra).toBe(0);
+      expect(result.spousalTopUp!.atRecommendedFilingAge).toBe(0);
+      expect(result.spousalTopUp!.lowerEarnerLabel).toBeNull();
+    });
+
+    // The actual regression: a prior version of this fix left `household.ts`
+    // agreeing with the engine's classifier, which made it internally
+    // consistent but still order-dependent — the classifier's positional
+    // default meant whichever physical person was entered first got named
+    // "the lower earner". Confirmed at the data level, in both directions,
+    // so `lowerEarnerLabel` cannot merely mirror production's own slot
+    // arithmetic. The stronger check — that the rendered COPY is identical
+    // in both directions and never leaks a name — lives in
+    // `methodologyCopy.test.ts` (`spousalMethodologyCopy`), since that is the
+    // surface the defect was actually visible on.
+    it('reports no lower earner whichever spouse is entered first', async () => {
+      const forward = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+      const swapped = await analyzeHousehold(
+        { status: 'married', people: [{ ...equalB, id: 'a' }, { ...equalA, id: 'b' }] },
+        assumptions,
+        asOf,
+      );
+      expect(forward.spousalTopUp!.lowerEarnerLabel).toBeNull();
+      expect(swapped.spousalTopUp!.lowerEarnerLabel).toBeNull();
+    });
+
+    /**
+     * The defect the label fix did not reach. `classifyEarnerDependent`'s
+     * positional default (slot 1 becomes the earner) reaches the engine
+     * through BOTH `rankedCoupleStrategies` and `strategySumPeriodsCouple`,
+     * so on a tie the typing order decided the recommended filing ages,
+     * whether a Survivor period existed at all, and therefore the chart and
+     * the income cliff:
+     *
+     *   entered [Dan, Sarah] → Dan 63y9m, Sarah 70, no survivor band,
+     *                          cliff $53,520 → $32,736 (−38.8%)
+     *   entered [Sarah, Dan] → Dan 70, Sarah 62y1m, survivor $1,179/mo,
+     *                          cliff $51,324 → $32,736 (−36.2%)
+     *
+     * `survivorGap` was null both ways, so nothing on screen disclosed it.
+     * The assertion is the whole analysis, not a field list — a field list is
+     * how this survived the previous pass.
+     */
+    it('produces one analysis — ages, periods, cliff and all — whichever spouse is entered first', async () => {
+      const forward = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+      const swapped = await analyzeHousehold(
+        { status: 'married', people: [{ ...equalB, id: 'a' }, { ...equalA, id: 'b' }] },
+        assumptions,
+        asOf,
+      );
+      expect(canonicalize(swapped)).toEqual(canonicalize(forward));
+    });
+
+    it('does not call the shown figure THE maximum when two models are admissible', async () => {
+      // On a tie the engine can model either spouse as the dependent, and the
+      // two models need not agree — on a same-age equal-PIA couple the model
+      // this app does not show scored $288 (0.04%) higher. "The optimizer
+      // maximizes combined expected present value at $X" states as a fact
+      // something true only inside the framing `compareForEngine` picked.
+      const result = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+      expect(result.recommendationDetail).not.toContain('optimizer maximizes');
+      expect(result.recommendationDetail).toContain('Both spouses have the same PIA');
+      expect(result.recommendationDetail).toContain('Under the model shown here');
+      expect(result.recommendationDetail).toContain('The other model is equally admissible');
+      // Still names the figure and both ages — the qualifier replaces the
+      // claim about the figure, not the figure.
+      expect(result.recommendationDetail).toContain(
+        `${result.optimal.filingAges[0].label}`,
+      );
+    });
+
+    it('keeps the unqualified sentence for a household with a real higher earner', async () => {
+      // Guard: the qualifier must not have leaked onto every married report.
+      const result = await analyzeHousehold(
+        { status: 'married', people: [dan, sarah] },
+        assumptions,
+        asOf,
+      );
+      expect(result.recommendationDetail).toContain(
+        'The ssa.tools couple optimizer maximizes combined expected present value',
+      );
+      expect(result.recommendationDetail).not.toContain('Both spouses have the same PIA');
+    });
+
+    it('gives the projected survivor the slot the engine can pay a survivor benefit to', async () => {
+      // Not an accident of the ordering keys but the reason for one of them:
+      // the engine pays survivor benefits only to its `dependent`, which on a
+      // tie is whichever person sits in slot 0. `compareForEngine` puts the
+      // person the household's own plan-to inputs say outlives the other
+      // there. Sarah's plan-to age is 88 against Dan's 85, so she is the
+      // modeled survivor and the band is hers.
+      const result = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+      const survivorBands = result.periods.filter((b) => b.type === 'survivor');
+      expect(survivorBands).toHaveLength(1);
+      expect(survivorBands[0].personId).toBe('b'); // Sarah, entered second here.
+    });
   });
 });

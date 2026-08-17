@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatAgeDisplay,
   formatCurrency,
+  formatCurrencyPerYear,
   formatCurrencyPrecise,
   fraLabel,
   personLabel,
@@ -15,6 +16,19 @@ describe('currency formatting', () => {
 
   it('keeps cents when precise', () => {
     expect(formatCurrencyPrecise(1750.5)).toBe('$1,750.50');
+  });
+});
+
+// `CombinedIncomeChart`'s tooltip is the motivating case: its label is a
+// single month, but every value is an ANNUAL rate, so the unit has to be
+// explicit or the figure reads as that month's own payment.
+describe('formatCurrencyPerYear', () => {
+  it('appends /yr to the whole-dollar figure', () => {
+    expect(formatCurrencyPerYear(45600)).toBe('$45,600/yr');
+  });
+
+  it('rounds the same way formatCurrency does', () => {
+    expect(formatCurrencyPerYear(2816.4)).toBe('$2,816/yr');
   });
 });
 
@@ -41,13 +55,13 @@ describe('personLabel', () => {
     expect(personLabel('Sarah', 1)).toBe('Sarah');
   });
 
-  it('falls back to You and Spouse by position', () => {
-    expect(personLabel(undefined, 0)).toBe('You');
+  it('falls back to Client and Spouse by position', () => {
+    expect(personLabel(undefined, 0)).toBe('Client');
     expect(personLabel(undefined, 1)).toBe('Spouse');
   });
 
   it('treats blank and whitespace-only names as absent', () => {
-    expect(personLabel('', 0)).toBe('You');
+    expect(personLabel('', 0)).toBe('Client');
     expect(personLabel('   ', 1)).toBe('Spouse');
   });
 });

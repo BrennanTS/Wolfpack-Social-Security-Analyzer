@@ -1,4 +1,5 @@
 import { CPI_DEFAULT_COLA } from './cpiHistory';
+import type { DollarsMode } from './dollarsMode';
 import { isBenefitInRange } from './formBounds';
 import { analyzeHousehold, type Household, type HouseholdAnalysis } from './household';
 import { getCurrentAge, type Gender, type Person } from './personAnalysis';
@@ -24,6 +25,15 @@ export interface AnalyzerFormState {
   hasSpouse: boolean | null;
   annualCola: number;
   discountRate: number;
+  /**
+   * Real is the engine's own output, untouched — `combinedTimeline` carries
+   * no COLA. Nominal is a display transform (`lib/dollarsMode.ts`) applied
+   * on top, never sent to the engine, which is why this field plays no part
+   * in `toHousehold`/`analyzeIfComplete` below. Defaults to real: a chart
+   * that inflates benefits forward shows a rising line for flat purchasing
+   * power, so the flattering view is the one the reader has to ask for.
+   */
+  dollarsMode: DollarsMode;
 }
 
 const BLANK_PERSON: PersonFormFields = {
@@ -41,6 +51,7 @@ export const BLANK_FORM: AnalyzerFormState = {
   hasSpouse: null,
   annualCola: CPI_DEFAULT_COLA,
   discountRate: DEFAULT_DISCOUNT_RATE,
+  dollarsMode: 'real',
 };
 
 export { isBenefitInRange, MAX_BENEFIT, MIN_BENEFIT } from './formBounds';
