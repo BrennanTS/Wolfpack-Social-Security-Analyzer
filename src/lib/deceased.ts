@@ -74,6 +74,14 @@ const MAX_PIA = 30_000;
  * converges. It is also a STEP function (the engine floors to whole dollars),
  * so many PIAs map to one benefit; this returns the smallest PIA whose benefit
  * reaches the target, which round-trips a known PIA to within a dollar.
+ *
+ * Guards its bracket: a target the bracket's top PIA cannot reach, or a
+ * negative/non-finite target, throws rather than silently returning the
+ * bracket's edge dressed up as a normal estimate. Unguarded, a data-entry
+ * typo (an extra digit on a check amount) would feed a fabricated PIA into
+ * `survivorBenefit` for a client-facing recommendation with no signal that
+ * anything was wrong. A target of exactly 0 is a legitimate case — the
+ * deceased had filed but the benefit was fully offset — so it is exempt.
  */
 export function deceasedPia(d: Deceased): { piaMonthly: number; estimated: boolean } {
   if (d.record.kind === 'pia') {
@@ -83,8 +91,27 @@ export function deceasedPia(d: Deceased): { piaMonthly: number; estimated: boole
   const filingDate = monthDateOf(d.record.filed);
   const target = d.record.monthlyAmount;
 
+  if (!Number.isFinite(target) || target < 0) {
+    throw new Error(
+      `deceasedPia: check amount ${target} is not a valid monthly amount ` +
+        '(must be finite and >= 0).',
+    );
+  }
+
   let lo = 0;
   let hi = MAX_PIA;
+
+  if (target > 0) {
+    const maxReachable = benefitFor(d, hi, filingDate);
+    if (maxReachable < target) {
+      throw new Error(
+        `deceasedPia: check amount $${target}/mo exceeds the $${maxReachable}/mo the ` +
+          `search bracket can reach at its top PIA of $${hi}/mo. This looks like a ` +
+          'data-entry error (e.g. an extra digit on the check amount), not a real benefit.',
+      );
+    }
+  }
+
   // 0.01 resolution over a 30,000 bracket needs ~22 halvings; 40 is ample and
   // still trivially fast.
   for (let i = 0; i < 40; i++) {
