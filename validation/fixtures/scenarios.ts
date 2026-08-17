@@ -9,6 +9,8 @@
  * duplicated.
  */
 import { readFileSync } from 'node:fs';
+import type { AlreadyClaimed } from '../../src/lib/widowed';
+import type { Deceased } from '../../src/lib/deceased';
 
 export interface ScenarioPerson {
   name?: string;
@@ -24,12 +26,17 @@ export interface ScenarioInputs {
    * this makes fixtures deterministic and stops cohorts ageing out of the
    * mortality-weighted optimizer as real time passes. */
   asOf: string;
-  status: 'single' | 'married';
-  /** One entry for 'single', two for 'married'. Index 0 is the person the
-   * legacy fixtures called "worker"; index 1 (when present) is "spouse". */
+  status: 'single' | 'married' | 'widowed';
+  /** One entry for 'single' and 'widowed' (the survivor), two for 'married'.
+   * Index 0 is the person the legacy fixtures called "worker"; index 1 (when
+   * present) is "spouse". */
   people: ScenarioPerson[];
   annualCola: number;
   discountRate: number;
+  /** Only present when status is 'widowed' — the deceased spouse's record. */
+  deceased?: Deceased;
+  /** Only present when status is 'widowed'. */
+  alreadyClaimed?: AlreadyClaimed;
 }
 
 export interface ExpectedBreakEven {
@@ -105,6 +112,55 @@ export interface ScenarioExpected {
    * field exists to catch.
    */
   survivorClaim: { claimAge: string; gain: number } | null;
+  /**
+   * WIDOWED-ONLY. The survivor's own filing age under the household's optimal
+   * strategy, as the displayed label (e.g. "62 years, 1 month", or a bare
+   * "70" on a whole year) — `result.optimal.filingAges[0].label` for a
+   * widowed household. Null for every single and married scenario in this
+   * file, where the household has no widowed-shaped "optimal" row to read it
+   * from.
+   *
+   * **Engine-recorded, not hand-derived — same class as
+   * `recommendedFilingAgeByPerson`.** `bestWidowedOutcome` (src/lib/widowed.ts)
+   * exhaustively searches the survivor's own filing date jointly with the
+   * survivor-claim date, so there is no published closed form to re-derive it
+   * from; gen-fixtures.mjs preserves it per scenario id and throws rather than
+   * fabricate a value for a new widowed scenario. Never re-record one to make
+   * the golden suite pass — a moved filing age is the regression it exists to
+   * catch.
+   */
+  recommendedOwnFilingAge: string | null;
+  /**
+   * WIDOWED-ONLY. The survivor's age at the best survivor-claim month under
+   * the household's optimal strategy — `result.optimal.survivorClaimDate.age`
+   * for a widowed household. Null for every single and married scenario.
+   *
+   * Do not confuse with `survivorClaim` above: that field is the Phase 3A
+   * MARRIED-household survivor-claim alternative (`SurvivorClaimAlternative`,
+   * with `claimAge`/`gain`), which stays structurally null for a widowed
+   * household (see `HouseholdAnalysis.survivorClaim`'s own docstring) because
+   * a widow(er)'s survivor-claim date is not an "alternative" to search for —
+   * it is one half of the widowed optimum itself, which is what this field
+   * records instead.
+   *
+   * **Engine-recorded, not hand-derived — same class as
+   * `recommendedOwnFilingAge` immediately above.** Preserved per scenario id
+   * by gen-fixtures.mjs for the same reason: `bestWidowedOutcome`'s search has
+   * no published closed form.
+   */
+  recommendedSurvivorClaimAge: string | null;
+  /**
+   * WIDOWED-ONLY. The household's optimal strategy's straight-sum lifetime
+   * total — `result.optimal.lifetimeTotal` — undiscounted, today's dollars,
+   * from the month after the death through the survivor's plan-to age. NOT
+   * comparable with `expectedNpv`, which is what every single and married
+   * scenario in this file is scored by instead; null for all of them.
+   *
+   * **Engine-recorded, not hand-derived — same class as the two widowed
+   * fields above.** The search that produces it has no published closed form,
+   * so gen-fixtures.mjs preserves it per scenario id rather than deriving it.
+   */
+  lifetimeTotal: number | null;
   invariants: string[];
 }
 

@@ -4,6 +4,7 @@ import {
   widowedOutcomeFor,
   widowedSearchRanges,
   type WidowedInput,
+  type WidowedOutcome,
 } from './widowed';
 import type { Person } from './personAnalysis';
 import { deceasedContext, type Deceased } from './deceased';

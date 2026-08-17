@@ -96,6 +96,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -194,6 +197,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -292,6 +298,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -390,6 +399,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -488,6 +500,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -586,6 +601,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -684,6 +702,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -782,6 +803,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -880,6 +904,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -989,6 +1016,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -1098,6 +1128,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -1207,6 +1240,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -1316,6 +1352,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -1425,6 +1464,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -1560,6 +1602,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive",
@@ -1696,6 +1741,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive",
@@ -1809,6 +1857,9 @@
           "claimAge": "67",
           "gain": 89735
         },
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -1918,6 +1969,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -2030,6 +2084,9 @@
           "claimAge": "85",
           "gain": 1595
         },
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -2128,6 +2185,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -2237,6 +2297,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -2346,6 +2409,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -2455,6 +2521,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -2564,6 +2633,9 @@
           }
         ],
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"
@@ -2572,6 +2644,238 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
+      }
+    },
+    {
+      "id": "widowed-1964-own-first-then-survivor-fra",
+      "description": "Survivor Jun 1964 F, own PIA $1,200 (FRA 67y0m), plan-to 90; deceased spouse born Mar 1959, died Sep 2023 at 64 without ever filing, own PIA $3,000. OWN-FIRST wins: the survivor's own PIA is well below the deceased's, so her own benefit never overtakes even the age-60 reduced survivor benefit and there is nothing to gain by delaying it - see src/lib/widowed.test.ts's identically-shaped 'low-PIA widow' case for the same reasoning. The optimizer (engine-recorded, run through the real pipeline with asOf pinned to 2026-01-15, exactly as recommendedFilingAgeByPerson is elsewhere in this file) files her own record at 62y1m (Jun 1964 + 62y1m = Jul 2026, the earliest attainable month per earliestFiling) and claims the survivor benefit at her survivor-FRA of 67 (Jun 1964 + 67y = Jun 2031) - filing on her own record immediately to fill the gap for free, then switching up to the unreduced survivor amount once it is worth taking. Straight-sum lifetimeTotal over her plan-to-90 remaining lifetime (undiscounted, today's dollars, from the month after the death): $880,855. This is the SAME ratio Task 2 measured (a $1,200 widow against a $3,000 deceased): the plan originally claimed the OPPOSITE - that this ratio produces 'survivor first' - and that claim was wrong; see the plan's own correction (.superpowers/sdd/2026-08-17-widowed-status-model, Task 4's self-review) and married-1958-widow-claims-late's neighbouring notes on this project's recurring 'hand-picked parameters vs. the real pipeline' defect.",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "widowed",
+        "people": [
+          {
+            "birthYear": 1964,
+            "birthMonth": 6,
+            "gender": "female",
+            "piaMonthly": 1200,
+            "lifeExpectancy": 90
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025,
+        "deceased": {
+          "birthYear": 1959,
+          "birthMonth": 3,
+          "deathYear": 2023,
+          "deathMonth": 9,
+          "record": {
+            "kind": "pia",
+            "piaMonthly": 3000,
+            "filed": null
+          }
+        },
+        "alreadyClaimed": {
+          "survivorSince": null,
+          "ownSince": null
+        }
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 840,
+            "63": 900,
+            "64": 960,
+            "65": 1040,
+            "66": 1120,
+            "67": 1200,
+            "68": 1296,
+            "69": 1392,
+            "70": 1488
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
+        "spousalTopUpAtFilingAge": null,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 62,
+            "months": 1
+          }
+        ],
+        "survivorClaim": null,
+        "recommendedOwnFilingAge": "62 years, 1 month",
+        "recommendedSurvivorClaimAge": "67",
+        "lifetimeTotal": 880855,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": false,
+        "assertSummaryCards": false
+      }
+    },
+    {
+      "id": "widowed-1964-survivor-first-then-own-70",
+      "description": "Same survivor birth date and same deceased profile as widowed-1964-own-first-then-survivor-fra above, with the PIAs INVERTED: survivor's own PIA $2,400, deceased's PIA $1,800 - the opposite ratio from that scenario, on purpose, so the pair demonstrates that the strategy is a function of the ratio, not of either PIA alone. SURVIVOR-FIRST wins: with her own record large enough that it eventually exceeds the survivor benefit once grown by delayed credits to 70 (this is the shape SSA's published 'claim survivor, switch to own at 70' example describes), the optimizer (engine-recorded, same pipeline and pinned asOf as above) claims the survivor benefit at the earliest payable age, 60 (Jun 1964 + 60y = Jun 2024, the month after the Sep 2023 death still falls before her 60th birthday, so age 60 - not the death month - is the binding floor here), and files on her own record at 70 (Jun 1964 + 70y = Jun 2034) to capture the maximum delayed-credit amount on the larger PIA. Straight-sum lifetimeTotal: $871,656. Confirmed from the sweep's actual output, not reasoned from the SSA example alone, per this task's own governing instruction.",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "widowed",
+        "people": [
+          {
+            "birthYear": 1964,
+            "birthMonth": 6,
+            "gender": "female",
+            "piaMonthly": 2400,
+            "lifeExpectancy": 90
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025,
+        "deceased": {
+          "birthYear": 1959,
+          "birthMonth": 3,
+          "deathYear": 2023,
+          "deathMonth": 9,
+          "record": {
+            "kind": "pia",
+            "piaMonthly": 1800,
+            "filed": null
+          }
+        },
+        "alreadyClaimed": {
+          "survivorSince": null,
+          "ownSince": null
+        }
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1680,
+            "63": 1800,
+            "64": 1920,
+            "65": 2080,
+            "66": 2240,
+            "67": 2400,
+            "68": 2592,
+            "69": 2784,
+            "70": 2976
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
+        "spousalTopUpAtFilingAge": null,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 70,
+            "months": 0
+          }
+        ],
+        "survivorClaim": null,
+        "recommendedOwnFilingAge": "70",
+        "recommendedSurvivorClaimAge": "60",
+        "lifetimeTotal": 871656,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": false,
+        "assertSummaryCards": false
       }
     },
     {
@@ -2657,6 +2961,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
@@ -2749,6 +3056,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
@@ -2841,6 +3151,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
@@ -2933,6 +3246,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
@@ -3025,6 +3341,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
@@ -3117,6 +3436,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
@@ -3209,6 +3531,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
@@ -3301,6 +3626,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
@@ -3393,6 +3721,9 @@
         ],
         "recommendedFilingAgeByPerson": null,
         "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
         "invariants": [
           "monthlyMonotonicIncreasing"
         ]
