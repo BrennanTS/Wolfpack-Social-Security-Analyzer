@@ -15,7 +15,13 @@ import {
 import { personLabel } from '../lib/format';
 import { downloadPdfReport } from '../lib/printReport';
 import { fromShareParams } from '../lib/shareLink';
+import {
+  widowedErrors,
+  type AlreadyClaimedFormFields,
+  type DeceasedFormFields,
+} from '../lib/widowedForm';
 import { AssumptionsPanel } from './AssumptionsPanel';
+import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
 import { PersonFields } from './PersonFields';
 import { DarkModeToggle } from './DarkModeToggle';
@@ -45,7 +51,13 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
 
   const [personA, setPersonA] = useState<PersonFormFields>(initialForm.personA);
   const [personB, setPersonB] = useState<PersonFormFields>(initialForm.personB);
-  const [hasSpouse, setHasSpouse] = useState<boolean | null>(initialForm.hasSpouse);
+  const [maritalStatus, setMaritalStatus] = useState<AnalyzerFormState['maritalStatus']>(
+    initialForm.maritalStatus,
+  );
+  const [deceased, setDeceased] = useState<DeceasedFormFields>(initialForm.deceased);
+  const [alreadyClaimed, setAlreadyClaimed] = useState<AlreadyClaimedFormFields>(
+    initialForm.alreadyClaimed,
+  );
   const [annualCola, setAnnualCola] = useState(initialForm.annualCola);
   const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
   const [dollarsMode, setDollarsMode] = useState<DollarsMode>(initialForm.dollarsMode);
@@ -78,15 +90,35 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     () => ({
       personA,
       personB,
-      hasSpouse,
+      maritalStatus,
+      deceased,
+      alreadyClaimed,
       annualCola,
       discountRate,
       dollarsMode,
     }),
-    [personA, personB, hasSpouse, annualCola, discountRate, dollarsMode],
+    [
+      personA,
+      personB,
+      maritalStatus,
+      deceased,
+      alreadyClaimed,
+      annualCola,
+      discountRate,
+      dollarsMode,
+    ],
   );
 
-  const inputsComplete = isFormComplete(form);
+  // ONE wall-clock read for this component, threaded through every
+  // date-dependent call below. `isFormComplete` and `widowedErrors` each read
+  // `new Date()` independently before this, so the completeness gate and the
+  // errors on screen could disagree across a month boundary: a death date in
+  // the current month is valid, the same date read a month earlier is not.
+  // Memoised rather than recomputed per render so the two can never diverge
+  // mid-render either.
+  const asOf = useMemo(() => new Date(), []);
+
+  const inputsComplete = isFormComplete(form, asOf);
 
   // The ssa.tools engine (benefits, optimal filing, expected PV) does not depend
   // on the chart-only COLA slider, so we intentionally exclude `annualCola` from
@@ -98,7 +130,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   // transform (`lib/dollarsMode.ts`) applied on top of `analysis.combinedTimeline`
   // in `HouseholdPanel`, never sent to the engine.
   useEffect(() => {
-    if (!isFormComplete(form)) {
+    if (!isFormComplete(form, asOf)) {
       setAnalysis(null);
       setAnalysisError(null);
       setAnalyzing(false);
@@ -109,7 +141,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     setAnalyzing(true);
     setAnalysisError(null);
 
-    analyzeIfComplete(form)
+    analyzeIfComplete(form, asOf)
       .then((next) => {
         if (!cancelled) {
           setAnalysis(next);
@@ -128,7 +160,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personA, personB, hasSpouse, discountRate]);
+  }, [personA, personB, maritalStatus, deceased, alreadyClaimed, discountRate, asOf]);
 
   // Re-seeds the suggested life expectancy only when the identity inputs
   // (date of birth, gender) actually changed — not on every edit to a
@@ -153,7 +185,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       ssaSuggested: suggestedLifeExpectancyFor(personA),
       gender: personA.gender,
     },
-    ...(hasSpouse
+    ...(maritalStatus === 'married'
       ? [
           {
             label: personLabel(personB.name, 1),
@@ -166,12 +198,38 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       : []),
   ];
 
-  function handleMaritalChange(married: boolean) {
-    setHasSpouse(married);
+  function handleMaritalChange(status: 'single' | 'married' | 'widowed') {
+    setMaritalStatus(status);
   }
 
+  // `widowedErrors` needs a complete `{year, month}` for the survivor
+  // (person A). Their birth fields may still be blank while the adviser is
+  // typing, so this guards the call rather than passing a partial date —
+  // no errors is the honest answer for an incomplete form, not a crash.
+  const deceasedErrors =
+    maritalStatus === 'widowed' && personA.birthYear !== '' && personA.birthMonth !== ''
+      ? widowedErrors(
+          deceased,
+          alreadyClaimed,
+          { year: personA.birthYear, month: personA.birthMonth },
+          asOf,
+        )
+      : {};
+
+  // `householdDisplayShape` (in `lib/household.ts`) still throws for a
+  // widowed household — deliberately, until Phase 3B-ii-b builds its display.
+  // This task makes that status reachable from the UI for the first time
+  // (directly, and via a shared link Task 4 already taught to round-trip
+  // `m=w`), so every surface that calls it must be checked BEFORE reaching
+  // it, not after: `HouseholdView` (main output) and `ReportDocument` (PDF
+  // export) both call it unconditionally. Gating on `analysis.status` rather
+  // than `maritalStatus` covers the share-link route too — a link can set
+  // `maritalStatus` to `'widowed'` and `analysis` still be null (analyzing)
+  // or belong to a form the adviser has since edited back to single/married.
+  const widowedAnalysisUnavailable = analysis?.status === 'widowed';
+
   async function handleExportPdf() {
-    if (!analysis) return;
+    if (!analysis || analysis.status === 'widowed') return;
     setExportError(null);
     setExporting(true);
     try {
@@ -218,7 +276,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             type="button"
             className="btn-export"
             onClick={handleExportPdf}
-            disabled={exporting || !inputsComplete}
+            disabled={exporting || !inputsComplete || widowedAnalysisUnavailable}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path
@@ -230,7 +288,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             </svg>
             {exporting ? 'Generating…' : 'Export PDF'}
           </button>
-          <CopyLinkButton form={form} disabled={!inputsComplete} />
+          <CopyLinkButton form={form} disabled={!inputsComplete || widowedAnalysisUnavailable} />
           {exportError && <span className="export-error">{exportError}</span>}
           <button type="button" className="btn-ghost" onClick={onLogout}>
             Sign out
@@ -249,31 +307,60 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
 
             <div className="field">
               <span className="field-label">Marital status</span>
-              <div className="segmented-control" role="group" aria-label="Marital status">
+              <div
+                className="segmented-control marital-status-control"
+                role="group"
+                aria-label="Marital status"
+              >
                 <button
                   type="button"
-                  className={`segment-btn ${hasSpouse === false ? 'segment-btn-active' : ''}`}
-                  onClick={() => handleMaritalChange(false)}
-                  aria-pressed={hasSpouse === false}
+                  className={`segment-btn ${
+                    maritalStatus === 'single' ? 'segment-btn-active' : ''
+                  }`}
+                  onClick={() => handleMaritalChange('single')}
+                  aria-pressed={maritalStatus === 'single'}
                 >
                   Single
                 </button>
                 <button
                   type="button"
-                  className={`segment-btn ${hasSpouse === true ? 'segment-btn-active' : ''}`}
-                  onClick={() => handleMaritalChange(true)}
-                  aria-pressed={hasSpouse === true}
+                  className={`segment-btn ${
+                    maritalStatus === 'married' ? 'segment-btn-active' : ''
+                  }`}
+                  onClick={() => handleMaritalChange('married')}
+                  aria-pressed={maritalStatus === 'married'}
                 >
                   Married
                 </button>
+                <button
+                  type="button"
+                  className={`segment-btn ${
+                    maritalStatus === 'widowed' ? 'segment-btn-active' : ''
+                  }`}
+                  onClick={() => handleMaritalChange('widowed')}
+                  aria-pressed={maritalStatus === 'widowed'}
+                >
+                  Widowed
+                </button>
               </div>
               <span className="field-hint">
-                Married uses ssa.tools couple optimizer (includes the spousal top-up)
+                Married uses the ssa.tools couple optimizer. Widowed models the survivor
+                benefit and your own, claimed on separate dates.
               </span>
             </div>
 
-            {hasSpouse && (
+            {maritalStatus === 'married' && (
               <PersonFields person={personB} index={1} onChange={handlePersonBChange} />
+            )}
+
+            {maritalStatus === 'widowed' && (
+              <DeceasedFields
+                deceased={deceased}
+                alreadyClaimed={alreadyClaimed}
+                errors={deceasedErrors}
+                onDeceasedChange={setDeceased}
+                onAlreadyClaimedChange={setAlreadyClaimed}
+              />
             )}
 
             <AssumptionsPanel
@@ -292,7 +379,12 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               {inputsComplete && personA.gender ? (
                 <>
                   Analyzing <strong>{genderLabel(personA.gender)}</strong>
-                  {hasSpouse ? ', married (ssa.tools couple)' : ', single'} claimant —
+                  {maritalStatus === 'married'
+                    ? ', married (ssa.tools couple)'
+                    : maritalStatus === 'widowed'
+                      ? ', widowed (survivor + own)'
+                      : ', single'}{' '}
+                  claimant —
                   benefits via <strong>ssa.tools</strong> engine.
                 </>
               ) : (
@@ -327,6 +419,24 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               <p>
                 Enter your date of birth, gender, marital status, and estimated benefit at full
                 retirement age to see your optimal claiming strategy.
+              </p>
+            </div>
+          ) : analysis.status === 'widowed' ? (
+            // `HouseholdView` calls `householdDisplayShape`, which throws for
+            // `'widowed'` on purpose (see `lib/household.ts`) — that guard is
+            // not touched here. This branch is what keeps the throw from
+            // reaching the user as a blank page: nothing about this household
+            // is rendered, not a partial figure and not the single-claimant
+            // view, until Phase 3B-ii-b builds the real display.
+            <div className="empty-state" data-testid="widowed-analysis-unavailable">
+              <div className="empty-state-icon" aria-hidden="true">
+                <span />
+              </div>
+              <h3>Widowed analysis isn&rsquo;t available yet</h3>
+              <p>
+                This tool doesn&rsquo;t display widowed-household results yet. Nothing is shown
+                here — not a partial figure, not your own-record-only view — until that screen
+                ships.
               </p>
             </div>
           ) : (

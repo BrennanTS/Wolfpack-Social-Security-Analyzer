@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BLANK_FORM, type AnalyzerFormState } from './formState';
 import { buildShareUrl, fromShareParams, toShareParams } from './shareLink';
+import { BLANK_ALREADY_CLAIMED, BLANK_DECEASED } from './widowedForm';
 
 const married: AnalyzerFormState = {
   ...BLANK_FORM,
@@ -12,7 +13,7 @@ const married: AnalyzerFormState = {
     name: 'Sarah', birthYear: 1964, birthMonth: 2, gender: 'female',
     monthlyBenefit: 2100, lifeExpectancy: null,
   },
-  hasSpouse: true,
+  maritalStatus: 'married',
   annualCola: 2.5,
   // A FRACTION (0.025 = 2.5%), unlike annualCola above — see the module
   // comment. A value of `2.5` here would mean 250%, fail the dr bounds check
@@ -27,7 +28,7 @@ const single: AnalyzerFormState = {
     name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male',
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
-  hasSpouse: false,
+  maritalStatus: 'single',
 };
 
 describe('round trip', () => {
@@ -42,7 +43,7 @@ describe('round trip', () => {
 
   it('restores a single household without person B', () => {
     const restored = fromShareParams(toShareParams(single));
-    expect(restored.hasSpouse).toBe(false);
+    expect(restored.maritalStatus).toBe('single');
     expect(restored.personA.birthYear).toBe(1962);
     expect(restored.personB).toEqual(BLANK_FORM.personB);
   });
@@ -173,7 +174,7 @@ describe('per-person life expectancy params', () => {
       name: '', birthYear: 1962, birthMonth: 3, gender: 'female',
       monthlyBenefit: 1200, lifeExpectancy: 92,
     },
-    hasSpouse: true,
+    maritalStatus: 'married',
   };
 
   it('round-trips two distinct values', () => {
@@ -191,7 +192,7 @@ describe('per-person life expectancy params', () => {
   });
 
   it('omits ble for a single claimant', () => {
-    const params = toShareParams({ ...form, hasSpouse: false });
+    const params = toShareParams({ ...form, maritalStatus: 'single' });
     expect(params.get('ale')).toBe('85');
     expect(params.has('ble')).toBe(false);
   });
@@ -225,5 +226,133 @@ describe('buildShareUrl', () => {
     const url = buildShareUrl(single, 'https://example.test', '/');
     expect(url.startsWith('https://example.test/?')).toBe(true);
     expect(url).toMatch(/ay=1962/);
+  });
+});
+
+describe('widowed share links', () => {
+  const form: AnalyzerFormState = {
+    ...BLANK_FORM,
+    maritalStatus: 'widowed',
+    personA: {
+      name: '', birthYear: 1964, birthMonth: 6, gender: 'female',
+      monthlyBenefit: 1200, lifeExpectancy: 92,
+    },
+    deceased: {
+      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      recordKind: 'pia', piaMonthly: 3000, hadFiled: true,
+      checkAmount: '', filedYear: 2022, filedMonth: 5,
+    },
+    alreadyClaimed: {
+      survivorSinceYear: 2024, survivorSinceMonth: 8, ownSinceYear: '', ownSinceMonth: '',
+    },
+  };
+
+  it('round-trips a widowed household', () => {
+    const back = fromShareParams(toShareParams(form));
+    expect(back.maritalStatus).toBe('widowed');
+    expect(back.deceased).toEqual(form.deceased);
+    expect(back.alreadyClaimed).toEqual(form.alreadyClaimed);
+  });
+
+  it('round-trips the check-amount route', () => {
+    const check = {
+      ...form,
+      deceased: {
+        ...form.deceased, recordKind: 'checkAmount' as const, piaMonthly: '' as const,
+        hadFiled: null, checkAmount: 2400,
+      },
+    };
+    expect(fromShareParams(toShareParams(check)).deceased).toEqual(check.deceased);
+  });
+
+  it('leaves an unset already-claimed date absent, not zero', () => {
+    const params = toShareParams(form);
+    expect(params.get('coy')).toBeNull();
+    expect(fromShareParams(params).alreadyClaimed.ownSinceYear).toBe('');
+  });
+
+  // Every key this module writes for a widowed household, including `dk`,
+  // which (unlike its siblings) is written unconditionally by `writeWidowed`
+  // and so is NOT covered by checking `dy` alone — a regression that made
+  // `writeWidowed` unconditional slipped past the single-key version of this
+  // test with all 35 other tests still green.
+  const WIDOWED_KEYS = [
+    'dy', 'dm', 'ddy', 'ddm', 'dk', 'dp', 'dc', 'df', 'dfy', 'dfm',
+    'csy', 'csm', 'coy', 'com',
+  ];
+
+  it('writes no widowed parameters for a married household', () => {
+    const married = { ...BLANK_FORM, maritalStatus: 'married' as const };
+    const params = toShareParams(married);
+    for (const key of WIDOWED_KEYS) expect(params.get(key)).toBeNull();
+    expect(params.get('m')).toBe('1');
+  });
+
+  it('writes no widowed parameters for a single household', () => {
+    const single = { ...BLANK_FORM, maritalStatus: 'single' as const };
+    const params = toShareParams(single);
+    for (const key of WIDOWED_KEYS) expect(params.get(key)).toBeNull();
+    expect(params.get('m')).toBe('0');
+  });
+
+  // `dm`/`ddm`/`dfm`/`csm`/`com` must be bounds-checked the same as `am`/`bm`
+  // — an out-of-range month must be dropped, not passed through. Left
+  // unchecked, `widowedForm.ts`'s `idx()` would silently roll a month of 13
+  // into January of the next year: a plausible-looking wrong date rather
+  // than a blocked field, which is exactly what "dropped, not clamped" exists
+  // to prevent.
+  it('drops an out-of-range deceased month rather than passing it through', () => {
+    const back = fromShareParams(
+      new URLSearchParams('m=w&dy=1960&dm=99&ddy=2024&ddm=0&dk=p&dp=3000&df=1&dfy=2022&dfm=5'),
+    );
+    expect(back.deceased.birthMonth).toBe('');
+    expect(back.deceased.deathMonth).toBe('');
+  });
+
+  it('drops an out-of-range already-claimed month rather than passing it through', () => {
+    const back = fromShareParams(new URLSearchParams('m=w&csy=2024&csm=13&coy=2030&com=0'));
+    expect(back.alreadyClaimed.survivorSinceMonth).toBe('');
+    expect(back.alreadyClaimed.ownSinceMonth).toBe('');
+  });
+
+  // The READ side of the scoping the WRITE side is already pinned for above.
+  // The round-trip tests cannot reach it: they only ever decode params that
+  // `toShareParams` wrote, and on a married or single link that params set
+  // carries no `d*`/`c*` keys at all — so `readWidowed` would return exactly
+  // `BLANK_DECEASED`/`BLANK_ALREADY_CLAIMED` and calling it unconditionally
+  // looks identical. Deleting the `maritalStatus === 'widowed' ?` guard in
+  // `fromShareParams` left the whole suite green. A hand-written link is the
+  // only way to see it: widowed keys present, `m=1`, and they must be ignored.
+  it('ignores widowed parameters on a non-widowed link', () => {
+    const married = fromShareParams(new URLSearchParams('m=1&dy=1960&dm=3&dk=c&csy=2024'));
+    expect(married.deceased).toEqual(BLANK_DECEASED);
+    expect(married.alreadyClaimed).toEqual(BLANK_ALREADY_CLAIMED);
+
+    const single = fromShareParams(new URLSearchParams('m=0&dy=1960&dm=3&dk=c&csy=2024'));
+    expect(single.deceased).toEqual(BLANK_DECEASED);
+    expect(single.alreadyClaimed).toEqual(BLANK_ALREADY_CLAIMED);
+  });
+
+  it('still reads those same parameters when the link IS widowed', () => {
+    // The guard above must not be satisfiable by ignoring the keys always.
+    const widowed = fromShareParams(new URLSearchParams('m=w&dy=1960&dm=3&dk=c&csy=2024'));
+    expect(widowed.deceased.birthYear).toBe(1960);
+    expect(widowed.deceased.recordKind).toBe('checkAmount');
+    expect(widowed.alreadyClaimed.survivorSinceYear).toBe(2024);
+  });
+});
+
+describe('legacy share links', () => {
+  // Links already in circulation carry m=1 / m=0. They must keep working
+  // unchanged — that compatibility is why the widowed value was added to this
+  // parameter rather than replacing it.
+  it('still reads m=1 as married and m=0 as single', () => {
+    expect(fromShareParams(new URLSearchParams('m=1')).maritalStatus).toBe('married');
+    expect(fromShareParams(new URLSearchParams('m=0')).maritalStatus).toBe('single');
+  });
+
+  it('leaves the status unchosen when m is absent or unrecognised', () => {
+    expect(fromShareParams(new URLSearchParams('')).maritalStatus).toBeNull();
+    expect(fromShareParams(new URLSearchParams('m=x')).maritalStatus).toBeNull();
   });
 });

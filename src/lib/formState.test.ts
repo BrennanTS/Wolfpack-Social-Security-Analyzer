@@ -11,6 +11,7 @@ import {
   type AnalyzerFormState,
   type PersonFormFields,
 } from './formState';
+import { BLANK_DECEASED } from './widowedForm';
 
 const completeA = {
   name: 'Dan',
@@ -32,7 +33,7 @@ const completeB = {
 const single: AnalyzerFormState = {
   ...BLANK_FORM,
   personA: completeA,
-  hasSpouse: false,
+  maritalStatus: 'single',
 };
 
 describe('isFormComplete', () => {
@@ -52,7 +53,7 @@ describe('isFormComplete', () => {
   });
 
   it('rejects married until every spouse field is supplied', () => {
-    const married = { ...single, hasSpouse: true, personB: BLANK_FORM.personB };
+    const married = { ...single, maritalStatus: 'married', personB: BLANK_FORM.personB };
     expect(isFormComplete(married)).toBe(false);
 
     expect(
@@ -68,7 +69,7 @@ describe('isFormComplete', () => {
   it('accepts a spouse with a zero benefit, which means no work record', () => {
     const married = {
       ...single,
-      hasSpouse: true,
+      maritalStatus: 'married',
       personB: { ...completeB, monthlyBenefit: 0 },
     };
     expect(isFormComplete(married)).toBe(true);
@@ -85,7 +86,7 @@ describe('isFormComplete', () => {
   // exercised below. A $0 A in a *single* household is covered there instead
   // (nothing to analyze with no spouse to draw a benefit from).
   it('agrees with the field-level guardrails the UI declares', () => {
-    const marriedEarningSpouse = { ...single, hasSpouse: true, personB: completeB };
+    const marriedEarningSpouse = { ...single, maritalStatus: 'married', personB: completeB };
     const withBenefitA = (monthlyBenefit: number) =>
       isFormComplete({ ...marriedEarningSpouse, personA: { ...completeA, monthlyBenefit } });
 
@@ -99,7 +100,9 @@ describe('isFormComplete', () => {
 
   it('applies the same range to a spouse', () => {
     const withBenefitB = (monthlyBenefit: number) =>
-      isFormComplete({ ...single, hasSpouse: true, personB: { ...completeB, monthlyBenefit } });
+      isFormComplete({
+        ...single, maritalStatus: 'married', personB: { ...completeB, monthlyBenefit },
+      });
 
     expect(withBenefitB(0)).toBe(true);
     expect(withBenefitB(250)).toBe(true);
@@ -130,33 +133,33 @@ describe('at least one person must have a positive benefit', () => {
 
   it('accepts a married household where person A has no work record', () => {
     expect(
-      isFormComplete({ ...base, hasSpouse: true, personA: noRecord, personB: earner }),
+      isFormComplete({ ...base, maritalStatus: 'married', personA: noRecord, personB: earner }),
     ).toBe(true);
   });
 
   it('accepts a married household where person B has no work record', () => {
     expect(
-      isFormComplete({ ...base, hasSpouse: true, personA: earner, personB: noRecord }),
+      isFormComplete({ ...base, maritalStatus: 'married', personA: earner, personB: noRecord }),
     ).toBe(true);
   });
 
   it('rejects a household where neither person earns', () => {
     expect(
       isFormComplete({
-        ...base, hasSpouse: true,
+        ...base, maritalStatus: 'married',
         personA: noRecord, personB: { ...noRecord, birthYear: 1966 },
       }),
     ).toBe(false);
   });
 
   it('rejects a single claimant with no benefit — nothing to analyze', () => {
-    expect(isFormComplete({ ...base, hasSpouse: false, personA: noRecord })).toBe(false);
+    expect(isFormComplete({ ...base, maritalStatus: 'single', personA: noRecord })).toBe(false);
   });
 
   it('accepts a genuine low-earner PIA the old $500 floor rejected', () => {
     expect(
       isFormComplete({
-        ...base, hasSpouse: false,
+        ...base, maritalStatus: 'single',
         personA: { ...earner, monthlyBenefit: 250 },
       }),
     ).toBe(true);
@@ -173,7 +176,7 @@ describe('toHousehold', () => {
   });
 
   it('builds a married household preserving order and ids', () => {
-    const h = toHousehold({ ...single, hasSpouse: true, personB: completeB });
+    const h = toHousehold({ ...single, maritalStatus: 'married', personB: completeB });
     expect(h.status).toBe('married');
     expect(h.people.map((p) => p.id)).toEqual(['a', 'b']);
     expect(h.people[1].gender).toBe('female');
@@ -181,7 +184,7 @@ describe('toHousehold', () => {
   });
 
   it('never invents spouse data from the primary person', () => {
-    const h = toHousehold({ ...single, hasSpouse: true, personB: completeB });
+    const h = toHousehold({ ...single, maritalStatus: 'married', personB: completeB });
     expect(h.people[1].birthYear).toBe(1964);
     expect(h.people[1].birthYear).not.toBe(h.people[0].birthYear);
   });
@@ -205,7 +208,7 @@ describe('per-person life expectancy', () => {
       ...BLANK_FORM,
       personA: { ...male, lifeExpectancy: 85 },
       personB: female,
-      hasSpouse: true,
+      maritalStatus: 'married',
     });
     // Asserts the invariant directly: person B's fallback is B's own SSA
     // suggestion, not A's explicit 85 leaking across. Both sides read the
@@ -219,7 +222,7 @@ describe('per-person life expectancy', () => {
       ...BLANK_FORM,
       personA: { ...male, lifeExpectancy: 85 },
       personB: { ...female, lifeExpectancy: 92 },
-      hasSpouse: true,
+      maritalStatus: 'married',
     });
     expect(household.people[1].lifeExpectancy).toBe(92);
     expect(household.people[0].lifeExpectancy).toBe(85);
@@ -230,7 +233,7 @@ describe('per-person life expectancy', () => {
       ...BLANK_FORM,
       personA: { ...male, lifeExpectancy: 85 },
       personB: female,
-      hasSpouse: true,
+      maritalStatus: 'married',
     };
     expect(isFormComplete(base)).toBe(true);
     expect(isFormComplete({ ...base, personA: { ...male, lifeExpectancy: null } })).toBe(false);
@@ -278,5 +281,86 @@ describe('reseedLifeExpectancy', () => {
   it('leaves the value untouched when identity changes but is now incomplete', () => {
     const next = { ...person, birthYear: '' as const, lifeExpectancy: 95 };
     expect(reseedLifeExpectancy(person, next)).toEqual(next);
+  });
+});
+
+describe('widowed form state', () => {
+  const survivor = {
+    name: '', birthYear: 1964, birthMonth: 6, gender: 'female' as const,
+    monthlyBenefit: 1200, lifeExpectancy: 92,
+  };
+  const deceased = {
+    birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+    recordKind: 'pia' as const, piaMonthly: 3000, hadFiled: false,
+    checkAmount: '' as const, filedYear: '' as const, filedMonth: '' as const,
+  };
+  const form: AnalyzerFormState = {
+    ...BLANK_FORM,
+    maritalStatus: 'widowed',
+    personA: survivor,
+    deceased,
+  };
+
+  it('builds a widowed household', () => {
+    const household = toHousehold(form);
+    expect(household.status).toBe('widowed');
+    if (household.status !== 'widowed') throw new Error('expected widowed');
+    expect(household.people).toHaveLength(1);
+    expect(household.deceased.record).toEqual({ kind: 'pia', piaMonthly: 3000, filed: null });
+    expect(household.alreadyClaimed).toEqual({ survivorSince: null, ownSince: null });
+  });
+
+  it('is incomplete until the deceased record is filled in', () => {
+    expect(isFormComplete({ ...form, deceased: BLANK_DECEASED })).toBe(false);
+    expect(isFormComplete(form)).toBe(true);
+  });
+
+  // AGING-OUT FIXTURE, now pinned. `isFormComplete` reads the clock (a death
+  // date in the future blocks the form), so a fixture that is "in the future"
+  // only relative to today stops testing anything the moment today catches up:
+  // `deathYear: 2027, deathMonth: 3` was still blocked in Jan 2027 and
+  // ACCEPTED from Mar 2027, silently inverting this assertion. The explicit
+  // `asOf` is what makes the date in the fixture mean something.
+  const asOf = new Date(2026, 0, 15);
+
+  it('is incomplete while a field error is outstanding', () => {
+    const impossible = { ...form, deceased: { ...deceased, deathYear: 2027, deathMonth: 3 } };
+    expect(isFormComplete(impossible, asOf)).toBe(false);
+    // The same household with the death back in the past is complete, so this
+    // is the death date failing and not some unrelated missing field.
+    expect(isFormComplete(form, asOf)).toBe(true);
+  });
+
+  it('judges the death date against the asOf it is given, not against today', () => {
+    // A death in Mar 2027 is in the future as of Jan 2027 and in the past as
+    // of Jun 2027. Nothing but `asOf` differs between these two calls.
+    const march2027 = { ...form, deceased: { ...deceased, deathYear: 2027, deathMonth: 3 } };
+    expect(isFormComplete(march2027, new Date(2027, 0, 15))).toBe(false);
+    expect(isFormComplete(march2027, new Date(2027, 5, 15))).toBe(true);
+  });
+
+  // The population this feature exists for: a widow drawing only the survivor
+  // benefit, with no work record of her own. `isFormComplete`'s "at least one
+  // person must have a positive benefit" rule would reject her — the household
+  // has a record, it is the deceased's. Deleting the widowed early-return
+  // leaves the rest of the suite green.
+  it('accepts a widow with no work record of her own', () => {
+    const noRecord = { ...survivor, monthlyBenefit: 0 };
+    expect(isFormComplete({ ...form, personA: noRecord }, asOf)).toBe(true);
+    // Scoped to widowed: the same $0 claimant with no deceased record behind
+    // her has nothing to analyze.
+    expect(isFormComplete({ ...BLANK_FORM, maritalStatus: 'single', personA: noRecord }, asOf))
+      .toBe(false);
+  });
+
+  it('still builds single and married households', () => {
+    // The three-way change must not disturb the two existing statuses.
+    expect(toHousehold({ ...BLANK_FORM, maritalStatus: 'single', personA: survivor }).status)
+      .toBe('single');
+    const married = toHousehold({
+      ...BLANK_FORM, maritalStatus: 'married', personA: survivor, personB: survivor,
+    });
+    expect(married.status).toBe('married');
+    expect(married.people).toHaveLength(2);
   });
 });

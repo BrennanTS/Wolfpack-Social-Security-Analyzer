@@ -8,6 +8,12 @@ import {
 } from './formBounds';
 import { BLANK_FORM, type AnalyzerFormState, type PersonFormFields } from './formState';
 import type { Gender } from './personAnalysis';
+import {
+  BLANK_ALREADY_CLAIMED,
+  BLANK_DECEASED,
+  type AlreadyClaimedFormFields,
+  type DeceasedFormFields,
+} from './widowedForm';
 
 /**
  * Encodes the analyzer's form state into a shareable query string, and back.
@@ -103,11 +109,70 @@ function writePerson(
   if (person.lifeExpectancy !== null) params.set(`${prefix}le`, String(person.lifeExpectancy));
 }
 
+/**
+ * Widowed parameters. Prefixed `d` for the deceased and `c` for what the
+ * survivor has already claimed, so none can collide with the `a`/`b` person
+ * prefixes already in use.
+ */
+function writeWidowed(params: URLSearchParams, form: AnalyzerFormState): void {
+  const d = form.deceased;
+  if (d.birthYear !== '') params.set('dy', String(d.birthYear));
+  if (d.birthMonth !== '') params.set('dm', String(d.birthMonth));
+  if (d.deathYear !== '') params.set('ddy', String(d.deathYear));
+  if (d.deathMonth !== '') params.set('ddm', String(d.deathMonth));
+  params.set('dk', d.recordKind === 'checkAmount' ? 'c' : 'p');
+  if (d.piaMonthly !== '') params.set('dp', String(d.piaMonthly));
+  if (d.checkAmount !== '') params.set('dc', String(d.checkAmount));
+  if (d.hadFiled !== null) params.set('df', d.hadFiled ? '1' : '0');
+  if (d.filedYear !== '') params.set('dfy', String(d.filedYear));
+  if (d.filedMonth !== '') params.set('dfm', String(d.filedMonth));
+
+  const a = form.alreadyClaimed;
+  if (a.survivorSinceYear !== '') params.set('csy', String(a.survivorSinceYear));
+  if (a.survivorSinceMonth !== '') params.set('csm', String(a.survivorSinceMonth));
+  if (a.ownSinceYear !== '') params.set('coy', String(a.ownSinceYear));
+  if (a.ownSinceMonth !== '') params.set('com', String(a.ownSinceMonth));
+}
+
+function readWidowed(params: URLSearchParams): {
+  deceased: DeceasedFormFields;
+  alreadyClaimed: AlreadyClaimedFormFields;
+} {
+  const hadFiled = params.get('df');
+  const MONTH_BOUNDS = { min: 1, max: 12 };
+  return {
+    deceased: {
+      birthYear: num(params, 'dy') ?? '',
+      birthMonth: intInBounds(params, 'dm', MONTH_BOUNDS),
+      deathYear: num(params, 'ddy') ?? '',
+      deathMonth: intInBounds(params, 'ddm', MONTH_BOUNDS),
+      recordKind: params.get('dk') === 'c' ? 'checkAmount' : 'pia',
+      piaMonthly: num(params, 'dp') ?? '',
+      hadFiled: hadFiled === '1' ? true : hadFiled === '0' ? false : null,
+      checkAmount: num(params, 'dc') ?? '',
+      filedYear: num(params, 'dfy') ?? '',
+      filedMonth: intInBounds(params, 'dfm', MONTH_BOUNDS),
+    },
+    alreadyClaimed: {
+      survivorSinceYear: num(params, 'csy') ?? '',
+      survivorSinceMonth: intInBounds(params, 'csm', MONTH_BOUNDS),
+      ownSinceYear: num(params, 'coy') ?? '',
+      ownSinceMonth: intInBounds(params, 'com', MONTH_BOUNDS),
+    },
+  };
+}
+
 export function toShareParams(form: AnalyzerFormState): URLSearchParams {
   const params = new URLSearchParams();
   writePerson(params, 'a', form.personA);
-  if (form.hasSpouse !== null) params.set('m', form.hasSpouse ? '1' : '0');
-  if (form.hasSpouse) writePerson(params, 'b', form.personB);
+  if (form.maritalStatus !== null) {
+    params.set(
+      'm',
+      form.maritalStatus === 'married' ? '1' : form.maritalStatus === 'widowed' ? 'w' : '0',
+    );
+  }
+  if (form.maritalStatus === 'married') writePerson(params, 'b', form.personB);
+  if (form.maritalStatus === 'widowed') writeWidowed(params, form);
   params.set('cola', String(form.annualCola));
   // `dr` travels as a PERCENT so the link is human-readable and matches the
   // slider; the form stores a fraction. Convert on both sides.
@@ -117,8 +182,19 @@ export function toShareParams(form: AnalyzerFormState): URLSearchParams {
 }
 
 export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
-  const married = params.get('m');
-  const hasSpouse = married === '1' ? true : married === '0' ? false : null;
+  // `m=1` and `m=0` predate the widowed status and MUST keep their meaning:
+  // links already in circulation carry them, and their recipient cannot see
+  // that a parameter changed meaning. `w` is a third value on the same key
+  // rather than a new key, for exactly that reason.
+  const statusParam = params.get('m');
+  const maritalStatus: AnalyzerFormState['maritalStatus'] =
+    statusParam === '1'
+      ? 'married'
+      : statusParam === '0'
+        ? 'single'
+        : statusParam === 'w'
+          ? 'widowed'
+          : null;
 
   const cola = num(params, 'cola');
 
@@ -152,8 +228,11 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
 
   return {
     personA,
-    personB: hasSpouse ? readPerson(params, 'b') : BLANK_FORM.personB,
-    hasSpouse,
+    personB: maritalStatus === 'married' ? readPerson(params, 'b') : BLANK_FORM.personB,
+    maritalStatus,
+    ...(maritalStatus === 'widowed'
+      ? readWidowed(params)
+      : { deceased: BLANK_DECEASED, alreadyClaimed: BLANK_ALREADY_CLAIMED }),
     annualCola: cola !== null && isInBounds(cola, COLA_BOUNDS) ? cola : BLANK_FORM.annualCola,
     discountRate:
       discountFraction !== null && isDiscountRateInBounds(discountFraction)

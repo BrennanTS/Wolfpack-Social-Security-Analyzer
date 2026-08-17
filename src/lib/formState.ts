@@ -5,6 +5,16 @@ import { analyzeHousehold, type Household, type HouseholdAnalysis } from './hous
 import { getCurrentAge, type Gender, type Person } from './personAnalysis';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
 import { DEFAULT_DISCOUNT_RATE } from './ssaTools';
+import {
+  BLANK_ALREADY_CLAIMED,
+  BLANK_DECEASED,
+  isWidowedComplete,
+  toAlreadyClaimed,
+  toDeceased,
+  widowedErrors,
+  type AlreadyClaimedFormFields,
+  type DeceasedFormFields,
+} from './widowedForm';
 
 export interface PersonFormFields {
   name: string;
@@ -22,7 +32,16 @@ export interface PersonFormFields {
 export interface AnalyzerFormState {
   personA: PersonFormFields;
   personB: PersonFormFields;
-  hasSpouse: boolean | null;
+  /**
+   * Null means "not yet chosen", which is what gates the analysis. Replaces the
+   * former boolean `hasSpouse`: a widowed household is neither single nor
+   * married, and a third boolean would have made every read site guess.
+   */
+  maritalStatus: 'single' | 'married' | 'widowed' | null;
+  /** Only meaningful when `maritalStatus === 'widowed'`. */
+  deceased: DeceasedFormFields;
+  /** Only meaningful when `maritalStatus === 'widowed'`. */
+  alreadyClaimed: AlreadyClaimedFormFields;
   annualCola: number;
   discountRate: number;
   /**
@@ -48,7 +67,9 @@ const BLANK_PERSON: PersonFormFields = {
 export const BLANK_FORM: AnalyzerFormState = {
   personA: BLANK_PERSON,
   personB: BLANK_PERSON,
-  hasSpouse: null,
+  maritalStatus: null,
+  deceased: BLANK_DECEASED,
+  alreadyClaimed: BLANK_ALREADY_CLAIMED,
   annualCola: CPI_DEFAULT_COLA,
   discountRate: DEFAULT_DISCOUNT_RATE,
   dollarsMode: 'real',
@@ -63,18 +84,46 @@ function isPersonComplete(p: PersonFormFields): boolean {
   return isBenefitInRange(p.monthlyBenefit);
 }
 
-export function isFormComplete(form: AnalyzerFormState): boolean {
-  if (form.hasSpouse === null || form.personA.lifeExpectancy === null) return false;
+/**
+ * `asOf` defaults to now, matching `analyzeHousehold`'s established pattern.
+ * It exists because completeness is genuinely date-dependent for a widowed
+ * household — `widowedErrors` blocks a death date in the future — and an
+ * implicit `new Date()` inside a predicate makes it impure in two ways that
+ * both bite: a test pinning "incomplete while a field error is outstanding"
+ * silently inverts once the fixture's date stops being in the future, and a
+ * caller that reads the clock separately for the DISPLAYED errors can
+ * disagree with this gate across a month boundary. Callers that show errors
+ * should pass the same `asOf` they render from.
+ */
+export function isFormComplete(form: AnalyzerFormState, asOf: Date = new Date()): boolean {
+  if (form.maritalStatus === null || form.personA.lifeExpectancy === null) return false;
   if (!isPersonComplete(form.personA)) return false;
   // Married analyses require real spouse data — never defaulted from person A.
-  if (form.hasSpouse && !isPersonComplete(form.personB)) return false;
+  if (form.maritalStatus === 'married' && !isPersonComplete(form.personB)) return false;
+
+  if (form.maritalStatus === 'widowed') {
+    if (!isWidowedComplete(form.deceased)) return false;
+    // An impossible combination must not reach the engine — several of these
+    // produce a throw rather than a wrong answer.
+    const { birthYear, birthMonth } = form.personA;
+    if (birthYear === '' || birthMonth === '') return false;
+    const errors = widowedErrors(
+      form.deceased,
+      form.alreadyClaimed,
+      { year: birthYear, month: birthMonth },
+      asOf,
+    );
+    if (Object.keys(errors).length > 0) return false;
+  }
 
   // A person with no work record of their own is legitimate — they may draw a
   // spousal benefit on their partner's record. A household where *nobody*
-  // earns has nothing to analyze.
-  const benefits = form.hasSpouse
-    ? [form.personA.monthlyBenefit, form.personB.monthlyBenefit]
-    : [form.personA.monthlyBenefit];
+  // earns has nothing to analyze. A widow always has the deceased's record.
+  if (form.maritalStatus === 'widowed') return true;
+  const benefits =
+    form.maritalStatus === 'married'
+      ? [form.personA.monthlyBenefit, form.personB.monthlyBenefit]
+      : [form.personA.monthlyBenefit];
   return benefits.some((b) => b !== '' && b > 0);
 }
 
@@ -123,7 +172,15 @@ function toPerson(fields: PersonFormFields, id: 'a' | 'b'): Person {
 
 export function toHousehold(form: AnalyzerFormState): Household {
   const personA = toPerson(form.personA, 'a');
-  if (!form.hasSpouse) return { status: 'single', people: [personA] };
+  if (form.maritalStatus === 'widowed') {
+    return {
+      status: 'widowed',
+      people: [personA],
+      deceased: toDeceased(form.deceased),
+      alreadyClaimed: toAlreadyClaimed(form.alreadyClaimed),
+    };
+  }
+  if (form.maritalStatus !== 'married') return { status: 'single', people: [personA] };
   return { status: 'married', people: [personA, toPerson(form.personB, 'b')] };
 }
 
@@ -131,7 +188,9 @@ export async function analyzeIfComplete(
   form: AnalyzerFormState,
   asOf?: Date,
 ): Promise<HouseholdAnalysis | null> {
-  if (!isFormComplete(form)) return null;
+  // The same `asOf` gates completeness and drives the analysis: two clock
+  // reads could otherwise disagree across a month boundary.
+  if (!isFormComplete(form, asOf)) return null;
   return analyzeHousehold(
     toHousehold(form),
     { annualCola: form.annualCola, discountRate: form.discountRate },
