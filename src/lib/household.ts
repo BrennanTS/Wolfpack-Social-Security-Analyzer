@@ -13,6 +13,7 @@ import {
 import { formatCurrency, personLabel } from './format';
 import { firstDeath } from './incomeCliff';
 import { analyzePerson, getFullRetirementAge, type Person, type PersonAnalysis } from './personAnalysis';
+import { survivorClaimAlternative, type SurvivorClaimAlternative } from './survivorClaim';
 import {
   createPiaRecipient,
   findStrategyByAges,
@@ -119,6 +120,13 @@ export interface HouseholdAnalysis {
    * would actually experience. Null when there is nothing to disclose.
    */
   survivorGap: SurvivorGap | null;
+  /**
+   * The best month the survivor could claim their OWN widow(er) benefit,
+   * holding the recommendation's filing ages fixed — see `survivorClaim.ts`.
+   * Null for a single claimant and for every household `survivorClaimAlternative`
+   * itself declines to report on (see its own docstring for the full list).
+   */
+  survivorClaim: SurvivorClaimAlternative | null;
   /**
    * Each person's inclusive final month index — the month they reach their
    * plan-to age. NOT derivable from `periods`: a person who dies before
@@ -818,6 +826,22 @@ export async function analyzeHousehold(
       engineLabels,
     );
 
+    // Canonicalized (engine-order) arrays throughout — NOT `people`/
+    // `displayLabels` — for the same reason `householdPeriods` just above
+    // takes them: a household's best survivor claim month is a fact about
+    // the household, and reading it off display-order arrays would make it
+    // depend on which spouse happened to be typed first, exactly the
+    // dependence Phase 2b-ii closed for everything else in this function.
+    const survivorClaim = survivorClaimAlternative(
+      enginePeople,
+      [recipient0, recipient1],
+      optimal.filingAges.map((f) => f.monthDuration),
+      bands,
+      finalIndexByPersonId,
+      survivorGap,
+      engineLabels,
+    );
+
     const comparisonsWithSurvivor = withSurvivorIncome(
       comparisons,
       enginePeople,
@@ -846,6 +870,7 @@ export async function analyzeHousehold(
       combinedTimeline: buildCombinedTimeline(bands, people),
       periods: bands,
       survivorGap,
+      survivorClaim,
       finalIndexByPersonId,
       spousalTopUp: spousalFiguresFrom(
         bands,
@@ -918,6 +943,7 @@ export async function analyzeHousehold(
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap,
+    survivorClaim: null,
     finalIndexByPersonId,
     recommendation: `Claim at age ${optimal.filingAges[0].label}`,
     recommendationDetail:

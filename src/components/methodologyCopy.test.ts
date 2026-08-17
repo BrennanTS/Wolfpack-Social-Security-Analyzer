@@ -11,6 +11,7 @@ import {
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalMethodologyCopy,
   spousalSummary,
+  survivorClaimNote,
   survivorGapNote,
   survivorIncomeCaption,
 } from './methodologyCopy';
@@ -1176,5 +1177,72 @@ describe('the survivor-gap note over real households', () => {
     expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual([
       `$${gap.deceasedMonthly.toLocaleString('en-US')}.00`,
     ]);
+  });
+});
+
+describe('survivorClaimNote', () => {
+  it('states the claim month and the gain, and says the optimizer cannot consider it', () => {
+    const note = survivorClaimNote({
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '68 years, 0 months',
+      survivorLabel: 'Sarah',
+      baselineTotal: 300_000,
+      bestTotal: 435_700,
+      gain: 135_700,
+      baselineHasSurvivorBand: true,
+    })!;
+    expect(note).toMatch(/Sarah/);
+    expect(note).toMatch(/68 years, 0 months/);
+    expect(note).toMatch(/\$135,700/);
+    expect(note).toMatch(/optimizer/i);
+  });
+
+  it('renders nothing when there is no alternative to show', () => {
+    expect(survivorClaimNote(null)).toBeNull();
+  });
+
+  it('does not restate a recommendation, when the baseline already shows a survivor band', () => {
+    const note = survivorClaimNote({
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '67 years, 10 months',
+      survivorLabel: 'Sarah',
+      baselineTotal: 732_640,
+      bestTotal: 811_680,
+      gain: 79_040,
+      baselineHasSurvivorBand: true,
+    })!;
+    expect(note).not.toMatch(/recommend(s|ed|ation)? that/i);
+  });
+
+  it('does not claim the alternative is earlier than a plan the baseline never showed', () => {
+    // `baselineHasSurvivorBand: false` means there is NO survivor benefit
+    // anywhere on screen for this figure to be an alternative to — a phrase
+    // like "earlier than the plan shows" would be false here, since the plan
+    // shows nothing.
+    const note = survivorClaimNote({
+      claimIndex: 2035 * 12 + 4,
+      claimAge: '60',
+      survivorLabel: 'Bob',
+      baselineTotal: 0,
+      bestTotal: 102_960,
+      gain: 102_960,
+      baselineHasSurvivorBand: false,
+    })!;
+    expect(note).toMatch(/Bob/);
+    expect(note).toMatch(/\$102,960/);
+    expect(note).not.toMatch(/than (the )?(plan|recommendation) (shows|assumes|puts)/i);
+  });
+
+  it('reads correctly for a bare-year claim age, e.g. exactly 60', () => {
+    const note = survivorClaimNote({
+      claimIndex: 2038 * 12 + 4,
+      claimAge: '60',
+      survivorLabel: 'Sarah',
+      baselineTotal: 732_640,
+      bestTotal: 858_440,
+      gain: 125_800,
+      baselineHasSurvivorBand: true,
+    })!;
+    expect(note).toMatch(/age 60\b/);
   });
 });

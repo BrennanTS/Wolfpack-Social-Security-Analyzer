@@ -7,6 +7,7 @@ import { firstDeath } from '../lib/incomeCliff';
 import { StrategyComparisonTable } from './StrategyComparisonTable';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
 import { IncomeCliffCallout } from './IncomeCliffCallout';
+import { SurvivorClaimNote } from './SurvivorClaimNote';
 import { BreakEvenSection } from './BreakEvenSection';
 
 interface HouseholdPanelProps {
@@ -179,6 +180,15 @@ export function HouseholdPanel({
       />
 
       <IncomeCliffCallout analysis={displayAnalysis} dollarsMode={dollarsMode} />
+
+      {/* Not `displayAnalysis`: `survivorClaim`'s figures come straight from
+          the engine's bands (real dollars, no COLA applied), exactly like
+          `analysis.periods` itself, and are untouched by the dollars-mode
+          transform that only rewrites `combinedTimeline`/`comparisons` above
+          — so this reads the same field either way. Using `analysis` here
+          says so directly rather than implying a mode-dependence that isn't
+          there. */}
+      <SurvivorClaimNote analysis={analysis} />
 
       <BreakEvenSection
         breakEvens={breakEvens}

@@ -177,6 +177,48 @@ describe('HouseholdPanel', () => {
     expect(screen.getAllByTestId('survivor-gap-note')).toHaveLength(1);
   });
 
+  // Wiring guard, same shape as the survivor-gap one above: the note is
+  // computed in `lib/survivorClaim.ts` and rendered by `SurvivorClaimNote`,
+  // and this panel is the only thing joining them.
+  it('renders the survivor-claim note directly below the income-cliff callout', () => {
+    const personA = buildPersonAnalysis('a', 'Dan');
+    const personB = buildPersonAnalysis('b', 'Sarah');
+    const analysis = {
+      ...buildAnalysis(),
+      status: 'married',
+      people: [personA, personB],
+      finalIndexByPersonId: { a: 2047 * 12 + 3, b: 2052 * 12 + 1 },
+      combinedTimeline: [
+        { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
+        { year: 2047, bySeries: {}, byPersonId: {}, total: 55000 },
+        { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
+      ],
+      survivorClaim: {
+        claimIndex: 2047 * 12 + 5,
+        claimAge: '68 years, 0 months',
+        survivorLabel: 'Sarah',
+        baselineTotal: 300_000,
+        bestTotal: 435_700,
+        gain: 135_700,
+        baselineHasSurvivorBand: true,
+      },
+    } as HouseholdAnalysis;
+
+    render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+
+    // The callout really is on screen (guards against this passing
+    // vacuously because `incomeCliff` returned null).
+    expect(screen.getByTestId('income-cliff-sentence')).toBeInTheDocument();
+    expect(screen.getByTestId('survivor-claim-note').textContent).toContain('135,700');
+  });
+
+  it('renders no survivor-claim note when the analysis has none', () => {
+    const { queryByTestId } = render(
+      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} />,
+    );
+    expect(queryByTestId('survivor-claim-note')).toBeNull();
+  });
+
   it('falls back to the Client/Spouse label when person A is unnamed', () => {
     const analysis = buildAnalysis();
     const unnamed = {

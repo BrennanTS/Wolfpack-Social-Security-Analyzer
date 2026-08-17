@@ -474,6 +474,46 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
 });
 
 /**
+ * The printed survivor-claim-date alternative — the same `survivorClaimNote`
+ * function the on-screen `SurvivorClaimNote` calls, printed by
+ * `HouseholdSection` directly (there is no PDF equivalent component, same as
+ * the income-cliff callout above it).
+ */
+describe('HouseholdSection — the printed survivor-claim note', () => {
+  const claim = {
+    claimIndex: 2036 * 12 + 4,
+    claimAge: '68 years, 0 months',
+    survivorLabel: 'Blake',
+    baselineTotal: 300_000,
+    bestTotal: 435_700,
+    gain: 135_700,
+    baselineHasSurvivorBand: true,
+  };
+
+  it('prints the note exactly once', () => {
+    const analysis = { ...analysisWithCliff(null), survivorClaim: claim };
+    const text = collectText(
+      HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
+    ).join(' ');
+    // Counted, not `toContain` — a prior defect on this project printed an
+    // identical note twice on one page and `toContain` could not see it.
+    const occurrences = text.match(/\$135,700/g) ?? [];
+    expect(occurrences).toHaveLength(1);
+    expect(text).toContain('68 years, 0 months');
+    expect(text).toMatch(/optimizer/i);
+  });
+
+  it('prints nothing when there is no alternative to show', () => {
+    const analysis = { ...analysisWithCliff(null), survivorClaim: null };
+    const text = collectText(
+      HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
+    ).join(' ');
+    expect(text).not.toMatch(/separate survivor claim date/i);
+    expect(text).not.toContain('68 years, 0 months');
+  });
+});
+
+/**
  * `CombinedIncomeBars`' own decomposition — one legend entry per benefit
  * type, sourced from `benefitSeriesLabel`, the exact same function
  * `CombinedIncomeChart` calls on screen. Retyping the label here (rather than

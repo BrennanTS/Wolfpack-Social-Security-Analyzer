@@ -954,12 +954,82 @@ function canonicalize(analysis: HouseholdAnalysis) {
     finalIndexes: byName(analysis.finalIndexByPersonId),
     incomeCliff: incomeCliff(analysis),
     survivorGap: analysis.survivorGap,
+    // `survivorLabel` inside is already a name, not a slot — nothing else to
+    // re-key. Included so the existing swap tests below cover Task 2's wiring
+    // for free: a `survivorClaimAlternative` call fed display-order arrays
+    // would compute the wrong household's numbers, and this catches it the
+    // same way it caught the periods/cliff/row-order defects it was written
+    // for.
+    survivorClaim: analysis.survivorClaim,
     spousalTopUp: analysis.spousalTopUp,
     // Split and sorted: the sentence names the people in display order by
     // design, so only its per-person clauses are comparable across orders.
     recommendation: [...analysis.recommendation.split(' · ')].sort(),
   };
 }
+
+/**
+ * `analyzeHousehold`'s wiring of Task 1's `survivorClaimAlternative` — that
+ * it is called at all, with the household's real recommended filing ages,
+ * and that it is null where there is nothing to show.
+ *
+ * The household below is a real, deterministic one (not a hand-built
+ * `SurvivorClaimAlternative`) chosen because ssa.tools' own optimizer happens
+ * to file Ann early enough, and Bob late enough, that Bob's own recommended
+ * filing date lands after Ann's death — the population this whole module
+ * exists for. Its exact figures are pinned against the live engine output so
+ * a future engine or `household.ts` change that quietly stops wiring this
+ * through fails a test here, not just in `survivorClaim.test.ts`'s
+ * hand-derived unit fixtures.
+ */
+describe('analyzeHousehold — survivor claim alternative', () => {
+  const ann: Person = {
+    id: 'a', name: 'Ann', birthYear: 1965, birthMonth: 5,
+    gender: 'female', piaMonthly: 1200, lifeExpectancy: 62,
+  };
+  const bob: Person = {
+    id: 'b', name: 'Bob', birthYear: 1975, birthMonth: 5,
+    gender: 'male', piaMonthly: 2400, lifeExpectancy: 90,
+  };
+
+  it('carries a survivor claim alternative onto the analysis', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [ann, bob] },
+      assumptions,
+      asOf,
+    );
+    expect(result.survivorClaim).not.toBeNull();
+    expect(result.survivorClaim!.survivorLabel).toBe('Bob');
+    expect(result.survivorClaim!.gain).toBeGreaterThan(0);
+    expect(result.survivorClaim!.bestTotal).toBe(
+      result.survivorClaim!.baselineTotal + result.survivorClaim!.gain,
+    );
+  });
+
+  it('sets survivorClaim to null for a single claimant', async () => {
+    const result = await analyzeHousehold({ status: 'single', people: [bob] }, assumptions, asOf);
+    expect(result.survivorClaim).toBeNull();
+  });
+
+  it('computes the same survivor claim alternative whichever spouse is entered first', async () => {
+    // The exact defect this wiring must not reintroduce: `survivorClaim.ts`
+    // fed display-order arrays instead of the canonicalized engine-order ones
+    // would compute a different household's numbers depending on typing
+    // order, even though `survivorLabel` itself is name-keyed and would look
+    // plausible either way.
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [ann, bob] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...bob, id: 'a' }, { ...ann, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+    expect(swapped.survivorClaim).toEqual(forward.survivorClaim);
+  });
+});
 
 describe('analyzeHousehold — entry order', () => {
   /**

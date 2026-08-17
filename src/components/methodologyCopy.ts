@@ -15,6 +15,7 @@ import {
   type HouseholdStrategy,
 } from '../lib/household';
 import type { IncomeCliff } from '../lib/incomeCliff';
+import type { SurvivorClaimAlternative } from '../lib/survivorClaim';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 
 type SpousalTopUp = NonNullable<HouseholdAnalysis['spousalTopUp']>;
@@ -110,6 +111,54 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
     `${lead} while receiving ${formatCurrencyPrecise(gap.survivorOwnMonthly)}/mo of their ` +
     `own. The figures shown for ${gap.survivorLabel} after that death are lower than SSA ` +
     `would pay.`
+  );
+}
+
+/**
+ * The disclosure for the survivor claim-date alternative `survivorClaim.ts`
+ * finds: the best month the survivor could claim their OWN widow(er) benefit,
+ * holding the recommendation's filing ages fixed, when that beats what the
+ * engine's single claim-date rule already shows.
+ *
+ * Null when `alt` is null, so both surfaces get their render decision from
+ * this one function rather than each testing the condition separately — a
+ * prior task on this branch's predecessor rendered the same warning twice by
+ * reusing a shared *sentence* in a second component without also sharing the
+ * *gate*; returning null here centralizes both.
+ *
+ * `alt.baselineHasSurvivorBand` decides which of two true sentences to say,
+ * not whether to say one — see its docstring in `survivorClaim.ts` for the
+ * three engine states it collapses. When it is `false` there is no survivor
+ * band anywhere on screen for this figure to be earlier or later than, so the
+ * sentence below says only that the figure is not otherwise shown, never that
+ * it is "earlier" than a date the household would have no way to see.
+ *
+ * Deliberately does not restate the death year (`incomeCliffSentence`,
+ * rendered directly above this note on both surfaces, already gives it) or
+ * anything from `survivorGapNote` (which cannot be showing at the same time —
+ * a set `survivorGap` forces `survivorClaimAlternative` to return null, since
+ * a claim-month search over a direction the app has already disclosed as
+ * unmodeled would be answering a different question twice). And it is
+ * explicit that this is not advice: the figure comes from a search the
+ * optimizer itself cannot run, because the optimizer holds one filing date
+ * per person and this varies a second, independent date for the same person.
+ */
+export function survivorClaimNote(alt: SurvivorClaimAlternative | null): string | null {
+  if (!alt) return null;
+
+  const { survivorLabel, claimAge, gain, baselineHasSurvivorBand } = alt;
+
+  const claimClause = baselineHasSurvivorBand
+    ? `claim the survivor benefit at age ${claimAge} instead of the date the recommendation ` +
+      `above puts it`
+    : `claim a widow(er) benefit at age ${claimAge} — one the recommendation above does not ` +
+      `otherwise show`;
+
+  return (
+    `If ${survivorLabel} were to ${claimClause}, the household would gain an estimated ` +
+    `${formatCurrency(gain)} over its lifetime. This is not a recommendation: the ` +
+    `recommendation above comes from an optimizer that holds each spouse's own filing date ` +
+    `fixed and cannot model a separate survivor claim date.`
   );
 }
 
