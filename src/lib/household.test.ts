@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   analyzeHousehold,
   buildMonthlyIncomeSeries,
+  householdDisplayShape,
   showSurvivorIncomeColumn,
   survivorIncomeRisesWithDelay,
   visibleBenefitSeries,
@@ -1299,6 +1300,273 @@ describe('analyzeHousehold — entry order', () => {
       const survivorBands = result.periods.filter((b) => b.type === 'survivor');
       expect(survivorBands).toHaveLength(1);
       expect(survivorBands[0].personId).toBe('b'); // Sarah, entered second here.
+    });
+  });
+});
+
+describe('householdDisplayShape', () => {
+  it('maps the two statuses the display layer can actually render', () => {
+    expect(householdDisplayShape('single')).toBe('oneClaimant');
+    expect(householdDisplayShape('married')).toBe('twoClaimants');
+  });
+
+  it('throws for a widowed household instead of returning a shape', () => {
+    // The whole point. `status === 'married'` as a boolean silently routed
+    // widowed into the one-claimant path on both surfaces — a view that omits
+    // the survivor benefit entirely and understates the recommended monthly
+    // income. Returning EITHER shape here would be wrong; there is no widowed
+    // display until Phase 3B-ii builds one.
+    expect(() => householdDisplayShape('widowed')).toThrow(/widowed/i);
+  });
+});
+
+describe('analyzeHousehold — widowed', () => {
+  const widowPerson: Person = {
+    id: 'a', name: 'Widow', birthYear: 1964, birthMonth: 6,
+    gender: 'female', piaMonthly: 1200, lifeExpectancy: 92,
+  };
+  const household: Household = {
+    status: 'widowed',
+    people: [widowPerson],
+    deceased: {
+      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      record: { kind: 'pia', piaMonthly: 3000, filed: null },
+    },
+    alreadyClaimed: { survivorSince: null, ownSince: null },
+  };
+
+  // A fixture chosen so the true optimum sits at neither of the two "extreme
+  // corner" pairs the named rows probe (survivor-earliest/own-70, and
+  // survivor-FRA/own-earliest) — found by search over PIA combinations. With
+  // this fixture ALL FOUR rows (optimal, survivorFirst, ownFirst,
+  // bothEarliest) appear as distinct comparisons, which is what lets the
+  // label test and the `survivorClaimDate` tests below see `survivorFirst`
+  // and `ownFirst` side by side.
+  const richHousehold: Household = {
+    status: 'widowed',
+    people: [{ ...widowPerson, piaMonthly: 2400, lifeExpectancy: 70 }],
+    deceased: {
+      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      record: { kind: 'pia', piaMonthly: 2450, filed: null },
+    },
+    alreadyClaimed: { survivorSince: null, ownSince: null },
+  };
+
+  it('analyzes exactly one living person', async () => {
+    const result = await analyzeHousehold(household, assumptions, asOf);
+    expect(result.status).toBe('widowed');
+    expect(result.people).toHaveLength(1);
+  });
+
+  it('emits both a personal and a survivor band', async () => {
+    const { periods } = await analyzeHousehold(household, assumptions, asOf);
+    expect(periods.some((b) => b.type === 'personal')).toBe(true);
+    expect(periods.some((b) => b.type === 'survivor')).toBe(true);
+    expect(periods.every((b) => b.type !== 'spousal')).toBe(true);
+  });
+
+  it('marks exactly one comparison row optimal, with zero delta', async () => {
+    const { comparisons } = await analyzeHousehold(household, assumptions, asOf);
+    const optimal = comparisons.filter((c) => c.isOptimal);
+    expect(optimal).toHaveLength(1);
+    expect(optimal[0].deltaVsOptimal).toBe(0);
+  });
+
+  it('never scores a comparison above the optimal', async () => {
+    const { comparisons, optimal } = await analyzeHousehold(household, assumptions, asOf);
+    for (const c of comparisons) {
+      expect(c.lifetimeTotal!).toBeLessThanOrEqual(optimal.lifetimeTotal! + 0.01);
+    }
+  });
+
+  it('carries a lifetime total, and no expected-NPV claim', async () => {
+    // The widowed score is an undiscounted lifetime sum, not a mortality-
+    // weighted present value. `lifetimeTotal` is non-null exactly where that
+    // is true, so a display layer can tell which figure it is holding.
+    const { optimal } = await analyzeHousehold(household, assumptions, asOf);
+    expect(optimal.lifetimeTotal).not.toBeNull();
+    expect(optimal.lifetimeTotal!).toBeGreaterThan(0);
+  });
+
+  it('leaves lifetimeTotal null for a married household', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] }, assumptions, asOf,
+    );
+    expect(result.optimal.lifetimeTotal).toBeNull();
+  });
+
+  it('has no spousal top-up, survivor gap or survivor-claim alternative', async () => {
+    const result = await analyzeHousehold(household, assumptions, asOf);
+    expect(result.spousalTopUp).toBeUndefined();
+    expect(result.survivorGap).toBeNull();
+    // The claim date is part of the recommendation now, not an alternative to it.
+    expect(result.survivorClaim).toBeNull();
+  });
+
+  // --- Review findings (Task 3, round 2) ---
+
+  it('carries a non-null lifetimeTotal on EVERY widowed row, not just the optimal', async () => {
+    // Regression for a mutant that survived round 1: mutating the married
+    // branch's `lifetimeTotal: null` to a non-null value left every test
+    // passing because only `optimal.lifetimeTotal` was ever checked. The
+    // invariant is "non-null exactly for widowed rows", so it has to be
+    // checked across every row of both a widowed AND a married household —
+    // see the next test for the married half.
+    const { comparisons } = await analyzeHousehold(household, assumptions, asOf);
+    expect(comparisons.length).toBeGreaterThan(1);
+    for (const c of comparisons) {
+      expect(c.lifetimeTotal).not.toBeNull();
+      expect(c.lifetimeTotal!).toBeGreaterThan(0);
+    }
+  });
+
+  it('leaves lifetimeTotal null on EVERY row of a married household', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] }, assumptions, asOf,
+    );
+    expect(result.comparisons.length).toBeGreaterThan(1);
+    for (const c of result.comparisons) {
+      expect(c.lifetimeTotal).toBeNull();
+    }
+  });
+
+  it('gives every non-optimal widowed row a strictly negative delta', async () => {
+    // Regression for a second surviving mutant: flipping the subtraction
+    // order in `deltaVsOptimal: roundCents(outcome.lifetimeTotal -
+    // best.lifetimeTotal)` left every test passing, because the only
+    // assertion in play (`marks exactly one comparison row optimal, with
+    // zero delta`, above) checks the OPTIMAL row's delta is 0 — a value
+    // that is sign-invariant under that flip. A non-optimal row's delta is
+    // the only place the sign is observable.
+    const { comparisons } = await analyzeHousehold(household, assumptions, asOf);
+    const nonOptimal = comparisons.filter((c) => !c.isOptimal);
+    expect(nonOptimal.length).toBeGreaterThan(0);
+    for (const c of nonOptimal) {
+      expect(c.deltaVsOptimal).toBeLessThan(0);
+    }
+  });
+
+  it('names the comparison rows explicitly, folding the named pair that coincides with the optimum', async () => {
+    // Regression for a third surviving mutant: deleting the dedupe
+    // `continue` left every test passing, because nothing asserted WHICH
+    // keys made it into `comparisons`, only counts and inequalities. For
+    // this fixture the optimum's (survivor-claim, own-filing) pair is
+    // exactly `ownFirst`'s pair, so `ownFirst` must be folded away and only
+    // `optimal`, `survivorFirst` and `bothEarliest` should remain, in that
+    // (push) order.
+    const { comparisons } = await analyzeHousehold(household, assumptions, asOf);
+    expect(comparisons.map((c) => c.key)).toEqual(['optimal', 'survivorFirst', 'bothEarliest']);
+  });
+
+  it('dedupes named rows when alreadyClaimed collapses a range to one point', async () => {
+    // Regression for the reviewer's third Important finding: with
+    // `ownSince` set, `widowedSearchRanges` collapses the OWN range to a
+    // single point, so `survivorFirst`'s pair and `bothEarliest`'s pair
+    // become identical (`[ranges.survivor[0], f]` both), and separately
+    // `ownFirst`'s pair coincides with the optimum. Before the fix these
+    // printed as two rows with the same filing age and the same
+    // `lifetimeTotal`, differing only by label.
+    const ownSinceHousehold: Household = {
+      ...household,
+      alreadyClaimed: { survivorSince: null, ownSince: { year: 2030, month: 1 } },
+    };
+    const { comparisons } = await analyzeHousehold(ownSinceHousehold, assumptions, asOf);
+    expect(comparisons.map((c) => c.key)).toEqual(['optimal', 'survivorFirst']);
+
+    // General form of the same check, independent of this fixture's exact
+    // keys: no two rows share the underlying (survivor-claim, own-filing)
+    // pair, read off `survivorClaimDate.monthIndex` + `filingAges[0]`.
+    const pairKeys = comparisons.map(
+      (c) => `${c.survivorClaimDate?.monthIndex}:${c.filingAges[0].years}y${c.filingAges[0].months}m`,
+    );
+    expect(new Set(pairKeys).size).toBe(pairKeys.length);
+  });
+
+  it('labels a named row from the dates that row actually carries', async () => {
+    // The labels were constants: "Survivor benefit first, own at 70" and
+    // "Own benefit first, survivor at FRA". Neither age is a property of the
+    // row — `ranges.own[1]` is age 70 only while `alreadyClaimed.ownSince` is
+    // null. With `ownSince = Jan 2030` the app printed a row labelled
+    // "...own at 70" beside its own filing age of "65 years, 7 months".
+    //
+    // This reads the LABEL. The dedupe test above asserts which rows appear
+    // and never looks at their text, which is why the mismatch survived every
+    // round of review on the same fixture.
+    const ownSinceHousehold: Household = {
+      ...household,
+      alreadyClaimed: { survivorSince: null, ownSince: { year: 2030, month: 1 } },
+    };
+    const { comparisons } = await analyzeHousehold(ownSinceHousehold, assumptions, asOf);
+    const survivorFirst = comparisons.find((c) => c.key === 'survivorFirst');
+    expect(survivorFirst).toBeDefined();
+    expect(survivorFirst!.filingAges[0].label).toBe('65 years, 7 months');
+    expect(survivorFirst!.label).toBe('Survivor benefit first, own at 65 years, 7 months');
+    expect(survivorFirst!.label).not.toContain('70');
+  });
+
+  it('keeps every named row’s label consistent with its own two dates', async () => {
+    // The general form, over a household where all four rows are distinct, so
+    // `ownFirst`'s half of the rule is exercised too: its label must name the
+    // survivor-claim age the row carries rather than the word "FRA", which
+    // stops being true the moment `survivorSince` is set or survivor-FRA has
+    // already passed.
+    const { comparisons } = await analyzeHousehold(richHousehold, assumptions, asOf);
+    const byKey = Object.fromEntries(comparisons.map((c) => [c.key, c]));
+    expect(byKey.survivorFirst).toBeDefined();
+    expect(byKey.ownFirst).toBeDefined();
+    for (const c of comparisons) {
+      if (c.key === 'survivorFirst') {
+        expect(c.label).toBe(`Survivor benefit first, own at ${c.filingAges[0].label}`);
+      }
+      if (c.key === 'ownFirst') {
+        expect(c.label).toBe(`Own benefit first, survivor at ${c.survivorClaimDate!.age}`);
+      }
+    }
+  });
+
+  it('keeps a finite finalIndexByPersonId when every benefit computes to zero', async () => {
+    // Regression for the reviewer's second Important finding:
+    // `widowedBands` omits a band entirely whenever its amount rounds to
+    // zero, so `bands` can legitimately be empty — a zero own PIA and a
+    // zero recovered deceased PIA is one real route there. The old
+    // `Math.max(...bands.map((b) => b.endIndex))` is `-Infinity` over an
+    // empty array, which `JSON.stringify` silently turns into `null`.
+    const zeroPerson: Person = { ...widowPerson, piaMonthly: 0 };
+    const zeroHousehold: Household = {
+      status: 'widowed',
+      people: [zeroPerson],
+      deceased: {
+        birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+        record: { kind: 'pia', piaMonthly: 0, filed: null },
+      },
+      alreadyClaimed: { survivorSince: null, ownSince: null },
+    };
+    const result = await analyzeHousehold(zeroHousehold, assumptions, asOf);
+    expect(result.periods).toHaveLength(0);
+    expect(Number.isFinite(result.finalIndexByPersonId[zeroPerson.id])).toBe(true);
+  });
+
+  describe('survivorClaimDate', () => {
+    it('gives the survivorFirst and ownFirst rows different survivor-claim months', async () => {
+      const { comparisons } = await analyzeHousehold(richHousehold, assumptions, asOf);
+      const byKey = Object.fromEntries(comparisons.map((c) => [c.key, c]));
+      expect(byKey.survivorFirst).toBeDefined();
+      expect(byKey.ownFirst).toBeDefined();
+      expect(byKey.survivorFirst.survivorClaimDate).not.toBeNull();
+      expect(byKey.ownFirst.survivorClaimDate).not.toBeNull();
+      expect(byKey.survivorFirst.survivorClaimDate!.monthIndex).not.toBe(
+        byKey.ownFirst.survivorClaimDate!.monthIndex,
+      );
+    });
+
+    it('is null on every row of a married household', async () => {
+      const result = await analyzeHousehold(
+        { status: 'married', people: [dan, sarah] }, assumptions, asOf,
+      );
+      expect(result.comparisons.length).toBeGreaterThan(1);
+      for (const c of result.comparisons) {
+        expect(c.survivorClaimDate).toBeNull();
+      }
     });
   });
 });

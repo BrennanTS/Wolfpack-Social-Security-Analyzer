@@ -29,7 +29,13 @@ const publicDir = path.resolve(
 );
 
 const { tolerances, scenarios } = loadScenarios();
-const fullScenarios = scenarios.filter((s) => s.mode === 'full');
+// Widowed scenarios are 'full' mode (they run analyzeHousehold), but they
+// return a differently-shaped HouseholdAnalysis — no spousalTopUp, no married-
+// style survivorClaim alternative, and a two-date "optimal" row rather than
+// one filing age per person — so they get their own describe block below
+// rather than flowing through the married/single assertions in this one.
+const fullScenarios = scenarios.filter((s) => s.mode === 'full' && s.inputs.status !== 'widowed');
+const widowedScenarios = scenarios.filter((s) => s.inputs.status === 'widowed');
 const factorScenarios = scenarios.filter((s) => s.mode === 'factorsOnly');
 
 // Serve the real mortality-table JSON from public/ so the async pipeline runs
@@ -60,9 +66,23 @@ function toHousehold(inputs: ScenarioInputs): Household {
     piaMonthly: p.piaMonthly,
     lifeExpectancy: p.lifeExpectancy,
   }));
-  return inputs.status === 'married'
-    ? { status: 'married', people: [people[0], people[1]] }
-    : { status: 'single', people: [people[0]] };
+  if (inputs.status === 'married') {
+    return { status: 'married', people: [people[0], people[1]] };
+  }
+  if (inputs.status === 'widowed') {
+    if (!inputs.deceased || !inputs.alreadyClaimed) {
+      throw new Error(
+        `scenario has status 'widowed' but is missing deceased/alreadyClaimed inputs`,
+      );
+    }
+    return {
+      status: 'widowed',
+      people: [people[0]],
+      deceased: inputs.deceased,
+      alreadyClaimed: inputs.alreadyClaimed,
+    };
+  }
+  return { status: 'single', people: [people[0]] };
 }
 
 const run = (s: GoldenScenario) =>
@@ -396,6 +416,136 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
         if (sp.personId !== sv.personId) continue;
         expect(sp.endIndex).toBeLessThan(sv.startIndex);
       }
+    }
+  });
+});
+
+/**
+ * Widowed scenarios (Phase 3B-i Task 4): the survivor is a single claimant
+ * with a `deceased` and `alreadyClaimed`, and the household's "optimal" row
+ * carries a two-date recommendation (own filing age, survivor claim age, plus
+ * a straight-sum lifetimeTotal) rather than the married/single shape checked
+ * above. Kept as its own describe block rather than folded into
+ * `fullScenarios` above, deliberately: several of that block's assertions
+ * (`spousalTopUp`, the married-only `survivorClaim` alternative) either don't
+ * apply or would need an awkward `|| status === 'widowed'` bolted onto an
+ * assertion that means something different for a widowed household.
+ */
+describe.each(widowedScenarios)('golden scenario (widowed): $id', (scenario) => {
+  it('matches the SSA full retirement age schedule for the survivor', async () => {
+    const result = await run(scenario);
+    const expectedFra = scenario.expected.fraByPerson[0];
+    const person = result.people[0];
+    expect(person.fra.years).toBe(expectedFra.years);
+    expect(person.fra.months).toBe(expectedFra.months);
+    expect(fraLabel(person.fra)).toBe(expectedFra.label);
+  });
+
+  // DELIBERATELY ABSENT for widowed scenarios: the `monthlyByClaimAgeByPerson`
+  // /`percentOfPiaByClaimAgeByPerson` assertion and the `breakEvensByPerson`
+  // assertion that the single and married blocks above both carry.
+  //
+  // Those two figures come from `analyzePerson`, which computes them from the
+  // widow(er)'s OWN record alone. For a widow they are not what she would be
+  // paid at each claim age and not where she would break even, because SSA
+  // pays her the LARGER of her own benefit and the survivor benefit each
+  // month, and the survivor benefit is absent from both — verified identical
+  // across every widowed fixture regardless of the deceased's PIA, which is
+  // the tell.
+  //
+  // Redesigning `analyzePerson` to be survivor-aware is genuinely out of scope
+  // here (it is the same hazard `analyzeWidowed` guards against for the
+  // optimizer, reached through a different door). What must not happen is the
+  // golden corpus CERTIFYING those figures as correct for a widow: a fixture
+  // that pins a misleading number teaches the next reader it is the right one.
+  // The fields are still recorded in scenarios.json — they are real facts
+  // about her own record — they are simply not asserted as her benefits here.
+  // Single and married behaviour is untouched.
+
+  it('is a widowed household with no spousal top-up and no married-style survivor-claim alternative', async () => {
+    // Both are structurally guaranteed for a widowed household (see
+    // analyzeWidowed in src/lib/household.ts), not a function of this
+    // scenario's inputs, so these are plain assertions rather than
+    // engine-recorded values.
+    const result = await run(scenario);
+    expect(result.status).toBe('widowed');
+    expect(result.spousalTopUp).toBeUndefined();
+    expect(result.survivorGap).toBeNull();
+    expect(result.survivorClaim).toBeNull();
+  });
+
+  it("recommends the engine-recorded own filing age, survivor claim age, and lifetime total", async () => {
+    // ENGINE-RECORDED, exactly like recommendedFilingAgeByPerson for married/
+    // single scenarios above: bestWidowedOutcome (src/lib/widowed.ts)
+    // exhaustively searches the survivor's own filing date jointly with the
+    // survivor-claim date, which has no published closed form to re-derive
+    // from — see recommendedOwnFilingAge/recommendedSurvivorClaimAge/
+    // lifetimeTotal in scenarios.ts and gen-fixtures.mjs's preserve-or-throw
+    // handling of them. Never re-record one of these to make the golden
+    // suite pass — a moved value is the regression these fields exist to
+    // catch.
+    expect(
+      scenario.expected.recommendedOwnFilingAge,
+      'widowed scenarios must record their own filing age',
+    ).not.toBeNull();
+    expect(
+      scenario.expected.recommendedSurvivorClaimAge,
+      'widowed scenarios must record their survivor claim age',
+    ).not.toBeNull();
+    expect(
+      scenario.expected.lifetimeTotal,
+      'widowed scenarios must record their lifetime total',
+    ).not.toBeNull();
+
+    const result = await run(scenario);
+    expect(result.optimal.filingAges[0]?.label).toBe(scenario.expected.recommendedOwnFilingAge);
+    expect(result.optimal.survivorClaimDate?.age).toBe(scenario.expected.recommendedSurvivorClaimAge);
+    expect(result.optimal.lifetimeTotal).toBe(scenario.expected.lifetimeTotal);
+
+    // recommendedFilingAgeByPerson (the field every other full-mode scenario
+    // in this file also carries) must agree with recommendedOwnFilingAge:
+    // both are read off the same person's the same recommended filing age,
+    // just in two different representations ({years, months} vs the display
+    // label), so a widowed scenario records both as a cross-check between them.
+    const expectedAges = scenario.expected.recommendedFilingAgeByPerson;
+    expect(expectedAges, 'widowed scenarios must also record recommendedFilingAgeByPerson').not.toBeNull();
+    expect({
+      years: result.people[0].recommendedFilingAge.years,
+      months: result.people[0].recommendedFilingAge.months,
+    }).toEqual(expectedAges![0]);
+  });
+
+  it('satisfies structural invariants', async () => {
+    const result = await run(scenario);
+
+    const [minOptimal, maxOptimal] = scenario.expected.optimalAgeRangeByPerson[0];
+    const optimalAge = nearestWholeClaimAge(result.people[0].recommendedFilingAge.decimalYears);
+    expect(optimalAge).toBeGreaterThanOrEqual(minOptimal);
+    expect(optimalAge).toBeLessThanOrEqual(maxOptimal);
+
+    if (scenario.expected.invariants.includes('monthlyMonotonicIncreasing')) {
+      const monthlies = result.people[0].claimingOptions.map((o) => o.monthlyBenefit);
+      for (let i = 1; i < monthlies.length; i++) {
+        expect(monthlies[i]).toBeGreaterThan(monthlies[i - 1]);
+      }
+    }
+
+    if (scenario.expected.invariants.includes('expectedPvPositive')) {
+      // For a widowed household expectedNpv IS lifetimeTotal (see
+      // HouseholdStrategy.lifetimeTotal's docstring) — still a real dollar
+      // figure that must be positive, not a coincidentally-reused zero.
+      expect(result.optimal.expectedNpv).toBeGreaterThan(0);
+    }
+  });
+
+  it('decomposes the household into well-formed personal/survivor bands', async () => {
+    const result = await run(scenario);
+    for (const band of result.periods) {
+      expect(band.endIndex).toBeGreaterThanOrEqual(band.startIndex);
+      expect(band.monthlyAmount).toBeGreaterThanOrEqual(0);
+      // A widowed household can never hold a spousal band — there is no
+      // living spouse to draw one on.
+      expect(['personal', 'survivor']).toContain(band.type);
     }
   });
 });

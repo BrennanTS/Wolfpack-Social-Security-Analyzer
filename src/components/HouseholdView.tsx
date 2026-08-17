@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { DollarsMode } from '../lib/dollarsMode';
-import type { HouseholdAnalysis } from '../lib/household';
+import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
 import { personLabel } from '../lib/format';
 import { HouseholdPanel } from './HouseholdPanel';
 import { PersonPanel } from './PersonPanel';
@@ -41,8 +41,13 @@ export function HouseholdView({
   dollarsMode = 'real',
   onDollarsModeChange = () => {},
 }: HouseholdViewProps) {
+  // Exhaustive rather than `=== 'married'`: a boolean test routed a widowed
+  // household into the one-claimant branch below with no compile error and no
+  // mention of the survivor benefit. See `householdDisplayShape`.
+  const shape = householdDisplayShape(analysis.status);
+
   const tabs: TabDef[] =
-    analysis.status === 'married'
+    shape === 'twoClaimants'
       ? [
           { id: 'household', label: 'Household' },
           ...analysis.people.map((p, i) => ({
@@ -55,7 +60,7 @@ export function HouseholdView({
   const [active, setActive] = useState(0);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  if (analysis.status !== 'married') {
+  if (shape === 'oneClaimant') {
     return <PersonPanel analysis={analysis.people[0]} index={0} annualCola={annualCola} />;
   }
 

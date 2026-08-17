@@ -49,6 +49,16 @@ const previousRecommendedFilingAgeByPerson = new Map();
 // forever, so this checks for the KEY's presence on `expected` instead of the
 // value's shape.
 const previousSurvivorClaim = new Map();
+// WIDOWED-ONLY engine-recorded values, preserved for exactly the same reason
+// as the maps above: bestWidowedOutcome (src/lib/widowed.ts) exhaustively
+// searches the survivor's two independent claiming dates (when to claim the
+// survivor benefit, when to file on their own record), which has no
+// published closed form to re-derive from. Three separate maps, like the
+// three separate fields, rather than one bundled object, matching this
+// file's existing one-map-per-field convention.
+const previousRecommendedOwnFilingAge = new Map();
+const previousRecommendedSurvivorClaimAge = new Map();
+const previousLifetimeTotal = new Map();
 if (existsSync(fixturesPath)) {
   const previous = JSON.parse(readFileSync(fixturesPath, 'utf8'));
   for (const s of previous.scenarios ?? []) {
@@ -63,6 +73,15 @@ if (existsSync(fixturesPath)) {
     }
     if (s.expected && Object.prototype.hasOwnProperty.call(s.expected, 'survivorClaim')) {
       previousSurvivorClaim.set(s.id, s.expected.survivorClaim);
+    }
+    if (typeof s.expected?.recommendedOwnFilingAge === 'string') {
+      previousRecommendedOwnFilingAge.set(s.id, s.expected.recommendedOwnFilingAge);
+    }
+    if (typeof s.expected?.recommendedSurvivorClaimAge === 'string') {
+      previousRecommendedSurvivorClaimAge.set(s.id, s.expected.recommendedSurvivorClaimAge);
+    }
+    if (typeof s.expected?.lifetimeTotal === 'number') {
+      previousLifetimeTotal.set(s.id, s.expected.lifetimeTotal);
     }
   }
 }
@@ -250,6 +269,43 @@ function build(spec) {
     }
   }
 
+  // WIDOWED-ONLY. bestWidowedOutcome (src/lib/widowed.ts) exhaustively
+  // searches the survivor's two independent claiming dates — when to claim
+  // the survivor benefit, when to file on their own record — which has no
+  // published closed form, so (like recommendedFilingAgeByPerson and
+  // survivorClaim above) these cannot be derived here and are preserved per
+  // scenario id instead. A widowed household is single-claimant by
+  // construction, so all three are always non-null once the search runs;
+  // there is no "structurally null" case to skip, unlike survivorClaim.
+  let recommendedOwnFilingAge = null;
+  let recommendedSurvivorClaimAge = null;
+  let lifetimeTotal = null;
+  if (spec.widowed) {
+    if (
+      previousRecommendedOwnFilingAge.has(spec.id) &&
+      previousRecommendedSurvivorClaimAge.has(spec.id) &&
+      previousLifetimeTotal.has(spec.id)
+    ) {
+      recommendedOwnFilingAge = previousRecommendedOwnFilingAge.get(spec.id);
+      recommendedSurvivorClaimAge = previousRecommendedSurvivorClaimAge.get(spec.id);
+      lifetimeTotal = previousLifetimeTotal.get(spec.id);
+    } else {
+      throw new Error(
+        `recommendedOwnFilingAge/recommendedSurvivorClaimAge/lifetimeTotal for '${spec.id}' are ` +
+          'missing from scenarios.json. These are ENGINE-RECORDED values, not hand-derived ones, ' +
+          'exactly like recommendedFilingAgeByPerson: bestWidowedOutcome (src/lib/widowed.ts) ' +
+          "exhaustively searches the survivor's own two independent claiming dates, which has no " +
+          'published closed form to re-derive from. Do NOT hand-pick parameters and assume the ' +
+          'search agrees — run analyzeHousehold() for this exact scenario (with its pinned asOf) ' +
+          "through the real pipeline, read result.optimal.filingAges[0].label, " +
+          'result.optimal.survivorClaimDate.age, and result.optimal.lifetimeTotal off the actual ' +
+          "output, record all three in this scenario's expected block in scenarios.json, and " +
+          're-run fixtures:gen. Never adjust an existing recorded value to make the golden suite ' +
+          'pass — a moved filing age, claim age, or total is the regression these fields exist to catch.',
+      );
+    }
+  }
+
   const invariants = ['monthlyMonotonicIncreasing'];
   if (spec.mode === 'full') invariants.push('expectedPvPositive');
   if (spec.extraInvariants) invariants.push(...spec.extraInvariants);
@@ -284,10 +340,13 @@ function build(spec) {
     mode: spec.mode,
     inputs: {
       asOf: spec.asOf ?? DEFAULT_AS_OF,
-      status: spec.hasSpouse ? 'married' : 'single',
+      status: spec.widowed ? 'widowed' : spec.hasSpouse ? 'married' : 'single',
       people,
       annualCola: 0,
       discountRate: 0.025,
+      // Only a widowed household carries these — analyzeHousehold's
+      // 'widowed' branch needs both to run bestWidowedOutcome's search.
+      ...(spec.widowed ? { deceased: spec.deceased, alreadyClaimed: spec.alreadyClaimed } : {}),
     },
     expected: {
       fraByPerson: [{ ...fraParts(spec.birthYear), label: fraLabel(spec.birthYear) }],
@@ -300,6 +359,9 @@ function build(spec) {
       optimalAgeRangeByPerson,
       recommendedFilingAgeByPerson,
       survivorClaim,
+      recommendedOwnFilingAge,
+      recommendedSurvivorClaimAge,
+      lifetimeTotal,
       invariants,
     },
     // spec.uiTestable overrides the default derivation from `mode` for
@@ -405,6 +467,35 @@ const specs = [
   { id: 'sample-hh13-married-1962-two-max-earners', mode: 'full', birthYear: 1962, birthMonth: 4, gender: 'male', hasSpouse: true, pia: 4000,
     spouseBirthYear: 1962, spouseBirthMonth: 10, spousePia: 3900,
     description: 'Sample HH13: two near-max earners, worker Apr 1962 M PIA $4,000; spouse Oct 1962 F PIA $3,900 - both delay; exercises the DRC ceiling at 70, no spousal top-up ($0)' },
+
+  // FULL mode widowed (Phase 3B-i Task 4) --------------------------------------
+  // Both households below share the same survivor (born Jun 1964, FRA 67,
+  // plan-to 90) and the same deceased profile (born Mar 1959, died Sep 2023
+  // without ever filing) and differ ONLY in the two PIAs, deliberately, so the
+  // pair reads as a single controlled experiment in which ratio produces which
+  // strategy. Neither household's recommendation was assumed: both were found
+  // by a temporary sweep (validation/sweep/_tmp-widowed.sweep.ts, deleted
+  // after use, per this task's own instructions) that ran ~54 widowed
+  // households - crossing survivor PIA (500/1200/2400), deceased PIA
+  // (1800/3000/4200), age gap (5/10/15y), and whether the deceased had filed -
+  // through the REAL analyzeHousehold pipeline and printed each one's actual
+  // optimal recommendation, before either scenario id below was written down.
+  // uiTestable: false on both: there is no UI for entering a widowed household
+  // in this phase (Phase 3B-i is engine-only), so the Playwright golden suite
+  // cannot drive either through a form - only the Vitest engine suite (which
+  // calls analyzeHousehold directly) exercises them.
+  { id: 'widowed-1964-own-first-then-survivor-fra', mode: 'full', uiTestable: false,
+    birthYear: 1964, birthMonth: 6, gender: 'female', hasSpouse: false, pia: 1200, life: 90, widowed: true,
+    deceased: { birthYear: 1959, birthMonth: 3, deathYear: 2023, deathMonth: 9,
+      record: { kind: 'pia', piaMonthly: 3000, filed: null } },
+    alreadyClaimed: { survivorSince: null, ownSince: null },
+    description: "Survivor Jun 1964 F, own PIA $1,200 (FRA 67y0m), plan-to 90; deceased spouse born Mar 1959, died Sep 2023 at 64 without ever filing, own PIA $3,000. OWN-FIRST wins: the survivor's own PIA is well below the deceased's, so her own benefit never overtakes even the age-60 reduced survivor benefit and there is nothing to gain by delaying it - see src/lib/widowed.test.ts's identically-shaped 'low-PIA widow' case for the same reasoning. The optimizer (engine-recorded, run through the real pipeline with asOf pinned to 2026-01-15, exactly as recommendedFilingAgeByPerson is elsewhere in this file) files her own record at 62y1m (Jun 1964 + 62y1m = Jul 2026, the earliest attainable month per earliestFiling) and claims the survivor benefit at her survivor-FRA of 67 (Jun 1964 + 67y = Jun 2031) - filing on her own record immediately to fill the gap for free, then switching up to the unreduced survivor amount once it is worth taking. Straight-sum lifetimeTotal over her plan-to-90 remaining lifetime (undiscounted, today's dollars, from max(asOf, death + 1) = Jan 2026): $880,855. SANCTIONED RE-RECORD (final pre-merge fix wave, finding 1) - the scoring window was corrected from 'the month after the death' to 'max(asOf, death + 1)', which is what the design doc ('The search') always specified; the implementation plan silently dropped the max(asOf, ...) and every per-task review followed the plan. Re-recording an engine-recorded value is normally forbidden (see this file's own preserve-or-throw text below), and this is the sanctioned exception: the correction of a spec deviation, NOT a value bent to make a suite pass. THIS scenario's three recorded values did not in fact move - own filing age 62y1m, survivor claim age 67, and lifetimeTotal $880,855 are identical before and after - because nothing was payable to her in the 27 elapsed months the old window wrongly included (her earliest date of either kind, Jul 2026, falls after asOf), so the extra months contributed $0. Its SISTER scenario widowed-1964-survivor-first-then-own-70 did move; see its description. Recorded here so the next reader knows this scenario was re-run under the corrected window and deliberately held its values, rather than having been missed. This is the SAME ratio Task 2 measured (a $1,200 widow against a $3,000 deceased): the plan originally claimed the OPPOSITE - that this ratio produces 'survivor first' - and that claim was wrong; see the plan's own correction (.superpowers/sdd/2026-08-17-widowed-status-model, Task 4's self-review) and married-1958-widow-claims-late's neighbouring notes on this project's recurring 'hand-picked parameters vs. the real pipeline' defect." },
+  { id: 'widowed-1964-survivor-first-then-own-70', mode: 'full', uiTestable: false,
+    birthYear: 1964, birthMonth: 6, gender: 'female', hasSpouse: false, pia: 2400, life: 90, widowed: true,
+    deceased: { birthYear: 1959, birthMonth: 3, deathYear: 2023, deathMonth: 9,
+      record: { kind: 'pia', piaMonthly: 1800, filed: null } },
+    alreadyClaimed: { survivorSince: null, ownSince: null },
+    description: "Same survivor birth date and same deceased profile as widowed-1964-own-first-then-survivor-fra above, with the PIAs INVERTED: survivor's own PIA $2,400, deceased's PIA $1,800 - the opposite ratio from that scenario, on purpose, so the pair demonstrates that the strategy is a function of the ratio, not of either PIA alone. SURVIVOR-FIRST wins: with her own record large enough that it eventually exceeds the survivor benefit once grown by delayed credits to 70 (this is the shape SSA's published 'claim survivor, switch to own at 70' example describes), the optimizer (engine-recorded, same pipeline and pinned asOf as above) claims the survivor benefit as early as it can still be claimed, 61y7m (Jun 1964 + 61y7m = Jan 2026, this scenario's own pinned asOf), and files on her own record at 70 (Jun 1964 + 70y = Jun 2034) to capture the maximum delayed-credit amount on the larger PIA. Straight-sum lifetimeTotal from max(asOf, death + 1) = Jan 2026: $858,919. SANCTIONED RE-RECORD (final pre-merge fix wave, finding 1). This scenario's recorded survivor claim age moved from '60' to '61 years, 7 months' and its lifetimeTotal from $871,656 to $858,919; recommendedOwnFilingAge ('70') and recommendedFilingAgeByPerson (70y0m) are unchanged. Re-recording an engine-recorded value is normally forbidden (see this file's own preserve-or-throw text below), and this is the sanctioned exception: it is the correction of a spec deviation, NOT a value bent to make a suite pass. The design doc ('The search') always specified the scoring window's max(asOf, death + 1) floor - that is the spec deviation this wave corrected; the implementation plan silently dropped it and every per-task review followed the plan faithfully. The survivor SEARCH RANGE's asOf floor is a different thing: the spec's 'The search' section specifies S in [max(deathMonth + 1, SSA age 60), survivorNormalRetirementDate()], with no asOf term at all, so flooring the survivor range at asOf is NOT a spec deviation being corrected here - it is a new decision, made in this review, because a planning tool must not recommend a claim month that has already gone by. Under the old, unfloored code the survivor range opened at age 60 = Jun 2024 - nineteen months BEFORE this scenario's pinned asOf of 2026-01-15 - so the fixture certified a recommendation to 'claim the survivor benefit at age 60', a month already in the past. The $12,737 the recorded lifetimeTotal actually moved by (871656 to 858919) is NOT the value of those elapsed months - it is the NET of two changes that both flow from this fix: scoring the identical 'claim at 60' candidate from asOf instead of from age 60 removes $24,453, the true value of the elapsed, unclaimed months (871656 down to 847203), and the corrected search then finds a better claim month (61y7m, not 60) worth $11,716 more than that floored 60-claim score (847203 up to 858919). $24,453 lost to the floor, $11,716 gained back by a smarter claim month, net $12,737. The claim age is no longer 60 for the arithmetic reason that 60 is no longer offerable, not because the ratio's story changed: this is still the SSA 'claim survivor, switch to own at 70' shape, with the survivor claim at the earliest month still available rather than the earliest month that ever existed. Both figures confirmed from the real pipeline's actual output, not reasoned from the SSA example alone, per this task's own governing instruction." },
 
   // factorsOnly mode (FRA-schedule + factor coverage, durable) -----------------
   { id: 'single-1943-fra66-pia2000', mode: 'factorsOnly', birthYear: 1943, birthMonth: 5, gender: 'male', hasSpouse: false, pia: 2000,

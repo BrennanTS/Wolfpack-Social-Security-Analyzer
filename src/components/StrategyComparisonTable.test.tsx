@@ -16,11 +16,14 @@ const age = (years: number) => ({ years, months: 0, label: String(years),
 
 const comparisons: HouseholdStrategy[] = [
   { key: 'earliest', label: 'Both claim earliest (62)', filingAges: [age(62), age(62)],
-    expectedNpv: 1_018_000, deltaVsOptimal: -225_000, isOptimal: false, survivorIncome: 24_000 },
+    expectedNpv: 1_018_000, lifetimeTotal: null, survivorClaimDate: null,
+    deltaVsOptimal: -225_000, isOptimal: false, survivorIncome: 24_000 },
   { key: 'optimal', label: 'Optimal', filingAges: [age(70), age(64)],
-    expectedNpv: 1_243_000, deltaVsOptimal: 0, isOptimal: true, survivorIncome: 35_712 },
+    expectedNpv: 1_243_000, lifetimeTotal: null, survivorClaimDate: null,
+    deltaVsOptimal: 0, isOptimal: true, survivorIncome: 35_712 },
   { key: 'latest', label: 'Both delay to 70', filingAges: [age(70), age(70)],
-    expectedNpv: 1_221_000, deltaVsOptimal: -22_000, isOptimal: false, survivorIncome: 35_712 },
+    expectedNpv: 1_221_000, lifetimeTotal: null, survivorClaimDate: null,
+    deltaVsOptimal: -22_000, isOptimal: false, survivorIncome: 35_712 },
 ];
 
 describe('StrategyComparisonTable', () => {

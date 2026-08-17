@@ -1,0 +1,366 @@
+/**
+ * The widow(er)'s two-date decision: when to claim the survivor benefit, and
+ * when to file on their own record.
+ *
+ * SSA pays the LARGER of the two each month, never the sum — and deemed
+ * filing does NOT apply to survivor benefits, so the two dates are genuinely
+ * independent. That is what makes "claim the survivor benefit at 60, let your
+ * own grow to 70, then switch" both legal and frequently optimal.
+ *
+ * For a MARRIED household this optimization is blocked: the vendored
+ * `strats: [MonthDuration, MonthDuration]` carries one date per person and
+ * threads through four read-only files. A widow(er) has no couple grid, so the
+ * space is ~85 x ~97 and is searched exhaustively here.
+ *
+ * **No benefit rule is computed in this module.** `survivorBenefit` and
+ * `benefitOnDate` produce every dollar; this supplies dates and a `max()`.
+ */
+import { benefitOnDate, survivorBenefit } from '$lib/benefit-calculator';
+import { MonthDuration } from '$lib/month-time';
+import { earliestFiling } from '$lib/strategy/calculations/strategy-calc';
+import { roundCents } from './benefitMath';
+import { monthDateAt, monthIndexOf, type BenefitBand } from './benefitPeriods';
+import { deceasedContext, type Deceased, type YearMonth } from './deceased';
+import type { Person } from './personAnalysis';
+import { createPiaRecipient, formatFilingAge, monthDateFrom } from './ssaTools';
+
+export interface AlreadyClaimed {
+  survivorSince: YearMonth | null;
+  ownSince: YearMonth | null;
+}
+
+export interface WidowedInput {
+  survivor: Person;
+  deceased: Deceased;
+  alreadyClaimed: AlreadyClaimed;
+  asOf: Date;
+}
+
+export interface WidowedOutcome {
+  /** Inclusive absolute month index the survivor benefit starts. */
+  survivorClaimIndex: number;
+  /** Inclusive absolute month index the own retirement benefit starts. */
+  ownFilingIndex: number;
+  /** The survivor's age at `survivorClaimIndex`, e.g. "60" or "63 years, 2 months". */
+  survivorClaimAge: string;
+  /** The survivor's age at `ownFilingIndex`. */
+  ownFilingAge: string;
+  /**
+   * Straight sum of dollars paid from `max(asOf, death + 1)` through the
+   * survivor's plan-to age. Undiscounted, today's dollars — the same
+   * convention as the income-cliff callout and 3A's gain figure.
+   *
+   * It starts at `asOf`, not at the death, because the figure exists to rank
+   * decisions still open to the household. Summing from the death month
+   * credited every candidate with benefits for months that had already
+   * elapsed, which both inflated the total and biased the ranking toward
+   * claim dates in the past.
+   *
+   * NOT mortality-weighted, and therefore not comparable with the married
+   * path's `expectedNpv`. See the spec's "Known limitation".
+   */
+  lifetimeTotal: number;
+  /**
+   * The survivor's inclusive final absolute month index — the same
+   * `context().finalIndex` every candidate in the search was evaluated
+   * against. A genuine fact about the search, not a display detail: callers
+   * that need "the survivor's last modeled month" (e.g. `finalIndexByPersonId`)
+   * must NOT derive it from `bands`, because `widowedBands` omits a band
+   * entirely whenever its amount rounds to zero or its start falls after this
+   * index — an empty `bands` array is a real, reachable case (a $0 own PIA
+   * and $0 recovered deceased PIA; a death after the survivor's plan-to age),
+   * and `Math.max` over an empty array is `-Infinity`, which round-trips
+   * through `JSON.stringify` as `null` rather than failing loudly.
+   */
+  finalIndex: number;
+}
+
+const ageDuration = (years: number): MonthDuration =>
+  MonthDuration.initFromYearsMonths({ years, months: 0 });
+
+const indexOfYearMonth = (ym: YearMonth): number => ym.year * 12 + (ym.month - 1);
+
+/**
+ * Everything derived from the input once. `bestWidowedOutcome` calls this a
+ * single time and threads the result through every candidate via
+ * `outcomeFromContext`, so the search loop itself re-derives nothing —
+ * `widowedOutcomeFor` and `widowedBands` each call it once for their own
+ * single evaluation.
+ *
+ * `firstPayableIndex` and `scoringStartIndex` are DIFFERENT quantities and are
+ * named separately on purpose. One value used to do both jobs, and being wrong
+ * for one of them was invisible because it was right for the other:
+ *
+ * - `firstPayableIndex` (`death + 1`) is the earliest month `survivorBenefit`
+ *   will accept at all — it throws on any filing date at or before the death.
+ *   It is the clamp floor for a mistyped ALREADY-CLAIMED date, and nothing else.
+ * - `scoringStartIndex` (`max(asOf, death + 1)`, per the design doc's "The
+ *   search") is where the lifetime sum begins. Months that have already elapsed
+ *   are not money anyone can still decide to collect; scoring them credited a
+ *   widow with unclaimed benefits from the past and could recommend a claim
+ *   month that had already gone by.
+ */
+function context(input: WidowedInput) {
+  const { survivor, deceased, asOf } = input;
+  const recipient = createPiaRecipient(
+    survivor.birthYear,
+    survivor.birthMonth,
+    survivor.piaMonthly,
+    survivor.gender,
+  );
+  const dec = deceasedContext(deceased);
+  const deathIndex = monthIndexOf(dec.deathDate);
+  const firstPayableIndex = deathIndex + 1;
+  const asOfIndex = monthIndexOf(monthDateFrom(asOf));
+  const scoringStartIndex = Math.max(asOfIndex, firstPayableIndex);
+  const finalIndex = monthIndexOf(
+    recipient.birthdate.dateAtSsaAge(ageDuration(survivor.lifeExpectancy)),
+  );
+  return {
+    recipient,
+    dec,
+    deathIndex,
+    firstPayableIndex,
+    asOfIndex,
+    scoringStartIndex,
+    finalIndex,
+    asOf,
+  };
+}
+
+/**
+ * Inclusive `[lo, hi]` for each date.
+ *
+ * The survivor range stops at SURVIVOR-FRA — a different table from the
+ * retirement FRA — because that is where the 71.5%-to-100% reduction reaches
+ * 100% and deferring further never raises the amount.
+ *
+ * The own range starts at `earliestFiling`, the engine's own answer, which
+ * encodes the full-month-at-62 rule and the born-on-the-1st-or-2nd exception.
+ * A hardcoded `{years: 62, months: 0}` here would repeat the defect that has
+ * kept the `earliest` comparison row from ever rendering.
+ *
+ * BOTH SEARCHED ranges are floored at `asOf`. A candidate is a month someone
+ * can still choose, and a month in the past is not one: without the floor the
+ * survivor axis opened at age 60 however long ago that was, and the search
+ * happily recommended "claim the survivor benefit at age 60" to a woman who
+ * turned 60 nineteen months before the analysis was run. The own axis has
+ * always had this floor, via `earliestFiling(recipient, asOf)`; the survivor
+ * axis had none.
+ *
+ * An ALREADY-CLAIMED date is exempt, and must be — it is a FACT about what the
+ * household is already receiving, not a candidate being proposed. A widow who
+ * has drawn the survivor benefit since 2024 has a survivor-claim date in 2024,
+ * and flooring it to `asOf` would silently restate her history. So
+ * `alreadyClaimed` collapses its axis to the month it actually began, which is
+ * why the already-claiming case needs no separate code path.
+ *
+ * That collapsed month is still clamped to `firstPayableIndex` (`death + 1`),
+ * and only to that: an adviser can enter a survivor-claim date at or before the
+ * death month (the death month itself is an easy typo), and `survivorBenefit`
+ * throws on any date that isn't strictly after the death date. A pre-death
+ * "claim" is a data error, not a real filing, so clamping it forward to the
+ * first payable month is the correct reading of it — not a silent cover-up of
+ * bad input, since the resulting single-month range is still exactly what
+ * `alreadyClaimed` is for.
+ */
+export function widowedSearchRanges(input: WidowedInput): {
+  survivor: [number, number];
+  own: [number, number];
+} {
+  const { recipient, firstPayableIndex, scoringStartIndex, asOf } = context(input);
+  const { survivorSince, ownSince } = input.alreadyClaimed;
+  // Clamped to `firstPayableIndex`, NOT to `scoringStartIndex`: an
+  // already-claimed date legitimately sits in the past.
+  const clampedSurvivorClaim = (ym: YearMonth): number =>
+    Math.max(firstPayableIndex, indexOfYearMonth(ym));
+
+  if (survivorSince && ownSince) {
+    const s = clampedSurvivorClaim(survivorSince);
+    const f = indexOfYearMonth(ownSince);
+    return { survivor: [s, s], own: [f, f] };
+  }
+
+  const age60 = monthIndexOf(recipient.birthdate.dateAtSsaAge(ageDuration(60)));
+  const survivorFra = monthIndexOf(recipient.survivorNormalRetirementDate());
+  const survivorFloor = Math.max(scoringStartIndex, age60);
+  const survivorRange: [number, number] = survivorSince
+    ? [clampedSurvivorClaim(survivorSince), clampedSurvivorClaim(survivorSince)]
+    : [survivorFloor, Math.max(survivorFloor, survivorFra)];
+
+  const ownFloor = monthIndexOf(
+    recipient.birthdate.dateAtSsaAge(earliestFiling(recipient, monthDateFrom(asOf))),
+  );
+  const ownCeiling = monthIndexOf(recipient.birthdate.dateAtSsaAge(ageDuration(70)));
+  const ownRange: [number, number] = ownSince
+    ? [indexOfYearMonth(ownSince), indexOfYearMonth(ownSince)]
+    : [ownFloor, Math.max(ownFloor, ownCeiling)];
+
+  return { survivor: survivorRange, own: ownRange };
+}
+
+/**
+ * The monthly amounts for one (S, F) pair, and their sum.
+ *
+ * Each amount is constant across the months it is paid — both are functions of
+ * their own claim date, not of the month — so each engine call is made once,
+ * outside the month loop.
+ *
+ * Takes an already-built `context()` rather than a `WidowedInput` so that
+ * `bestWidowedOutcome`'s ~8,000-candidate search builds the context once and
+ * reuses it, instead of re-running `deceasedContext` (and, for a
+ * `checkAmount` deceased, its 40-step PIA bisection) on every candidate.
+ * `widowedOutcomeFor` below is the public, single-context-build wrapper for
+ * everyone who isn't in that hot loop.
+ */
+function outcomeFromContext(
+  ctx: ReturnType<typeof context>,
+  survivorClaimIndex: number,
+  ownFilingIndex: number,
+): WidowedOutcome {
+  const { recipient, dec, scoringStartIndex, finalIndex } = ctx;
+
+  const ownAmount =
+    ownFilingIndex > finalIndex
+      ? 0
+      : benefitOnDate(
+          recipient,
+          monthDateAt(ownFilingIndex),
+          monthDateAt(ownFilingIndex).addDuration(MonthDuration.OneYear()),
+        ).value();
+
+  const survivorAmount =
+    survivorClaimIndex > finalIndex
+      ? 0
+      : survivorBenefit(
+          recipient,
+          dec.recipient,
+          dec.filingDate,
+          dec.deathDate,
+          monthDateAt(survivorClaimIndex),
+        ).value();
+
+  let total = 0;
+  // From `max(asOf, death + 1)` — NOT from `death + 1`. Elapsed months are not
+  // a decision anyone can still make; see `context`'s doc comment.
+  for (let m = scoringStartIndex; m <= finalIndex; m++) {
+    const own = m >= ownFilingIndex ? ownAmount : 0;
+    const surv = m >= survivorClaimIndex ? survivorAmount : 0;
+    total += Math.max(own, surv);
+  }
+
+  return {
+    survivorClaimIndex,
+    ownFilingIndex,
+    survivorClaimAge: formatFilingAge(
+      recipient.birthdate.ageAtSsaDate(monthDateAt(survivorClaimIndex)),
+    ).label,
+    ownFilingAge: formatFilingAge(recipient.birthdate.ageAtSsaDate(monthDateAt(ownFilingIndex)))
+      .label,
+    lifetimeTotal: roundCents(total),
+    finalIndex,
+  };
+}
+
+/** Single-candidate entry point: builds its own context, for callers outside a search loop. */
+export function widowedOutcomeFor(
+  input: WidowedInput,
+  survivorClaimIndex: number,
+  ownFilingIndex: number,
+): WidowedOutcome {
+  return outcomeFromContext(context(input), survivorClaimIndex, ownFilingIndex);
+}
+
+/**
+ * Exhaustive search over both ranges. Ties resolve to the earliest pair.
+ *
+ * Builds `context(input)` once, up front, and reuses it for every one of the
+ * ~8,000 (survivor, own) candidates rather than rebuilding it per candidate —
+ * see `outcomeFromContext`'s doc comment for why that matters.
+ */
+export function bestWidowedOutcome(input: WidowedInput): WidowedOutcome {
+  const { survivor, own } = widowedSearchRanges(input);
+  const ctx = context(input);
+  let best: WidowedOutcome | null = null;
+  for (let s = survivor[0]; s <= survivor[1]; s++) {
+    for (let f = own[0]; f <= own[1]; f++) {
+      const outcome = outcomeFromContext(ctx, s, f);
+      if (best === null || outcome.lifetimeTotal > best.lifetimeTotal) best = outcome;
+    }
+  }
+  // Both ranges are non-empty by construction, so this is unreachable; it is
+  // an assertion rather than a fallback.
+  if (best === null) throw new Error('widowed search produced no candidate');
+  return best;
+}
+
+/**
+ * The two bands a widowed household displays.
+ *
+ * Personal carries the survivor's own benefit from their filing month;
+ * Survivor carries `max(0, survivorAmount - ownAmount)` from the claim month,
+ * so the two STACK to exactly `max(own, survivor)` — the payment SSA actually
+ * makes. Before the own filing month the personal amount is zero and the
+ * survivor band carries the whole payment; once the own benefit is larger the
+ * survivor band falls to zero and correctly disappears.
+ *
+ * This is the same decomposition Phase 2b-i adopted for married households
+ * after the user's correction — the personal band continues underneath and the
+ * survivor segment sits on top — so the chart, legend, `benefitSeriesLabel`
+ * and the PDF all work on it unchanged.
+ */
+export function widowedBands(input: WidowedInput, outcome: WidowedOutcome): BenefitBand[] {
+  const { recipient, dec, finalIndex } = context(input);
+  const personId = input.survivor.id;
+  const bands: BenefitBand[] = [];
+
+  const ownAmount = benefitOnDate(
+    recipient,
+    monthDateAt(outcome.ownFilingIndex),
+    monthDateAt(outcome.ownFilingIndex).addDuration(MonthDuration.OneYear()),
+  ).value();
+  const survivorAmount = survivorBenefit(
+    recipient,
+    dec.recipient,
+    dec.filingDate,
+    dec.deathDate,
+    monthDateAt(outcome.survivorClaimIndex),
+  ).value();
+
+  if (outcome.ownFilingIndex <= finalIndex && ownAmount > 0) {
+    bands.push({
+      personId,
+      type: 'personal',
+      startIndex: outcome.ownFilingIndex,
+      endIndex: finalIndex,
+      monthlyAmount: roundCents(ownAmount),
+    });
+  }
+
+  if (outcome.survivorClaimIndex <= finalIndex && survivorAmount > 0) {
+    // Split at the own filing month: before it the top-up is the whole
+    // survivor amount, after it only the excess over the own benefit.
+    const splitAt = Math.max(outcome.survivorClaimIndex, outcome.ownFilingIndex);
+    if (outcome.survivorClaimIndex < splitAt) {
+      bands.push({
+        personId,
+        type: 'survivor',
+        startIndex: outcome.survivorClaimIndex,
+        endIndex: Math.min(splitAt - 1, finalIndex),
+        monthlyAmount: roundCents(survivorAmount),
+      });
+    }
+    const topUp = survivorAmount - ownAmount;
+    if (topUp > 0 && splitAt <= finalIndex) {
+      bands.push({
+        personId,
+        type: 'survivor',
+        startIndex: splitAt,
+        endIndex: finalIndex,
+        monthlyAmount: roundCents(topUp),
+      });
+    }
+  }
+
+  return bands;
+}

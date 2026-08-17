@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { pdf } from '@react-pdf/renderer';
 import { analyzeHousehold, type Household } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
-import { ReportDocument } from './ReportDocument';
+import { MethodologyAppendix, ReportDocument } from './ReportDocument';
 
 /**
  * Durable smoke coverage for the whole PDF pipeline (Task 20's five-module
@@ -106,5 +106,31 @@ describe('ReportDocument renders', () => {
     const singleBlob = await pdf(<ReportDocument analysis={singleAnalysis} />).toBlob();
     const singlePageCount = pdfPageCount(await readBlobAsText(singleBlob));
     expect(pageCount).toBeGreaterThan(singlePageCount);
+  });
+
+  it('refuses a widowed household rather than printing the single-claimant report', async () => {
+    // `analysis.status === 'married'` is a BOOLEAN test in both this module's
+    // call sites (the document's `isMarried`, and `MethodologyAppendix`'s
+    // `hasSpouse`), so a widowed analysis used to print a report that never
+    // mentions the survivor benefit — the larger half of most widows' income
+    // — and carried the single-claimant disclosure note saying so was
+    // correct. There is no widowed report until Phase 3B-ii; failing loudly
+    // is the only honest behaviour until there is.
+    const household: Household = {
+      status: 'widowed',
+      people: [sarah],
+      deceased: {
+        birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+        record: { kind: 'pia', piaMonthly: 3000, filed: null },
+      },
+      alreadyClaimed: { survivorSince: null, ownSince: null },
+    };
+    const analysis = await analyzeHousehold(household, assumptions, asOf);
+
+    // Both entry points, called as plain functions: `MethodologyAppendix` is
+    // exported and rendered on its own by HouseholdSection.test.tsx, so a
+    // guard only on `ReportDocument` would leave it reachable.
+    expect(() => ReportDocument({ analysis })).toThrow(/widowed/i);
+    expect(() => MethodologyAppendix({ analysis })).toThrow(/widowed/i);
   });
 });
