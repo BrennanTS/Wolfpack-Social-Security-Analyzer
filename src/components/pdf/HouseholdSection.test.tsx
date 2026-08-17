@@ -474,6 +474,111 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
 });
 
 /**
+ * The printed survivor-claim-date alternative — the same `survivorClaimNote`
+ * function the on-screen `SurvivorClaimNote` calls, printed by
+ * `HouseholdSection` directly (there is no PDF equivalent component, same as
+ * the income-cliff callout above it).
+ */
+describe('HouseholdSection — the printed survivor-claim note', () => {
+  const claim = {
+    claimIndex: 2036 * 12 + 4,
+    claimAge: '68 years, 0 months',
+    survivorLabel: 'Blake',
+    baselineTotal: 300_000,
+    bestTotal: 435_700,
+    gain: 135_700,
+    baselineHasSurvivorBand: true,
+  };
+
+  it('prints the note exactly once', () => {
+    const analysis = { ...analysisWithCliff(null), survivorClaim: claim };
+    const text = collectText(
+      HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
+    ).join(' ');
+    // Counted, not `toContain` — a prior defect on this project printed an
+    // identical note twice on one page and `toContain` could not see it.
+    const occurrences = text.match(/\$135,700/g) ?? [];
+    expect(occurrences).toHaveLength(1);
+    expect(text).toContain('68 years, 0 months');
+    expect(text).toMatch(/optimizer/i);
+  });
+
+  // Order, not just presence. The note is written to be read AFTER the cliff
+  // section — it names no death year of its own because the cliff sentence
+  // directly above has just given one, and in nominal mode on screen its
+  // dollars-basis clause is phrased as a contrast with those same figures. A
+  // note printed above them would be a forward reference to a sentence the
+  // reader has not reached. The on-screen surface pins this with a real
+  // `compareDocumentPosition` check (`HouseholdPanel.test.tsx`); print had
+  // presence coverage only, and `collectText` already returns the strings in
+  // document order, so an index comparison is all it needs.
+  it('prints the note after the income-cliff section, not before it', () => {
+    const analysis = { ...analysisWithCliff(null), survivorClaim: claim };
+    const parts = collectText(
+      HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
+    );
+    const heading = parts.findIndex((t) => t.includes('Income at the First Death'));
+    const cliffSentence = parts.findIndex((t) => t.includes('At the first death, projected for'));
+    const note = parts.findIndex((t) => t.includes('$135,700'));
+    // Guards: all three really are on the page, so the ordering below is not
+    // comparing against a -1 from something that never rendered.
+    expect(heading).toBeGreaterThanOrEqual(0);
+    expect(cliffSentence).toBeGreaterThanOrEqual(0);
+    expect(note).toBeGreaterThanOrEqual(0);
+    expect(note).toBeGreaterThan(heading);
+    // The stronger of the two: after the cliff SENTENCE, not merely after the
+    // heading that opens the section.
+    expect(note).toBeGreaterThan(cliffSentence);
+  });
+
+  it('prints nothing when there is no alternative to show', () => {
+    const analysis = { ...analysisWithCliff(null), survivorClaim: null };
+    const text = collectText(
+      HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
+    ).join(' ');
+    expect(text).not.toMatch(/separate survivor claim date/i);
+    expect(text).not.toContain('68 years, 0 months');
+  });
+
+  // Regression: print always renders real dollars, and `incomeCliffSentence`
+  // right above already states "today's dollars, before any cost-of-living
+  // adjustment" once (the combined-income caption also legitimately ends in
+  // this same clause, for an unrelated sentence about an unrelated chart —
+  // that pre-existing occurrence is not the defect this guards against, so
+  // this compares WITH and WITHOUT the claim note rather than asserting an
+  // absolute count). A version of `survivorClaimNote` that stated its own
+  // basis unconditionally added a second, genuinely duplicate copy of the
+  // cliff sentence's own clause when the claim note rendered. Counted, not
+  // `toContain` — the same reason the "exactly once" test above counts
+  // rather than contains.
+  it('does not repeat the dollars-basis clause the cliff sentence already stated', () => {
+    const countBasisClauses = (survivorClaim: typeof claim | null) => {
+      const analysis = { ...analysisWithCliff(null), survivorClaim };
+      const text = collectText(
+        HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
+      ).join(' ');
+      return {
+        text,
+        count: (text.match(/today.s dollars, before any cost-of-living adjustment/g) ?? [])
+          .length,
+      };
+    };
+
+    const without = countBasisClauses(null);
+    const withNote = countBasisClauses(claim);
+
+    // Guard: both sections really are on the page (the cliff sentence and
+    // the claim note), so the comparison below isn't passing vacuously
+    // because the note didn't render.
+    expect(withNote.text).toContain('Income at the First Death');
+    expect(withNote.text).toContain('$135,700');
+    // The count with the note present must equal the count without it — the
+    // note added no new occurrence of the clause in real mode.
+    expect(withNote.count).toBe(without.count);
+  });
+});
+
+/**
  * `CombinedIncomeBars`' own decomposition — one legend entry per benefit
  * type, sourced from `benefitSeriesLabel`, the exact same function
  * `CombinedIncomeChart` calls on screen. Retyping the label here (rather than

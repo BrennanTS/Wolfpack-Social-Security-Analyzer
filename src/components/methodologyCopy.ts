@@ -15,6 +15,7 @@ import {
   type HouseholdStrategy,
 } from '../lib/household';
 import type { IncomeCliff } from '../lib/incomeCliff';
+import type { SurvivorClaimAlternative } from '../lib/survivorClaim';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 
 type SpousalTopUp = NonNullable<HouseholdAnalysis['spousalTopUp']>;
@@ -110,6 +111,135 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
     `${lead} while receiving ${formatCurrencyPrecise(gap.survivorOwnMonthly)}/mo of their ` +
     `own. The figures shown for ${gap.survivorLabel} after that death are lower than SSA ` +
     `would pay.`
+  );
+}
+
+/**
+ * The disclosure for the survivor claim-date alternative `survivorClaim.ts`
+ * finds: the best month the survivor could claim their OWN widow(er) benefit,
+ * holding the recommendation's filing ages fixed, when that beats what the
+ * engine's single claim-date rule already shows.
+ *
+ * Null when `alt` is null, so both surfaces get their render decision from
+ * this one function rather than each testing the condition separately — a
+ * prior task on this branch's predecessor rendered the same warning twice by
+ * reusing a shared *sentence* in a second component without also sharing the
+ * *gate*; returning null here centralizes both.
+ *
+ * `alt.baselineHasSurvivorBand` decides which of two true sentences to say,
+ * not whether to say one — see its docstring in `survivorClaim.ts` for the
+ * three engine states it collapses. When it is `false` there is no survivor
+ * band anywhere on screen for this figure to be earlier or later than, so the
+ * sentence below says only that the figure is not otherwise shown, never that
+ * it is "earlier" than a date the household would have no way to see. Both
+ * branches say "survivor benefit", not "widow(er) benefit" in one and
+ * "survivor" in the other: `benefitSeriesLabel` puts "survivor" in the chart
+ * legend the sentence points at, and a second noun for the same band in the
+ * two halves of one ternary reads as two different benefits.
+ *
+ * Deliberately does not restate the death year (`incomeCliffSentence`,
+ * rendered directly above this note on both surfaces, already gives it) or
+ * anything from `survivorGapNote` (which cannot be showing at the same time —
+ * a set `survivorGap` forces `survivorClaimAlternative` to return null, since
+ * a claim-month search over a direction the app has already disclosed as
+ * unmodeled would be answering a different question twice). And it is
+ * explicit that this is not advice: the figure comes from a search the
+ * optimizer itself cannot run, because the optimizer holds one filing date
+ * per person and this varies a second, independent date for the same person.
+ *
+ * "`incomeCliffSentence` is rendered directly above" is not an assumption —
+ * within this app's own reachable input space it is a theorem. A non-null
+ * `alt` requires `firstDeath` to resolve (`survivorClaimAlternative`'s own
+ * `death === null` guard); `incomeCliff`'s only requirement beyond that is a
+ * full calendar year of `combinedTimeline` on each side of the death year.
+ * Two input bounds this app enforces close the gap: `LIFE_EXPECTANCY_BOUNDS.min
+ * = 75` (`formBounds.ts`, enforced on the slider and DROPPED rather than
+ * clamped by a shared link that falls outside it — `shareLink.ts`), and the
+ * optimizer's own filing ceiling of 70. Together they guarantee everyone
+ * files at least five years before their own plan-to month and holds band
+ * coverage from then on, so the missing-`beforePoint` case cannot occur. In
+ * the missing-`afterPoint` case the survivor is at least 74 at the death,
+ * which collapses `survivorClaimAlternative`'s own search range to the single
+ * candidate `death + 1` — the engine's own start date, reproducing exactly
+ * what the app already displays — so `gain <= 0` and the function returns
+ * null before reaching `incomeCliff` at all. Non-null `survivorClaim`
+ * therefore implies non-null `incomeCliff`. (This does not hold for a
+ * household assembled by hand below the app's own floor, which is why a unit
+ * test may use a shorter life expectancy without being a counterexample to
+ * anything the running app can actually produce.)
+ *
+ * `gain`/`baselineTotal`/`bestTotal` are real-dollars, no-COLA sums straight
+ * off the engine's bands (see `survivorClaim.ts`) — the same figures
+ * `analysis.periods` itself carries — and neither caller ever transforms
+ * them: `HouseholdPanel` deliberately passes the untransformed `analysis`,
+ * not the dollars-mode-adjusted `displayAnalysis`, and the PDF has only one
+ * mode anyway. `mode` here therefore never changes the number; it decides
+ * only whether to SAY the basis, and only when saying it prevents a real
+ * misreading. In `'real'` mode — the default, and the PDF's only mode — the
+ * sentence directly above (`incomeCliffSentence`) has already stated "these
+ * figures are in today's dollars, before any cost-of-living adjustment," and
+ * this figure agrees with it, so repeating the identical clause one
+ * paragraph later would be the exact duplication-without-drift failure this
+ * project has hit twice before: single-sourcing a sentence stops it from
+ * DRIFTING between two call sites, but does nothing to stop it printing
+ * TWICE when both call sites render on the same page — different failure,
+ * same root cause. In `'nominal'` mode the mistake is real: the figure above
+ * says future dollars, this figure has not moved, and a reader who has just
+ * read "future dollars" one line up has every reason to assume this number
+ * is priced the same way. That is the one case this clause exists for, and
+ * the only one it fires in.
+ *
+ * That nominal clause names the two surfaces the toggle actually moves above
+ * this note — the combined-income chart and the first-death figures — rather
+ * than "the figures above", which is false of the page it renders on. The
+ * toggle rewrites `combinedTimeline` and the `survivorIncome` column only
+ * (`HouseholdPanel`'s `nominalComparisons`); the recommendation card's
+ * `expectedNpv` at the top of the page and the table's Combined PV and
+ * "vs. best" columns stay in present-value dollars in both modes, and
+ * `survivorIncomeCaption`'s own nominal branch — two paragraphs up the same
+ * screen — says so in as many words. A universal "unlike the figures above"
+ * therefore contradicted a sentence the reader can see without scrolling.
+ * The adjacent "not a present value" already carries the Combined PV
+ * distinction, so only the quantifier needed narrowing.
+ *
+ * Also disclaims present value unconditionally, in both modes: unlike the
+ * dollars basis, this isn't stated anywhere else on the page. `gain` is an
+ * undiscounted sum of dollars paid, unlike the recommendation box's own
+ * `expectedNpv` a few paragraphs above, which is a present value — so the
+ * sentence says so explicitly rather than let "over its lifetime" imply the
+ * two figures are the same kind of number.
+ */
+export function survivorClaimNote(
+  alt: SurvivorClaimAlternative | null,
+  mode: DollarsMode = 'real',
+): string | null {
+  if (!alt) return null;
+
+  const { survivorLabel, claimAge, gain, baselineHasSurvivorBand } = alt;
+
+  const claimClause = baselineHasSurvivorBand
+    ? `claim the survivor benefit at age ${claimAge} instead of the date the chart above shows ` +
+      `it starting`
+    : `claim a survivor benefit at age ${claimAge}, one the chart above does not otherwise show`;
+
+  // Only in nominal mode: in real mode `incomeCliffSentence` directly above
+  // has already said this, and this figure agrees with it — repeating it
+  // would print the identical clause twice on one page. The two surfaces
+  // named here are the two the toggle actually moves above this note; it is
+  // deliberately not "the figures above", which would be false of the
+  // present-value figures on the same screen.
+  const basisClause =
+    mode === 'nominal'
+      ? ` Unlike the chart above and the income figures at the first death, these ` +
+        `${dollarsBasisClause('real')}.`
+      : '';
+
+  return (
+    `If ${survivorLabel} were to ${claimClause}, the household would gain an estimated ` +
+    `${formatCurrency(gain)} — a straight sum of dollars paid over its lifetime, not a present ` +
+    `value.${basisClause} This is not a recommendation: the recommendation above comes from an ` +
+    `optimizer that carries a single filing date per person and cannot model a separate ` +
+    `survivor claim date.`
   );
 }
 

@@ -954,12 +954,118 @@ function canonicalize(analysis: HouseholdAnalysis) {
     finalIndexes: byName(analysis.finalIndexByPersonId),
     incomeCliff: incomeCliff(analysis),
     survivorGap: analysis.survivorGap,
+    // `survivorLabel` inside is already a name, not a slot — nothing else to
+    // re-key. Included so the existing swap tests below cover Task 2's wiring
+    // for free: a `survivorClaimAlternative` call fed display-order arrays
+    // would compute the wrong household's numbers, and this catches it the
+    // same way it caught the periods/cliff/row-order defects it was written
+    // for.
+    survivorClaim: analysis.survivorClaim,
     spousalTopUp: analysis.spousalTopUp,
     // Split and sorted: the sentence names the people in display order by
     // design, so only its per-person clauses are comparable across orders.
     recommendation: [...analysis.recommendation.split(' · ')].sort(),
   };
 }
+
+/**
+ * `analyzeHousehold`'s wiring of Task 1's `survivorClaimAlternative` — that
+ * it is called at all, with the household's real recommended filing ages,
+ * and that it is null where there is nothing to show.
+ *
+ * The household below is a real, deterministic one (not a hand-built
+ * `SurvivorClaimAlternative`) chosen because ssa.tools' own optimizer happens
+ * to file Ann early enough, and Bob late enough, that Bob's own recommended
+ * filing date lands after Ann's death. Its exact figures are pinned so a
+ * future engine or `household.ts` change that quietly moves them fails a test
+ * here, not just in `survivorClaim.test.ts`'s hand-derived unit fixtures —
+ * and outside the golden suite this is the only optimizer-driven check of the
+ * `baselineHasSurvivorBand: false` population at all.
+ *
+ * The pinned figures are OPTIMIZER-DRIVEN and are not the forced-age ones.
+ * `survivorClaim.test.ts`'s own `baselineHasSurvivorBand: false` case runs the
+ * same two people at a hand-picked [70, 70] and gets $102,960; that figure
+ * does not transfer here, because the optimizer files Bob at 68y8m, not 70.
+ * Derivation, all of it a consequence of the recorded filing ages (Ann 65y9m,
+ * Bob 68y8m) and the two plan-to ages:
+ *
+ *  - Ann dies May 2027 at 62, before her own 65y9m filing date, so no band of
+ *    hers is ever emitted and her survivor base is her full $1,200 PIA.
+ *  - Bob files at 68y8m = Jan 2044 and holds a $2,720/mo personal band from
+ *    there to his plan-to month, May 2065: 257 months x $2,720 = $699,040.
+ *    That band is the WHOLE displayed baseline — no survivor band exists, so
+ *    `baselineHasSurvivorBand` is false and this is the population the flag
+ *    is for.
+ *  - The search's best month is his SSA age 60, May 2035 (claimAge '60'),
+ *    paying 0.715 x $1,200 = $858/mo. It is worth having only until his own
+ *    $2,720 starts: May 2035 through Dec 2043 = 104 months x $858 = $89,232,
+ *    which is the gain, and $699,040 + $89,232 = $788,272 the best total.
+ *
+ * A moved optimizer recommendation moves all three, which is the point: the
+ * previous version of this test asserted only `gain > 0` and
+ * `bestTotal === baselineTotal + gain` — and the latter is how
+ * `survivorClaim.ts:241-243` computes `gain` in the first place, so it could
+ * not fail for any household at all.
+ *
+ * Ann's `lifeExpectancy: 62` is below this app's own input floor
+ * (`LIFE_EXPECTANCY_BOUNDS.min = 75`, `formBounds.ts`) — deliberately, to get
+ * a real death from the live optimizer without hand-building bands, exactly
+ * as `survivorClaim.test.ts`'s own fixtures do. That makes this a valid
+ * WIRING test but not a representative one: it is not "the population this
+ * module exists for" the way a household built from the app's own bounds
+ * would be, and `methodologyCopy.ts`'s `survivorClaimNote` docstring's
+ * reachability proof (that a non-null `survivorClaim` implies a non-null
+ * `incomeCliff`) explicitly does not cover it.
+ */
+describe('analyzeHousehold — survivor claim alternative', () => {
+  const ann: Person = {
+    id: 'a', name: 'Ann', birthYear: 1965, birthMonth: 5,
+    gender: 'female', piaMonthly: 1200, lifeExpectancy: 62,
+  };
+  const bob: Person = {
+    id: 'b', name: 'Bob', birthYear: 1975, birthMonth: 5,
+    gender: 'male', piaMonthly: 2400, lifeExpectancy: 90,
+  };
+
+  it('carries a survivor claim alternative onto the analysis', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [ann, bob] },
+      assumptions,
+      asOf,
+    );
+    expect(result.survivorClaim).not.toBeNull();
+    expect(result.survivorClaim!.survivorLabel).toBe('Bob');
+    expect(result.survivorClaim!.baselineHasSurvivorBand).toBe(false);
+    expect(result.survivorClaim!.claimAge).toBe('60'); // May 2035
+    expect(result.survivorClaim!.baselineTotal).toBe(699_040); // 257 x $2,720
+    expect(result.survivorClaim!.bestTotal).toBe(788_272);
+    expect(result.survivorClaim!.gain).toBe(89_232); // 104 x $858
+  });
+
+  it('sets survivorClaim to null for a single claimant', async () => {
+    const result = await analyzeHousehold({ status: 'single', people: [bob] }, assumptions, asOf);
+    expect(result.survivorClaim).toBeNull();
+  });
+
+  it('computes the same survivor claim alternative whichever spouse is entered first', async () => {
+    // The exact defect this wiring must not reintroduce: `survivorClaim.ts`
+    // fed display-order arrays instead of the canonicalized engine-order ones
+    // would compute a different household's numbers depending on typing
+    // order, even though `survivorLabel` itself is name-keyed and would look
+    // plausible either way.
+    const forward = await analyzeHousehold(
+      { status: 'married', people: [ann, bob] },
+      assumptions,
+      asOf,
+    );
+    const swapped = await analyzeHousehold(
+      { status: 'married', people: [{ ...bob, id: 'a' }, { ...ann, id: 'b' }] },
+      assumptions,
+      asOf,
+    );
+    expect(swapped.survivorClaim).toEqual(forward.survivorClaim);
+  });
+});
 
 describe('analyzeHousehold — entry order', () => {
   /**

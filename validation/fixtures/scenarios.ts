@@ -87,6 +87,24 @@ export interface ScenarioExpected {
    * re-record it to make the suite green: find out what moved the optimizer.
    */
   recommendedFilingAgeByPerson: { years: number; months: number }[] | null;
+  /**
+   * The survivor's age at the best survivor-claim month, and the lifetime
+   * gain over what the app displays — null where no alternative applies
+   * (single claimant, a tie in plan-to months, the engine's unmodelled
+   * survivor direction already disclosed via `survivorGap`, or the survivor
+   * already claims early enough that no month improves on the baseline).
+   *
+   * **Engine-recorded, not hand-derived — the same class as
+   * `recommendedFilingAgeByPerson`, not the class `spousalTopUpAtFilingAge`
+   * belongs to.** `survivorClaimAlternative` (`src/lib/survivorClaim.ts`)
+   * searches over the optimizer's own chosen filing ages, which have no
+   * published closed form, so this cannot be independently derived and is
+   * preserved per scenario id by gen-fixtures.mjs exactly as
+   * `recommendedFilingAgeByPerson` is. Never re-record one of these to make
+   * the golden suite pass: a moved claim age or gain is the regression the
+   * field exists to catch.
+   */
+  survivorClaim: { claimAge: string; gain: number } | null;
   invariants: string[];
 }
 

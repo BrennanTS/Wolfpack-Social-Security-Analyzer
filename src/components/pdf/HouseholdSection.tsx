@@ -21,6 +21,7 @@ import {
   INCOME_CLIFF_HEADING,
   nominalFirstDeathNote,
   spousalSummary,
+  survivorClaimNote,
   survivorGapNote,
   survivorIncomeCaption,
   SURVIVOR_INCOME_COLUMN_HEADER,
@@ -229,6 +230,13 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
   const spousal = analysis.spousalTopUp;
   const gapNote = survivorGapNote(analysis.survivorGap);
   const cliff = incomeCliff(analysis);
+  // `'real'` explicit, not the function's default: print always renders real
+  // dollars and has no toggle. Passing it explicitly (rather than relying on
+  // the default) also means the basis clause never fires here — print's
+  // cliff sentence a few lines above already states the same real-dollars
+  // basis once, via `incomeCliffSentence`, and this would otherwise repeat
+  // it verbatim on the same page.
+  const claimNote = survivorClaimNote(analysis.survivorClaim, 'real');
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -337,6 +345,13 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
           </Text>
         </>
       )}
+
+      {/* Same function as the on-screen note (`SurvivorClaimNote`), in the
+          same position relative to the cliff section: directly below it, not
+          nested inside `cliff && (...)` above — self-gated on
+          `analysis.survivorClaim` alone, exactly like the screen surface, so
+          the two cannot disagree about when to render it. */}
+      {claimNote && <Text style={styles.sectionDesc}>{claimNote}</Text>}
 
       {appendix}
 

@@ -11,6 +11,7 @@ import {
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalMethodologyCopy,
   spousalSummary,
+  survivorClaimNote,
   survivorGapNote,
   survivorIncomeCaption,
 } from './methodologyCopy';
@@ -1176,5 +1177,218 @@ describe('the survivor-gap note over real households', () => {
     expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual([
       `$${gap.deceasedMonthly.toLocaleString('en-US')}.00`,
     ]);
+  });
+});
+
+describe('survivorClaimNote', () => {
+  it('states the claim month and the gain, and says the optimizer cannot consider it', () => {
+    const note = survivorClaimNote({
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '68 years, 0 months',
+      survivorLabel: 'Sarah',
+      baselineTotal: 300_000,
+      bestTotal: 435_700,
+      gain: 135_700,
+      baselineHasSurvivorBand: true,
+    })!;
+    expect(note).toMatch(/Sarah/);
+    expect(note).toMatch(/68 years, 0 months/);
+    expect(note).toMatch(/\$135,700/);
+    expect(note).toMatch(/optimizer/i);
+  });
+
+  it('renders nothing when there is no alternative to show', () => {
+    expect(survivorClaimNote(null)).toBeNull();
+  });
+
+  it('says it is not a recommendation, when the baseline already shows a survivor band', () => {
+    const note = survivorClaimNote({
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '67 years, 10 months',
+      survivorLabel: 'Sarah',
+      baselineTotal: 732_640,
+      bestTotal: 811_680,
+      gain: 79_040,
+      baselineHasSurvivorBand: true,
+    })!;
+    expect(note).toContain('This is not a recommendation');
+    // Discriminating: the `true` branch names the date the chart already
+    // shows, and must not also read like the `false` branch, which claims no
+    // such date is shown at all — a ternary bug that swapped the two would
+    // pass a merely-`toContain` check on either alone.
+    expect(note).toContain('instead of the date');
+    expect(note).not.toContain('does not otherwise show');
+    // Points at the chart, not an invented "plan" noun — the thing that
+    // actually shows a survivor-benefit start date on this page.
+    expect(note).toContain('the chart above');
+  });
+
+  it('does not claim the alternative is earlier than a chart the baseline never showed it on', () => {
+    // `baselineHasSurvivorBand: false` means there is NO survivor benefit
+    // anywhere on screen for this figure to be an alternative to — a phrase
+    // like "earlier than the chart shows" would be false here, since the
+    // chart shows nothing. Discriminating in the same way as the
+    // `true`-branch test above: deleting the ternary and always emitting the
+    // `true` clause must fail THIS assertion, where a merely-`toMatch`
+    // regex calibrated to the wrong phrasing would not.
+    const note = survivorClaimNote({
+      claimIndex: 2035 * 12 + 4,
+      claimAge: '60',
+      survivorLabel: 'Bob',
+      baselineTotal: 0,
+      bestTotal: 102_960,
+      gain: 102_960,
+      baselineHasSurvivorBand: false,
+    })!;
+    expect(note).toMatch(/Bob/);
+    expect(note).toMatch(/\$102,960/);
+    expect(note).toContain('does not otherwise show');
+    expect(note).not.toContain('instead of the date');
+    expect(note).toContain('the chart above');
+  });
+
+  it('disclaims present value unconditionally, in both dollars modes', () => {
+    const build = (mode: 'real' | 'nominal') =>
+      survivorClaimNote(
+        {
+          claimIndex: 2036 * 12 + 4,
+          claimAge: '68 years, 0 months',
+          survivorLabel: 'Sarah',
+          baselineTotal: 300_000,
+          bestTotal: 435_700,
+          gain: 135_700,
+          baselineHasSurvivorBand: true,
+        },
+        mode,
+      )!;
+    expect(build('real')).toMatch(/not a present value/i);
+    expect(build('nominal')).toMatch(/not a present value/i);
+  });
+
+  it('states its dollars basis only in nominal mode, where the figure and the page can disagree', () => {
+    // `gain`/`baselineTotal`/`bestTotal` are real-dollars sums straight off
+    // the engine's bands and are NEVER run through the nominal transform —
+    // `mode` here only decides whether to SAY so, never whether to convert.
+    const alt = {
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '68 years, 0 months',
+      survivorLabel: 'Sarah',
+      baselineTotal: 300_000,
+      bestTotal: 435_700,
+      gain: 135_700,
+      baselineHasSurvivorBand: true,
+    };
+
+    // Real mode (the default, and print's only mode): `incomeCliffSentence`
+    // directly above already states this exact clause, so repeating it here
+    // would print the identical sentence twice on one page. The clause must
+    // be ABSENT — this is the assertion that matters, not the presence check
+    // below.
+    const real = survivorClaimNote(alt, 'real')!;
+    expect(real).not.toMatch(/nominal/i);
+    expect(real).not.toContain('today’s dollars, before any cost-of-living adjustment');
+
+    // Nominal mode: the figure above says future dollars, this figure has
+    // not moved, and that mismatch is exactly what the clause exists to
+    // prevent a reader from missing. The GAIN ITSELF must be unchanged
+    // between the two calls — only the disclosure differs.
+    const nominal = survivorClaimNote(alt, 'nominal')!;
+    expect(nominal).toContain('today’s dollars, before any cost-of-living adjustment');
+    expect(nominal).toContain('$135,700');
+    expect(real.replace(/\s*Unlike the chart above and.*?adjustment\.\s*/, ' ')).toBe(
+      nominal.replace(/\s*Unlike the chart above and.*?adjustment\.\s*/, ' '),
+    );
+
+    // The default with no `mode` argument at all matches the explicit
+    // `'real'` call — every pre-existing call site keeps its exact prior
+    // wording.
+    expect(survivorClaimNote(alt)).toBe(real);
+  });
+
+  it('scopes the nominal basis clause to the figures the toggle actually moves', () => {
+    // It used to read "Unlike the figures above", which is false of the page
+    // it renders on: the dollars toggle rewrites the chart, the cliff figures
+    // and the survivor-income column only. The recommendation card's
+    // `expectedNpv` — the first dollar figure on the page — and the strategy
+    // table's Combined PV and "vs. best" columns stay in present-value
+    // dollars in both modes, and `survivorIncomeCaption`'s own nominal branch
+    // says so two paragraphs up the same screen.
+    const nominal = survivorClaimNote(
+      {
+        claimIndex: 2036 * 12 + 4,
+        claimAge: '68 years, 0 months',
+        survivorLabel: 'Sarah',
+        baselineTotal: 300_000,
+        bestTotal: 435_700,
+        gain: 135_700,
+        baselineHasSurvivorBand: true,
+      },
+      'nominal',
+    )!;
+    expect(nominal).not.toContain('Unlike the figures above');
+    expect(nominal).toContain('Unlike the chart above and the income figures at the first death');
+    // The sentence it contradicted, rendered on the same screen — pinned here
+    // so a future reword of either one has to face the other.
+    expect(
+      survivorIncomeCaption(
+        [{ survivorIncome: 36_480 } as HouseholdStrategy],
+        null,
+        'nominal',
+      ),
+    ).toContain('Combined PV beside it, which stays in present-value dollars');
+  });
+
+  it('names the benefit with one on-screen noun in both branches', () => {
+    // The chart legend this sentence points at says "survivor"
+    // (`benefitSeriesLabel`), so both halves of the ternary say "survivor
+    // benefit". They used to split — "the survivor benefit" when a band was
+    // on screen, "a widow(er) benefit" when none was — which reads as two
+    // different benefits rather than one shown two ways.
+    const base = {
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '60',
+      survivorLabel: 'Bob',
+      baselineTotal: 0,
+      bestTotal: 102_960,
+      gain: 102_960,
+    };
+    for (const baselineHasSurvivorBand of [true, false]) {
+      const note = survivorClaimNote({ ...base, baselineHasSurvivorBand })!;
+      expect(note).toMatch(/survivor benefit at age 60/);
+      expect(note).not.toMatch(/widow\(er\)/);
+    }
+  });
+
+  it('does not describe the optimizer as holding filing ages fixed', () => {
+    // The strategy table directly above varies exactly those ages, row by
+    // row, so "holds each spouse's own filing date fixed" read as a denial of
+    // the table. What is true — and what the module's own docstring already
+    // said — is that it carries ONE filing date per person, with no second
+    // date for a survivor claim.
+    const note = survivorClaimNote({
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '60',
+      survivorLabel: 'Bob',
+      baselineTotal: 0,
+      bestTotal: 102_960,
+      gain: 102_960,
+      baselineHasSurvivorBand: false,
+    })!;
+    expect(note).toContain('carries a single filing date per person');
+    expect(note).not.toContain('filing date fixed');
+    expect(note).toContain('cannot model a separate survivor claim date');
+  });
+
+  it('reads correctly for a bare-year claim age, e.g. exactly 60', () => {
+    const note = survivorClaimNote({
+      claimIndex: 2038 * 12 + 4,
+      claimAge: '60',
+      survivorLabel: 'Sarah',
+      baselineTotal: 732_640,
+      bestTotal: 858_440,
+      gain: 125_800,
+      baselineHasSurvivorBand: true,
+    })!;
+    expect(note).toMatch(/age 60\b/);
   });
 });

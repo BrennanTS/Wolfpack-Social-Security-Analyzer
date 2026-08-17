@@ -63,6 +63,11 @@ function buildAnalysis(): HouseholdAnalysis {
     // only on the break-even section and the survivor-gap note, neither of
     // which reads `periods`.
     periods: [],
+    // Explicit `null`, not omitted — `HouseholdAnalysis.survivorClaim` is
+    // typed non-optional, and the null-case test below relies on this
+    // fixture actually carrying the modelled absence rather than an
+    // `undefined` the type says cannot exist.
+    survivorClaim: null,
     recommendation: 'Claim at age 70',
     recommendationDetail: 'ssa.tools recommends filing at age 70.',
     assumptions: { annualCola: 0, discountRate: 3 },
@@ -175,6 +180,114 @@ describe('HouseholdPanel', () => {
     // Exactly one copy of the disclosure — not zero (it must still say so
     // somewhere) and not two (it must not say so twice).
     expect(screen.getAllByTestId('survivor-gap-note')).toHaveLength(1);
+  });
+
+  // Wiring guard, same shape as the survivor-gap one above: the note is
+  // computed in `lib/survivorClaim.ts` and rendered by `SurvivorClaimNote`,
+  // and this panel is the only thing joining them. Checks actual DOM order,
+  // not just that both nodes exist somewhere on the page — two `getByTestId`
+  // calls alone would pass even if the note rendered above the callout, or
+  // anywhere else on the page.
+  it('renders the survivor-claim note after the income-cliff callout, in document order', () => {
+    const personA = buildPersonAnalysis('a', 'Dan');
+    const personB = buildPersonAnalysis('b', 'Sarah');
+    const analysis = {
+      ...buildAnalysis(),
+      status: 'married',
+      people: [personA, personB],
+      finalIndexByPersonId: { a: 2047 * 12 + 3, b: 2052 * 12 + 1 },
+      combinedTimeline: [
+        { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
+        { year: 2047, bySeries: {}, byPersonId: {}, total: 55000 },
+        { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
+      ],
+      survivorClaim: {
+        claimIndex: 2047 * 12 + 5,
+        claimAge: '68 years, 0 months',
+        survivorLabel: 'Sarah',
+        baselineTotal: 300_000,
+        bestTotal: 435_700,
+        gain: 135_700,
+        baselineHasSurvivorBand: true,
+      },
+    } as HouseholdAnalysis;
+
+    render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+
+    // The callout really is on screen (guards against this passing
+    // vacuously because `incomeCliff` returned null).
+    const cliff = screen.getByTestId('income-cliff-sentence');
+    const note = screen.getByTestId('survivor-claim-note');
+    expect(note.textContent).toContain('135,700');
+    // `note` follows `cliff` in the DOM — not merely that both exist.
+    expect(cliff.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders no survivor-claim note when the analysis has none', () => {
+    const { queryByTestId } = render(
+      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} />,
+    );
+    expect(queryByTestId('survivor-claim-note')).toBeNull();
+  });
+
+  // Wiring for the dollars-basis clause: `HouseholdPanel` passes `dollarsMode`
+  // through to `SurvivorClaimNote` unchanged (never through `toNominal*` —
+  // the figure itself must not move), only so the note can decide whether to
+  // STATE the basis. Real mode must omit it (the callout above already said
+  // so); nominal mode must include it (the one case the two figures can be
+  // mistaken for the same basis).
+  it('passes dollarsMode through to the survivor-claim note without transforming the figure', () => {
+    const personA = buildPersonAnalysis('a', 'Dan');
+    const personB = buildPersonAnalysis('b', 'Sarah');
+    const married = {
+      ...buildAnalysis(),
+      status: 'married',
+      people: [personA, personB],
+      finalIndexByPersonId: { a: 2047 * 12 + 3, b: 2052 * 12 + 1 },
+      combinedTimeline: [
+        { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
+        { year: 2047, bySeries: {}, byPersonId: {}, total: 55000 },
+        { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
+      ],
+      survivorClaim: {
+        claimIndex: 2047 * 12 + 5,
+        claimAge: '68 years, 0 months',
+        survivorLabel: 'Sarah',
+        baselineTotal: 300_000,
+        bestTotal: 435_700,
+        gain: 135_700,
+        baselineHasSurvivorBand: true,
+      },
+    } as HouseholdAnalysis;
+
+    const real = render(
+      <HouseholdPanel
+        analysis={married}
+        annualCola={0}
+        dollarsMode="real"
+        onDollarsModeChange={() => {}}
+      />,
+    );
+    const realText = screen.getByTestId('survivor-claim-note').textContent!;
+    expect(realText).toContain('135,700');
+    expect(realText).not.toContain('today’s dollars, before any cost-of-living adjustment');
+    real.unmount();
+
+    const nominal = render(
+      <HouseholdPanel
+        analysis={married}
+        annualCola={2.5}
+        dollarsMode="nominal"
+        onDollarsModeChange={() => {}}
+      />,
+    );
+    const nominalText = screen.getByTestId('survivor-claim-note').textContent!;
+    // The gain itself is UNCHANGED — this is the assertion that matters: the
+    // toggle must decide only whether to disclose the basis, never transform
+    // the figure.
+    expect(nominalText).toContain('135,700');
+    expect(nominalText).toContain('today’s dollars, before any cost-of-living adjustment');
+    nominal.unmount();
   });
 
   it('falls back to the Client/Spouse label when person A is unnamed', () => {

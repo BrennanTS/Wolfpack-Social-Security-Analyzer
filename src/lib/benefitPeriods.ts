@@ -10,8 +10,7 @@
  * The periods carry no COLA: each amount is fixed for its period, so the bands
  * are in constant (real) dollars.
  */
-import type { MonthDate } from '$lib/month-time';
-import { MonthDuration } from '$lib/month-time';
+import { MonthDate, MonthDuration } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
 import { type BenefitPeriod, BenefitType } from '$lib/strategy/calculations/benefit-period';
 import { classifyEarnerDependent } from '$lib/strategy/calculations/earner-dependent';
@@ -97,9 +96,22 @@ function finalDateFor(recipient: Recipient, person: Person): MonthDate {
   );
 }
 
-/** The band index convention, read off the engine's own accessors. */
-function monthIndexOf(date: MonthDate): number {
+/**
+ * The band index convention, read off the engine's own accessors. Exported
+ * because `BenefitBand.startIndex`/`endIndex` are stated in it, so every
+ * module that dates a band against an engine `MonthDate` needs it and a second
+ * copy is a second chance to get the convention wrong.
+ */
+export function monthIndexOf(date: MonthDate): number {
   return date.year() * 12 + date.monthIndex();
+}
+
+/** The inverse of `monthIndexOf`. */
+export function monthDateAt(index: number): MonthDate {
+  return MonthDate.initFromYearsMonths({
+    years: Math.floor(index / 12),
+    months: index % 12,
+  });
 }
 
 // Keyed on the engine's enum rather than `string`, so a new BenefitType member
