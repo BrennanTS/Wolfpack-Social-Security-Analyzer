@@ -217,6 +217,31 @@ describe('screen and print agree', () => {
     console.log(summarize('screen vs print', findings));
     expect(findings).toEqual([]);
   });
+
+  it(`names no calculation engine on the analysis surface across ${COUNT} households`, async () => {
+    // One assertion holding a twenty-site cleanup in place. The engine is
+    // named once, in the About panel, and linked twice from Resources — both
+    // outside the analysis surface these two builders cover. A parenthetical
+    // creeping back onto a heading is the realistic regression, and asserting
+    // each of the twenty sites individually would not catch a twenty-first.
+    const findings: Finding[] = [];
+
+    for (let index = 0; index < COUNT; index++) {
+      const { household, label } = householdAt(index);
+      const analysis = await analyze(household);
+
+      for (const mode of MODES) {
+        for (const line of [...screenSurface(analysis, mode), ...pdfSurface(analysis)]) {
+          if (/ssa\.tools/i.test(line.text)) {
+            findings.push({ index, label, detail: `[${mode}] ${line.source}: "${line.text}"` });
+          }
+        }
+      }
+    }
+
+    console.log(summarize('engine brand on the analysis surface', findings));
+    expect(findings).toEqual([]);
+  });
 });
 
 describe('branch reachability', () => {

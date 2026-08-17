@@ -83,6 +83,9 @@ export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
 
   push(lines, 'Analyzer.spousalMethodologyCopy', spousalMethodologyCopy(analysis));
 
+  push(lines, 'HouseholdPanel.recommendation', analysis.recommendation);
+  push(lines, 'HouseholdPanel.recommendationDetail', analysis.recommendationDetail);
+
   return lines;
 }
 
@@ -98,6 +101,9 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
   const married = analysis.status === 'married';
 
   if (married) {
+    push(lines, 'pdf/HouseholdSection.recommendation', analysis.recommendation);
+    push(lines, 'pdf/HouseholdSection.recommendationDetail', analysis.recommendationDetail);
+
     if (spousal) {
       push(
         lines,
