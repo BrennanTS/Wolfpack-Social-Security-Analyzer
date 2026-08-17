@@ -206,6 +206,19 @@ export function CombinedIncomeChart({
                 fillOpacity={0.35}
               />
             ))}
+            {/*
+              A bare string `label` here used to render at the reference
+              line's vertical midpoint with text-anchor "middle" — for the
+              earliest filing marker (often right next to the y-axis) that
+              sat directly on top of the axis tick labels. `position:
+              'insideTopLeft'` pins it to the top and anchors it to grow
+              RIGHTWARD off the line, clear of the axis. Recharts' naming is
+              backwards here for a vertical line: the box has zero width, so
+              `'insideTopRight'` still anchors text-anchor "end" and grows
+              LEFT — it does not fix the collision. All three markers below
+              share this position/fill/fontSize so they read as one
+              consistent treatment.
+            */}
             {people.map((p, i) => {
               const year = filingYearByPersonId[p.id];
               if (year === undefined) return null;
@@ -215,12 +228,27 @@ export function CombinedIncomeChart({
                   x={year}
                   stroke={CHART_MUTED}
                   strokeDasharray="4 4"
-                  label={`${personLabel(p.name, i)} files`}
+                  label={{
+                    value: `${personLabel(p.name, i)} files`,
+                    position: 'insideTopLeft',
+                    fill: CHART_MUTED,
+                    fontSize: 11,
+                  }}
                 />
               );
             })}
             {deathYear !== null && (
-              <ReferenceLine x={deathYear} stroke={CHART_RED} strokeDasharray="3 3" label="First death" />
+              <ReferenceLine
+                x={deathYear}
+                stroke={CHART_RED}
+                strokeDasharray="3 3"
+                label={{
+                  value: 'First death',
+                  position: 'insideTopLeft',
+                  fill: CHART_MUTED,
+                  fontSize: 11,
+                }}
+              />
             )}
           </AreaChart>
         </ResponsiveContainer>

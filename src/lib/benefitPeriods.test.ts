@@ -22,7 +22,7 @@ const recipientFor = (p: Person) =>
 describe('householdPeriods — single', () => {
   it('produces personal bands only', () => {
     const p = person('a', 1960, 6, 2500, 'male', 85);
-    const { bands, survivorGap } = householdPeriods([p], [recipientFor(p)], [age(67)], ['You']);
+    const { bands, survivorGap } = householdPeriods([p], [recipientFor(p)], [age(67)], ['Client']);
     // Guard: `every` is vacuously true on an empty array, and an empty result
     // is exactly what a broken finalDate would produce — PersonalBenefitPeriods
     // emits zero periods, without erroring, when finalDate is at or before the

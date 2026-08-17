@@ -41,13 +41,13 @@ describe('personLabel', () => {
     expect(personLabel('Sarah', 1)).toBe('Sarah');
   });
 
-  it('falls back to You and Spouse by position', () => {
-    expect(personLabel(undefined, 0)).toBe('You');
+  it('falls back to Client and Spouse by position', () => {
+    expect(personLabel(undefined, 0)).toBe('Client');
     expect(personLabel(undefined, 1)).toBe('Spouse');
   });
 
   it('treats blank and whitespace-only names as absent', () => {
-    expect(personLabel('', 0)).toBe('You');
+    expect(personLabel('', 0)).toBe('Client');
     expect(personLabel('   ', 1)).toBe('Spouse');
   });
 });

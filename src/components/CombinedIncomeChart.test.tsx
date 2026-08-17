@@ -152,10 +152,10 @@ describe('CombinedIncomeChart', () => {
     expect(screen.getByText(/Sarah/)).toBeDefined();
   });
 
-  it('falls back to You/Spouse when a person has no name', () => {
+  it('falls back to Client/Spouse when a person has no name', () => {
     const unnamed = [{ id: 'a' }, { id: 'b' }] as Person[];
     render(<CombinedIncomeChart timeline={timeline} people={unnamed} />);
-    expect(screen.getByText(/You/)).toBeDefined();
+    expect(screen.getByText(/Client/)).toBeDefined();
     expect(screen.getByText(/Spouse/)).toBeDefined();
   });
 
@@ -345,6 +345,18 @@ describe('CombinedIncomeChart', () => {
       return [...found, ...collectReferenceLines(element.props?.children)];
     }
 
+    // The marker label moved from a bare string to `{ value, position, ... }`
+    // so it can be anchored away from the y-axis tick labels (see
+    // `CombinedIncomeChart.tsx`) — this pulls the text back out so the
+    // assertions below still check the actual wording, not the descriptor
+    // shape that carries it.
+    function labelText(rl: ReactElement<{ label?: unknown }>): unknown {
+      const label = rl.props.label;
+      return label && typeof label === 'object' && 'value' in label
+        ? (label as { value: unknown }).value
+        : label;
+    }
+
     it('marks each person filing and the first death', () => {
       const finalIndexByPersonId = { a: 2046 * 12 + 2, b: 2040 * 12 + 8 };
       const tree = CombinedIncomeChart({
@@ -358,7 +370,7 @@ describe('CombinedIncomeChart', () => {
         Math.min(finalIndexByPersonId.a, finalIndexByPersonId.b) / 12,
       );
       expect(
-        lines.some((rl) => rl.props.x === expectedDeathYear && rl.props.label === 'First death'),
+        lines.some((rl) => rl.props.x === expectedDeathYear && labelText(rl) === 'First death'),
       ).toBe(true);
 
       // The filing years read off the same `byPersonId` roll-up the tooltip
@@ -367,10 +379,10 @@ describe('CombinedIncomeChart', () => {
       const danFilingYear = timelineWithSurvivor.find((p) => (p.byPersonId.a ?? 0) > 0)!.year;
       const sarahFilingYear = timelineWithSurvivor.find((p) => (p.byPersonId.b ?? 0) > 0)!.year;
       expect(
-        lines.some((rl) => rl.props.x === danFilingYear && rl.props.label === 'Dan files'),
+        lines.some((rl) => rl.props.x === danFilingYear && labelText(rl) === 'Dan files'),
       ).toBe(true);
       expect(
-        lines.some((rl) => rl.props.x === sarahFilingYear && rl.props.label === 'Sarah files'),
+        lines.some((rl) => rl.props.x === sarahFilingYear && labelText(rl) === 'Sarah files'),
       ).toBe(true);
     });
 
@@ -385,7 +397,7 @@ describe('CombinedIncomeChart', () => {
         finalIndexByPersonId: { a: 2046 * 12 + 2 },
       });
       const lines = collectReferenceLines(tree);
-      expect(lines.some((rl) => rl.props.label === 'First death')).toBe(false);
+      expect(lines.some((rl) => labelText(rl) === 'First death')).toBe(false);
     });
 
     it('omits the death marker when the two final months tie, as firstDeath does', () => {
@@ -403,9 +415,9 @@ describe('CombinedIncomeChart', () => {
         finalIndexByPersonId: { a: tied, b: tied },
       });
       const lines = collectReferenceLines(tree);
-      expect(lines.some((rl) => rl.props.label === 'First death')).toBe(false);
+      expect(lines.some((rl) => labelText(rl) === 'First death')).toBe(false);
       // Not vacuous: the other markers are still built for this household.
-      expect(lines.some((rl) => rl.props.label === 'Dan files')).toBe(true);
+      expect(lines.some((rl) => labelText(rl) === 'Dan files')).toBe(true);
     });
 
     // `XAxis` has no `type="number"`, so it's a category axis: a
@@ -431,7 +443,7 @@ describe('CombinedIncomeChart', () => {
         finalIndexByPersonId: { a: 2010 * 12 + 2, b: 2040 * 12 + 8 },
       });
       const lines = collectReferenceLines(tree);
-      expect(lines.some((rl) => rl.props.label === 'First death')).toBe(false);
+      expect(lines.some((rl) => labelText(rl) === 'First death')).toBe(false);
     });
   });
 });

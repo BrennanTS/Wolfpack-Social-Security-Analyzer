@@ -31,11 +31,11 @@ export function formatAgeDisplay(age: { years: number; months: number }): string
 
 /**
  * Resolves a person's display name. The single source of truth for the
- * You/Spouse fallback — tabs, chart legends, table headers and the PDF all
+ * Client/Spouse fallback — tabs, chart legends, table headers and the PDF all
  * call this so the rule cannot drift between them.
  */
 export function personLabel(name: string | undefined, index: number): string {
   const trimmed = name?.trim();
   if (trimmed) return trimmed;
-  return index === 0 ? 'You' : 'Spouse';
+  return index === 0 ? 'Client' : 'Spouse';
 }

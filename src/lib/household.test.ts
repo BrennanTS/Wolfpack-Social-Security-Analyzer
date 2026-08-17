@@ -168,7 +168,7 @@ describe('analyzeHousehold — married', () => {
     expect(result.spousalTopUp!.lowerEarnerLabel).toBe('Dan');
   });
 
-  it('falls back to You/Spouse when a person is unnamed', async () => {
+  it('falls back to Client/Spouse when a person is unnamed', async () => {
     const result = await analyzeHousehold(
       {
         status: 'married',

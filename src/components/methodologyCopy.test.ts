@@ -73,7 +73,7 @@ describe('spousalMethodologyCopy', () => {
         atFra: 500,
         atRecommendedFilingAge: 500,
         startsAtSpouseAge: '67',
-        lowerEarnerLabel: 'You',
+        lowerEarnerLabel: 'Client',
       }),
     );
     expect(copy).not.toContain('50%');
@@ -86,11 +86,11 @@ describe('spousalMethodologyCopy', () => {
         atFra: 0,
         atRecommendedFilingAge: 0,
         startsAtSpouseAge: null,
-        lowerEarnerLabel: 'You',
+        lowerEarnerLabel: 'Client',
       }),
     );
     expect(copy).toContain('No top-up applies');
-    expect(copy).toContain("does not exceed You's own benefit");
+    expect(copy).toContain("does not exceed Client's own benefit");
   });
 
   it('qualifies the zero-entitlement comparison to the FRA benefit it actually makes', () => {
@@ -105,10 +105,10 @@ describe('spousalMethodologyCopy', () => {
         atFra: 0,
         atRecommendedFilingAge: 0,
         startsAtSpouseAge: null,
-        lowerEarnerLabel: 'You',
+        lowerEarnerLabel: 'Client',
       }),
     );
-    expect(copy).toContain("does not exceed You's own benefit at their own FRA");
+    expect(copy).toContain("does not exceed Client's own benefit at their own FRA");
   });
 
   it('states when the spousal benefit begins', () => {

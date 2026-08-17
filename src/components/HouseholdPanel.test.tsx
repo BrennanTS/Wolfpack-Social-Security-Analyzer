@@ -171,7 +171,7 @@ describe('HouseholdPanel', () => {
     expect(screen.getAllByTestId('survivor-gap-note')).toHaveLength(1);
   });
 
-  it('falls back to the You/Spouse label when person A is unnamed', () => {
+  it('falls back to the Client/Spouse label when person A is unnamed', () => {
     const analysis = buildAnalysis();
     const unnamed = {
       ...analysis,
@@ -183,7 +183,7 @@ describe('HouseholdPanel', () => {
       ],
     } as HouseholdAnalysis;
     const { getByTestId } = render(<HouseholdPanel analysis={unnamed} annualCola={0} />);
-    expect(getByTestId('break-even-attribution').textContent).toContain('Break-even for You');
+    expect(getByTestId('break-even-attribution').textContent).toContain('Break-even for Client');
   });
 
   // Newly reachable since the benefit floor dropped to $0: person A can have

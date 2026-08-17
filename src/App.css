@@ -930,7 +930,8 @@
 }
 
 .birth-row select,
-.currency-input input {
+.currency-input input,
+.text-input {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -955,7 +956,8 @@
 }
 
 .birth-row select:focus,
-.currency-input input:focus {
+.currency-input input:focus,
+.text-input:focus {
   outline: none;
   background-color: var(--bg-secondary);
   box-shadow: 0 0 0 4px var(--blue-soft);

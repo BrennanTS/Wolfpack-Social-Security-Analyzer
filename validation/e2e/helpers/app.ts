@@ -31,7 +31,7 @@ export { expect };
  * Field ids are `#a-*` for the first person and `#b-*` for the second
  * (Task 16). Each person's fieldset carries the person's label
  * (`personLabel`) as its accessible name, and the gender control's
- * accessible name is person-scoped ("You gender" / "Spouse gender", or
+ * accessible name is person-scoped ("Client gender" / "Spouse gender", or
  * "<name> gender" once a name is typed) — so a bare `role=group` query for
  * "Gender" would match nothing; we scope by index instead.
  */

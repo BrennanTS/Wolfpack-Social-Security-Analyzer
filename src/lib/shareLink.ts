@@ -15,7 +15,7 @@ import type { Gender } from './personAnalysis';
  * Two rules shape everything here.
  *
  * Names are never encoded. They are display-only — `personLabel` falls back to
- * "You" / "Spouse" — so excluding them costs nothing and keeps a link reading
+ * "Client" / "Spouse" — so excluding them costs nothing and keeps a link reading
  * as a scenario rather than a client record. A date of birth and a dollar
  * figure with no name attached is far weaker as identifying information, and
  * links leak: into history, chat logs, screenshots and Referer headers.
