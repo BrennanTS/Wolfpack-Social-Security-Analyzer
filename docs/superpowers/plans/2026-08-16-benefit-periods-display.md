@@ -723,6 +723,44 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
+### Task 7: Adviser-facing labels, the name input, and the marker collision
+
+**Added at the user's request after reviewing screenshots.** Three independent items:
+
+1. `personLabel` (`src/lib/format.ts:37-41`) returns `'You'` for index 0. It becomes `'Client'` — *"This is mainly an advisor tool."* Ripples into legends, headers, methodology copy, the PDF and the name input's placeholder. Second-person prose ("your own benefit") is not a person label and must not be substituted mechanically.
+2. The "Name (optional)" input (`src/components/PersonFields.tsx:63-72`) is a bare `<input type="text">` with no class while its siblings are styled. Reuse the existing form CSS.
+3. The first filing marker's label collides with the y-axis tick labels — "Client files" renders on top of "$40k". Fix consistently across all three markers.
+
+---
+
+### Task 8: The chart shows the annual rate, not the calendar-year sum
+
+**Added at the user's request after reviewing screenshots**, and it reverses a decision made in Task 1.
+
+The user, on seeing the chart taper toward each person's death: *"The chart should not drop down at the end. I think it would be flat at the last death… What if we don't do smooth lines and only straight."*
+
+**Files:**
+- Modify: `src/lib/household.ts`, `src/lib/household.test.ts`
+- Modify: `src/components/CombinedIncomeChart.tsx` and its test
+- Modify: `src/components/pdf/HouseholdSection.tsx` and its test
+- Modify: `src/components/methodologyCopy.ts` and its test
+
+**The defect.** `buildCombinedTimeline` computes `monthsInYear(band, year) * band.monthlyAmount`, so a partial filing year or a partial final year yields a partial annual total. The chart renders that as a **slope**, which reads as income rising or falling when in fact the payment is unchanged and the calendar is not. It happens at both ends of every band, and it is why the first death renders as a two-year descent rather than a step.
+
+Task 1 introduced this deliberately, replacing older code that always credited twelve payments. It is arithmetically correct. But the partial values are consumed **only by the two charts** — `incomeCliff` compares full years either side precisely to avoid this artifact, and `survivorIncome` reads a full year — so the precision has never bought anything except the misleading shape.
+
+**The change.** A band contributes its full annual rate (`monthlyAmount * 12`) to every year in which it pays at least one month, and nothing to years it does not. Bands become flat from filing to death, and every transition is a clean step at a year boundary.
+
+The `Area` series change from `type="monotone"` to `type="linear"` — the user asked for straight lines, not curves. If the transitions still read as ramps rather than steps once the values are flat, `stepAfter` is the alternative; report which you used and why.
+
+**What this costs, and it must be disclosed rather than absorbed.** A filing year and a final year now render at full height though only part of each is actually paid. The y-axis stops meaning "money deposited in this calendar year" and starts meaning "income rate once this benefit is running."
+
+`combinedIncomeCaption` currently says *"Each person's segments for the year sum to what they were actually paid — counting only the months actually paid, so a filing year or a final year is shorter than a full one."* **That becomes false.** Rewrite it to say the bands show the annual rate, and that a filing year and a final year pay only part of it. This is the thirteenth chance on this project for a right number to ship beside wrong text; the sentence is the deliverable as much as the shape is.
+
+**Check before assuming:** `incomeCliff`'s `before`/`after` and `survivorIncome` all read full years, whose value is unchanged by this — but verify that rather than trust it, and say so. If `monthsInYear` becomes unused in production, report it; do not delete it as part of this task.
+
+---
+
 ## Verification against the spec's success criteria
 
 4. **A band per benefit type, survivor stacked on a continuing personal band** — Task 2 Steps 3 and 5.
