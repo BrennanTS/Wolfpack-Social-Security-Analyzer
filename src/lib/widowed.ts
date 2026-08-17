@@ -61,7 +61,13 @@ const ageDuration = (years: number): MonthDuration =>
 
 const indexOfYearMonth = (ym: YearMonth): number => ym.year * 12 + (ym.month - 1);
 
-/** Everything derived from the input once, so the search loop re-derives nothing. */
+/**
+ * Everything derived from the input once. `bestWidowedOutcome` calls this a
+ * single time and threads the result through every candidate via
+ * `outcomeFromContext`, so the search loop itself re-derives nothing —
+ * `widowedOutcomeFor` and `widowedBands` each call it once for their own
+ * single evaluation.
+ */
 function context(input: WidowedInput) {
   const { survivor, deceased, asOf } = input;
   const recipient = createPiaRecipient(
@@ -92,7 +98,14 @@ function context(input: WidowedInput) {
  * kept the `earliest` comparison row from ever rendering.
  *
  * An already-claimed benefit collapses its range to the single month it began,
- * which is why the already-claiming case needs no separate code path.
+ * which is why the already-claiming case needs no separate code path. That
+ * collapsed month is still clamped to `firstMonth`: an adviser can enter a
+ * survivor-claim date at or before the death month (the death month itself is
+ * an easy typo), and `survivorBenefit` throws on any date that isn't strictly
+ * after the death date. A pre-death "claim" is a data error, not a real
+ * filing, so clamping it forward to the first payable month is the correct
+ * reading of it — not a silent cover-up of bad input, since the resulting
+ * single-month range is still exactly what `alreadyClaimed` is for.
  */
 export function widowedSearchRanges(input: WidowedInput): {
   survivor: [number, number];
@@ -100,9 +113,11 @@ export function widowedSearchRanges(input: WidowedInput): {
 } {
   const { recipient, firstMonth, asOf } = context(input);
   const { survivorSince, ownSince } = input.alreadyClaimed;
+  const clampedSurvivorClaim = (ym: YearMonth): number =>
+    Math.max(firstMonth, indexOfYearMonth(ym));
 
   if (survivorSince && ownSince) {
-    const s = indexOfYearMonth(survivorSince);
+    const s = clampedSurvivorClaim(survivorSince);
     const f = indexOfYearMonth(ownSince);
     return { survivor: [s, s], own: [f, f] };
   }
@@ -110,7 +125,7 @@ export function widowedSearchRanges(input: WidowedInput): {
   const age60 = monthIndexOf(recipient.birthdate.dateAtSsaAge(ageDuration(60)));
   const survivorFra = monthIndexOf(recipient.survivorNormalRetirementDate());
   const survivorRange: [number, number] = survivorSince
-    ? [indexOfYearMonth(survivorSince), indexOfYearMonth(survivorSince)]
+    ? [clampedSurvivorClaim(survivorSince), clampedSurvivorClaim(survivorSince)]
     : [Math.max(firstMonth, age60), Math.max(firstMonth, survivorFra)];
 
   const ownFloor = monthIndexOf(
@@ -130,13 +145,20 @@ export function widowedSearchRanges(input: WidowedInput): {
  * Each amount is constant across the months it is paid — both are functions of
  * their own claim date, not of the month — so each engine call is made once,
  * outside the month loop.
+ *
+ * Takes an already-built `context()` rather than a `WidowedInput` so that
+ * `bestWidowedOutcome`'s ~8,000-candidate search builds the context once and
+ * reuses it, instead of re-running `deceasedContext` (and, for a
+ * `checkAmount` deceased, its 40-step PIA bisection) on every candidate.
+ * `widowedOutcomeFor` below is the public, single-context-build wrapper for
+ * everyone who isn't in that hot loop.
  */
-export function widowedOutcomeFor(
-  input: WidowedInput,
+function outcomeFromContext(
+  ctx: ReturnType<typeof context>,
   survivorClaimIndex: number,
   ownFilingIndex: number,
 ): WidowedOutcome {
-  const { recipient, dec, firstMonth, finalIndex } = context(input);
+  const { recipient, dec, firstMonth, finalIndex } = ctx;
 
   const ownAmount =
     ownFilingIndex > finalIndex
@@ -177,13 +199,29 @@ export function widowedOutcomeFor(
   };
 }
 
-/** Exhaustive search over both ranges. Ties resolve to the earliest pair. */
+/** Single-candidate entry point: builds its own context, for callers outside a search loop. */
+export function widowedOutcomeFor(
+  input: WidowedInput,
+  survivorClaimIndex: number,
+  ownFilingIndex: number,
+): WidowedOutcome {
+  return outcomeFromContext(context(input), survivorClaimIndex, ownFilingIndex);
+}
+
+/**
+ * Exhaustive search over both ranges. Ties resolve to the earliest pair.
+ *
+ * Builds `context(input)` once, up front, and reuses it for every one of the
+ * ~8,000 (survivor, own) candidates rather than rebuilding it per candidate —
+ * see `outcomeFromContext`'s doc comment for why that matters.
+ */
 export function bestWidowedOutcome(input: WidowedInput): WidowedOutcome {
   const { survivor, own } = widowedSearchRanges(input);
+  const ctx = context(input);
   let best: WidowedOutcome | null = null;
   for (let s = survivor[0]; s <= survivor[1]; s++) {
     for (let f = own[0]; f <= own[1]; f++) {
-      const outcome = widowedOutcomeFor(input, s, f);
+      const outcome = outcomeFromContext(ctx, s, f);
       if (best === null || outcome.lifetimeTotal > best.lifetimeTotal) best = outcome;
     }
   }

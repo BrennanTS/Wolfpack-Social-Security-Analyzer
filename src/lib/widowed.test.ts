@@ -6,10 +6,11 @@ import {
   type WidowedInput,
 } from './widowed';
 import type { Person } from './personAnalysis';
-import type { Deceased } from './deceased';
-import { monthIndexOf } from './benefitPeriods';
+import { deceasedContext, type Deceased } from './deceased';
+import { monthDateAt, monthIndexOf } from './benefitPeriods';
 import { createPiaRecipient } from './ssaTools';
 import { MonthDuration } from '$lib/month-time';
+import { benefitOnDate, survivorBenefit } from '$lib/benefit-calculator';
 
 const asOf = new Date(2026, 0, 15);
 
@@ -40,6 +41,25 @@ const free: WidowedInput = {
   asOf,
 };
 
+/**
+ * Same household, but the widow is born in 1958 instead of 1964 — a cohort
+ * where survivor-FRA (66y4m) and retirement-FRA (66y8m) provably diverge, per
+ * `constants.ts`'s `FULL_RETIREMENT_AGE`/`FULL_RETIREMENT_AGE_SURVIVOR`
+ * tables. `free`'s 1964 widow can't be used for this: both tables resolve to
+ * 67y0m for any birth year 1962 or later, so a test built only from `free`
+ * cannot tell `survivorNormalRetirementDate()` and `normalRetirementDate()`
+ * apart — swapping one for the other in `widowedSearchRanges` would still
+ * pass every `free`-based assertion.
+ */
+const divergentFraWidow: Person = {
+  ...widow,
+  birthYear: 1958,
+};
+const divergentFraCase: WidowedInput = {
+  ...free,
+  survivor: divergentFraWidow,
+};
+
 describe('widowedSearchRanges', () => {
   it('starts the survivor range at SSA age 60, never before the month after death', () => {
     const { survivor } = widowedSearchRanges(free);
@@ -55,17 +75,19 @@ describe('widowedSearchRanges', () => {
     const { survivor } = widowedSearchRanges(free);
     const recipient = createPiaRecipient(1964, 6, 1200, 'female');
     expect(survivor[1]).toBe(monthIndexOf(recipient.survivorNormalRetirementDate()));
-    // Survivor-FRA and retirement FRA are different tables in general — but
-    // for a 1964 birth year they happen to coincide at 67y0m (both brackets
-    // resolve to 67 for birth years 1962+ / 1960+ respectively), so this
-    // cohort can't be used to prove the tables differ. A 1958 birth year
-    // does diverge (survivor 66y4m vs retirement 66y8m per constants.ts) and
-    // is used here only to guard against `widowedSearchRanges` ever being
-    // changed to call `normalRetirementDate()` instead.
-    const divergentCohort = createPiaRecipient(1958, 6, 1200, 'female');
-    expect(monthIndexOf(divergentCohort.survivorNormalRetirementDate())).not.toBe(
-      monthIndexOf(divergentCohort.normalRetirementDate()),
-    );
+  });
+
+  it('ends the survivor range at survivor-FRA for a cohort where that differs from retirement FRA', () => {
+    // `free`'s 1964 widow can't distinguish the two tables (both are 67y0m
+    // for her), so this repeats the check on a 1958 widow, where they
+    // provably diverge, and runs the comparison THROUGH
+    // `widowedSearchRanges` itself rather than only against the raw
+    // `Recipient` methods. Swapping `survivorNormalRetirementDate()` for
+    // `normalRetirementDate()` at the call site in widowed.ts must fail this.
+    const { survivor } = widowedSearchRanges(divergentFraCase);
+    const recipient = createPiaRecipient(1958, 6, 1200, 'female');
+    expect(survivor[1]).toBe(monthIndexOf(recipient.survivorNormalRetirementDate()));
+    expect(survivor[1]).not.toBe(monthIndexOf(recipient.normalRetirementDate()));
   });
 
   it('never puts the own-filing floor at an exact age 62', () => {
@@ -88,6 +110,39 @@ describe('widowedSearchRanges', () => {
     const { survivor, own } = widowedSearchRanges(claimed);
     expect(survivor).toEqual([2024 * 12 + 7, 2024 * 12 + 7]);
     expect(own[1]).toBeGreaterThan(own[0]);
+  });
+
+  it('clamps an already-claimed survivor date at the death month to the first payable month', () => {
+    // The death month itself is an easy adviser entry ("she's been getting
+    // it since he died"), but `survivorBenefit` throws on any filing date
+    // that isn't strictly AFTER the death date. Feeding that date straight
+    // through would crash the search; clamping it forward to `firstMonth`
+    // (deathIndex + 1) is the only reading that keeps it claimable.
+    const deathIndex = 2024 * 12 + 2;
+    const claimedAtDeathMonth: WidowedInput = {
+      ...free,
+      alreadyClaimed: { survivorSince: { year: 2024, month: 3 }, ownSince: null },
+    };
+    const { survivor } = widowedSearchRanges(claimedAtDeathMonth);
+    expect(survivor).toEqual([deathIndex + 1, deathIndex + 1]);
+    expect(() => bestWidowedOutcome(claimedAtDeathMonth)).not.toThrow();
+  });
+
+  it('clamps a death-month survivor date in the both-already-claimed path too', () => {
+    // Same defect, different branch: when BOTH dates are already known, the
+    // early return at the top of widowedSearchRanges must clamp the survivor
+    // side exactly like the single-axis path does.
+    const deathIndex = 2024 * 12 + 2;
+    const bothClaimedAtDeathMonth: WidowedInput = {
+      ...free,
+      alreadyClaimed: {
+        survivorSince: { year: 2024, month: 3 },
+        ownSince: { year: 2030, month: 1 },
+      },
+    };
+    const { survivor } = widowedSearchRanges(bothClaimedAtDeathMonth);
+    expect(survivor).toEqual([deathIndex + 1, deathIndex + 1]);
+    expect(() => bestWidowedOutcome(bothClaimedAtDeathMonth)).not.toThrow();
   });
 });
 
@@ -141,6 +196,38 @@ describe('bestWidowedOutcome', () => {
 
 import { widowedBands } from './widowed';
 
+/**
+ * The `max(own, survivor)` SSA actually pays at month `m` for a given
+ * (survivor, own) outcome, computed independently of `widowed.ts` — straight
+ * from the same public engine calls (`benefitOnDate`, `survivorBenefit`) it
+ * uses internally — so the band tests below can check the decomposition
+ * against a real number instead of only a non-negative placeholder.
+ */
+function expectedMax(input: WidowedInput, outcome: WidowedOutcome, m: number): number {
+  const recipient = createPiaRecipient(
+    input.survivor.birthYear,
+    input.survivor.birthMonth,
+    input.survivor.piaMonthly,
+    input.survivor.gender,
+  );
+  const dec = deceasedContext(input.deceased);
+  const ownAmount = benefitOnDate(
+    recipient,
+    monthDateAt(outcome.ownFilingIndex),
+    monthDateAt(outcome.ownFilingIndex).addDuration(MonthDuration.OneYear()),
+  ).value();
+  const survivorAmount = survivorBenefit(
+    recipient,
+    dec.recipient,
+    dec.filingDate,
+    dec.deathDate,
+    monthDateAt(outcome.survivorClaimIndex),
+  ).value();
+  const own = m >= outcome.ownFilingIndex ? ownAmount : 0;
+  const surv = m >= outcome.survivorClaimIndex ? survivorAmount : 0;
+  return Math.max(own, surv);
+}
+
 describe('widowedBands', () => {
   it('stacks to exactly the larger of the two benefits in every month', () => {
     const best = bestWidowedOutcome(free);
@@ -151,16 +238,42 @@ describe('widowedBands', () => {
         .reduce((t, b) => t + b.monthlyAmount, 0);
 
     // Sampled across the whole run: before either starts, between them, and
-    // after both.
-    const { survivor, own } = widowedSearchRanges(free);
+    // after both. Each sample must equal max(own, survivor) exactly (to the
+    // penny), not merely be non-negative.
     const start = Math.min(best.survivorClaimIndex, best.ownFilingIndex);
     for (const m of [start - 1, start, start + 12, best.ownFilingIndex, best.ownFilingIndex + 60]) {
-      const single = widowedOutcomeFor(free, best.survivorClaimIndex, best.ownFilingIndex);
-      expect(single.lifetimeTotal).toBeGreaterThan(0);
-      expect(at(m)).toBeGreaterThanOrEqual(0);
+      expect(at(m)).toBeCloseTo(expectedMax(free, best, m), 2);
     }
-    expect(survivor[0]).toBeLessThanOrEqual(survivor[1]);
-    expect(own[0]).toBeLessThanOrEqual(own[1]);
+  });
+
+  it('exercises the survivor-claimed-before-own-filing split (S < F)', () => {
+    // `free`'s optimum has the own filing first (F < S) — see
+    // `bestWidowedOutcome`'s "recommends the own benefit first" test — so it
+    // never reaches the `outcome.survivorClaimIndex < splitAt` branch in
+    // `widowedBands` (the pre-own-filing segment carrying the FULL survivor
+    // amount). Pinning the survivor claim to right after the death forces
+    // the opposite order: the own-filing floor (~62) is later than an
+    // August-2024 survivor claim, so S < F here and that branch runs.
+    const claimed: WidowedInput = {
+      ...free,
+      alreadyClaimed: { survivorSince: { year: 2024, month: 8 }, ownSince: null },
+    };
+    const best = bestWidowedOutcome(claimed);
+    expect(best.survivorClaimIndex).toBeLessThan(best.ownFilingIndex);
+
+    const bands = widowedBands(claimed, best);
+    const preOwnSurvivorBand = bands.find(
+      (b) => b.type === 'survivor' && b.startIndex === best.survivorClaimIndex,
+    );
+    expect(preOwnSurvivorBand).toBeDefined();
+    expect(preOwnSurvivorBand?.endIndex).toBeLessThan(best.ownFilingIndex);
+
+    const at = (m: number) =>
+      bands
+        .filter((b) => b.startIndex <= m && m <= b.endIndex)
+        .reduce((t, b) => t + b.monthlyAmount, 0);
+    const sampleMonth = best.survivorClaimIndex + 3;
+    expect(at(sampleMonth)).toBeCloseTo(expectedMax(claimed, best, sampleMonth), 2);
   });
 
   it('sums over the bands to the same lifetime total the search reported', () => {
