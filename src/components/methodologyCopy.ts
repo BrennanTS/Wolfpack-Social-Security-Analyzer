@@ -114,6 +114,24 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
 }
 
 /**
+ * The subtitle directly above the combined-income chart/bars, shared by the
+ * on-screen chart and the PDF so the two cannot say different things about
+ * the same figures one paragraph apart — the PDF concatenates this straight
+ * into the same `<Text>` as `combinedIncomeCaption`, so a reader hits both
+ * sentences in one breath.
+ *
+ * Used to read "Annual Social Security income by year..." — true while the
+ * chart was bucketed by calendar year, false the moment it moved to a
+ * monthly series (`buildMonthlyIncomeSeries`) where a filing year and a
+ * final year plot at full height rather than a fraction of it. "By year"
+ * described a bucket that no longer exists; this says what every point
+ * actually is instead, matching `combinedIncomeCaption`'s own "annual rate"
+ * framing rather than contradicting it one line below.
+ */
+export const COMBINED_INCOME_SUBTITLE =
+  'The annual rate each benefit pays under the recommended filing strategy';
+
+/**
  * The caption under the combined-income chart, shared by the on-screen chart
  * and the PDF household page.
  *

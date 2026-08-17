@@ -15,6 +15,7 @@ import { seriesColor } from '../../lib/chartTheme';
 import { formatCurrency, personLabel } from '../../lib/format';
 import {
   benefitSeriesLabel,
+  COMBINED_INCOME_SUBTITLE,
   combinedIncomeCaption,
   incomeCliffSentence,
   INCOME_CLIFF_HEADING,
@@ -115,9 +116,14 @@ export function StrategyTable({
  * outgoing and an incoming band. Print and screen would otherwise show two
  * different shapes for the same household under the one shared caption
  * (`combinedIncomeCaption`) — this keeps that caption true of both. Bars are
- * simply narrower (twelve per calendar year instead of one), which reads as
- * a solid block wherever a band is flat and as a single narrow step at a
- * transition, rather than visibly denser. Exported so
+ * twelve times narrower than the old one-per-calendar-year version (~2pt
+ * instead of ~16pt at this component's width), so they are drawn EDGE TO
+ * EDGE — `x={padL + i * barW}`, `width={barW}`, no inset — rather than the
+ * ~1pt gap a ~16pt annual bar could afford. That inset, left over from the
+ * annual version, used to cost half the bar's own width at ~2pt and printed
+ * a flat band as a field of half-density hairline stripes instead of a
+ * block; edge-to-edge, adjacent same-colour months merge into one solid
+ * region and a transition still reads as a single sharp edge. Exported so
  * `HouseholdSection.test.tsx` can assert on its decomposition in isolation
  * from the household page's own caption text.
  */
@@ -173,9 +179,9 @@ export function CombinedIncomeBars({
             return (
               <Rect
                 key={`${point.monthIndex}-${s.key}`}
-                x={padL + i * barW + 0.5}
+                x={padL + i * barW}
                 y={y}
-                width={Math.max(barW - 1, 0.5)}
+                width={barW}
                 height={h}
                 fill={s.color}
               />
@@ -284,7 +290,7 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
           no toggle and always renders real dollars regardless of what the
           default happens to be. */}
       <Text style={styles.sectionDesc}>
-        Annual Social Security income by year under the recommended filing strategy.{' '}
+        {COMBINED_INCOME_SUBTITLE}.{' '}
         {combinedIncomeCaption(analysis.survivorGap, 'real')}
       </Text>
       {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}

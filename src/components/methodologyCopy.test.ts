@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
+  COMBINED_INCOME_SUBTITLE,
   combinedIncomeCaption,
   coupleModelingNote,
   incomeCliffSentence,
@@ -730,6 +731,28 @@ describe('survivorIncomeCaption', () => {
  * therefore gone, not reworded again; the tests below pin its absence
  * alongside the "annual rate" framing that survives every version.
  */
+/**
+ * The subtitle directly above `combinedIncomeCaption`'s own sentence —
+ * they used to be independently hand-typed strings in `CombinedIncomeChart`
+ * and `HouseholdSection`, and in print the two are concatenated straight
+ * into the SAME `<Text>`, so a reader hits both in one breath. It used to
+ * say "Annual Social Security income BY YEAR", which stopped being true the
+ * moment the chart moved off calendar-year buckets — a filing year and a
+ * final year plot at full height, not by-year. These pin that the wording
+ * agrees with `combinedIncomeCaption`'s own "annual rate" framing rather
+ * than contradicting it.
+ */
+describe('COMBINED_INCOME_SUBTITLE', () => {
+  it('does not claim the chart is bucketed by year', () => {
+    expect(COMBINED_INCOME_SUBTITLE).not.toMatch(/by year/i);
+  });
+
+  it('states the annual-rate framing, matching combinedIncomeCaption rather than contradicting it', () => {
+    expect(COMBINED_INCOME_SUBTITLE).toMatch(/annual rate/i);
+    expect(combinedIncomeCaption(null)).toMatch(/annual rate/i);
+  });
+});
+
 describe('combinedIncomeCaption', () => {
   it('claims spousal and survivor segments are included when they are', () => {
     const caption = combinedIncomeCaption(null);

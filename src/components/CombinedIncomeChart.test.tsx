@@ -154,6 +154,19 @@ describe('CombinedIncomeChart', () => {
     ).not.toThrow();
   });
 
+  // The subtitle used to read "Annual Social Security income BY YEAR" —
+  // true while the chart was bucketed by calendar year, false once it moved
+  // to a monthly series where a filing/final year plots at full height. It
+  // sits one line above the caption's own "annual rate" sentence, so the
+  // two must agree rather than contradict each other in the same breath.
+  it('does not claim the chart is bucketed by year, in the subtitle', () => {
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
+    expect(screen.queryByText(/by year/i)).toBeNull();
+    // "annual rate" appears in both the subtitle and the caveat below it —
+    // at least one hit is enough to prove the wording made it onto the page.
+    expect(screen.getAllByText(/annual rate/i).length).toBeGreaterThan(0);
+  });
+
   it('labels the legend with personLabel names, not raw ids', () => {
     render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     expect(screen.getByText(/Dan/)).toBeDefined();
@@ -364,16 +377,39 @@ describe('CombinedIncomeChart', () => {
       return [...found, ...collectReferenceLines(element.props?.children)];
     }
 
-    // The marker label moved from a bare string to `{ value, position, ... }`
-    // so it can be anchored away from the y-axis tick labels (see
-    // `CombinedIncomeChart.tsx`) — this pulls the text back out so the
-    // assertions below still check the actual wording, not the descriptor
-    // shape that carries it.
+    // The marker label is now a custom render function (`markerLabel` in
+    // `CombinedIncomeChart.tsx`) rather than a bare string or a
+    // `{ value, position, ... }` descriptor — needed so two close-together
+    // markers can be pushed to different vertical rows instead of both
+    // rendering at the same fixed height. This calls it with a throwaway
+    // `viewBox` and pulls the text back out of the `<text>` element it
+    // returns, so the assertions below still check the actual wording, not
+    // the render-function shape that carries it.
     function labelText(rl: ReactElement<{ label?: unknown }>): unknown {
       const label = rl.props.label;
+      if (typeof label === 'function') {
+        const rendered = (label as (props: { viewBox: { x: number; y: number } }) => ReactElement<{ children?: unknown }>)(
+          { viewBox: { x: 0, y: 0 } },
+        );
+        return rendered?.props?.children;
+      }
       return label && typeof label === 'object' && 'value' in label
         ? (label as { value: unknown }).value
         : label;
+    }
+
+    // The vertical row a marker's label was assigned to, in pixels — the
+    // `y` the custom label function computed for a given `viewBox.y`. Used
+    // to assert that two colliding markers land on DIFFERENT rows, not just
+    // that both labels still say the right words.
+    function labelY(rl: ReactElement<{ label?: unknown }>, viewBoxY: number): number | undefined {
+      const label = rl.props.label;
+      if (typeof label !== 'function') return undefined;
+      const rendered = (label as (props: { viewBox: { x: number; y: number } }) => ReactElement<{ y?: unknown }>)(
+        { viewBox: { x: 0, y: viewBoxY } },
+      );
+      const y = rendered?.props?.y;
+      return typeof y === 'number' ? y : undefined;
     }
 
     it('marks each person filing and the first death, at the exact month', () => {
@@ -468,6 +504,57 @@ describe('CombinedIncomeChart', () => {
       });
       const lines = collectReferenceLines(tree);
       expect(lines.some((rl) => labelText(rl) === 'First death')).toBe(false);
+    });
+
+    // The axis collision (a label sitting on top of the y-axis tick labels)
+    // is fixed by `position: 'insideTopLeft'`; this is the OTHER collision —
+    // two markers close enough in time that their labels, both anchored at
+    // the same fixed height, would overlap each other. Dan files in January
+    // 2030 and Sarah three months later, well inside the proximity window
+    // (floored at 24 months) — the two filing labels must render at
+    // DIFFERENT vertical rows rather than both at row 0.
+    it('staggers two filing markers that land close together in time', () => {
+      const closeFilingSeries: MonthlyIncomePoint[] = [
+        {
+          monthIndex: 2030 * 12,
+          year: 2030,
+          bySeries: { 'a:personal': 24000 },
+          byPersonId: { a: 24000, b: 0 },
+          total: 24000,
+        },
+        {
+          monthIndex: 2030 * 12 + 3,
+          year: 2030,
+          bySeries: { 'a:personal': 24000, 'b:personal': 18000 },
+          byPersonId: { a: 24000, b: 18000 },
+          total: 42000,
+        },
+      ];
+      const tree = CombinedIncomeChart({ monthlySeries: closeFilingSeries, people: [dan, sarah] });
+      const lines = collectReferenceLines(tree);
+      const danLine = lines.find((rl) => labelText(rl) === 'Dan files')!;
+      const sarahLine = lines.find((rl) => labelText(rl) === 'Sarah files')!;
+      expect(danLine).toBeDefined();
+      expect(sarahLine).toBeDefined();
+      // Same `viewBox.y` for both (as they'd actually get from Recharts,
+      // since both lines span the same plot height) — if the two labels
+      // still landed on the same row, these would be equal.
+      expect(labelY(danLine, 8)).not.toBe(labelY(sarahLine, 8));
+    });
+
+    // The counterpart: two markers far enough apart must NOT be pushed onto
+    // different rows just because rows are cheap — an unstaggered household
+    // (the common case) should keep every label at the same, familiar
+    // height rather than descending a step for no reason.
+    it('does not stagger markers that are already far apart', () => {
+      const tree = CombinedIncomeChart({
+        monthlySeries: monthlySeriesWithSurvivor,
+        people: [dan, sarah],
+      });
+      const lines = collectReferenceLines(tree);
+      const danLine = lines.find((rl) => labelText(rl) === 'Dan files')!;
+      const sarahLine = lines.find((rl) => labelText(rl) === 'Sarah files')!;
+      expect(labelY(danLine, 8)).toBe(labelY(sarahLine, 8));
     });
   });
 });

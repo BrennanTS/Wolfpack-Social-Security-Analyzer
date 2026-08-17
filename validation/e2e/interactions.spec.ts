@@ -133,6 +133,25 @@ function cliffAfterFigure(sentence: string | null): string {
   return match[1];
 }
 
+/**
+ * The chart's own y-axis tick labels — a figure the chart draws from ITS
+ * data (`HouseholdPanel`'s `displayMonthlySeries`, built via
+ * `buildMonthlyIncomeSeries` + `toNominalMonthly`), not one shared with the
+ * cliff callout or the survivor-income cell (those read `displayTimeline`,
+ * built via `buildCombinedTimeline` + `toNominal` — a parallel, not the same,
+ * computation). Before the chart moved to its own monthly series, this test
+ * proved the chart moved with the toggle only because it consumed the exact
+ * same `displayTimeline` the cliff callout did; that link no longer exists,
+ * so this reads a value Recharts itself renders, in the real browser (jsdom
+ * never mounts Recharts — see `CombinedIncomeChart.test.tsx`), the only place
+ * `toNominalMonthly`'s wiring is exercised end to end at all.
+ */
+async function chartYAxisTicks(page: import('@playwright/test').Page): Promise<string[]> {
+  return page
+    .locator('.chart-surface .recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value')
+    .allTextContents();
+}
+
 test('toggles dollars mode and moves the chart, the income-cliff callout and the survivor-income column together', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, married);
@@ -149,12 +168,16 @@ test('toggles dollars mode and moves the chart, the income-cliff callout and the
   const captionBefore = await page.getByTestId('combined-income-caveat').textContent();
   const cliffBefore = await page.getByTestId('income-cliff-sentence').textContent();
   const survivorCellBefore = await page.getByTestId('cell-survivor-optimal').textContent();
+  const chartTicksBefore = await chartYAxisTicks(page);
   expect(captionBefore).toContain('today’s dollars');
   // The two independently-computed figures must already agree in real mode,
   // not just after toggling — otherwise a nominal-mode-only assertion below
   // would prove nothing about whether they agree "by construction" versus
   // by coincidence of the one household under test.
   expect(survivorCellBefore).toBe(cliffAfterFigure(cliffBefore));
+  // Guard: an empty tick set would make every assertion below pass
+  // vacuously — there would be no chart-drawn figure to have moved at all.
+  expect(chartTicksBefore.length).toBeGreaterThan(0);
 
   await nominalBtn.click();
 
@@ -178,12 +201,23 @@ test('toggles dollars mode and moves the chart, the income-cliff callout and the
   // number in nominal mode, not just each individually different from real.
   expect(survivorCellAfter).toBe(cliffAfterFigure(cliffAfter));
 
+  // The chart itself moves too — read straight off Recharts' own rendered
+  // y-axis, not off anything the cliff callout or the survivor cell also
+  // read. This is the one assertion in this test that would fail if the
+  // chart's `toNominalMonthly` wiring in `HouseholdPanel` were ever silently
+  // dropped while every other figure on the page kept moving correctly.
+  const chartTicksAfter = await chartYAxisTicks(page);
+  expect(chartTicksAfter).not.toEqual(chartTicksBefore);
+
   // Toggling back restores every figure exactly, not just the button state.
   await realBtn.click();
   await expect(realBtn).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('combined-income-caveat')).toHaveText(captionBefore ?? '');
   await expect(page.getByTestId('income-cliff-sentence')).toHaveText(cliffBefore ?? '');
   await expect(page.getByTestId('cell-survivor-optimal')).toHaveText(survivorCellBefore ?? '');
+  await expect(async () => {
+    expect(await chartYAxisTicks(page)).toEqual(chartTicksBefore);
+  }).toPass();
 });
 
 test('toggles the settings drawer open and closed', async ({ page }) => {

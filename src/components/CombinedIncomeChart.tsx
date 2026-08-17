@@ -8,8 +8,13 @@ import {
 } from '../lib/household';
 import { firstDeath } from '../lib/incomeCliff';
 import type { Person } from '../lib/personAnalysis';
-import { formatCurrency, personLabel } from '../lib/format';
-import { benefitSeriesLabel, combinedIncomeCaption, survivorGapNote } from './methodologyCopy';
+import { formatCurrencyPerYear, personLabel } from '../lib/format';
+import {
+  benefitSeriesLabel,
+  COMBINED_INCOME_SUBTITLE,
+  combinedIncomeCaption,
+  survivorGapNote,
+} from './methodologyCopy';
 import {
   CHART_AXIS_LINE,
   CHART_MUTED,
@@ -166,11 +171,91 @@ export function CombinedIncomeChart({
     }
   }
 
+  // The filing and first-death markers, laid out to avoid their labels
+  // colliding when two events fall close together — reachable whenever two
+  // filings (or a filing and the first death) land within a few years of
+  // each other, which a fixed vertical position renders as overlapping text
+  // rather than two readable labels. Markers are sorted by month and
+  // greedily assigned to the first "row" (a vertical offset, stacked
+  // downward) whose most recently placed marker is far enough away.
+  //
+  // `proximityMonths` is a FRACTION of the chart's own month span rather
+  // than a fixed count: the same month-gap covers fewer pixels on a longer
+  // household timeline (more months squeezed into the same chart width), so
+  // a longer span needs a proportionally larger month-gap to guarantee the
+  // same real separation. Floored at 24 months so a short timeline still
+  // gets meaningful separation.
+  interface Marker {
+    key: string;
+    monthIndex: number;
+    text: string;
+    stroke: string;
+    dash: string;
+  }
+  const markers: Marker[] = [];
+  for (const [i, p] of people.entries()) {
+    const monthIndex = filingMonthByPersonId[p.id];
+    if (monthIndex === undefined) continue;
+    markers.push({
+      key: `filing-${p.id}`,
+      monthIndex,
+      text: `${personLabel(p.name, i)} files`,
+      stroke: CHART_MUTED,
+      dash: '4 4',
+    });
+  }
+  if (deathStepMonth !== null) {
+    markers.push({
+      key: 'death',
+      monthIndex: deathStepMonth,
+      text: 'First death',
+      stroke: CHART_RED,
+      dash: '3 3',
+    });
+  }
+  markers.sort((a, b) => a.monthIndex - b.monthIndex);
+
+  const span = minMonth !== undefined && maxMonth !== undefined ? maxMonth - minMonth : 0;
+  const proximityMonths = Math.max(24, span * 0.06);
+  const rowLastMonth: number[] = [];
+  const markerRow = new Map<string, number>();
+  for (const m of markers) {
+    const row = rowLastMonth.findIndex((lastMonth) => m.monthIndex - lastMonth >= proximityMonths);
+    if (row === -1) {
+      markerRow.set(m.key, rowLastMonth.length);
+      rowLastMonth.push(m.monthIndex);
+    } else {
+      markerRow.set(m.key, row);
+      rowLastMonth[row] = m.monthIndex;
+    }
+  }
+
+  // Custom label content rather than `label={{ position: 'insideTopLeft' }}`
+  // — recharts' own top-left position pins every marker's label to the SAME
+  // fixed height, which is exactly what let two close-together markers'
+  // labels overlap. `viewBox` is the reference line's own rendered pixel
+  // box; `row * MARKER_ROW_HEIGHT` pushes a colliding marker's label down
+  // by one text-line's worth per row so it clears the one(s) above it.
+  const MARKER_ROW_HEIGHT = 13;
+  function markerLabel(text: string, row: number) {
+    return (props: { viewBox?: { x?: number; y?: number } }) => (
+      <text
+        x={props.viewBox?.x ?? 0}
+        y={(props.viewBox?.y ?? 0) + 12 + row * MARKER_ROW_HEIGHT}
+        fill={CHART_MUTED}
+        fontSize={11}
+        textAnchor="start"
+      >
+        {text}
+      </text>
+    );
+  }
+
   return (
     <div className="chart-container">
       <div className="chart-header">
         <h3>Combined Household Income</h3>
-        <p>Annual Social Security income by year under the recommended filing strategy</p>
+        <p>{COMBINED_INCOME_SUBTITLE}</p>
         {onDollarsModeChange && (
           <div
             className="segmented-control dollars-mode-control"
@@ -238,10 +323,18 @@ export function CombinedIncomeChart({
             />
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value, name) => {
-                const num = typeof value === 'number' ? value : 0;
-                return [formatCurrency(num), name];
-              }}
+              // The label is a single month ("Feb 2042"), but every value is
+              // still the band's ANNUAL rate at that month, not what was paid
+              // in it — `buildMonthlyIncomeSeries` never prorates. Under the
+              // old calendar-year chart "Year 2042" beside that year's sum
+              // was coherent on its own; a bare month beside an annual figure
+              // is not, so `formatCurrencyPerYear` makes the unit explicit
+              // rather than leaving the reader to infer it from a label that
+              // no longer matches.
+              formatter={(value, name) => [
+                formatCurrencyPerYear(typeof value === 'number' ? value : 0),
+                name,
+              ]}
               labelFormatter={(label) => {
                 const monthIndex = typeof label === 'number' ? label : Number(label);
                 return Number.isFinite(monthIndex) ? monthDateAt(monthIndex).toString() : '';
@@ -270,49 +363,21 @@ export function CombinedIncomeChart({
               />
             ))}
             {/*
-              A bare string `label` here used to render at the reference
-              line's vertical midpoint with text-anchor "middle" — for the
-              earliest filing marker (often right next to the y-axis) that
-              sat directly on top of the axis tick labels. `position:
-              'insideTopLeft'` pins it to the top and anchors it to grow
-              RIGHTWARD off the line, clear of the axis. Recharts' naming is
-              backwards here for a vertical line: the box has zero width, so
-              `'insideTopRight'` still anchors text-anchor "end" and grows
-              LEFT — it does not fix the collision. All three markers below
-              share this position/fill/fontSize so they read as one
-              consistent treatment.
+              `x` anchors each line to its month; text-anchor "start" grows
+              the label RIGHTWARD off the line so it clears the y-axis rather
+              than sitting on top of it. `markerLabel` (above) supplies the
+              per-marker vertical offset that keeps two close-together
+              markers' labels from overlapping each other.
             */}
-            {people.map((p, i) => {
-              const monthIndex = filingMonthByPersonId[p.id];
-              if (monthIndex === undefined) return null;
-              return (
-                <ReferenceLine
-                  key={`filing-${p.id}`}
-                  x={monthIndex}
-                  stroke={CHART_MUTED}
-                  strokeDasharray="4 4"
-                  label={{
-                    value: `${personLabel(p.name, i)} files`,
-                    position: 'insideTopLeft',
-                    fill: CHART_MUTED,
-                    fontSize: 11,
-                  }}
-                />
-              );
-            })}
-            {deathStepMonth !== null && (
+            {markers.map((m) => (
               <ReferenceLine
-                x={deathStepMonth}
-                stroke={CHART_RED}
-                strokeDasharray="3 3"
-                label={{
-                  value: 'First death',
-                  position: 'insideTopLeft',
-                  fill: CHART_MUTED,
-                  fontSize: 11,
-                }}
+                key={m.key}
+                x={m.monthIndex}
+                stroke={m.stroke}
+                strokeDasharray={m.dash}
+                label={markerLabel(m.text, markerRow.get(m.key) ?? 0)}
               />
-            )}
+            ))}
           </AreaChart>
         </ResponsiveContainer>
       </div>

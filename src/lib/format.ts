@@ -18,6 +18,19 @@ export function formatCurrencyPrecise(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * `formatCurrency` with an explicit `/yr` unit — for a figure that is a
+ * RATE (what a benefit pays annually once it's running), not a sum of what
+ * changed hands over some period. `CombinedIncomeChart`'s tooltip is the
+ * motivating case: its label is a single month ("Feb 2042"), but every
+ * value is `buildMonthlyIncomeSeries`' annual rate at that month, never
+ * that month's own payment — without the unit, a bare month beside a bare
+ * dollar figure reads as that month's payment.
+ */
+export function formatCurrencyPerYear(amount: number): string {
+  return `${formatCurrency(amount)}/yr`;
+}
+
 /** Structural parameter rather than FraResult, so this module imports nothing. */
 export function fraLabel(fra: { years: number; months: number }): string {
   if (fra.months === 0) return `${fra.years}`;

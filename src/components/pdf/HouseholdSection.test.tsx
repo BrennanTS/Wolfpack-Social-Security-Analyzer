@@ -137,6 +137,18 @@ describe('HouseholdSection — the printed combined-income caption', () => {
     expect(text).not.toMatch(/filing year and a final year render at the same height/i);
     expect(text).not.toMatch(/shorter than a full one/i);
   });
+
+  // `HouseholdSection.tsx` concatenates `COMBINED_INCOME_SUBTITLE` and
+  // `combinedIncomeCaption` straight into ONE `<Text>` — a reader hits both
+  // sentences in a single breath, so print is exactly where "income BY
+  // YEAR" beside "shows the annual RATE" would have read as a direct,
+  // one-paragraph contradiction. The subtitle no longer claims a yearly
+  // bucket that the underlying chart doesn't have.
+  it('does not print "by year" beside the caption\'s "annual rate" sentence', () => {
+    const text = printed(null);
+    expect(text).not.toMatch(/by year/i);
+    expect(text).toMatch(/annual rate/i);
+  });
 });
 
 describe('HouseholdSection — the printed survivor-gap note', () => {
