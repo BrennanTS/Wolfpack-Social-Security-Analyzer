@@ -1302,3 +1302,70 @@ describe('analyzeHousehold — entry order', () => {
     });
   });
 });
+
+describe('analyzeHousehold — widowed', () => {
+  const widowPerson: Person = {
+    id: 'a', name: 'Widow', birthYear: 1964, birthMonth: 6,
+    gender: 'female', piaMonthly: 1200, lifeExpectancy: 92,
+  };
+  const household: Household = {
+    status: 'widowed',
+    people: [widowPerson],
+    deceased: {
+      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      record: { kind: 'pia', piaMonthly: 3000, filed: null },
+    },
+    alreadyClaimed: { survivorSince: null, ownSince: null },
+  };
+
+  it('analyzes exactly one living person', async () => {
+    const result = await analyzeHousehold(household, assumptions, asOf);
+    expect(result.status).toBe('widowed');
+    expect(result.people).toHaveLength(1);
+  });
+
+  it('emits both a personal and a survivor band', async () => {
+    const { periods } = await analyzeHousehold(household, assumptions, asOf);
+    expect(periods.some((b) => b.type === 'personal')).toBe(true);
+    expect(periods.some((b) => b.type === 'survivor')).toBe(true);
+    expect(periods.every((b) => b.type !== 'spousal')).toBe(true);
+  });
+
+  it('marks exactly one comparison row optimal, with zero delta', async () => {
+    const { comparisons } = await analyzeHousehold(household, assumptions, asOf);
+    const optimal = comparisons.filter((c) => c.isOptimal);
+    expect(optimal).toHaveLength(1);
+    expect(optimal[0].deltaVsOptimal).toBe(0);
+  });
+
+  it('never scores a comparison above the optimal', async () => {
+    const { comparisons, optimal } = await analyzeHousehold(household, assumptions, asOf);
+    for (const c of comparisons) {
+      expect(c.lifetimeTotal!).toBeLessThanOrEqual(optimal.lifetimeTotal! + 0.01);
+    }
+  });
+
+  it('carries a lifetime total, and no expected-NPV claim', async () => {
+    // The widowed score is an undiscounted lifetime sum, not a mortality-
+    // weighted present value. `lifetimeTotal` is non-null exactly where that
+    // is true, so a display layer can tell which figure it is holding.
+    const { optimal } = await analyzeHousehold(household, assumptions, asOf);
+    expect(optimal.lifetimeTotal).not.toBeNull();
+    expect(optimal.lifetimeTotal!).toBeGreaterThan(0);
+  });
+
+  it('leaves lifetimeTotal null for a married household', async () => {
+    const result = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] }, assumptions, asOf,
+    );
+    expect(result.optimal.lifetimeTotal).toBeNull();
+  });
+
+  it('has no spousal top-up, survivor gap or survivor-claim alternative', async () => {
+    const result = await analyzeHousehold(household, assumptions, asOf);
+    expect(result.spousalTopUp).toBeUndefined();
+    expect(result.survivorGap).toBeNull();
+    // The claim date is part of the recommendation now, not an alternative to it.
+    expect(result.survivorClaim).toBeNull();
+  });
+});

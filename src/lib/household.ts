@@ -1,6 +1,6 @@
 import { baseSpousalBenefit, higherEarningsThan } from '$lib/benefit-calculator';
 import { classifyEarnerDependent } from '$lib/strategy/calculations/earner-dependent';
-import { MonthDate } from '$lib/month-time';
+import { MonthDate, type MonthDuration } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
 import { roundCents } from './benefitMath';
 import {
@@ -10,6 +10,7 @@ import {
   type BenefitBand,
   type SurvivorGap,
 } from './benefitPeriods';
+import type { Deceased } from './deceased';
 import { formatCurrency, personLabel } from './format';
 import { firstDeath } from './incomeCliff';
 import { analyzePerson, getFullRetirementAge, type Person, type PersonAnalysis } from './personAnalysis';
@@ -23,6 +24,15 @@ import {
   type FilingAgeDisplay,
   type RankedStrategy,
 } from './ssaTools';
+import {
+  bestWidowedOutcome,
+  widowedBands,
+  widowedOutcomeFor,
+  widowedSearchRanges,
+  type AlreadyClaimed,
+  type WidowedInput,
+  type WidowedOutcome,
+} from './widowed';
 
 export interface Assumptions {
   annualCola: number;
@@ -31,15 +41,43 @@ export interface Assumptions {
 
 export type Household =
   | { status: 'single'; people: [Person] }
-  | { status: 'married'; people: [Person, Person] };
+  | { status: 'married'; people: [Person, Person] }
+  /**
+   * A claimant whose spouse has already died. Distinct from `married` rather
+   * than a flag on it: `people: [Person, Person]` means "two LIVING claimants"
+   * everywhere it is read, and making this its own variant means the type
+   * checker finds every `switch` on status that needs updating instead of
+   * leaving a silent fallthrough.
+   */
+  | {
+      status: 'widowed';
+      people: [Person];
+      deceased: Deceased;
+      alreadyClaimed: AlreadyClaimed;
+    };
 
-export type StrategyKey = 'earliest' | 'fra' | 'optimal' | 'latest';
+/** Rows a single or married household can show. */
+type CoupleStrategyKey = 'earliest' | 'fra' | 'optimal' | 'latest';
+/** Rows a widowed household can show. `optimal` is shared with the above. */
+type WidowedStrategyKey = 'survivorFirst' | 'ownFirst' | 'bothEarliest' | 'optimal';
+export type StrategyKey = CoupleStrategyKey | WidowedStrategyKey;
 
 export interface HouseholdStrategy {
   key: StrategyKey;
   label: string;
   filingAges: FilingAgeDisplay[];
   expectedNpv: number;
+  /**
+   * Undiscounted lifetime dollars, in today's dollars, through the plan-to
+   * age. Non-null ONLY for a widowed household, whose optimum is scored this
+   * way rather than by mortality-weighted expected present value.
+   *
+   * Display layers must branch on this before naming the figure: calling a
+   * lifetime sum an "expected present value" is exactly the shape of defect
+   * this project has shipped repeatedly. Null means `expectedNpv` is the
+   * figure and it really is an NPV.
+   */
+  lifetimeTotal: number | null;
   deltaVsOptimal: number;
   isOptimal: boolean;
   /**
@@ -145,11 +183,23 @@ export interface HouseholdAnalysis {
   asOf: Date;
 }
 
-const LABELS: Record<StrategyKey, { single: string; married: string }> = {
+const LABELS: Record<CoupleStrategyKey, { single: string; married: string }> = {
   earliest: { single: 'Claim at 62', married: 'Both claim earliest (62)' },
   fra: { single: 'Claim at FRA', married: 'Both claim at FRA' },
   optimal: { single: 'Optimal', married: 'Optimal' },
   latest: { single: 'Claim at 70', married: 'Both delay to 70' },
+};
+
+/**
+ * Widowed rows get their own map rather than a third arm on `LABELS`: the two
+ * statuses name different decisions, and forcing every couple key to carry a
+ * widowed label it can never use would invite one being written.
+ */
+const WIDOWED_LABELS: Record<WidowedStrategyKey, string> = {
+  survivorFirst: 'Survivor benefit first, own at 70',
+  ownFirst: 'Own benefit first, survivor at FRA',
+  bothEarliest: 'Both as early as possible',
+  optimal: 'Optimal',
 };
 
 /**
@@ -166,7 +216,7 @@ function buildComparisons(
   people: Person[],
   status: Household['status'],
 ): { optimal: HouseholdStrategy; comparisons: HouseholdStrategy[] } {
-  const namedAges: { key: StrategyKey; ages: { years: number; months: number }[] }[] = [
+  const namedAges: { key: CoupleStrategyKey; ages: { years: number; months: number }[] }[] = [
     { key: 'earliest', ages: people.map(() => ({ years: 62, months: 0 })) },
     {
       key: 'fra',
@@ -190,6 +240,7 @@ function buildComparisons(
     label: LABELS.optimal[key],
     filingAges: optimalStrategy.filingAges,
     expectedNpv: optimalStrategy.expectedNpv,
+    lifetimeTotal: null,
     deltaVsOptimal: 0,
     isOptimal: true,
     // Filled in by `withSurvivorIncome` once bands exist to compute it from —
@@ -207,6 +258,7 @@ function buildComparisons(
       label: LABELS[named.key][key],
       filingAges: match.filingAges,
       expectedNpv: match.expectedNpv,
+      lifetimeTotal: null,
       deltaVsOptimal: Math.round((match.expectedNpv - optimal.expectedNpv) * 100) / 100,
       isOptimal: false,
       survivorIncome: null,
@@ -746,6 +798,106 @@ function coupleRecommendationDetail(
   );
 }
 
+/**
+ * A widow(er): one living claimant, two independent dates.
+ *
+ * Does not call the engine's strategy optimizer at all.
+ * `strategySumPeriodsSingle` has no survivor concept, so ranking single-record
+ * filing ages would score a stream that omits the survivor benefit entirely —
+ * which is precisely the reason this status exists.
+ */
+async function analyzeWidowed(
+  household: Extract<Household, { status: 'widowed' }>,
+  assumptions: Assumptions,
+  asOf: Date,
+): Promise<HouseholdAnalysis> {
+  const person = household.people[0];
+  const label = personLabel(person.name, 0);
+  const input: WidowedInput = {
+    survivor: person,
+    deceased: household.deceased,
+    alreadyClaimed: household.alreadyClaimed,
+    asOf,
+  };
+
+  const best = bestWidowedOutcome(input);
+  const ranges = widowedSearchRanges(input);
+
+  // The named rows, each a real (S, F) pair inside the searched ranges so
+  // every row is attainable by construction.
+  const named: { key: WidowedStrategyKey; pair: [number, number] }[] = [
+    { key: 'survivorFirst', pair: [ranges.survivor[0], ranges.own[1]] },
+    { key: 'ownFirst', pair: [ranges.survivor[1], ranges.own[0]] },
+    { key: 'bothEarliest', pair: [ranges.survivor[0], ranges.own[0]] },
+  ];
+
+  const bands = widowedBands(input, best);
+  const people = [
+    analyzePerson(
+      person,
+      formatFilingAge(monthDurationBetween(person, best.ownFilingIndex)),
+      assumptions.annualCola,
+      asOf,
+    ),
+  ];
+
+  const toStrategy = (
+    key: WidowedStrategyKey,
+    outcome: WidowedOutcome,
+    isOptimal: boolean,
+  ): HouseholdStrategy => ({
+    key,
+    label: WIDOWED_LABELS[key],
+    filingAges: [formatFilingAge(monthDurationBetween(person, outcome.ownFilingIndex))],
+    expectedNpv: outcome.lifetimeTotal,
+    lifetimeTotal: outcome.lifetimeTotal,
+    deltaVsOptimal: roundCents(outcome.lifetimeTotal - best.lifetimeTotal),
+    isOptimal,
+    survivorIncome: null,
+  });
+
+  const optimal = toStrategy('optimal', best, true);
+  const comparisons: HouseholdStrategy[] = [optimal];
+  for (const { key, pair } of named) {
+    // Fold a named row into the optimum rather than printing it twice.
+    if (pair[0] === best.survivorClaimIndex && pair[1] === best.ownFilingIndex) continue;
+    comparisons.push(toStrategy(key, widowedOutcomeFor(input, pair[0], pair[1]), false));
+  }
+
+  const finalIndexByPersonId: Record<string, number> = {
+    [person.id]: Math.max(...bands.map((b) => b.endIndex)),
+  };
+
+  return {
+    status: 'widowed',
+    people,
+    optimal,
+    comparisons,
+    combinedTimeline: buildCombinedTimeline(bands, people),
+    periods: bands,
+    survivorGap: null,
+    survivorClaim: null,
+    finalIndexByPersonId,
+    recommendation:
+      `Claim the survivor benefit at age ${best.survivorClaimAge}, ` +
+      `and file on ${label}'s own record at age ${best.ownFilingAge}`,
+    recommendationDetail:
+      `SSA pays the larger of the two benefits each month, and deemed filing does not apply ` +
+      `to survivor benefits, so these two dates are independent. Claiming the survivor ` +
+      `benefit at age ${best.survivorClaimAge} and filing on ${label}'s own record at age ` +
+      `${best.ownFilingAge} pays ${formatCurrency(best.lifetimeTotal)} over ${label}'s ` +
+      `lifetime — a straight sum of dollars in today's dollars, not a present value.`,
+    assumptions,
+    asOf,
+  };
+}
+
+/** The survivor's age, as a duration, at an absolute month index. */
+function monthDurationBetween(person: Person, monthIndex: number): MonthDuration {
+  const recipient = createRecipientFor(person);
+  return recipient.birthdate.ageAtSsaDate(monthDateAt(monthIndex));
+}
+
 export async function analyzeHousehold(
   household: Household,
   assumptions: Assumptions,
@@ -891,6 +1043,10 @@ export async function analyzeHousehold(
       assumptions,
       asOf,
     };
+  }
+
+  if (household.status === 'widowed') {
+    return analyzeWidowed(household, assumptions, asOf);
   }
 
   const [person] = household.people;
