@@ -31,7 +31,7 @@ describe('Analyzer', () => {
       renderAnalyzer();
       expect(
         screen.getByText(
-          'Married uses the ssa.tools couple optimizer. Widowed models the survivor ' +
+          'Married optimizes both filing dates jointly. Widowed models the survivor ' +
             'benefit and your own, claimed on separate dates.',
         ),
       ).toBeInTheDocument();

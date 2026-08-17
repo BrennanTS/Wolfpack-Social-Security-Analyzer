@@ -158,7 +158,7 @@ export function HouseholdPanel({
   return (
     <div className="results">
       <div className="recommendation-card">
-        <span className="rec-label">Household — Recommended Strategy (ssa.tools)</span>
+        <span className="rec-label">Household — Recommended Strategy</span>
         <h2 data-testid="recommendation-title">{analysis.recommendation}</h2>
         <p>{analysis.recommendationDetail}</p>
       </div>

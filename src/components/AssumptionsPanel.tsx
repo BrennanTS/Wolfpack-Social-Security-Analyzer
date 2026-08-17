@@ -54,7 +54,7 @@ export function AssumptionsPanel({
         <div className="assumptions-body">
           <div className="field advanced-field">
             <label htmlFor="discount">
-              Discount rate (ssa.tools) — {formatPercent(discountRate * 100, 2)}
+              Discount rate — {formatPercent(discountRate * 100, 2)}
             </label>
             <input
               id="discount"
@@ -70,11 +70,11 @@ export function AssumptionsPanel({
               <span>6%</span>
             </div>
             <span className="field-hint">
-              Used for mortality-weighted optimal filing (ssa.tools expected NPV). Default 2.5%
+              Used for mortality-weighted optimal filing (expected present value). Default 2.5%
               approximates long-term TIPS yield.
             </span>
             {usingDefaultDiscount && (
-              <p className="cpi-active-note">Using ssa.tools default discount rate.</p>
+              <p className="cpi-active-note">Using the default discount rate.</p>
             )}
           </div>
 
@@ -174,7 +174,7 @@ export function AssumptionsPanel({
               </button>
             </div>
             <span className="field-hint">
-              Benefit math uses SSA historical COLA tables (ssa.tools). This rate applies to
+              Benefit math uses SSA historical COLA tables. This rate applies to
               illustrative cumulative charts only.
             </span>
             {usingDefaultCola && (

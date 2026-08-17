@@ -362,7 +362,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 </button>
               </div>
               <span className="field-hint">
-                Married uses the ssa.tools couple optimizer. Widowed models the survivor
+                Married optimizes both filing dates jointly. Widowed models the survivor
                 benefit and your own, claimed on separate dates.
               </span>
             </div>
@@ -398,12 +398,11 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 <>
                   Analyzing <strong>{genderLabel(personA.gender)}</strong>
                   {maritalStatus === 'married'
-                    ? ', married (ssa.tools couple)'
+                    ? ', married'
                     : maritalStatus === 'widowed'
                       ? ', widowed (survivor + own)'
                       : ', single'}{' '}
-                  claimant —
-                  benefits via <strong>ssa.tools</strong> engine.
+                  claimant.
                 </>
               ) : (
                 <>Complete your profile to generate a personalized claiming analysis.</>
@@ -420,7 +419,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               <div className="empty-state-icon" aria-hidden="true">
                 <span />
               </div>
-              <h3>Running ssa.tools analysis…</h3>
+              <h3>Running analysis…</h3>
               <p>Computing optimal filing ages with SSA mortality tables and benefit formulas.</p>
             </div>
           ) : analysisError ? (

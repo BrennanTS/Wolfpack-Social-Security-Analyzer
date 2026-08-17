@@ -227,7 +227,7 @@ describe('AssumptionsPanel CPI history', () => {
     expect(colaInput()).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Benefit math uses SSA historical COLA tables (ssa.tools). This rate applies to ' +
+        'Benefit math uses SSA historical COLA tables. This rate applies to ' +
           'illustrative cumulative charts only.',
       ),
     ).toBeInTheDocument();
