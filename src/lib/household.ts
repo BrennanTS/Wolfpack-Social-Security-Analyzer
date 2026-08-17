@@ -78,6 +78,27 @@ export interface HouseholdStrategy {
    * figure and it really is an NPV.
    */
   lifetimeTotal: number | null;
+  /**
+   * The month the survivor benefit is claimed, and the survivor's age then.
+   * Non-null ONLY for a widowed household, whose recommendation is two dates
+   * rather than one: `filingAges` carries the person's own filing age, and
+   * this carries the other half of the decision. Without it the
+   * `survivorFirst` and `ownFirst` rows differ only by their label.
+   *
+   * Null for single and married rows, where there is no separate survivor
+   * claim date to state — for a married household the survivor benefit's
+   * start is not a decision variable at all (see `survivorClaim.ts`).
+   *
+   * Named `survivorClaimDate` rather than `survivorClaim`, deliberately, to
+   * avoid colliding in name (though not in shape) with
+   * `HouseholdAnalysis.survivorClaim` — the Phase 3A married-household
+   * alternative, a different type entirely (`SurvivorClaimAlternative`, with
+   * `claimIndex`/`baselineTotal`/`gain`/etc.) that stays `null` for a widowed
+   * household. Two same-named nullable "survivor claim" fields on sibling
+   * types, meaning different things, is exactly the kind of thing this
+   * project's own copy defects have come from.
+   */
+  survivorClaimDate: { monthIndex: number; age: string } | null;
   deltaVsOptimal: number;
   isOptimal: boolean;
   /**
@@ -241,6 +262,7 @@ function buildComparisons(
     filingAges: optimalStrategy.filingAges,
     expectedNpv: optimalStrategy.expectedNpv,
     lifetimeTotal: null,
+    survivorClaimDate: null,
     deltaVsOptimal: 0,
     isOptimal: true,
     // Filled in by `withSurvivorIncome` once bands exist to compute it from —
@@ -259,6 +281,7 @@ function buildComparisons(
       filingAges: match.filingAges,
       expectedNpv: match.expectedNpv,
       lifetimeTotal: null,
+      survivorClaimDate: null,
       deltaVsOptimal: Math.round((match.expectedNpv - optimal.expectedNpv) * 100) / 100,
       isOptimal: false,
       survivorIncome: null,
@@ -851,6 +874,7 @@ async function analyzeWidowed(
     filingAges: [formatFilingAge(monthDurationBetween(person, outcome.ownFilingIndex))],
     expectedNpv: outcome.lifetimeTotal,
     lifetimeTotal: outcome.lifetimeTotal,
+    survivorClaimDate: { monthIndex: outcome.survivorClaimIndex, age: outcome.survivorClaimAge },
     deltaVsOptimal: roundCents(outcome.lifetimeTotal - best.lifetimeTotal),
     isOptimal,
     survivorIncome: null,
@@ -858,14 +882,30 @@ async function analyzeWidowed(
 
   const optimal = toStrategy('optimal', best, true);
   const comparisons: HouseholdStrategy[] = [optimal];
+  // Dedupe on the (S, F) pair itself, not just against the optimum: when a
+  // range has collapsed to a single point (e.g. `alreadyClaimed.ownSince` is
+  // set — `widowedSearchRanges` collapses `own` to `[f, f]`), two DIFFERENT
+  // named rows can land on the identical pair without either matching the
+  // optimum's pair. Folding only against the optimum let `survivorFirst` and
+  // `bothEarliest` print as separate rows with identical filing ages and
+  // identical `lifetimeTotal`, differing only in label.
+  const seenPairs = new Set<string>([`${best.survivorClaimIndex},${best.ownFilingIndex}`]);
   for (const { key, pair } of named) {
-    // Fold a named row into the optimum rather than printing it twice.
-    if (pair[0] === best.survivorClaimIndex && pair[1] === best.ownFilingIndex) continue;
+    const pairKey = `${pair[0]},${pair[1]}`;
+    if (seenPairs.has(pairKey)) continue; // Folded into an already-shown row.
+    seenPairs.add(pairKey);
     comparisons.push(toStrategy(key, widowedOutcomeFor(input, pair[0], pair[1]), false));
   }
 
+  // Read off `best.finalIndex` — the search's own final month — rather than
+  // `Math.max(...bands.map((b) => b.endIndex))`: `widowedBands` omits a band
+  // entirely whenever its amount rounds to zero or its start falls after the
+  // final index, so `bands` can legitimately be empty (a $0 own PIA and $0
+  // recovered deceased PIA; a death after the survivor's plan-to age), and
+  // `Math.max` over an empty array is `-Infinity` — which `JSON.stringify`
+  // silently turns into `null` rather than an obviously-wrong sentinel.
   const finalIndexByPersonId: Record<string, number> = {
-    [person.id]: Math.max(...bands.map((b) => b.endIndex)),
+    [person.id]: best.finalIndex,
   };
 
   return {

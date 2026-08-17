@@ -54,6 +54,19 @@ export interface WidowedOutcome {
    * path's `expectedNpv`. See the spec's "Known limitation".
    */
   lifetimeTotal: number;
+  /**
+   * The survivor's inclusive final absolute month index — the same
+   * `context().finalIndex` every candidate in the search was evaluated
+   * against. A genuine fact about the search, not a display detail: callers
+   * that need "the survivor's last modeled month" (e.g. `finalIndexByPersonId`)
+   * must NOT derive it from `bands`, because `widowedBands` omits a band
+   * entirely whenever its amount rounds to zero or its start falls after this
+   * index — an empty `bands` array is a real, reachable case (a $0 own PIA
+   * and $0 recovered deceased PIA; a death after the survivor's plan-to age),
+   * and `Math.max` over an empty array is `-Infinity`, which round-trips
+   * through `JSON.stringify` as `null` rather than failing loudly.
+   */
+  finalIndex: number;
 }
 
 const ageDuration = (years: number): MonthDuration =>
@@ -196,6 +209,7 @@ function outcomeFromContext(
     ownFilingAge: formatFilingAge(recipient.birthdate.ageAtSsaDate(monthDateAt(ownFilingIndex)))
       .label,
     lifetimeTotal: roundCents(total),
+    finalIndex,
   };
 }
 
