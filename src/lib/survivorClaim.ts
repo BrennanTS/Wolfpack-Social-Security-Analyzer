@@ -15,8 +15,9 @@
  * worth, so the alternative can be shown with a number attached.
  *
  * **No benefit rule is computed here.** Every survivor amount comes from the
- * engine's own `survivorBenefit`; every "own" amount is read off the bands the
- * app already displays. This module supplies dates and a `max()`.
+ * engine's `survivorBenefit`; the survivor's own retirement amount comes from
+ * the engine's `benefitOnDate` or off the bands; nothing else produces a
+ * dollar. This module supplies dates and a `max()`.
  *
  * Deliberate choices, each of which was wrong in an earlier design:
  *
@@ -24,24 +25,37 @@
  *   start-date rule. The bands are what the app puts on screen, and they have
  *   already been through `splitDualEntitlement`. Re-deriving the rule here
  *   would credit the claim-date change with the dual-entitlement
- *   re-composition a prior phase did, and flatter the result.
+ *   re-composition a prior phase did, and flatter the result. This is why the
+ *   `benefitOnDate` floor below is applied to `own` ONLY, never to the
+ *   baseline.
+ * - `own` is NOT read off the bands alone. Whenever the engine's survivor
+ *   start coincides with the survivor's own filing date it emits no personal
+ *   band for them at all (`strategy-calc.ts:112-125` truncates the personal
+ *   period out of existence) — and that is precisely the population this
+ *   module fires on, so a band-only `own` would be zero in nearly every
+ *   household it touches. That does not merely understate the gain; it moves
+ *   the recommended claim month, because months in which the survivor's own
+ *   benefit would beat an early reduced widow(er) benefit get valued at the
+ *   reduced amount instead. See `ownRetirementBenefit` below.
  * - The search stops at the survivor's SURVIVOR-FRA
  *   (`recipient.survivorNormalRetirementDate()`, a different table from the
  *   retirement FRA), not at their own filing date. Survivor-FRA is where the
  *   71.5%-to-100% reduction reaches 100%; deferring past it never raises the
  *   amount (`benefit-calculator.ts:512-517`). Stopping at the own filing date
  *   would exclude survivor-FRA precisely when the survivor files earlier,
- *   which is where waiting is worth the most.
+ *   which is where waiting is worth the most — the case
+ *   `survivorClaim.test.ts`'s pinned optimum-beyond-own-filing test exists to
+ *   hold.
  * - Every candidate is at least `death + 1`, so `survivorBenefit`'s
  *   "cannot file for survivor benefits before spouse died" throw
  *   (`benefit-calculator.ts:455`) is unreachable. Widening the range means
  *   re-checking that.
  */
-import { survivorBenefit } from '$lib/benefit-calculator';
+import { benefitOnDate, survivorBenefit } from '$lib/benefit-calculator';
 import { MonthDate, MonthDuration } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
 import { roundCents } from './benefitMath';
-import type { BenefitBand, SurvivorGap } from './benefitPeriods';
+import { monthDateAt, monthIndexOf, type BenefitBand, type SurvivorGap } from './benefitPeriods';
 import { firstDeath } from './incomeCliff';
 import type { Person } from './personAnalysis';
 import { formatFilingAge } from './ssaTools';
@@ -49,7 +63,7 @@ import { formatFilingAge } from './ssaTools';
 export interface SurvivorClaimAlternative {
   /** Inclusive absolute month index of the best survivor claim month. */
   claimIndex: number;
-  /** The survivor's age at that month, e.g. "60 years, 0 months" — via `formatFilingAge`. */
+  /** The survivor's age at that month, e.g. "60" or "67 years, 10 months" — via `formatFilingAge`. */
   claimAge: string;
   /** The survivor's display label. */
   survivorLabel: string;
@@ -59,26 +73,27 @@ export interface SurvivorClaimAlternative {
   bestTotal: number;
   /** `bestTotal - baselineTotal`. Strictly positive whenever this object is non-null. */
   gain: number;
-}
-
-/** The band index convention, read off the engine's own accessors. */
-function monthIndexOf(date: MonthDate): number {
-  return date.year() * 12 + date.monthIndex();
-}
-
-/** The inverse: the engine's month date for a band index. */
-function monthDateAt(index: number): MonthDate {
-  return MonthDate.initFromYearsMonths({
-    years: Math.floor(index / 12),
-    months: index % 12,
-  });
+  /**
+   * Whether the baseline the app displays contains ANY survivor band for this
+   * person. False means the engine models no survivor benefit for them at all
+   * — the direction it declines to model (`strategy-calc.ts:103-111`), reached
+   * here when `detectSurvivorGap` also stayed silent because the deceased held
+   * no personal band at the death month or because their benefit did not
+   * exceed the survivor's own (`benefitPeriods.ts:266-272`).
+   *
+   * The money is real either way, so this is a discriminator rather than a
+   * suppression: a caller must not describe a `false` case as claiming
+   * "earlier than the plan assumes", because there is no survivor benefit on
+   * screen for it to be earlier than.
+   */
+  baselineHasSurvivorBand: boolean;
 }
 
 function ageDuration(years: number): MonthDuration {
   return MonthDuration.initFromYearsMonths({ years, months: 0 });
 }
 
-/** Sum of the amounts of every matching band covering `monthIndex`. */
+/** Sum of the amounts of every supplied band covering `monthIndex`. */
 function amountAt(bands: BenefitBand[], monthIndex: number): number {
   let total = 0;
   for (const band of bands) {
@@ -88,15 +103,35 @@ function amountAt(bands: BenefitBand[], monthIndex: number): number {
 }
 
 /**
+ * The survivor's own retirement benefit once filed, from the engine.
+ *
+ * This is `strategy-calc.ts:89-93`'s `dependentFinalPersonalBenefit` verbatim,
+ * the same expression the engine itself uses to decide whether a survivor
+ * benefit is worth switching to: `benefitOnDate` at the filing date, read a
+ * year later so all late-filing credits are included. It is needed because the
+ * engine deletes the survivor's personal band in exactly the households this
+ * module targets, so the bands cannot answer "what would they be getting on
+ * their own record" for those months.
+ */
+function ownRetirementBenefit(recipient: Recipient, filingDate: MonthDate): number {
+  return benefitOnDate(
+    recipient,
+    filingDate,
+    filingDate.addDuration(MonthDuration.OneYear()),
+  ).value();
+}
+
+/**
  * The best month for the survivor to claim the widow(er) benefit, holding both
  * filing ages fixed, or null when there is nothing to show.
  *
  * Null for a single claimant, for a household whose survivor direction the
- * engine cannot model at all (`survivorGap` set — that gap is disclosed
- * separately and a claim-month search over it would be answering a different
- * question), for an exact tie in the two plan-to months (`firstDeath` returns
- * null: neither person is established as the survivor), and for any household
- * where the best claim month is worth no more than what is already on screen.
+ * engine cannot model AND has already disclosed (`survivorGap` set — a
+ * claim-month search over a disclosed gap would be answering a different
+ * question twice), for an exact tie in the two plan-to months (`firstDeath`
+ * returns null: neither person is established as the survivor), and for any
+ * household where the best claim month is worth no more than what is already
+ * on screen.
  *
  * `recipients`, `filingAges` and `labels` are parallel to `people`.
  */
@@ -123,18 +158,26 @@ export function survivorClaimAlternative(
   const deathDate = monthDateAt(death.deathMonthIndex);
   const survivorFinalIndex = finalIndexByPersonId[people[survivorIndex].id];
 
-  // The two per-month series, read off the bands the app displays. `own` is
-  // the survivor's personal entitlement — what they keep under dual
-  // entitlement; `baseline` is everything they are shown receiving, personal
-  // plus whatever survivor top-up the engine emitted.
   const survivorBands = bands.filter((b) => b.personId === people[survivorIndex].id);
   const personalBands = survivorBands.filter((b) => b.type === 'personal');
+
+  // What the survivor holds on their own record, month by month. The bands are
+  // the display truth where they exist; the engine's own filed-benefit figure
+  // fills the months the engine deleted the personal band from. Taking the max
+  // of the two rather than replacing one with the other keeps the
+  // delayed-January-bump band (`recipient-personal-benefits.ts:115-127`)
+  // whenever it is the larger.
+  const survivorFilingDate = survivorRecipient.birthdate.dateAtSsaAge(filingAges[survivorIndex]);
+  const survivorFilingIndex = monthIndexOf(survivorFilingDate);
+  const ownFiled = ownRetirementBenefit(survivorRecipient, survivorFilingDate);
 
   const firstMonth = death.deathMonthIndex + 1;
   const own: number[] = [];
   let baselineTotal = 0;
   for (let m = firstMonth; m <= survivorFinalIndex; m++) {
-    own.push(amountAt(personalBands, m));
+    own.push(Math.max(amountAt(personalBands, m), m >= survivorFilingIndex ? ownFiled : 0));
+    // Band-derived, and deliberately NOT floored by `ownFiled`: the baseline
+    // must stay exactly what the app displays.
     baselineTotal += amountAt(survivorBands, m);
   }
 
@@ -183,5 +226,6 @@ export function survivorClaimAlternative(
     baselineTotal: roundedBaseline,
     bestTotal: roundedBest,
     gain,
+    baselineHasSurvivorBand: survivorBands.some((b) => b.type === 'survivor'),
   };
 }
