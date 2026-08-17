@@ -270,11 +270,48 @@ describe('widowed share links', () => {
     expect(fromShareParams(params).alreadyClaimed.ownSinceYear).toBe('');
   });
 
+  // Every key this module writes for a widowed household, including `dk`,
+  // which (unlike its siblings) is written unconditionally by `writeWidowed`
+  // and so is NOT covered by checking `dy` alone — a regression that made
+  // `writeWidowed` unconditional slipped past the single-key version of this
+  // test with all 35 other tests still green.
+  const WIDOWED_KEYS = [
+    'dy', 'dm', 'ddy', 'ddm', 'dk', 'dp', 'dc', 'df', 'dfy', 'dfm',
+    'csy', 'csm', 'coy', 'com',
+  ];
+
   it('writes no widowed parameters for a married household', () => {
     const married = { ...BLANK_FORM, maritalStatus: 'married' as const };
     const params = toShareParams(married);
-    expect(params.get('dy')).toBeNull();
+    for (const key of WIDOWED_KEYS) expect(params.get(key)).toBeNull();
     expect(params.get('m')).toBe('1');
+  });
+
+  it('writes no widowed parameters for a single household', () => {
+    const single = { ...BLANK_FORM, maritalStatus: 'single' as const };
+    const params = toShareParams(single);
+    for (const key of WIDOWED_KEYS) expect(params.get(key)).toBeNull();
+    expect(params.get('m')).toBe('0');
+  });
+
+  // `dm`/`ddm`/`dfm`/`csm`/`com` must be bounds-checked the same as `am`/`bm`
+  // — an out-of-range month must be dropped, not passed through. Left
+  // unchecked, `widowedForm.ts`'s `idx()` would silently roll a month of 13
+  // into January of the next year: a plausible-looking wrong date rather
+  // than a blocked field, which is exactly what "dropped, not clamped" exists
+  // to prevent.
+  it('drops an out-of-range deceased month rather than passing it through', () => {
+    const back = fromShareParams(
+      new URLSearchParams('m=w&dy=1960&dm=99&ddy=2024&ddm=0&dk=p&dp=3000&df=1&dfy=2022&dfm=5'),
+    );
+    expect(back.deceased.birthMonth).toBe('');
+    expect(back.deceased.deathMonth).toBe('');
+  });
+
+  it('drops an out-of-range already-claimed month rather than passing it through', () => {
+    const back = fromShareParams(new URLSearchParams('m=w&csy=2024&csm=13&coy=2030&com=0'));
+    expect(back.alreadyClaimed.survivorSinceMonth).toBe('');
+    expect(back.alreadyClaimed.ownSinceMonth).toBe('');
   });
 });
 

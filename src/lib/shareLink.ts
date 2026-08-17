@@ -139,24 +139,25 @@ function readWidowed(params: URLSearchParams): {
   alreadyClaimed: AlreadyClaimedFormFields;
 } {
   const hadFiled = params.get('df');
+  const MONTH_BOUNDS = { min: 1, max: 12 };
   return {
     deceased: {
       birthYear: num(params, 'dy') ?? '',
-      birthMonth: num(params, 'dm') ?? '',
+      birthMonth: intInBounds(params, 'dm', MONTH_BOUNDS),
       deathYear: num(params, 'ddy') ?? '',
-      deathMonth: num(params, 'ddm') ?? '',
+      deathMonth: intInBounds(params, 'ddm', MONTH_BOUNDS),
       recordKind: params.get('dk') === 'c' ? 'checkAmount' : 'pia',
       piaMonthly: num(params, 'dp') ?? '',
       hadFiled: hadFiled === '1' ? true : hadFiled === '0' ? false : null,
       checkAmount: num(params, 'dc') ?? '',
       filedYear: num(params, 'dfy') ?? '',
-      filedMonth: num(params, 'dfm') ?? '',
+      filedMonth: intInBounds(params, 'dfm', MONTH_BOUNDS),
     },
     alreadyClaimed: {
       survivorSinceYear: num(params, 'csy') ?? '',
-      survivorSinceMonth: num(params, 'csm') ?? '',
+      survivorSinceMonth: intInBounds(params, 'csm', MONTH_BOUNDS),
       ownSinceYear: num(params, 'coy') ?? '',
-      ownSinceMonth: num(params, 'com') ?? '',
+      ownSinceMonth: intInBounds(params, 'com', MONTH_BOUNDS),
     },
   };
 }
