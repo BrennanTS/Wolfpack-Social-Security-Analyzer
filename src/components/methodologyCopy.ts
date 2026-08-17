@@ -142,6 +142,45 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * explicit that this is not advice: the figure comes from a search the
  * optimizer itself cannot run, because the optimizer holds one filing date
  * per person and this varies a second, independent date for the same person.
+ *
+ * "`incomeCliffSentence` is rendered directly above" is not an assumption —
+ * within this app's own reachable input space it is a theorem. A non-null
+ * `alt` requires `firstDeath` to resolve (`survivorClaimAlternative`'s own
+ * `death === null` guard); `incomeCliff`'s only requirement beyond that is a
+ * full calendar year of `combinedTimeline` on each side of the death year.
+ * Two input bounds this app enforces close the gap: `LIFE_EXPECTANCY_BOUNDS.min
+ * = 75` (`formBounds.ts`, enforced on the slider and DROPPED rather than
+ * clamped by a shared link that falls outside it — `shareLink.ts`), and the
+ * optimizer's own filing ceiling of 70. Together they guarantee everyone
+ * files at least five years before their own plan-to month and holds band
+ * coverage from then on, so the missing-`beforePoint` case cannot occur. In
+ * the missing-`afterPoint` case the survivor is at least 74 at the death,
+ * which collapses `survivorClaimAlternative`'s own search range to the single
+ * candidate `death + 1` — the engine's own start date, reproducing exactly
+ * what the app already displays — so `gain <= 0` and the function returns
+ * null before reaching `incomeCliff` at all. Non-null `survivorClaim`
+ * therefore implies non-null `incomeCliff`. (This does not hold for a
+ * household assembled by hand below the app's own floor, which is why a unit
+ * test may use a shorter life expectancy without being a counterexample to
+ * anything the running app can actually produce.)
+ *
+ * States its own dollars basis and disclaims present value explicitly,
+ * rather than reading either off `dollarsMode` or the recommendation box
+ * beside it: `gain`/`baselineTotal`/`bestTotal` come straight from summing
+ * engine bands (see `survivorClaim.ts`), the same real-dollars, no-COLA
+ * figures `analysis.periods` itself carries, and neither caller ever
+ * transforms them — `HouseholdPanel` deliberately passes the untransformed
+ * `analysis`, not the dollars-mode-adjusted `displayAnalysis`, for exactly
+ * this reason. So the figure is real dollars regardless of what the on-screen
+ * toggle currently shows elsewhere on the page, and `dollarsBasisClause`
+ * (this file, above) is called with `'real'` unconditionally — not with a
+ * `mode` parameter this function doesn't have — to say so rather than leave a
+ * dollar figure with no unit statement sitting one line below a sentence
+ * that ends by naming a DIFFERENT basis in nominal mode. It is also an
+ * undiscounted sum of dollars paid, not a present value — unlike the
+ * recommendation box's own `expectedNpv` two paragraphs above, which is — so
+ * the sentence says that explicitly too rather than let "over its lifetime"
+ * imply the two figures are the same kind of number.
  */
 export function survivorClaimNote(alt: SurvivorClaimAlternative | null): string | null {
   if (!alt) return null;
@@ -149,14 +188,14 @@ export function survivorClaimNote(alt: SurvivorClaimAlternative | null): string 
   const { survivorLabel, claimAge, gain, baselineHasSurvivorBand } = alt;
 
   const claimClause = baselineHasSurvivorBand
-    ? `claim the survivor benefit at age ${claimAge} instead of the date the recommendation ` +
-      `above puts it`
-    : `claim a widow(er) benefit at age ${claimAge} — one the recommendation above does not ` +
-      `otherwise show`;
+    ? `claim the survivor benefit at age ${claimAge} instead of the date the plan above shows ` +
+      `it starting`
+    : `claim a widow(er) benefit at age ${claimAge}, one the plan above does not otherwise show`;
 
   return (
     `If ${survivorLabel} were to ${claimClause}, the household would gain an estimated ` +
-    `${formatCurrency(gain)} over its lifetime. This is not a recommendation: the ` +
+    `${formatCurrency(gain)} — a straight sum of dollars paid over its lifetime, not a present ` +
+    `value. These ${dollarsBasisClause('real')}. This is not a recommendation: the ` +
     `recommendation above comes from an optimizer that holds each spouse's own filing date ` +
     `fixed and cannot model a separate survivor claim date.`
   );

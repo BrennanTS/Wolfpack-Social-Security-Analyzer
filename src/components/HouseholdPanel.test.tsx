@@ -63,6 +63,11 @@ function buildAnalysis(): HouseholdAnalysis {
     // only on the break-even section and the survivor-gap note, neither of
     // which reads `periods`.
     periods: [],
+    // Explicit `null`, not omitted — `HouseholdAnalysis.survivorClaim` is
+    // typed non-optional, and the null-case test below relies on this
+    // fixture actually carrying the modelled absence rather than an
+    // `undefined` the type says cannot exist.
+    survivorClaim: null,
     recommendation: 'Claim at age 70',
     recommendationDetail: 'ssa.tools recommends filing at age 70.',
     assumptions: { annualCola: 0, discountRate: 3 },
@@ -179,8 +184,11 @@ describe('HouseholdPanel', () => {
 
   // Wiring guard, same shape as the survivor-gap one above: the note is
   // computed in `lib/survivorClaim.ts` and rendered by `SurvivorClaimNote`,
-  // and this panel is the only thing joining them.
-  it('renders the survivor-claim note directly below the income-cliff callout', () => {
+  // and this panel is the only thing joining them. Checks actual DOM order,
+  // not just that both nodes exist somewhere on the page — two `getByTestId`
+  // calls alone would pass even if the note rendered above the callout, or
+  // anywhere else on the page.
+  it('renders the survivor-claim note after the income-cliff callout, in document order', () => {
     const personA = buildPersonAnalysis('a', 'Dan');
     const personB = buildPersonAnalysis('b', 'Sarah');
     const analysis = {
@@ -208,8 +216,11 @@ describe('HouseholdPanel', () => {
 
     // The callout really is on screen (guards against this passing
     // vacuously because `incomeCliff` returned null).
-    expect(screen.getByTestId('income-cliff-sentence')).toBeInTheDocument();
-    expect(screen.getByTestId('survivor-claim-note').textContent).toContain('135,700');
+    const cliff = screen.getByTestId('income-cliff-sentence');
+    const note = screen.getByTestId('survivor-claim-note');
+    expect(note.textContent).toContain('135,700');
+    // `note` follows `cliff` in the DOM — not merely that both exist.
+    expect(cliff.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('renders no survivor-claim note when the analysis has none', () => {

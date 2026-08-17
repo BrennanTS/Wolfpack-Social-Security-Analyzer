@@ -1201,7 +1201,7 @@ describe('survivorClaimNote', () => {
     expect(survivorClaimNote(null)).toBeNull();
   });
 
-  it('does not restate a recommendation, when the baseline already shows a survivor band', () => {
+  it('says it is not a recommendation, when the baseline already shows a survivor band', () => {
     const note = survivorClaimNote({
       claimIndex: 2036 * 12 + 4,
       claimAge: '67 years, 10 months',
@@ -1211,14 +1211,23 @@ describe('survivorClaimNote', () => {
       gain: 79_040,
       baselineHasSurvivorBand: true,
     })!;
-    expect(note).not.toMatch(/recommend(s|ed|ation)? that/i);
+    expect(note).toContain('This is not a recommendation');
+    // Discriminating: the `true` branch names the date the plan already
+    // shows, and must not also read like the `false` branch, which claims no
+    // such date is shown at all — a ternary bug that swapped the two would
+    // pass a merely-`toContain` check on either alone.
+    expect(note).toContain('instead of the date');
+    expect(note).not.toContain('does not otherwise show');
   });
 
   it('does not claim the alternative is earlier than a plan the baseline never showed', () => {
     // `baselineHasSurvivorBand: false` means there is NO survivor benefit
     // anywhere on screen for this figure to be an alternative to — a phrase
     // like "earlier than the plan shows" would be false here, since the plan
-    // shows nothing.
+    // shows nothing. Discriminating in the same way as the `true`-branch test
+    // above: deleting the ternary and always emitting the `true` clause must
+    // fail THIS assertion, where the previous, non-discriminating regexes
+    // did not.
     const note = survivorClaimNote({
       claimIndex: 2035 * 12 + 4,
       claimAge: '60',
@@ -1230,7 +1239,28 @@ describe('survivorClaimNote', () => {
     })!;
     expect(note).toMatch(/Bob/);
     expect(note).toMatch(/\$102,960/);
-    expect(note).not.toMatch(/than (the )?(plan|recommendation) (shows|assumes|puts)/i);
+    expect(note).toContain('does not otherwise show');
+    expect(note).not.toContain('instead of the date');
+  });
+
+  it('states its own dollars basis and disclaims present value, independent of any toggle', () => {
+    // `gain`/`baselineTotal`/`bestTotal` are real-dollars sums straight off
+    // the engine's bands and are never run through the nominal transform —
+    // this function has no `mode` parameter to get that wrong, and always
+    // states 'real' regardless of what the page's dollars-mode toggle
+    // currently shows elsewhere.
+    const note = survivorClaimNote({
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '68 years, 0 months',
+      survivorLabel: 'Sarah',
+      baselineTotal: 300_000,
+      bestTotal: 435_700,
+      gain: 135_700,
+      baselineHasSurvivorBand: true,
+    })!;
+    expect(note).toContain('today’s dollars, before any cost-of-living adjustment');
+    expect(note).not.toMatch(/nominal/i);
+    expect(note).toMatch(/not a present value/i);
   });
 
   it('reads correctly for a bare-year claim age, e.g. exactly 60', () => {

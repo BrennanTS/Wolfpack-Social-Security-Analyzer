@@ -976,11 +976,20 @@ function canonicalize(analysis: HouseholdAnalysis) {
  * The household below is a real, deterministic one (not a hand-built
  * `SurvivorClaimAlternative`) chosen because ssa.tools' own optimizer happens
  * to file Ann early enough, and Bob late enough, that Bob's own recommended
- * filing date lands after Ann's death — the population this whole module
- * exists for. Its exact figures are pinned against the live engine output so
- * a future engine or `household.ts` change that quietly stops wiring this
- * through fails a test here, not just in `survivorClaim.test.ts`'s
- * hand-derived unit fixtures.
+ * filing date lands after Ann's death. Its exact figures are pinned against
+ * the live engine output so a future engine or `household.ts` change that
+ * quietly stops wiring this through fails a test here, not just in
+ * `survivorClaim.test.ts`'s hand-derived unit fixtures.
+ *
+ * Ann's `lifeExpectancy: 62` is below this app's own input floor
+ * (`LIFE_EXPECTANCY_BOUNDS.min = 75`, `formBounds.ts`) — deliberately, to get
+ * a real death from the live optimizer without hand-building bands, exactly
+ * as `survivorClaim.test.ts`'s own fixtures do. That makes this a valid
+ * WIRING test but not a representative one: it is not "the population this
+ * module exists for" the way a household built from the app's own bounds
+ * would be, and `methodologyCopy.ts`'s `survivorClaimNote` docstring's
+ * reachability proof (that a non-null `survivorClaim` implies a non-null
+ * `incomeCliff`) explicitly does not cover it.
  */
 describe('analyzeHousehold — survivor claim alternative', () => {
   const ann: Person = {
