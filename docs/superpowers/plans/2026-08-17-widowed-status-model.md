@@ -1124,9 +1124,13 @@ Write a temporary sweep file `validation/sweep/_tmp-widowed.sweep.ts` that runs 
 
 Run: `npx vitest run --config vitest.sweep.config.ts validation/sweep/_tmp-widowed.sweep.ts`
 
-Pick two households from the output:
-- one where **survivor-first** wins (a low-PIA widow — SSA's own worked example), and
-- one where **own-first** wins (a widow whose own PIA exceeds the deceased's, so the survivor benefit never overtakes it).
+Pick two households from the output, one of each shape:
+
+- **Own-first wins** — the widow files on her own record at the earliest month and delays the survivor claim to survivor-FRA. This is the shape when **her own PIA is well BELOW the deceased's**: her own benefit never overtakes even the age-60 reduced survivor benefit, so it costs nothing to start it immediately and fill the gap, while the survivor benefit is worth taking unreduced. Task 2 measured exactly this for a $1,200 widow against a $3,000 deceased: own at 62y1m plus survivor at survivor-FRA totals **$952,855**, against $903,000 for survivor-at-FRA alone and $825,825 for survivor-at-60.
+
+- **Survivor-first wins** — she claims the survivor benefit early and switches to her own later. This needs the **OPPOSITE** ratio: her own record must be large enough that her benefit, grown with delayed credits, eventually EXCEEDS the survivor benefit. SSA's published "switch to own at 70" example is this shape.
+
+> **Do not assume a low-PIA widow produces the survivor-first case.** The plan originally said so and it is wrong — see the ledger's Task 2 plan-defect entries. Confirm each scenario's actual recommendation from the sweep output before recording it; do not reason from the SSA example alone.
 
 Delete the temporary file afterwards.
 
