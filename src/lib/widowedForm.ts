@@ -138,10 +138,21 @@ export function widowedErrors(
     if (!claim) continue;
     const claimIndex = idx(claim.year, claim.month);
     if (claimIndex < survivorBirthIndex) {
+      // Applies to BOTH dates: no benefit of any kind can start before the
+      // person it is paid to was born.
       errors[field] = 'claimBeforeBirth';
-    } else if (death && claimIndex <= idx(death.year, death.month)) {
-      // A benefit that depends on the death cannot precede it, and SSA pays
-      // from the month AFTER. `survivorBenefit` throws on the equal case.
+    } else if (field === 'survivorSince' && death && claimIndex <= idx(death.year, death.month)) {
+      // SURVIVOR AXIS ONLY. A benefit that depends on the death cannot precede
+      // it, and SSA pays from the month AFTER — `survivorBenefit` throws on the
+      // equal case, which is what this blocks.
+      //
+      // Her OWN retirement benefit has nothing to do with the death date: a
+      // widow who filed on her own record at 62 while her husband was alive is
+      // the most common widowed profile there is, and 3B-i handles her
+      // correctly. `widowed.ts`'s `widowedSearchRanges` leaves `ownSince`
+      // deliberately unclamped for exactly that reason, and clamping it here
+      // rejected the household outright — no analysis at all, under a reason
+      // that named the survivor benefit she had not claimed.
       errors[field] = 'claimBeforeDeath';
     }
     // Deliberately no "in the past" check: an already-claimed date is a FACT,

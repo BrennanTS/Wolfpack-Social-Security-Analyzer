@@ -51,8 +51,10 @@ Hard-block only what is impossible or would produce a meaningless answer:
 
 - a death date before the deceased's birth date;
 - a death date after today (widowed means it has happened);
-- an already-claimed date at or before the death month, or before the survivor's birth;
+- **the survivor-benefit** date at or before the death month; **either** already-claimed date before the survivor's birth;
 - a check amount that corresponds to no real PIA — 3B-i's `deceasedPia` throws here, and the form must surface it as a field error rather than let it escape as a crash.
+
+> **Amended 2026-08-17, after implementation — this list originally read "an already-claimed date at or before the death month, or before the survivor's birth", applying the death clamp to BOTH already-claimed dates, and that was wrong.** It would have blocked the most common widowed profile there is: a woman who filed on her OWN record at 62 and was widowed later. Her own retirement benefit is paid on her own record and has nothing to do with when her husband died, so a date before the death is an ordinary fact about her, not an impossibility. Under the original rule she was rejected outright — `isFormComplete` false, no analysis at all — under a field error naming a survivor benefit she had not claimed. Measured: form `ownSince = Aug 2020` against a death of `Mar 2024` produced `{"ownSince":"claimBeforeDeath"}`; the same household through `analyzeHousehold` succeeds and returns "claim the survivor benefit at age 67 years, 7 months, and file on Client's own record at age 62 years, 2 months" at $2,475/mo. 3B-i's own code says the same thing in two places: `widowed.ts`'s death clamp is scoped to the **survivor** axis (`survivorBenefit` throws on a date not strictly after the death), and `widowedSearchRanges` leaves `ownSince` deliberately unclamped. The implementation is right and this spec was wrong; the bullet above is amended to match, and `claimBeforeDeath` is scoped to `survivorSince` only. `claimBeforeBirth` stays on both — a claim before she was born is impossible either way.
 
 Everything else is the adviser's judgment and is not second-guessed. In particular, an unusual-looking PIA is not blocked: SSA's maximum rises every year, and this project already learned not to hard-ceiling a benefit figure.
 

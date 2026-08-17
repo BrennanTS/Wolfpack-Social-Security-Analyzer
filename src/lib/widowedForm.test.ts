@@ -81,6 +81,62 @@ describe('widowedErrors', () => {
     expect(widowedErrors(filled, bad, survivorBirth, asOf).ownSince).toBe('claimBeforeBirth');
   });
 
+  // The most common widowed profile there is: she filed on her OWN record at
+  // 62, years before her husband died. Her own retirement benefit has nothing
+  // to do with the death date — `widowedSearchRanges` (src/lib/widowed.ts)
+  // leaves `ownSince` deliberately unclamped, and the engine returns a correct
+  // two-date answer for this household. Scoping `claimBeforeDeath` to both
+  // dates rejected her outright: `isFormComplete` false, no analysis at all,
+  // under a reason that named a survivor benefit she had not claimed.
+  it('accepts an own-benefit claim BEFORE the death — she filed at 62 while he was alive', () => {
+    const beforeDeath = { ...BLANK_ALREADY_CLAIMED, ownSinceYear: 2020, ownSinceMonth: 8 };
+    expect(widowedErrors(filled, beforeDeath, survivorBirth, asOf)).toEqual({});
+  });
+
+  // Both halves in ONE call, so the fix cannot be "delete claimBeforeDeath":
+  // the same pre-death month is an error on the survivor axis and accepted on
+  // her own.
+  it('applies claimBeforeDeath to the survivor axis and not to her own', () => {
+    const both = {
+      survivorSinceYear: 2020, survivorSinceMonth: 8,
+      ownSinceYear: 2020, ownSinceMonth: 8,
+    };
+    const errors = widowedErrors(filled, both, survivorBirth, asOf);
+    expect(errors.survivorSince).toBe('claimBeforeDeath');
+    expect(errors.ownSince).toBeUndefined();
+  });
+
+  // --- Month granularity ---
+  //
+  // Every comparison below is on an absolute month index, not a year. Without
+  // these three, mutating `deathBeforeBirth`, `deathInFuture` and
+  // `claimBeforeBirth` to YEAR-only comparisons left the whole suite green:
+  // every other fixture differs in the year too.
+
+  it('sees a death one month in the future within the current year', () => {
+    // asOf is Jan 2026; a year-only comparison reads 2026 > 2026 as false.
+    const nextMonth = { ...filled, deathYear: 2026, deathMonth: 2 };
+    expect(widowedErrors(nextMonth, BLANK_ALREADY_CLAIMED, survivorBirth, asOf).death).toBe(
+      'deathInFuture',
+    );
+  });
+
+  it('sees a death before a birth in the same year', () => {
+    // Born Mar 1960, "died" Jan 1960; a year-only comparison reads them equal.
+    const sameYear = { ...filled, deathYear: 1960, deathMonth: 1 };
+    expect(widowedErrors(sameYear, BLANK_ALREADY_CLAIMED, survivorBirth, asOf).death).toBe(
+      'deathBeforeBirth',
+    );
+  });
+
+  it('sees a claim before a birth in the same year', () => {
+    // Survivor born Jun 1964, claim Feb 1964; year-only reads them equal.
+    const sameYear = { ...BLANK_ALREADY_CLAIMED, survivorSinceYear: 1964, survivorSinceMonth: 2 };
+    expect(widowedErrors(filled, sameYear, survivorBirth, asOf).survivorSince).toBe(
+      'claimBeforeBirth',
+    );
+  });
+
   it('does NOT reject an already-claimed date in the past', () => {
     // A claimed date is a FACT, not a candidate. It legitimately sits before
     // today and must not be clamped forward or flagged.
