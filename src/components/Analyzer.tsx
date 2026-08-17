@@ -109,7 +109,16 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     ],
   );
 
-  const inputsComplete = isFormComplete(form);
+  // ONE wall-clock read for this component, threaded through every
+  // date-dependent call below. `isFormComplete` and `widowedErrors` each read
+  // `new Date()` independently before this, so the completeness gate and the
+  // errors on screen could disagree across a month boundary: a death date in
+  // the current month is valid, the same date read a month earlier is not.
+  // Memoised rather than recomputed per render so the two can never diverge
+  // mid-render either.
+  const asOf = useMemo(() => new Date(), []);
+
+  const inputsComplete = isFormComplete(form, asOf);
 
   // The ssa.tools engine (benefits, optimal filing, expected PV) does not depend
   // on the chart-only COLA slider, so we intentionally exclude `annualCola` from
@@ -121,7 +130,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   // transform (`lib/dollarsMode.ts`) applied on top of `analysis.combinedTimeline`
   // in `HouseholdPanel`, never sent to the engine.
   useEffect(() => {
-    if (!isFormComplete(form)) {
+    if (!isFormComplete(form, asOf)) {
       setAnalysis(null);
       setAnalysisError(null);
       setAnalyzing(false);
@@ -132,7 +141,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     setAnalyzing(true);
     setAnalysisError(null);
 
-    analyzeIfComplete(form)
+    analyzeIfComplete(form, asOf)
       .then((next) => {
         if (!cancelled) {
           setAnalysis(next);
@@ -151,7 +160,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personA, personB, maritalStatus, deceased, alreadyClaimed, discountRate]);
+  }, [personA, personB, maritalStatus, deceased, alreadyClaimed, discountRate, asOf]);
 
   // Re-seeds the suggested life expectancy only when the identity inputs
   // (date of birth, gender) actually changed — not on every edit to a
@@ -203,7 +212,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           deceased,
           alreadyClaimed,
           { year: personA.birthYear, month: personA.birthMonth },
-          new Date(),
+          asOf,
         )
       : {};
 

@@ -84,7 +84,18 @@ function isPersonComplete(p: PersonFormFields): boolean {
   return isBenefitInRange(p.monthlyBenefit);
 }
 
-export function isFormComplete(form: AnalyzerFormState): boolean {
+/**
+ * `asOf` defaults to now, matching `analyzeHousehold`'s established pattern.
+ * It exists because completeness is genuinely date-dependent for a widowed
+ * household — `widowedErrors` blocks a death date in the future — and an
+ * implicit `new Date()` inside a predicate makes it impure in two ways that
+ * both bite: a test pinning "incomplete while a field error is outstanding"
+ * silently inverts once the fixture's date stops being in the future, and a
+ * caller that reads the clock separately for the DISPLAYED errors can
+ * disagree with this gate across a month boundary. Callers that show errors
+ * should pass the same `asOf` they render from.
+ */
+export function isFormComplete(form: AnalyzerFormState, asOf: Date = new Date()): boolean {
   if (form.maritalStatus === null || form.personA.lifeExpectancy === null) return false;
   if (!isPersonComplete(form.personA)) return false;
   // Married analyses require real spouse data — never defaulted from person A.
@@ -100,7 +111,7 @@ export function isFormComplete(form: AnalyzerFormState): boolean {
       form.deceased,
       form.alreadyClaimed,
       { year: birthYear, month: birthMonth },
-      new Date(),
+      asOf,
     );
     if (Object.keys(errors).length > 0) return false;
   }
@@ -177,7 +188,9 @@ export async function analyzeIfComplete(
   form: AnalyzerFormState,
   asOf?: Date,
 ): Promise<HouseholdAnalysis | null> {
-  if (!isFormComplete(form)) return null;
+  // The same `asOf` gates completeness and drives the analysis: two clock
+  // reads could otherwise disagree across a month boundary.
+  if (!isFormComplete(form, asOf)) return null;
   return analyzeHousehold(
     toHousehold(form),
     { annualCola: form.annualCola, discountRate: form.discountRate },

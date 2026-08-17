@@ -99,5 +99,35 @@ describe('Analyzer', () => {
       expect(screen.getByRole('button', { name: /export pdf/i })).toBeDisabled();
       expect(screen.getByRole('button', { name: /copy link/i })).toBeDisabled();
     });
+
+    // The gate is `analysis.status === 'widowed'`, NOT `maritalStatus`, and
+    // that difference had no test: swapping both sites to `maritalStatus` left
+    // 887/887 green, because every other widowed test drives the two to
+    // 'widowed' together at mount and they never disagree.
+    //
+    // They disagree here. Clicking Single flips `maritalStatus`
+    // SYNCHRONOUSLY, while `analysis` still holds the widowed result until the
+    // effect re-runs and `analyzeIfComplete` resolves. Under the weaker gate
+    // that one render is enough: the widowed branch is skipped, `HouseholdView`
+    // renders the widowed analysis, `householdDisplayShape` throws, and with no
+    // error boundary anywhere in the app the whole tree unmounts — the exact
+    // blank page this branch shipped to fix, reached from a different door.
+    it('survives switching to Single while the widowed analysis is still held', async () => {
+      window.history.pushState({}, '', WIDOWED_URL);
+      renderAnalyzer();
+
+      await screen.findByTestId('widowed-analysis-unavailable', {}, { timeout: 10000 });
+
+      await userEvent.click(within(maritalGroup()).getByRole('button', { name: 'Single' }));
+
+      // The tree is still mounted: the header survived that render.
+      expect(screen.getByRole('heading', { name: 'Social Security Analyzer' })).toBeInTheDocument();
+      // And the marital control still works, which it cannot if React
+      // unmounted the tree under it.
+      expect(within(maritalGroup()).getByRole('button', { name: 'Single' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
   });
 });

@@ -315,9 +315,42 @@ describe('widowed form state', () => {
     expect(isFormComplete(form)).toBe(true);
   });
 
+  // AGING-OUT FIXTURE, now pinned. `isFormComplete` reads the clock (a death
+  // date in the future blocks the form), so a fixture that is "in the future"
+  // only relative to today stops testing anything the moment today catches up:
+  // `deathYear: 2027, deathMonth: 3` was still blocked in Jan 2027 and
+  // ACCEPTED from Mar 2027, silently inverting this assertion. The explicit
+  // `asOf` is what makes the date in the fixture mean something.
+  const asOf = new Date(2026, 0, 15);
+
   it('is incomplete while a field error is outstanding', () => {
-    const impossible = { ...form, deceased: { ...deceased, deathYear: 2027 } };
-    expect(isFormComplete(impossible)).toBe(false);
+    const impossible = { ...form, deceased: { ...deceased, deathYear: 2027, deathMonth: 3 } };
+    expect(isFormComplete(impossible, asOf)).toBe(false);
+    // The same household with the death back in the past is complete, so this
+    // is the death date failing and not some unrelated missing field.
+    expect(isFormComplete(form, asOf)).toBe(true);
+  });
+
+  it('judges the death date against the asOf it is given, not against today', () => {
+    // A death in Mar 2027 is in the future as of Jan 2027 and in the past as
+    // of Jun 2027. Nothing but `asOf` differs between these two calls.
+    const march2027 = { ...form, deceased: { ...deceased, deathYear: 2027, deathMonth: 3 } };
+    expect(isFormComplete(march2027, new Date(2027, 0, 15))).toBe(false);
+    expect(isFormComplete(march2027, new Date(2027, 5, 15))).toBe(true);
+  });
+
+  // The population this feature exists for: a widow drawing only the survivor
+  // benefit, with no work record of her own. `isFormComplete`'s "at least one
+  // person must have a positive benefit" rule would reject her — the household
+  // has a record, it is the deceased's. Deleting the widowed early-return
+  // leaves the rest of the suite green.
+  it('accepts a widow with no work record of her own', () => {
+    const noRecord = { ...survivor, monthlyBenefit: 0 };
+    expect(isFormComplete({ ...form, personA: noRecord }, asOf)).toBe(true);
+    // Scoped to widowed: the same $0 claimant with no deceased record behind
+    // her has nothing to analyze.
+    expect(isFormComplete({ ...BLANK_FORM, maritalStatus: 'single', personA: noRecord }, asOf))
+      .toBe(false);
   });
 
   it('still builds single and married households', () => {
