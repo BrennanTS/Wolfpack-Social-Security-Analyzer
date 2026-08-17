@@ -2,7 +2,7 @@ import { Document, Text, View } from '@react-pdf/renderer';
 import { BRAND_NAME } from '../../lib/brand';
 import { BLS_CPI_URL, formatPercent, getCpiLast30Years } from '../../lib/cpiHistory';
 import { fraLabel } from '../../lib/format';
-import type { HouseholdAnalysis } from '../../lib/household';
+import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../../lib/lifeExpectancy';
 import { formatVersionLabel } from '../../lib/version';
 import {
@@ -169,8 +169,11 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
  * each other about survivor benefits.
  */
 export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis }) {
+  // Exhaustive, and repeated here rather than left to `ReportDocument` alone
+  // because this block is exported and rendered on its own by
+  // `HouseholdSection.test.tsx`. See `householdDisplayShape`.
+  const hasSpouse = householdDisplayShape(analysis.status) === 'twoClaimants';
   const pairs = buildMethodPairs(analysis);
-  const hasSpouse = analysis.status === 'married';
 
   return (
     <>
@@ -208,11 +211,14 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
  * than one physical page.
  */
 export function ReportDocument({ analysis }: { analysis: HouseholdAnalysis }) {
+  // Exhaustive rather than `=== 'married'`: a widowed household used to fall
+  // through to the single-claimant layout, printing a report that never
+  // mentions the survivor benefit. See `householdDisplayShape`.
+  const isMarried = householdDisplayShape(analysis.status) === 'twoClaimants';
   const reportDate = formatReportDate();
   const footerText = `${BRAND_NAME} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
   const appendix = <MethodologyAppendix analysis={analysis} />;
   const leadingHeader = <ReportHeader dateLabel={reportDate} />;
-  const isMarried = analysis.status === 'married';
 
   return (
     <Document

@@ -9,11 +9,14 @@ import {
 import type { Person } from './personAnalysis';
 import { deceasedContext, type Deceased } from './deceased';
 import { monthDateAt, monthIndexOf } from './benefitPeriods';
-import { createPiaRecipient } from './ssaTools';
+import { createPiaRecipient, monthDateFrom } from './ssaTools';
 import { MonthDuration } from '$lib/month-time';
 import { benefitOnDate, survivorBenefit } from '$lib/benefit-calculator';
+import { earliestFiling } from '$lib/strategy/calculations/strategy-calc';
 
 const asOf = new Date(2026, 0, 15);
+/** `asOf`'s own absolute month index — Jan 2026. */
+const asOfIndex = 2026 * 12 + 0;
 
 /** Widow born Jun 1964, own PIA $1,200, plans to 92. */
 const widow: Person = {
@@ -43,18 +46,24 @@ const free: WidowedInput = {
 };
 
 /**
- * Same household, but the widow is born in 1958 instead of 1964 — a cohort
- * where survivor-FRA (66y4m) and retirement-FRA (66y8m) provably diverge, per
+ * Same household, but the widow is born in 1961 instead of 1964 — a cohort
+ * where survivor-FRA (66y10m) and retirement-FRA (67y0m) provably diverge, per
  * `constants.ts`'s `FULL_RETIREMENT_AGE`/`FULL_RETIREMENT_AGE_SURVIVOR`
  * tables. `free`'s 1964 widow can't be used for this: both tables resolve to
  * 67y0m for any birth year 1962 or later, so a test built only from `free`
  * cannot tell `survivorNormalRetirementDate()` and `normalRetirementDate()`
  * apart — swapping one for the other in `widowedSearchRanges` would still
  * pass every `free`-based assertion.
+ *
+ * 1961 rather than 1958 (the cohort this used before the `asOf` floor landed):
+ * a Jun 1958 widow reached survivor-FRA in Oct 2024, which is BEFORE this
+ * file's `asOf`, so her survivor range is now `[asOf, asOf]` and the ceiling
+ * under test is no longer the binding one. Jun 1961's survivor-FRA falls in
+ * Apr 2028, still ahead of `asOf`, so the ceiling is genuinely exercised.
  */
 const divergentFraWidow: Person = {
   ...widow,
-  birthYear: 1958,
+  birthYear: 1961,
 };
 const divergentFraCase: WidowedInput = {
   ...free,
@@ -62,14 +71,91 @@ const divergentFraCase: WidowedInput = {
 };
 
 describe('widowedSearchRanges', () => {
-  it('starts the survivor range at SSA age 60, never before the month after death', () => {
+  it('starts the survivor range at max(asOf, death + 1, SSA age 60)', () => {
     const { survivor } = widowedSearchRanges(free);
     const recipient = createPiaRecipient(1964, 6, 1200, 'female');
     const age60 = monthIndexOf(
       recipient.birthdate.dateAtSsaAge(MonthDuration.initFromYearsMonths({ years: 60, months: 0 })),
     );
     const deathIndex = 2024 * 12 + 2;
-    expect(survivor[0]).toBe(Math.max(deathIndex + 1, age60));
+    expect(survivor[0]).toBe(Math.max(asOfIndex, deathIndex + 1, age60));
+    // Here `asOf` is the binding term, and provably so: both other terms fall
+    // before it, so dropping the `asOf` floor moves this range.
+    expect(age60).toBeLessThan(asOfIndex);
+    expect(deathIndex + 1).toBeLessThan(asOfIndex);
+    expect(survivor[0]).toBe(asOfIndex);
+  });
+
+  it('never offers a searched candidate month earlier than asOf', () => {
+    // The spec's search bounds are `S ∈ [max(asOf, death + 1), survivor-FRA]`
+    // and `F ∈ [earliestFiling(survivor, asOf), 70]`. A candidate is a month
+    // the household can still choose; a month in the past is not one. Without
+    // the survivor-side floor the range opened at age 60 however long ago that
+    // was, and the app recommended "claim the survivor benefit at age 60" to a
+    // widow who had turned 60 nineteen months earlier — while scoring the
+    // elapsed, uncollected months into the lifetime total.
+    //
+    // Checked over several shapes, not just `free`: a widow already past
+    // survivor-FRA is where an unfloored range is furthest in the past, and a
+    // widow past 70 is the own-axis analogue.
+    const pastSurvivorFra: WidowedInput = { ...free, survivor: { ...widow, birthYear: 1950 } };
+    const past70: WidowedInput = { ...free, survivor: { ...widow, birthYear: 1948 } };
+    for (const input of [free, divergentFraCase, pastSurvivorFra, past70]) {
+      const { survivor, own } = widowedSearchRanges(input);
+      expect(survivor[0]).toBeGreaterThanOrEqual(asOfIndex);
+      expect(survivor[1]).toBeGreaterThanOrEqual(survivor[0]);
+      expect(own[1]).toBeGreaterThanOrEqual(own[0]);
+
+      // The own axis is floored by `earliestFiling(recipient, asOf)` — the
+      // engine's own answer, and deliberately not a second `max(…, asOf)` on
+      // top of it. SSA allows a retroactive filing back to NRA, capped at six
+      // months, so for a claimant already past NRA the engine's floor is
+      // legitimately a few months BEFORE `asOf`. Asserting `>= asOf` on this
+      // axis would be asserting against an SSA rule; asserting equality with
+      // the engine is the real invariant.
+      const recipient = createPiaRecipient(
+        input.survivor.birthYear,
+        input.survivor.birthMonth,
+        input.survivor.piaMonthly,
+        input.survivor.gender,
+      );
+      expect(own[0]).toBe(
+        monthIndexOf(recipient.birthdate.dateAtSsaAge(earliestFiling(recipient, monthDateFrom(asOf)))),
+      );
+    }
+
+    // And the winner the search actually returns obeys it too, which is the
+    // form the defect was visible in.
+    const best = bestWidowedOutcome(free);
+    expect(best.survivorClaimIndex).toBeGreaterThanOrEqual(asOfIndex);
+    expect(best.ownFilingIndex).toBeGreaterThanOrEqual(asOfIndex);
+  });
+
+  it('still starts the survivor range at SSA age 60 when age 60 is the LATEST of the three', () => {
+    // Keeps the age-60 term real: with `asOf` now in the max, a widow who
+    // turns 60 after `asOf` is the only case that can tell "max(asOf, death+1,
+    // age60)" from "max(asOf, death+1)".
+    const youngWidow: Person = { ...widow, birthYear: 1970 };
+    const { survivor } = widowedSearchRanges({ ...free, survivor: youngWidow });
+    const recipient = createPiaRecipient(1970, 6, 1200, 'female');
+    const age60 = monthIndexOf(
+      recipient.birthdate.dateAtSsaAge(MonthDuration.initFromYearsMonths({ years: 60, months: 0 })),
+    );
+    expect(age60).toBeGreaterThan(asOfIndex);
+    expect(survivor[0]).toBe(age60);
+  });
+
+  it('still starts the survivor range at death + 1 when the death is the LATEST of the three', () => {
+    // Keeps the `death + 1` term real, and it is not merely cosmetic:
+    // `survivorBenefit` THROWS on a filing date at or before the death date,
+    // so a range floored only at `asOf` would crash for a death in the `asOf`
+    // month itself.
+    const recentDeath: Deceased = { ...husband, deathYear: 2026, deathMonth: 1 };
+    const olderWidow: Person = { ...widow, birthYear: 1958 };
+    const input: WidowedInput = { ...free, survivor: olderWidow, deceased: recentDeath };
+    const { survivor } = widowedSearchRanges(input);
+    expect(survivor[0]).toBe(asOfIndex + 1);
+    expect(() => bestWidowedOutcome(input)).not.toThrow();
   });
 
   it('ends the survivor range at survivor-FRA, not at retirement FRA', () => {
@@ -80,13 +166,13 @@ describe('widowedSearchRanges', () => {
 
   it('ends the survivor range at survivor-FRA for a cohort where that differs from retirement FRA', () => {
     // `free`'s 1964 widow can't distinguish the two tables (both are 67y0m
-    // for her), so this repeats the check on a 1958 widow, where they
+    // for her), so this repeats the check on a 1961 widow, where they
     // provably diverge, and runs the comparison THROUGH
     // `widowedSearchRanges` itself rather than only against the raw
     // `Recipient` methods. Swapping `survivorNormalRetirementDate()` for
     // `normalRetirementDate()` at the call site in widowed.ts must fail this.
     const { survivor } = widowedSearchRanges(divergentFraCase);
-    const recipient = createPiaRecipient(1958, 6, 1200, 'female');
+    const recipient = createPiaRecipient(1961, 6, 1200, 'female');
     expect(survivor[1]).toBe(monthIndexOf(recipient.survivorNormalRetirementDate()));
     expect(survivor[1]).not.toBe(monthIndexOf(recipient.normalRetirementDate()));
   });
@@ -127,6 +213,56 @@ describe('widowedSearchRanges', () => {
     const { survivor } = widowedSearchRanges(claimedAtDeathMonth);
     expect(survivor).toEqual([deathIndex + 1, deathIndex + 1]);
     expect(() => bestWidowedOutcome(claimedAtDeathMonth)).not.toThrow();
+  });
+
+  it('leaves an ALREADY-CLAIMED past date exactly where it is, on both axes', () => {
+    // The carve-out that makes the `asOf` floor above correct rather than
+    // destructive. An already-claimed date is a FACT about what the household
+    // is already receiving, not a candidate being proposed, so it is exempt
+    // from the floor that applies to searched months. Flooring it would
+    // restate the widow's own history back to her: a survivor benefit she has
+    // drawn since Aug 2024 would be reported as starting in Jan 2026, at a
+    // different age and a different (unreduced-by-less) amount.
+    //
+    // Both dates are set here so BOTH branches of `widowedSearchRanges` are
+    // covered — the early return and the per-axis one — and both sit before
+    // `asOf`, which is the whole point.
+    // A 1958-born widow, not `free`'s 1964 one: an already-claimed OWN filing
+    // date in the past has to be a date she was at least 62 on, and `free`'s
+    // widow does not reach 62 until after `asOf`. This household is the real
+    // shape anyway — she filed on her own record in 2023, was widowed in Mar
+    // 2024, and took the survivor benefit that August.
+    const survivorSinceIndex = 2024 * 12 + 7; // Aug 2024
+    const ownSinceIndex = 2023 * 12 + 2; // Mar 2023, age 64y9m
+    const claimed: WidowedInput = {
+      ...free,
+      survivor: { ...widow, birthYear: 1958 },
+      alreadyClaimed: {
+        survivorSince: { year: 2024, month: 8 },
+        ownSince: { year: 2023, month: 3 },
+      },
+    };
+    expect(survivorSinceIndex).toBeLessThan(asOfIndex);
+    expect(ownSinceIndex).toBeLessThan(asOfIndex);
+
+    const { survivor, own } = widowedSearchRanges(claimed);
+    expect(survivor).toEqual([survivorSinceIndex, survivorSinceIndex]);
+    expect(own).toEqual([ownSinceIndex, ownSinceIndex]);
+
+    const best = bestWidowedOutcome(claimed);
+    expect(best.survivorClaimIndex).toBe(survivorSinceIndex);
+    expect(best.ownFilingIndex).toBe(ownSinceIndex);
+
+    // And the single-axis branch, where the other axis is still searched.
+    const survivorOnly: WidowedInput = {
+      ...free,
+      alreadyClaimed: { survivorSince: { year: 2024, month: 8 }, ownSince: null },
+    };
+    expect(widowedSearchRanges(survivorOnly).survivor).toEqual([
+      survivorSinceIndex,
+      survivorSinceIndex,
+    ]);
+    expect(bestWidowedOutcome(survivorOnly).survivorClaimIndex).toBe(survivorSinceIndex);
   });
 
   it('clamps a death-month survivor date in the both-already-claimed path too', () => {
@@ -183,6 +319,34 @@ describe('bestWidowedOutcome', () => {
     const onlyOwn = widowedOutcomeFor(free, 9_999_999, best.ownFilingIndex);
     expect(both).toBeGreaterThan(0);
     expect(best.lifetimeTotal).toBeLessThan(onlySurvivor.lifetimeTotal + onlyOwn.lifetimeTotal);
+  });
+
+  it('scores from max(asOf, death + 1), not from the death month', () => {
+    // The lifetime total exists to rank decisions still open to the household.
+    // Months that have already elapsed are not among them, so they are not
+    // scored — even when a benefit really was being paid in them.
+    //
+    // The already-claimed case is where the difference is visible and large:
+    // the survivor benefit has been running since Aug 2024, seventeen months
+    // before `asOf`, so a window starting at the death would fold seventeen
+    // real payments into the figure the recommendation is ranked on.
+    const claimed: WidowedInput = {
+      ...free,
+      alreadyClaimed: { survivorSince: { year: 2024, month: 8 }, ownSince: null },
+    };
+    const best = bestWidowedOutcome(claimed);
+    const deathIndex = 2024 * 12 + 2;
+
+    const sumFrom = (start: number): number => {
+      let total = 0;
+      for (let m = start; m <= best.finalIndex; m++) total += expectedMax(claimed, best, m);
+      return total;
+    };
+
+    expect(best.lifetimeTotal).toBeCloseTo(sumFrom(asOfIndex), 2);
+    // Not a vacuous equality: the elapsed window carries real dollars, so the
+    // two sums genuinely differ and the old start month is ruled out.
+    expect(sumFrom(deathIndex + 1)).toBeGreaterThan(sumFrom(asOfIndex));
   });
 
   it('honours an already-claimed survivor benefit as a fixed date', () => {
@@ -284,8 +448,12 @@ describe('widowedBands', () => {
     const bands = widowedBands(free, best);
     const deathIndex = 2024 * 12 + 2;
     const finalIndex = Math.max(...bands.map((b) => b.endIndex));
+    // The scoring window, `max(asOf, death + 1)` — the same start
+    // `outcomeFromContext` sums over. (For `free` the bands all begin after
+    // `asOf` anyway, so the two starts agree here; using the real one keeps
+    // this test honest for a household where they would not.)
     let summed = 0;
-    for (let m = deathIndex + 1; m <= finalIndex; m++) {
+    for (let m = Math.max(deathIndex + 1, asOfIndex); m <= finalIndex; m++) {
       summed += bands
         .filter((b) => b.startIndex <= m && m <= b.endIndex)
         .reduce((t, b) => t + b.monthlyAmount, 0);

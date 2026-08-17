@@ -56,6 +56,45 @@ export type Household =
       alreadyClaimed: AlreadyClaimed;
     };
 
+/**
+ * Which of the two display shapes the screen and the PDF should render, or a
+ * loud failure if the answer is neither.
+ *
+ * The display layer knows two shapes: ONE claimant (a single page, no tab
+ * strip, no household section) and TWO (tabs on screen, a household page in
+ * print). Both surfaces used to decide with a boolean `status === 'married'`,
+ * which silently routed a widowed household down the one-claimant path — no
+ * compile error, and the result is not merely degraded but WRONG: that path
+ * shows the widow's own retirement benefit alone, never mentioning the
+ * survivor benefit that is usually the larger half of her income, and states a
+ * recommended monthly figure that can be a third of what the recommendation
+ * actually pays.
+ *
+ * So the answer is a `switch` with a `never` arm rather than a boolean: adding
+ * a fourth status is a compile error here, and `'widowed'` throws until Phase
+ * 3B-ii builds its display. Refusing to render is the point — the failure mode
+ * this replaces was rendering something plausible and false.
+ */
+export function householdDisplayShape(status: Household['status']): 'oneClaimant' | 'twoClaimants' {
+  switch (status) {
+    case 'single':
+      return 'oneClaimant';
+    case 'married':
+      return 'twoClaimants';
+    case 'widowed':
+      throw new Error(
+        'A widowed household has no display yet (Phase 3B-ii). The single-claimant ' +
+          "path would show only the widow(er)'s own retirement benefit, omitting the " +
+          'survivor benefit entirely and understating the recommended monthly income. ' +
+          'Refusing to render rather than rendering it wrongly.',
+      );
+    default: {
+      const unhandled: never = status;
+      throw new Error(`Unhandled household status: ${String(unhandled)}`);
+    }
+  }
+}
+
 /** Rows a single or married household can show. */
 type CoupleStrategyKey = 'earliest' | 'fra' | 'optimal' | 'latest';
 /** Rows a widowed household can show. `optimal` is shared with the above. */
@@ -212,16 +251,36 @@ const LABELS: Record<CoupleStrategyKey, { single: string; married: string }> = {
 };
 
 /**
- * Widowed rows get their own map rather than a third arm on `LABELS`: the two
- * statuses name different decisions, and forcing every couple key to carry a
- * widowed label it can never use would invite one being written.
+ * Widowed rows get their own labels rather than a third arm on `LABELS`: the
+ * two statuses name different decisions, and forcing every couple key to carry
+ * a widowed label it can never use would invite one being written.
+ *
+ * A FUNCTION of the row's own outcome, not a constant map. The constants it
+ * replaced ("Survivor benefit first, own at 70", "Own benefit first, survivor
+ * at FRA") named ages the row does not necessarily carry: `ranges.own[1]` is
+ * age 70 only while `alreadyClaimed.ownSince` is null, and `ranges.survivor[1]`
+ * is survivor-FRA only while `survivorSince` is null and survivor-FRA has not
+ * already passed. With `ownSince = Jan 2030` the app printed a row labelled
+ * "…own at 70" whose own filing age was "65 years, 7 months".
+ *
+ * `bothEarliest` states no age because it needs none, and it is the one row
+ * whose wording stays true unconditionally: whenever either axis is collapsed
+ * by `alreadyClaimed`, its (S, F) pair is identical to `survivorFirst`'s or
+ * `ownFirst`'s and `analyzeWidowed`'s pair-dedupe drops it before it is ever
+ * labelled.
  */
-const WIDOWED_LABELS: Record<WidowedStrategyKey, string> = {
-  survivorFirst: 'Survivor benefit first, own at 70',
-  ownFirst: 'Own benefit first, survivor at FRA',
-  bothEarliest: 'Both as early as possible',
-  optimal: 'Optimal',
-};
+function widowedLabel(key: WidowedStrategyKey, outcome: WidowedOutcome): string {
+  switch (key) {
+    case 'survivorFirst':
+      return `Survivor benefit first, own at ${outcome.ownFilingAge}`;
+    case 'ownFirst':
+      return `Own benefit first, survivor at ${outcome.survivorClaimAge}`;
+    case 'bothEarliest':
+      return 'Both as early as possible';
+    case 'optimal':
+      return 'Optimal';
+  }
+}
 
 /**
  * Builds the comparison rows from the already-ranked strategy list.
@@ -870,7 +929,7 @@ async function analyzeWidowed(
     isOptimal: boolean,
   ): HouseholdStrategy => ({
     key,
-    label: WIDOWED_LABELS[key],
+    label: widowedLabel(key, outcome),
     filingAges: [formatFilingAge(monthDurationBetween(person, outcome.ownFilingIndex))],
     expectedNpv: outcome.lifetimeTotal,
     lifetimeTotal: outcome.lifetimeTotal,

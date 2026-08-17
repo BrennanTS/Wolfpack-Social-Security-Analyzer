@@ -46,7 +46,7 @@ const age = (years: number) => ({ years, months: 0, label: String(years),
   decimalYears: years, monthDuration: null as never });
 
 // Build via a helper so both the single and married cases stay readable.
-function buildAnalysis(status: 'single' | 'married'): HouseholdAnalysis {
+function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnalysis {
   const dan = buildPersonAnalysis('a', 'Dan');
   const sarah = buildPersonAnalysis('b', 'Sarah');
   const people = status === 'married' ? [dan, sarah] : [dan];
@@ -98,6 +98,23 @@ function buildAnalysis(status: 'single' | 'married'): HouseholdAnalysis {
 }
 
 describe('HouseholdView', () => {
+  it('refuses to render a widowed household rather than showing the single-claimant view', () => {
+    // `analysis.status === 'married'` is a BOOLEAN test, so `'widowed'` used
+    // to fall through to the single-claimant branch with no compile error and
+    // no runtime complaint. What it rendered was not merely incomplete: the
+    // single-claimant panel shows the widow's own retirement benefit alone,
+    // never mentions the survivor benefit, and for one real household printed
+    // a recommended $845/mo against an actual recommended income of $3,000/mo.
+    //
+    // The widowed display belongs to Phase 3B-ii. Until it exists, this must
+    // fail loudly — the point of the finding is that the next phase cannot
+    // ship the wrong view silently.
+    const widowed = buildAnalysis('widowed');
+    expect(() => render(<HouseholdView analysis={widowed} annualCola={2.5} />)).toThrow(
+      /widowed/i,
+    );
+  });
+
   it('renders no tab strip for a single claimant', () => {
     render(<HouseholdView analysis={buildAnalysis('single')} annualCola={2.5} />);
     expect(screen.queryByRole('tablist')).toBeNull();

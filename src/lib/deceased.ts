@@ -64,8 +64,18 @@ function benefitFor(
   ).value();
 }
 
-/** Widest PIA bracket worth searching. SSA's maximum benefit is far below this. */
-const MAX_PIA = 30_000;
+/**
+ * Widest PIA bracket worth searching. SSA's maximum benefit is far below this.
+ *
+ * Exported for `deceased.test.ts`, which needs the band between
+ * `benefitFor(MAX_PIA, filingDate)` and `MAX_PIA` itself — for a deceased who
+ * filed early that band is roughly $21,000-$30,000 wide, and a guard written
+ * against this raw constant instead of against the BENEFIT it produces would
+ * accept every amount in it and hand back $30,000 as a normal-looking
+ * `estimated: true` PIA. The test derives the band from this export rather
+ * than copying the number, so the two cannot drift apart.
+ */
+export const MAX_PIA = 30_000;
 
 /**
  * The deceased's PIA, and whether it was estimated.

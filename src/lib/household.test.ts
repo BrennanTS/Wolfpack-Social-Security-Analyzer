@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   analyzeHousehold,
   buildMonthlyIncomeSeries,
+  householdDisplayShape,
   showSurvivorIncomeColumn,
   survivorIncomeRisesWithDelay,
   visibleBenefitSeries,
@@ -1303,6 +1304,22 @@ describe('analyzeHousehold — entry order', () => {
   });
 });
 
+describe('householdDisplayShape', () => {
+  it('maps the two statuses the display layer can actually render', () => {
+    expect(householdDisplayShape('single')).toBe('oneClaimant');
+    expect(householdDisplayShape('married')).toBe('twoClaimants');
+  });
+
+  it('throws for a widowed household instead of returning a shape', () => {
+    // The whole point. `status === 'married'` as a boolean silently routed
+    // widowed into the one-claimant path on both surfaces — a view that omits
+    // the survivor benefit entirely and understates the recommended monthly
+    // income. Returning EITHER shape here would be wrong; there is no widowed
+    // display until Phase 3B-ii builds one.
+    expect(() => householdDisplayShape('widowed')).toThrow(/widowed/i);
+  });
+});
+
 describe('analyzeHousehold — widowed', () => {
   const widowPerson: Person = {
     id: 'a', name: 'Widow', birthYear: 1964, birthMonth: 6,
@@ -1314,6 +1331,23 @@ describe('analyzeHousehold — widowed', () => {
     deceased: {
       birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
       record: { kind: 'pia', piaMonthly: 3000, filed: null },
+    },
+    alreadyClaimed: { survivorSince: null, ownSince: null },
+  };
+
+  // A fixture chosen so the true optimum sits at neither of the two "extreme
+  // corner" pairs the named rows probe (survivor-earliest/own-70, and
+  // survivor-FRA/own-earliest) — found by search over PIA combinations. With
+  // this fixture ALL FOUR rows (optimal, survivorFirst, ownFirst,
+  // bothEarliest) appear as distinct comparisons, which is what lets the
+  // label test and the `survivorClaimDate` tests below see `survivorFirst`
+  // and `ownFirst` side by side.
+  const richHousehold: Household = {
+    status: 'widowed',
+    people: [{ ...widowPerson, piaMonthly: 2400, lifeExpectancy: 70 }],
+    deceased: {
+      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      record: { kind: 'pia', piaMonthly: 2450, filed: null },
     },
     alreadyClaimed: { survivorSince: null, ownSince: null },
   };
@@ -1448,6 +1482,48 @@ describe('analyzeHousehold — widowed', () => {
     expect(new Set(pairKeys).size).toBe(pairKeys.length);
   });
 
+  it('labels a named row from the dates that row actually carries', async () => {
+    // The labels were constants: "Survivor benefit first, own at 70" and
+    // "Own benefit first, survivor at FRA". Neither age is a property of the
+    // row — `ranges.own[1]` is age 70 only while `alreadyClaimed.ownSince` is
+    // null. With `ownSince = Jan 2030` the app printed a row labelled
+    // "...own at 70" beside its own filing age of "65 years, 7 months".
+    //
+    // This reads the LABEL. The dedupe test above asserts which rows appear
+    // and never looks at their text, which is why the mismatch survived every
+    // round of review on the same fixture.
+    const ownSinceHousehold: Household = {
+      ...household,
+      alreadyClaimed: { survivorSince: null, ownSince: { year: 2030, month: 1 } },
+    };
+    const { comparisons } = await analyzeHousehold(ownSinceHousehold, assumptions, asOf);
+    const survivorFirst = comparisons.find((c) => c.key === 'survivorFirst');
+    expect(survivorFirst).toBeDefined();
+    expect(survivorFirst!.filingAges[0].label).toBe('65 years, 7 months');
+    expect(survivorFirst!.label).toBe('Survivor benefit first, own at 65 years, 7 months');
+    expect(survivorFirst!.label).not.toContain('70');
+  });
+
+  it('keeps every named row’s label consistent with its own two dates', async () => {
+    // The general form, over a household where all four rows are distinct, so
+    // `ownFirst`'s half of the rule is exercised too: its label must name the
+    // survivor-claim age the row carries rather than the word "FRA", which
+    // stops being true the moment `survivorSince` is set or survivor-FRA has
+    // already passed.
+    const { comparisons } = await analyzeHousehold(richHousehold, assumptions, asOf);
+    const byKey = Object.fromEntries(comparisons.map((c) => [c.key, c]));
+    expect(byKey.survivorFirst).toBeDefined();
+    expect(byKey.ownFirst).toBeDefined();
+    for (const c of comparisons) {
+      if (c.key === 'survivorFirst') {
+        expect(c.label).toBe(`Survivor benefit first, own at ${c.filingAges[0].label}`);
+      }
+      if (c.key === 'ownFirst') {
+        expect(c.label).toBe(`Own benefit first, survivor at ${c.survivorClaimDate!.age}`);
+      }
+    }
+  });
+
   it('keeps a finite finalIndexByPersonId when every benefit computes to zero', async () => {
     // Regression for the reviewer's second Important finding:
     // `widowedBands` omits a band entirely whenever its amount rounds to
@@ -1471,22 +1547,6 @@ describe('analyzeHousehold — widowed', () => {
   });
 
   describe('survivorClaimDate', () => {
-    // A fixture chosen so the true optimum sits at neither of the two
-    // "extreme corner" pairs the named rows probe (survivor-earliest/
-    // own-70, and survivor-FRA/own-earliest) — found by search over PIA
-    // combinations. With this fixture ALL FOUR rows (optimal, survivorFirst,
-    // ownFirst, bothEarliest) appear as distinct comparisons, which is what
-    // lets this test see `survivorFirst` and `ownFirst` side by side.
-    const richHousehold: Household = {
-      status: 'widowed',
-      people: [{ ...widowPerson, piaMonthly: 2400, lifeExpectancy: 70 }],
-      deceased: {
-        birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
-        record: { kind: 'pia', piaMonthly: 2450, filed: null },
-      },
-      alreadyClaimed: { survivorSince: null, ownSince: null },
-    };
-
     it('gives the survivorFirst and ownFirst rows different survivor-claim months', async () => {
       const { comparisons } = await analyzeHousehold(richHousehold, assumptions, asOf);
       const byKey = Object.fromEntries(comparisons.map((c) => [c.key, c]));

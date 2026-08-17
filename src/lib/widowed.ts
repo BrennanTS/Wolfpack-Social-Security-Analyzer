@@ -46,9 +46,15 @@ export interface WidowedOutcome {
   /** The survivor's age at `ownFilingIndex`. */
   ownFilingAge: string;
   /**
-   * Straight sum of dollars paid from the month after the death through the
+   * Straight sum of dollars paid from `max(asOf, death + 1)` through the
    * survivor's plan-to age. Undiscounted, today's dollars — the same
    * convention as the income-cliff callout and 3A's gain figure.
+   *
+   * It starts at `asOf`, not at the death, because the figure exists to rank
+   * decisions still open to the household. Summing from the death month
+   * credited every candidate with benefits for months that had already
+   * elapsed, which both inflated the total and biased the ranking toward
+   * claim dates in the past.
    *
    * NOT mortality-weighted, and therefore not comparable with the married
    * path's `expectedNpv`. See the spec's "Known limitation".
@@ -80,6 +86,19 @@ const indexOfYearMonth = (ym: YearMonth): number => ym.year * 12 + (ym.month - 1
  * `outcomeFromContext`, so the search loop itself re-derives nothing —
  * `widowedOutcomeFor` and `widowedBands` each call it once for their own
  * single evaluation.
+ *
+ * `firstPayableIndex` and `scoringStartIndex` are DIFFERENT quantities and are
+ * named separately on purpose. One value used to do both jobs, and being wrong
+ * for one of them was invisible because it was right for the other:
+ *
+ * - `firstPayableIndex` (`death + 1`) is the earliest month `survivorBenefit`
+ *   will accept at all — it throws on any filing date at or before the death.
+ *   It is the clamp floor for a mistyped ALREADY-CLAIMED date, and nothing else.
+ * - `scoringStartIndex` (`max(asOf, death + 1)`, per the design doc's "The
+ *   search") is where the lifetime sum begins. Months that have already elapsed
+ *   are not money anyone can still decide to collect; scoring them credited a
+ *   widow with unclaimed benefits from the past and could recommend a claim
+ *   month that had already gone by.
  */
 function context(input: WidowedInput) {
   const { survivor, deceased, asOf } = input;
@@ -91,11 +110,22 @@ function context(input: WidowedInput) {
   );
   const dec = deceasedContext(deceased);
   const deathIndex = monthIndexOf(dec.deathDate);
-  const firstMonth = deathIndex + 1;
+  const firstPayableIndex = deathIndex + 1;
+  const asOfIndex = monthIndexOf(monthDateFrom(asOf));
+  const scoringStartIndex = Math.max(asOfIndex, firstPayableIndex);
   const finalIndex = monthIndexOf(
     recipient.birthdate.dateAtSsaAge(ageDuration(survivor.lifeExpectancy)),
   );
-  return { recipient, dec, deathIndex, firstMonth, finalIndex, asOf };
+  return {
+    recipient,
+    dec,
+    deathIndex,
+    firstPayableIndex,
+    asOfIndex,
+    scoringStartIndex,
+    finalIndex,
+    asOf,
+  };
 }
 
 /**
@@ -110,24 +140,40 @@ function context(input: WidowedInput) {
  * A hardcoded `{years: 62, months: 0}` here would repeat the defect that has
  * kept the `earliest` comparison row from ever rendering.
  *
- * An already-claimed benefit collapses its range to the single month it began,
- * which is why the already-claiming case needs no separate code path. That
- * collapsed month is still clamped to `firstMonth`: an adviser can enter a
- * survivor-claim date at or before the death month (the death month itself is
- * an easy typo), and `survivorBenefit` throws on any date that isn't strictly
- * after the death date. A pre-death "claim" is a data error, not a real
- * filing, so clamping it forward to the first payable month is the correct
- * reading of it — not a silent cover-up of bad input, since the resulting
- * single-month range is still exactly what `alreadyClaimed` is for.
+ * BOTH SEARCHED ranges are floored at `asOf`. A candidate is a month someone
+ * can still choose, and a month in the past is not one: without the floor the
+ * survivor axis opened at age 60 however long ago that was, and the search
+ * happily recommended "claim the survivor benefit at age 60" to a woman who
+ * turned 60 nineteen months before the analysis was run. The own axis has
+ * always had this floor, via `earliestFiling(recipient, asOf)`; the survivor
+ * axis had none.
+ *
+ * An ALREADY-CLAIMED date is exempt, and must be — it is a FACT about what the
+ * household is already receiving, not a candidate being proposed. A widow who
+ * has drawn the survivor benefit since 2024 has a survivor-claim date in 2024,
+ * and flooring it to `asOf` would silently restate her history. So
+ * `alreadyClaimed` collapses its axis to the month it actually began, which is
+ * why the already-claiming case needs no separate code path.
+ *
+ * That collapsed month is still clamped to `firstPayableIndex` (`death + 1`),
+ * and only to that: an adviser can enter a survivor-claim date at or before the
+ * death month (the death month itself is an easy typo), and `survivorBenefit`
+ * throws on any date that isn't strictly after the death date. A pre-death
+ * "claim" is a data error, not a real filing, so clamping it forward to the
+ * first payable month is the correct reading of it — not a silent cover-up of
+ * bad input, since the resulting single-month range is still exactly what
+ * `alreadyClaimed` is for.
  */
 export function widowedSearchRanges(input: WidowedInput): {
   survivor: [number, number];
   own: [number, number];
 } {
-  const { recipient, firstMonth, asOf } = context(input);
+  const { recipient, firstPayableIndex, scoringStartIndex, asOf } = context(input);
   const { survivorSince, ownSince } = input.alreadyClaimed;
+  // Clamped to `firstPayableIndex`, NOT to `scoringStartIndex`: an
+  // already-claimed date legitimately sits in the past.
   const clampedSurvivorClaim = (ym: YearMonth): number =>
-    Math.max(firstMonth, indexOfYearMonth(ym));
+    Math.max(firstPayableIndex, indexOfYearMonth(ym));
 
   if (survivorSince && ownSince) {
     const s = clampedSurvivorClaim(survivorSince);
@@ -137,9 +183,10 @@ export function widowedSearchRanges(input: WidowedInput): {
 
   const age60 = monthIndexOf(recipient.birthdate.dateAtSsaAge(ageDuration(60)));
   const survivorFra = monthIndexOf(recipient.survivorNormalRetirementDate());
+  const survivorFloor = Math.max(scoringStartIndex, age60);
   const survivorRange: [number, number] = survivorSince
     ? [clampedSurvivorClaim(survivorSince), clampedSurvivorClaim(survivorSince)]
-    : [Math.max(firstMonth, age60), Math.max(firstMonth, survivorFra)];
+    : [survivorFloor, Math.max(survivorFloor, survivorFra)];
 
   const ownFloor = monthIndexOf(
     recipient.birthdate.dateAtSsaAge(earliestFiling(recipient, monthDateFrom(asOf))),
@@ -171,7 +218,7 @@ function outcomeFromContext(
   survivorClaimIndex: number,
   ownFilingIndex: number,
 ): WidowedOutcome {
-  const { recipient, dec, firstMonth, finalIndex } = ctx;
+  const { recipient, dec, scoringStartIndex, finalIndex } = ctx;
 
   const ownAmount =
     ownFilingIndex > finalIndex
@@ -194,7 +241,9 @@ function outcomeFromContext(
         ).value();
 
   let total = 0;
-  for (let m = firstMonth; m <= finalIndex; m++) {
+  // From `max(asOf, death + 1)` — NOT from `death + 1`. Elapsed months are not
+  // a decision anyone can still make; see `context`'s doc comment.
+  for (let m = scoringStartIndex; m <= finalIndex; m++) {
     const own = m >= ownFilingIndex ? ownAmount : 0;
     const surv = m >= survivorClaimIndex ? survivorAmount : 0;
     total += Math.max(own, surv);

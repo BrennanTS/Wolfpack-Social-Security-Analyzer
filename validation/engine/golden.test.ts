@@ -441,26 +441,26 @@ describe.each(widowedScenarios)('golden scenario (widowed): $id', (scenario) => 
     expect(fraLabel(person.fra)).toBe(expectedFra.label);
   });
 
-  it("matches hand-derived monthly benefits and %PIA at every claim age on the survivor's own record", async () => {
-    const result = await run(scenario);
-    const person = result.people[0];
-    const byAge = new Map(
-      person.claimingOptions.map((o) => [
-        o.age,
-        { monthly: o.monthlyBenefit, percentOfPia: o.percentOfPia },
-      ]),
-    );
-    expectMonthlyMatches(
-      scenario.expected.monthlyByClaimAgeByPerson[0],
-      scenario.expected.percentOfPiaByClaimAgeByPerson[0],
-      byAge,
-    );
-  });
-
-  it("matches hand-derived break-even ages (0% COLA) on the survivor's own record", async () => {
-    const result = await run(scenario);
-    expectBreakEvensMatch(scenario.expected.breakEvensByPerson[0], result.people[0].breakEvens);
-  });
+  // DELIBERATELY ABSENT for widowed scenarios: the `monthlyByClaimAgeByPerson`
+  // /`percentOfPiaByClaimAgeByPerson` assertion and the `breakEvensByPerson`
+  // assertion that the single and married blocks above both carry.
+  //
+  // Those two figures come from `analyzePerson`, which computes them from the
+  // widow(er)'s OWN record alone. For a widow they are not what she would be
+  // paid at each claim age and not where she would break even, because SSA
+  // pays her the LARGER of her own benefit and the survivor benefit each
+  // month, and the survivor benefit is absent from both — verified identical
+  // across every widowed fixture regardless of the deceased's PIA, which is
+  // the tell.
+  //
+  // Redesigning `analyzePerson` to be survivor-aware is genuinely out of scope
+  // here (it is the same hazard `analyzeWidowed` guards against for the
+  // optimizer, reached through a different door). What must not happen is the
+  // golden corpus CERTIFYING those figures as correct for a widow: a fixture
+  // that pins a misleading number teaches the next reader it is the right one.
+  // The fields are still recorded in scenarios.json — they are real facts
+  // about her own record — they are simply not asserted as her benefits here.
+  // Single and married behaviour is untouched.
 
   it('is a widowed household with no spousal top-up and no married-style survivor-claim alternative', async () => {
     // Both are structurally guaranteed for a widowed household (see
