@@ -1012,6 +1012,41 @@ describe('analyzeHousehold — entry order', () => {
       expect(canonicalize(swapped)).toEqual(canonicalize(forward));
     });
 
+    it('does not call the shown figure THE maximum when two models are admissible', async () => {
+      // On a tie the engine can model either spouse as the dependent, and the
+      // two models need not agree — on a same-age equal-PIA couple the model
+      // this app does not show scored $288 (0.04%) higher. "The optimizer
+      // maximizes combined expected present value at $X" states as a fact
+      // something true only inside the framing `compareForEngine` picked.
+      const result = await analyzeHousehold(
+        { status: 'married', people: [equalA, equalB] },
+        assumptions,
+        asOf,
+      );
+      expect(result.recommendationDetail).not.toContain('optimizer maximizes');
+      expect(result.recommendationDetail).toContain('Both spouses have the same PIA');
+      expect(result.recommendationDetail).toContain('Under the model shown here');
+      expect(result.recommendationDetail).toContain('The other model is equally admissible');
+      // Still names the figure and both ages — the qualifier replaces the
+      // claim about the figure, not the figure.
+      expect(result.recommendationDetail).toContain(
+        `${result.optimal.filingAges[0].label}`,
+      );
+    });
+
+    it('keeps the unqualified sentence for a household with a real higher earner', async () => {
+      // Guard: the qualifier must not have leaked onto every married report.
+      const result = await analyzeHousehold(
+        { status: 'married', people: [dan, sarah] },
+        assumptions,
+        asOf,
+      );
+      expect(result.recommendationDetail).toContain(
+        'The ssa.tools couple optimizer maximizes combined expected present value',
+      );
+      expect(result.recommendationDetail).not.toContain('Both spouses have the same PIA');
+    });
+
     it('gives the projected survivor the slot the engine can pay a survivor benefit to', async () => {
       // Not an accident of the ordering keys but the reason for one of them:
       // the engine pays survivor benefits only to its `dependent`, which on a

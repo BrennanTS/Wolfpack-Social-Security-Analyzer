@@ -262,6 +262,12 @@ retirement FRA + 2 years of cohort shift.
 71.5% via `Math.max(0, ...)` at line 527 rather than erroring), disabled-widow(er) benefits at 50,
 child-in-care survivor benefits, and the one-time lump-sum death payment.
 
+**Nor is the age-60 START.** The amount arithmetic above is only reached once a survivor period
+exists, and `strategy-calc.ts:71-77` will not begin one before the survivor's own filing date, where
+SSA pays a widow(er) from 60 regardless of it. That produces $0 household income for months a
+survivor would really be paid, and it is visible in the strategy table's survivor-income column —
+see §5.2.
+
 ### 2.4 COLA and wage-indexing machinery — implemented
 
 All in `pia.ts` and `earnings-manager.ts`:
@@ -546,6 +552,38 @@ if (dependentFinalPersonalBenefit.cents() < survivorBenefitAmount.cents()) {
 If the survivor's own (fully-credited) benefit is greater or equal, **no Survivor period is emitted
 at all** and the dependent keeps their Personal benefit for life. Note the comparison deliberately
 uses the post-January-bump amount even though the actual month of the switch might be earlier.
+
+**The survivor benefit cannot start before the survivor's OWN filing date — and that is a
+divergence from SSA's rule.** `strategy-calc.ts:71-77`:
+
+```ts
+// Determine the start date for survivor benefits. This is the later of:
+// 1. The month after the earner's death date.
+// 2. The dependent's filing date.
+const survivorStartDate = MonthDate.max(
+  earnerFinalDate.addDuration(new MonthDuration(1)),
+  dependentStratDate
+);
+```
+
+SSA pays a widow(er) benefit from **age 60** (50 if disabled), independent of whether the widow(er)
+has filed on their own retirement record — indeed the standard planning move is to take one benefit
+first and switch to the other later. The engine instead pays nothing until the survivor's own filing
+date, so a household in which the survivor files late shows **$0 of household income for every month
+between the death and that filing**, even when the survivor is well past 60.
+
+**This is visible in the product**, in the strategy table's survivor-income column: for an older
+higher earner with a much younger spouse (PIA 2400 plan-to 78 / PIA 1200 plan-to 90), the "both
+delay to 70" row reads $0 while the optimum reads $36,480. The survivor is 69 in that year — SSA
+would be paying her a widow's benefit; the model is not. **The $0 is a model artifact, not a
+planning result.**
+
+**Ruled ship-as-is; Phase 3 item.** Nothing in the app currently corrects for it, and the
+`survivorIncomeCaption` sentence that explains the $0 ("a strategy under which the survivor's own
+benefit has not started by then shows $0") describes *the model*, correctly, and is **not** a
+statement of SSA's rule. A Phase 3 fix has to decide whether to model the age-60 start itself
+(a benefit rule the app would then own, which this codebase has so far refused to do) or to
+disclose the divergence in copy. Until then, do not read the column as advice to file early.
 
 ### 5.3 Can periods overlap?
 

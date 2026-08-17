@@ -504,6 +504,22 @@ export const SURVIVOR_INCOME_COLUMN_HEADER = 'Survivor income';
  * (`survivorIncomeRisesWithDelay`) and states the composition fact instead
  * whenever the figures do not actually rise.
  *
+ * **Known divergence, ruled ship-as-is — a Phase 3 item, not a bug to fix in
+ * this sentence.** A $0 in this column is a MODEL artifact, not a planning
+ * result. `strategy-calc.ts:71-77` starts the survivor benefit at
+ * `max(month after the death, the survivor's OWN filing date)`, so a survivor
+ * who has not filed is paid nothing; SSA pays a widow(er) from age 60
+ * regardless of whether they have filed on their own record. In the household
+ * above, Sarah is 69 in the year that reads $0. The composition sentence this
+ * function emits ("a strategy under which the survivor's own benefit has not
+ * started by then shows $0") is therefore an accurate description of THE
+ * MODEL and is not a statement of SSA's rule — deliberately, since this module
+ * states what the pipeline computed and never asserts a benefit rule. A Phase
+ * 3 fix must decide between modelling the age-60 start (a benefit rule the app
+ * would then own) and disclosing the divergence; changing only this sentence
+ * would describe the model wrongly without making the figures right. See
+ * `docs/reference/ssa-tools-engine-audit.md` §5.2 and §2.3.
+ *
  * `comparisons` is the first parameter and required, deliberately: a caller
  * cannot render this caption without handing it the very figures it makes a
  * claim about. It is the rows AS DISPLAYED — the same objects the table

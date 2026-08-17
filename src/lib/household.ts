@@ -602,6 +602,52 @@ function spousalFiguresFrom(
   };
 }
 
+/**
+ * The sentence under the joint recommendation, on both surfaces.
+ *
+ * Lives here rather than in `methodologyCopy.ts` with the rest of this
+ * branch's copy, deliberately: `methodologyCopy` already imports
+ * `survivorIncomeRisesWithDelay` from this module, so moving this sentence
+ * there would make the two modules import each other at runtime. A circular
+ * module dependency is a worse defect than a sentence living one file away
+ * from its siblings. Both call sites read `analysis.recommendationDetail`
+ * rather than building a sentence, so the "hand-retyped in two files" failure
+ * this project keeps hitting is not in play either.
+ *
+ * On an exact PIA tie the unqualified version overclaims. `higherEarningsThan`
+ * is false both ways, so the engine can model either spouse as the dependent,
+ * and the two models do not have to agree: on a same-age equal-PIA couple the
+ * model this app does not show scored $288 (0.04%) higher. Calling this figure
+ * "the maximum" would state as a fact something that is only true within the
+ * framing `compareForEngine` picked. The tie branch therefore names the
+ * framing and stops short of ranking the two — which is also the only wording
+ * that stays true for a tie household whose alternative framing happens to be
+ * identical, and this function does not know which kind it has without running
+ * the optimizer twice, which is explicitly not what this app does.
+ */
+function coupleRecommendationDetail(
+  isPiaTie: boolean,
+  expectedNpv: number,
+  labels: readonly [string, string],
+  ages: readonly [string, string],
+): string {
+  if (isPiaTie) {
+    return (
+      `Both spouses have the same PIA, so neither is the engine's higher earner and it can ` +
+      `model either one as the dependent. Under the model shown here, the best combined ` +
+      `expected present value is ${formatCurrency(expectedNpv)}, with ${labels[0]} filing at ` +
+      `age ${ages[0]} and ${labels[1]} at age ${ages[1]}. The other model is equally ` +
+      `admissible and need not give the same ages or the same value.`
+    );
+  }
+
+  return (
+    `The ssa.tools couple optimizer maximizes combined expected present value at ` +
+    `${formatCurrency(expectedNpv)} when ${labels[0]} files at age ${ages[0]} and ` +
+    `${labels[1]} files at age ${ages[1]}.`
+  );
+}
+
 export async function analyzeHousehold(
   household: Household,
   assumptions: Assumptions,
@@ -721,11 +767,12 @@ export async function analyzeHousehold(
       recommendation:
         `${displayLabels[0]} files at ${displayFilingAges[0].label} · ` +
         `${displayLabels[1]} files at ${displayFilingAges[1].label}`,
-      recommendationDetail:
-        `The ssa.tools couple optimizer maximizes combined expected present value at ` +
-        `${formatCurrency(optimal.expectedNpv)} when ${displayLabels[0]} files at age ` +
-        `${displayFilingAges[0].label} and ${displayLabels[1]} files at age ` +
-        `${displayFilingAges[1].label}.`,
+      recommendationDetail: coupleRecommendationDetail(
+        isPiaTie,
+        optimal.expectedNpv,
+        displayLabels,
+        [displayFilingAges[0].label, displayFilingAges[1].label],
+      ),
       assumptions,
       asOf,
     };
