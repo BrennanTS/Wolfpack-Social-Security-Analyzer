@@ -270,11 +270,19 @@ In `.header-actions`, add a button immediately **before** the existing Resources
 
 Label it `About`. Render `<AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />` beside the existing `<ResourcesPanel …>`.
 
-- [ ] **Step 4: Delete the "How This Works" block**
+- [ ] **Step 4: Move the four static cards out, and KEEP the spousal card**
 
-Remove the entire `<div className="methodology">` block from `Analyzer.tsx` — heading, `.method-grid`, and all five cards. Its content now lives in `about.ts`.
+> **Changed during implementation — read this carefully, it is not what the plan originally said.**
 
-`spousalMethodologyCopy` from `methodologyCopy.ts` was consumed only by that block's spousal card. **Check whether it now has any other caller** (`grep -rn "spousalMethodologyCopy" src/`). It is also used by the PDF; if so, leave the function alone and only remove the screen call site. If it turns out to have no remaining caller, still leave it — deleting it belongs to a different change.
+Remove from `Analyzer.tsx`'s `<div className="methodology">` block only the **four static cards**: FRA, early claiming, delayed credits, and life expectancy by gender. Their wording now lives in `about.ts`.
+
+**The spousal card stays on the main surface.** It is not reference material: it renders `spousalMethodologyCopy(analysis)`, which states *this household's* actual top-up, when it begins, and how survivor benefits are modelled for it. `HouseholdPanel` carries no spousal prose and `spousalSummary` is print-only, so this card is the only place on screen an adviser sees that explained. Deleting it would silently remove per-household information.
+
+Keep the surrounding `<div className="methodology">` wrapper, its heading and its `.method-grid` so the remaining card renders in the same place it does today. If a single-card grid looks wrong, adjust the CSS — do not delete the card.
+
+**Also remove the now-redundant static spousal entry from `ABOUT_CARDS` in `src/lib/about.ts`**, added by Task 1 when the plan still called for five. It would duplicate the sentence `spousalMethodologyCopy` already opens with. Update `AboutPanel.test.tsx`'s card-title assertion to the four remaining titles.
+
+`spousalMethodologyCopy` keeps both its callers — the screen card and the PDF. Do not delete or alter the function.
 
 - [ ] **Step 5: Delete the CPI history block from `AssumptionsPanel.tsx`**
 

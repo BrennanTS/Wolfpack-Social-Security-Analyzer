@@ -26,7 +26,11 @@ A drawer, closed by default, opened from the header beside Resources — matchin
 It contains, in order:
 
 1. **What this tool does** — one short orienting paragraph.
-2. **How This Works** — the five method cards moved verbatim from `Analyzer.tsx`: FRA, early-claiming reduction, delayed credits, life expectancy by gender, and spousal benefits.
+2. **How This Works** — the **four static** method cards moved verbatim from `Analyzer.tsx`: FRA, early-claiming reduction, delayed credits, and life expectancy by gender.
+
+> **Amended 2026-08-17, during implementation — this originally said five cards, including spousal, and that was wrong.** The spousal card is not reference material: it renders `spousalMethodologyCopy(analysis)`, which states *this household's* actual top-up, when it begins, and how survivor benefits are modelled for it. `HouseholdPanel` carries no spousal prose and `spousalSummary` is print-only, so that card is **the only place on screen** an adviser sees this household's top-up explained in words. Moving it would have silently deleted per-household information — the same "remove the brand, never the information" rule this spec applies to strings, missed at block level.
+>
+> The spousal card therefore **stays on the main surface** and no static spousal card is added to About, which would only duplicate the sentence `spousalMethodologyCopy` already opens with. The life-expectancy card does move: its dynamic figure is already shown beside the live slider at `AssumptionsPanel:116`, so nothing is lost.
 3. **Calculation engine** — the single attribution. What ssa.tools is, that it is MIT-licensed, a link, and one sentence on what it computes.
 4. **BLS CPI-U — Last 30 Years** — moved from the bottom of `AssumptionsPanel`.
 5. **Version** — via the existing `AppVersion` component.
