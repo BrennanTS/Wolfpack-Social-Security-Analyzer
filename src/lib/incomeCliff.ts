@@ -5,9 +5,11 @@
  * Pure arithmetic over `HouseholdAnalysis.combinedTimeline` and
  * `finalIndexByPersonId` — it derives no benefit rule and makes no engine
  * call. `finalIndexByPersonId` is required rather than inferred from
- * `periods`: the dual-entitlement split in `benefitPeriods.ts` extends the
- * deceased's personal band to the SURVIVOR's death, so where a band ends
- * tells you nothing about when the first death happened.
+ * `periods`: a person who dies before filing holds no band at all, so their
+ * death month is not recoverable from the band ends. (The reason previously
+ * given here — that the dual-entitlement split extends the deceased's
+ * personal band to the survivor's death — was wrong; see
+ * `benefitPeriods.ts`'s `HouseholdPeriods.finalIndexByPersonId`.)
  */
 import { personLabel } from './format';
 import type { HouseholdAnalysis } from './household';

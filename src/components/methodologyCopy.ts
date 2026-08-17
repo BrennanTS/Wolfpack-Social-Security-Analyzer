@@ -9,7 +9,11 @@
 import type { BandType, SurvivorGap } from '../lib/benefitPeriods';
 import { formatPercent } from '../lib/cpiHistory';
 import type { DollarsMode } from '../lib/dollarsMode';
-import type { HouseholdAnalysis } from '../lib/household';
+import {
+  survivorIncomeRisesWithDelay,
+  type HouseholdAnalysis,
+  type HouseholdStrategy,
+} from '../lib/household';
 import type { IncomeCliff } from '../lib/incomeCliff';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 
@@ -466,11 +470,11 @@ export const INCOME_CLIFF_HEADING = 'Income at the First Death';
 export const SURVIVOR_INCOME_COLUMN_HEADER = 'Survivor income';
 
 /**
- * The caption under the strategy table's survivor-income column — the
- * argument for delaying that a single lifetime PV figure cannot show:
- * delaying raises the survivor's income for every year they outlive their
- * spouse. Shared by the on-screen table and the PDF's twin so the sentence
- * cannot be hand-retyped into one and drift from the other.
+ * The caption under the strategy table's survivor-income column — the figure
+ * a single lifetime PV number cannot show at all: what each strategy leaves
+ * the survivor with, year after year. Shared by the on-screen table and the
+ * PDF's twin so the sentence cannot be hand-retyped into one and drift from
+ * the other.
  *
  * The leading sentence states that the figure assumes the death direction
  * implied by each spouse's own life-expectancy input — direction-agnostic
@@ -488,38 +492,60 @@ export const SURVIVOR_INCOME_COLUMN_HEADER = 'Survivor income';
  * computed for a household whose higher earner was the one projected to
  * survive.
  *
- * Two further branches, mirroring `survivorGapNote`'s own reason for having
- * three: a single unbranched sentence was wrong for some reachable
+ * The delay claim is CHECKED, not asserted. It used to read "Delaying raises
+ * this every year the survivor lives through it" with no branch at all in the
+ * no-gap case — the common case — and it is false for an ordinary household:
+ * Dan b. 1958 PIA 2400 plan-to 78 with Sarah b. 1968 PIA 1200 plan-to 90 pays
+ * the survivor $36,480 under the optimum and $0 under "both delay to 70",
+ * because under that row Sarah has not filed by the year after Dan's death.
+ * `survivorGap` is null for that household, so no gap branch covered it. An
+ * older higher earner with a much younger spouse is the archetype this
+ * analysis exists for, so the sentence now reads the rows it sits under
+ * (`survivorIncomeRisesWithDelay`) and states the composition fact instead
+ * whenever the figures do not actually rise.
+ *
+ * `comparisons` is the first parameter and required, deliberately: a caller
+ * cannot render this caption without handing it the very figures it makes a
+ * claim about. It is the rows AS DISPLAYED — the same objects the table
+ * renders, already in whichever dollars `mode` names. Monotonicity survives
+ * that transform (it scales every row by the same positive factor), so the
+ * branch cannot disagree with the column beneath it.
+ *
+ * The remaining branches, mirroring `survivorGapNote`'s own reason for
+ * having three: a single unbranched sentence was wrong for some reachable
  * household in each case.
  *
+ *  - no row carries a figure: both surfaces hide the column and this caption
+ *    entirely (identical final months make `firstDeath` null and every cell
+ *    an em dash). The branch exists anyway so a caller that renders it
+ *    regardless states an absence rather than asserting figures that are not
+ *    on the page — and it appends no dollars-basis clause, since there are no
+ *    dollars to describe.
  *  - `gap.survivorUnder60`: no widow(er) benefit is payable this young under
  *    ANY strategy, and the death month is the same for every row (see
- *    `withSurvivorIncome`'s doc), so every row's figure is genuinely $0 —
- *    delaying raises none of them, and "these figures understate" would be
- *    true only from age 60 onward, not yet. Asserting either the delay
- *    claim or the understate claim here is exactly the defect
- *    `survivorGapNote`'s under-60 branch exists to prevent, repeated here.
- *  - `gap` set, not under 60: the delay claim still holds (the survivor's
- *    own benefit still rises with their filing age across rows), and the
- *    understate claim is true — reused as a pointer to `survivorGapNote`
- *    (rendered once already: `CombinedIncomeChart` on screen, the gap note
- *    under "Combined Household Income" in print) rather than restating its
- *    figures here, which is exactly the duplication that note's own history
- *    exists to prevent.
+ *    `withSurvivorIncome`'s doc). Note this branch no longer asserts "every
+ *    strategy's figure is $0" — the rise check reads the actual figures, so
+ *    the claim does not need restating from the guard.
+ *  - `gap` set, not under 60: the understate claim is true — reused as a
+ *    pointer to `survivorGapNote` (rendered once already: `CombinedIncomeChart`
+ *    on screen, the gap note under "Combined Household Income" in print)
+ *    rather than restating its figures here, which is exactly the duplication
+ *    that note's own history exists to prevent.
  *
- * Neither branch names the survivor — `survivorGapNote` already does, and
- * this caption stays generic so the two do not need to agree on phrasing
- * for the same fact.
+ * No branch names the survivor — `survivorGapNote` already does, and this
+ * caption stays generic so the two do not need to agree on phrasing for the
+ * same fact.
  *
- * `mode` adds one more thing every branch states: which dollars the column
- * is in. The column sits directly beside "Combined PV", which stays in
- * present-value dollars regardless of this toggle — a real risk of two
- * unmarked unit systems in one table, worse once nominal makes the two
- * columns diverge further apart. `HouseholdPanel` is the only caller that
- * ever passes `'nominal'`; print always passes `'real'` explicitly, since it
- * has no toggle.
+ * `mode` adds one more thing every figure-bearing branch states: which
+ * dollars the column is in. The column sits directly beside "Combined PV",
+ * which stays in present-value dollars regardless of this toggle — a real
+ * risk of two unmarked unit systems in one table, worse once nominal makes
+ * the two columns diverge further apart. `HouseholdPanel` is the only caller
+ * that ever passes `'nominal'`; print always passes `'real'` explicitly,
+ * since it has no toggle.
  */
 export function survivorIncomeCaption(
+  comparisons: HouseholdStrategy[],
   gap: SurvivorGap | null | undefined,
   mode: DollarsMode = 'real',
 ): string {
@@ -527,6 +553,11 @@ export function survivorIncomeCaption(
     "Household income in the first full year after the first spouse's death, under each " +
     "strategy, assuming the death direction implied by each spouse's own life-expectancy " +
     'input.';
+
+  if (!comparisons.some((c) => c.survivorIncome != null)) {
+    return `${base} No strategy in this table has a figure to show for it.`;
+  }
+
   const basisClause =
     mode === 'nominal'
       ? ' This column is in future (nominal) dollars, compounded forward using the assumed ' +
@@ -534,23 +565,24 @@ export function survivorIncomeCaption(
         'of this toggle.'
       : ' This column is in today’s dollars, before any cost-of-living adjustment.';
 
-  if (gap?.survivorUnder60) {
-    return (
-      `${base} The survivor has not yet reached the age a widow(er) benefit can start, so ` +
-      "every strategy's figure is $0 here and delaying raises none of them — see the note " +
-      `below for what changes from age 60 onward.${basisClause}`
-    );
-  }
+  // The claim, made only when the figures below actually support it.
+  const riseClause = survivorIncomeRisesWithDelay(comparisons)
+    ? 'Delaying raises this figure for this household, and the survivor keeps the higher ' +
+      'amount for every year they outlive their spouse — the argument for delaying that the ' +
+      'Combined PV column alone cannot show.'
+    : 'For this household the figure is not simply larger for later filing: it turns on what ' +
+      'the first spouse to die had filed for AND on whether the survivor has begun collecting ' +
+      'by that year — a strategy under which the survivor’s own benefit has not started by ' +
+      'then shows $0, nothing having started yet rather than anything having been reduced.';
 
-  const delayClause =
-    'Delaying raises this every year the survivor lives through it, which the Combined PV ' +
-    'column alone cannot show.';
+  const gapClause = !gap
+    ? ''
+    : gap.survivorUnder60
+      ? ' The survivor has not yet reached the age a widow(er) benefit can start — see the ' +
+        'note below for what changes from age 60 onward.'
+      : ' The ssa.tools engine does not model survivor benefits in this household’s ' +
+        'direction, so these figures understate what the survivor would actually receive — ' +
+        'see the note below.';
 
-  if (!gap) return `${base} ${delayClause}${basisClause}`;
-
-  return (
-    `${base} ${delayClause} The ssa.tools engine does not model survivor benefits in this ` +
-    "household's direction, so these figures understate what the survivor would actually " +
-    `receive — see the note below.${basisClause}`
-  );
+  return `${base} ${riseClause}${gapClause}${basisClause}`;
 }

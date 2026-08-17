@@ -1,7 +1,7 @@
 import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { formatCurrency, personLabel } from '../lib/format';
-import type { HouseholdStrategy } from '../lib/household';
+import { showSurvivorIncomeColumn, type HouseholdStrategy } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { SURVIVOR_INCOME_COLUMN_HEADER, survivorIncomeCaption } from './methodologyCopy';
 
@@ -46,6 +46,13 @@ interface StrategyComparisonTableProps {
  * claimant, so gating on `people.length` rather than reading the field is
  * what keeps the column hidden even if some future single-claimant row ever
  * carried a non-null value by mistake.
+ *
+ * It ALSO requires at least one row to carry a figure. When both people
+ * reach their plan-to age in the same month `firstDeath` returns null — it
+ * refuses to invent a survivor the household does not have — so every row's
+ * `survivorIncome` is null and every cell renders an em dash. The caption
+ * used to print its claims over that column of dashes; a column with nothing
+ * in it is not a column, so both it and its caption go.
  */
 export function StrategyComparisonTable({
   comparisons,
@@ -53,7 +60,7 @@ export function StrategyComparisonTable({
   survivorGap,
   dollarsMode = 'real',
 }: StrategyComparisonTableProps) {
-  const showSurvivorIncome = people.length === 2;
+  const showSurvivorIncome = showSurvivorIncomeColumn(comparisons, people.length);
 
   return (
     <div className="table-wrap">
@@ -104,7 +111,7 @@ export function StrategyComparisonTable({
       </table>
       {showSurvivorIncome && (
         <p className="chart-caveat" data-testid="survivor-income-caption">
-          {survivorIncomeCaption(survivorGap, dollarsMode)}
+          {survivorIncomeCaption(comparisons, survivorGap, dollarsMode)}
         </p>
       )}
     </div>

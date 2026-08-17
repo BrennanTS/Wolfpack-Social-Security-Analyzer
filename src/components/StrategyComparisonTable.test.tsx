@@ -73,6 +73,40 @@ describe('StrategyComparisonTable', () => {
     expect(screen.queryByTestId('survivor-income-caption')).toBeNull();
   });
 
+  it('omits the column and its caption when no row carries a figure', () => {
+    // Reachable, and the branch's own `household.test.ts` builds it: when both
+    // people reach their plan-to age in the same month, `firstDeath` returns
+    // null — it will not invent a survivor — so every row's `survivorIncome`
+    // is null and every cell would render an em dash. The caption used to
+    // print its claims over that column of dashes.
+    const noFigures = comparisons.map((c) => ({ ...c, survivorIncome: null }));
+    render(<StrategyComparisonTable comparisons={noFigures} people={people} />);
+    expect(screen.queryByRole('columnheader', { name: SURVIVOR_INCOME_COLUMN_HEADER })).toBeNull();
+    expect(screen.queryByTestId('survivor-income-caption')).toBeNull();
+    expect(screen.queryByTestId('cell-survivor-optimal')).toBeNull();
+  });
+
+  it('keeps the column when only SOME rows lack a figure', () => {
+    const partial = [{ ...comparisons[0], survivorIncome: null }, comparisons[1], comparisons[2]];
+    render(<StrategyComparisonTable comparisons={partial} people={people} />);
+    expect(screen.getByRole('columnheader', { name: SURVIVOR_INCOME_COLUMN_HEADER })).toBeDefined();
+    expect(screen.getByTestId('survivor-income-caption')).toBeDefined();
+  });
+
+  it('drops the delay claim when the column falls with later filing', () => {
+    // The measured household: Dan b. 1958 PIA 2400 plan-to 78, Sarah b. 1968
+    // PIA 1200 plan-to 90. `survivorGap` is null, so nothing else in the
+    // caption would have caught the claim being false.
+    const falling: HouseholdStrategy[] = [
+      { ...comparisons[1], filingAges: [age(70), age(62)], survivorIncome: 36_480 },
+      { ...comparisons[2], filingAges: [age(70), age(70)], survivorIncome: 0 },
+    ];
+    render(<StrategyComparisonTable comparisons={falling} people={people} />);
+    const caption = screen.getByTestId('survivor-income-caption');
+    expect(caption.textContent).not.toContain('Delaying raises');
+    expect(caption).toHaveTextContent('not simply larger for later filing');
+  });
+
   it('shows an em dash rather than a currency figure when a row has no survivor income', () => {
     const withNullRow: HouseholdStrategy[] = [
       { ...comparisons[0], survivorIncome: null },

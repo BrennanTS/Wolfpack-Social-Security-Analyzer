@@ -2,6 +2,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceL
 import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { visibleBenefitSeries, type CombinedTimelinePoint } from '../lib/household';
+import { firstDeath } from '../lib/incomeCliff';
 import type { Person } from '../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../lib/format';
 import { benefitSeriesLabel, combinedIncomeCaption, survivorGapNote } from './methodologyCopy';
@@ -30,7 +31,9 @@ interface CombinedIncomeChartProps {
   survivorGap?: SurvivorGap | null;
   /**
    * Each person's inclusive final month index, for the first-death marker —
-   * `Math.min` of these, converted to a calendar year. Optional so the
+   * read through `firstDeath`, the same function the income-cliff callout and
+   * the survivor-income column use, so the marker cannot appear on a screen
+   * where those two say there is no modeled first death. Optional so the
    * single-claimant call site need not pass it; the marker only ever appears
    * for a couple regardless, since one person alone has no "first" death.
    */
@@ -92,13 +95,19 @@ export function CombinedIncomeChart({
     if (point) filingYearByPersonId[p.id] = point.year;
   }
 
-  // First death, for a couple only. `Math.min` of the two final month
-  // indexes, converted from the absolute month convention to a calendar year.
-  const finalIndexes = people
-    .map((p) => finalIndexByPersonId[p.id])
-    .filter((v): v is number => v !== undefined);
+  // First death, for a couple only — via `firstDeath`, the one place that
+  // arithmetic lives. This used to be an inline `Math.min` over the final
+  // indexes, which disagreed with `firstDeath` on exactly one household: when
+  // both people reach their plan-to age in the SAME month, `firstDeath`
+  // returns null (two mortality draws landing on one month is not evidence
+  // either outlives the other, and a tie-break would invent a survivor), so
+  // the cliff callout was absent and the survivor column was all em dashes
+  // while this chart still drew a "First death" marker on the same screen.
+  // `incomeCliff.ts:37-41` warns against precisely this second derivation.
   const rawDeathYear =
-    people.length > 1 && finalIndexes.length > 1 ? Math.floor(Math.min(...finalIndexes) / 12) : null;
+    people.length > 1
+      ? (firstDeath([people[0].id, people[1].id], finalIndexByPersonId)?.deathYear ?? null)
+      : null;
   // `XAxis` below has no `type="number"`, so it's a category axis: a
   // `ReferenceLine` whose `x` isn't one of the chart's actual year
   // categories renders nothing at all, silently. Every filing-marker year is

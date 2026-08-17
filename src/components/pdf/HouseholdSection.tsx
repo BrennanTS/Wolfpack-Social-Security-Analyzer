@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Page, Text, View, Svg, Line, Rect } from '@react-pdf/renderer';
 import {
+  showSurvivorIncomeColumn,
   visibleBenefitSeries,
   type CombinedTimelinePoint,
   type HouseholdAnalysis,
@@ -35,7 +36,13 @@ interface Props {
 /** Household strategy-comparison columns (must sum to CONTENT_W). */
 const HCOL = { label: 130, person: 80, npv: 90, delta: 66, survivor: 70 };
 
-function StrategyTable({
+/**
+ * Exported for `HouseholdSection.test.tsx` for the same reason
+ * `CombinedIncomeBars` is: the page's own text walk cannot see inside an
+ * uncalled component element, so the column gate has to be asserted on this
+ * component directly or not at all.
+ */
+export function StrategyTable({
   comparisons,
   people,
 }: {
@@ -45,8 +52,12 @@ function StrategyTable({
   // Married-only, same test the screen table uses — `household.ts` sets
   // `survivorIncome: null` for a single claimant, so gating on `people.length`
   // rather than reading the field keeps the column hidden even if a future
-  // single-claimant row ever carried a non-null value by mistake.
-  const showSurvivorIncome = people.length === 2;
+  // single-claimant row ever carried a non-null value by mistake — plus the
+  // same "at least one row has a figure" test, so a household whose two
+  // plan-to months coincide prints neither a column of em dashes nor the
+  // caption that claims figures for it. `showSurvivorIncomeColumn` is shared
+  // with the page below so the column and its caption cannot disagree.
+  const showSurvivorIncome = showSurvivorIncomeColumn(comparisons, people.length);
 
   return (
     <View>
@@ -201,7 +212,21 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
           // Built by the same function the on-screen panel uses. Interpolating
           // the fields here is what let this surface print an unguarded
           // absence marker while the screen branched correctly.
-          <Text style={styles.recBody}>{spousalSummary(spousal, 'the lower earner')}</Text>
+          //
+          // The subject is driven by `lowerEarnerLabel` — the same field the
+          // screen passes — not by a hardcoded string. Print used to pass
+          // `'the lower earner'` unconditionally, which made
+          // `spousalSummary`'s `subject === null` branch unreachable here: on
+          // an exact PIA tie `atFra` is 0, so print fell into the `atFra <= 0`
+          // branch and stated that "half of the higher earner's PIA does not
+          // exceed the lower earner's own benefit", presupposing a higher and
+          // a lower earner this household does not have — and disagreeing
+          // with the screen about the same household. Only the wording of a
+          // present subject stays print-specific: the PDF has no per-person
+          // context to name one.
+          <Text style={styles.recBody}>
+            {spousalSummary(spousal, spousal.lowerEarnerLabel === null ? null : 'the lower earner')}
+          </Text>
         )}
       </View>
 
@@ -211,10 +236,19 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
         optimizer rejected and by how much.
       </Text>
       <StrategyTable comparisons={analysis.comparisons} people={people} />
-      {people.length === 2 && (
+      {showSurvivorIncomeColumn(analysis.comparisons, people.length) && (
+        // Same gate as the table's own column (shared, not retyped), so the
+        // caption cannot print over a column that isn't there — or over one
+        // that is all em dashes, which is what happens when both people reach
+        // their plan-to age in the same month.
+        //
         // `'real'` explicit, not the function's default: print always shows
         // real dollars and has no toggle, regardless of what the default is.
-        <Text style={styles.sectionDesc}>{survivorIncomeCaption(analysis.survivorGap, 'real')}</Text>
+        // The rows go in because the caption's delay claim is checked against
+        // them rather than asserted over them.
+        <Text style={styles.sectionDesc}>
+          {survivorIncomeCaption(analysis.comparisons, analysis.survivorGap, 'real')}
+        </Text>
       )}
 
       <Text style={styles.sectionTitle}>Combined Household Income</Text>

@@ -87,9 +87,18 @@ export interface HouseholdPeriods {
   survivorGap: SurvivorGap | null;
   /**
    * Each person's inclusive final month index — the month they reach their
-   * plan-to age. NOT derivable from the bands: the dual-entitlement split
-   * extends the deceased's personal band to the SURVIVOR's death, so the
-   * band ends tell you nothing about when the first death happened.
+   * plan-to age. NOT derivable from the bands: a person who dies before
+   * filing holds no band at all, so their death month is nowhere in the band
+   * ends to be read.
+   *
+   * (Corrected after execution. This comment originally said the split
+   * "extends the deceased's personal band to the SURVIVOR's death". It does
+   * not: `splitDualEntitlement` carries forward
+   * `latestPersonalBand(bands, survivor.personId)` — the SURVIVOR's own band
+   * — and the engine already ends the earner's personal periods at
+   * `earnerFinalDate`, `strategy-calc.ts:104-110`. The field is still
+   * needed, for the reason stated above. Phase 3 must not re-inherit the old
+   * wording.)
    */
   finalIndexByPersonId: Record<string, number>;
 }
@@ -195,9 +204,8 @@ Expected: empty.
 git add src/lib/
 SKIP_E2E=1 git commit -m "feat: expose each person's final month and key the timeline by series
 
-The dual-entitlement split extends the deceased's personal band to the
-survivor's death, so the first-death month cannot be read back off the
-bands. The income-cliff callout needs it.
+A person who dies before filing holds no band at all, so the first-death
+month cannot be read back off the bands. The income-cliff callout needs it.
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```

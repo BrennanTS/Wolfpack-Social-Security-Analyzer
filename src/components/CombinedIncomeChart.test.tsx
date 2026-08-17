@@ -388,6 +388,26 @@ describe('CombinedIncomeChart', () => {
       expect(lines.some((rl) => rl.props.label === 'First death')).toBe(false);
     });
 
+    it('omits the death marker when the two final months tie, as firstDeath does', () => {
+      // The chart used to compute `Math.min(...finalIndexes)` inline, which
+      // disagreed with `firstDeath` on exactly this household: identical
+      // final months mean `firstDeath` returns null (two mortality draws
+      // landing on one month is not evidence either outlives the other), so
+      // the cliff callout is absent and the survivor column is all em dashes
+      // — while the chart still drew a "First death" marker on the same
+      // screen. One derivation, one answer.
+      const tied = 2046 * 12 + 2;
+      const tree = CombinedIncomeChart({
+        timeline: timelineWithSurvivor,
+        people: [dan, sarah],
+        finalIndexByPersonId: { a: tied, b: tied },
+      });
+      const lines = collectReferenceLines(tree);
+      expect(lines.some((rl) => rl.props.label === 'First death')).toBe(false);
+      // Not vacuous: the other markers are still built for this household.
+      expect(lines.some((rl) => rl.props.label === 'Dan files')).toBe(true);
+    });
+
     // `XAxis` has no `type="number"`, so it's a category axis: a
     // `ReferenceLine` whose `x` isn't one of the chart's own year categories
     // renders nothing at all — reachable when the first death precedes the

@@ -43,9 +43,16 @@ export interface HouseholdStrategy {
   isOptimal: boolean;
   /**
    * Annual household income in the first full year after the first death,
-   * under THIS strategy. Null for a single claimant. This is the argument for
-   * delaying that lifetime PV cannot show: delaying raises the survivor's
-   * income for every year they outlive their spouse.
+   * under THIS strategy. Null for a single claimant, and for the edge cases
+   * `withSurvivorIncome` documents.
+   *
+   * The column exists because lifetime PV cannot show this figure at all —
+   * NOT because delaying always raises it. It does for many households, and
+   * for those the caption says so; it does not for an older higher earner
+   * with a much younger spouse, where "both delay to 70" leaves the survivor
+   * unfiled in the year after the death and the figure is $0 against $36,480
+   * under the optimum. `survivorIncomeRisesWithDelay` is the check, and the
+   * caption branches on it rather than asserting either way.
    */
   survivorIncome: number | null;
 }
@@ -114,9 +121,14 @@ export interface HouseholdAnalysis {
   survivorGap: SurvivorGap | null;
   /**
    * Each person's inclusive final month index — the month they reach their
-   * plan-to age. NOT derivable from `periods`: the dual-entitlement split
-   * extends the deceased's personal band to the SURVIVOR's death, so the
-   * band ends tell you nothing about when the first death happened.
+   * plan-to age. NOT derivable from `periods`: a person who dies before
+   * filing holds no band at all, so there is no band end to read their death
+   * month off. (An earlier version of this note gave a different and simply
+   * wrong reason — that the dual-entitlement split extends the DECEASED's
+   * personal band to the survivor's death. It does not: `splitDualEntitlement`
+   * carries forward `latestPersonalBand(bands, survivor.personId)`, the
+   * survivor's OWN band, and the engine already ends the earner's personal
+   * periods at `earnerFinalDate`, `strategy-calc.ts:104-110`.)
    */
   finalIndexByPersonId: Record<string, number>;
   recommendation: string;
@@ -195,9 +207,24 @@ function buildComparisons(
 
   // Present ascending by filing age so the table reads earliest to latest,
   // with the optimal row in its natural position.
-  const ordered = [...rows, optimal].sort(
-    (a, b) => a.filingAges[0].decimalYears - b.filingAges[0].decimalYears,
-  );
+  //
+  // Sorted on a SYMMETRIC key — the earliest filing age in the row, then the
+  // latest — rather than on `filingAges[0]`, one particular person's slot.
+  // Person A's slot is not a property of the strategy: for Dan/Sarah the rows
+  // came back `fra, latest, optimal` entered one way and `optimal, fra,
+  // latest` entered the other, moving the row that carries the "Best" badge.
+  // Both keys are order-independent by construction (min and max over the
+  // same set), so the row order is now a function of the strategies, not of
+  // which person was typed first.
+  const rowKey = (s: HouseholdStrategy) => {
+    const ages = s.filingAges.map((f) => f.decimalYears);
+    return { first: Math.min(...ages), last: Math.max(...ages) };
+  };
+  const ordered = [...rows, optimal].sort((a, b) => {
+    const ka = rowKey(a);
+    const kb = rowKey(b);
+    return ka.first - kb.first || ka.last - kb.last;
+  });
   return { optimal, comparisons: ordered };
 }
 
@@ -253,6 +280,145 @@ function withSurvivorIncome(
 
 function createRecipientFor(person: Person) {
   return createPiaRecipient(person.birthYear, person.birthMonth, person.piaMonthly, person.gender);
+}
+
+/**
+ * The month a person reaches their plan-to age, on the same absolute month
+ * index the bands use. Pure input arithmetic — birth month plus plan-to years
+ * — not a benefit rule, and it orders identically to the engine's own
+ * `finalDate` because every recipient this app builds shares one birth day
+ * (`DEFAULT_BIRTH_DAY`), so no SSA day-of-month adjustment can separate two
+ * people whose year and month agree.
+ */
+function projectedFinalMonth(person: Person): number {
+  return (person.birthYear + person.lifeExpectancy) * 12 + person.birthMonth;
+}
+
+/**
+ * Orders the two people for the ENGINE, on their own attributes alone.
+ *
+ * The engine is order-dependent on an exact PIA tie and the app cannot fix
+ * that from outside: `classifyEarnerDependent` (`earner-dependent.ts:15-28`)
+ * asks `higherEarningsThan`, a strict `>`, and falls through to a fixed
+ * positional default — array slot 1 becomes the earner — whenever neither
+ * side wins. That default reaches the engine through BOTH
+ * `rankedCoupleStrategies` and `strategySumPeriodsCouple`, so on a tie the
+ * typing order decided the recommended filing ages, whether a Survivor
+ * period existed at all, and therefore the chart and the income cliff. The
+ * measured case: two PIA-2200 spouses came back "Dan 63y9m / Sarah 70" one
+ * way round and "Dan 70 / Sarah 62y1m" the other, with a $1,179/mo survivor
+ * band in one and none in the other.
+ *
+ * So the pair is canonicalized once, here, before it enters the engine, and
+ * the results are mapped back to display order. Every key is an attribute of
+ * the household, never a slot:
+ *
+ *  1. PIA descending. This is the only key that fires for a household with a
+ *     real higher earner, and it agrees with the engine's own classifier
+ *     rather than overriding it — the classifier finds the higher earner
+ *     wherever they sit.
+ *  2. Projected final month descending — the person the household's own
+ *     plan-to inputs say outlives the other goes into slot 0. On a PIA tie
+ *     slot 0 is the engine's dependent, and the dependent is the only slot
+ *     the engine ever pays a survivor benefit to (`strategy-calc.ts:104`), so
+ *     this is the arrangement in which the projected survivor can actually
+ *     receive one. It is a choice about which of two engine-admissible
+ *     framings to show, not a benefit rule: the engine computes every amount
+ *     either way.
+ *  3. Birth date descending, then gender, then name — pure determinism, for
+ *     households the first two keys cannot separate. Gender is in the chain
+ *     because the optimizer weights by gender-specific life tables, so two
+ *     otherwise-identical people are still not interchangeable to it. Name is
+ *     last and is the only key the engine cannot see; it exists so a
+ *     household identical in every engine input still renders the same way
+ *     round each time.
+ *
+ * `id` is deliberately absent: ids are assigned by entry position ('a' then
+ * 'b'), so ordering on one would reintroduce exactly the dependence this
+ * removes.
+ */
+function compareForEngine(a: Person, b: Person): number {
+  return (
+    b.piaMonthly - a.piaMonthly ||
+    projectedFinalMonth(b) - projectedFinalMonth(a) ||
+    (b.birthYear * 12 + b.birthMonth - (a.birthYear * 12 + a.birthMonth)) ||
+    a.gender.localeCompare(b.gender) ||
+    (a.name ?? '').localeCompare(b.name ?? '')
+  );
+}
+
+/**
+ * Whether the survivor-income column (and its caption) belongs on the page at
+ * all. Both surfaces call this rather than each spelling the test out, for
+ * the same reason the sentences themselves are centralized: the screen table
+ * and the PDF table are twins, and a gate hand-maintained in two files is how
+ * they drift.
+ *
+ * Married-only, since a single claimant has no survivor — `household.ts` sets
+ * `survivorIncome: null` there, and testing `peopleCount` as well means a
+ * stray non-null value on a single-claimant row could not reveal the column.
+ * And at least one row must actually carry a figure: when both people reach
+ * their plan-to age in the same month `firstDeath` returns null for every
+ * row, every cell renders an em dash, and a caption asserting anything about
+ * those figures is asserting it over nothing.
+ */
+export function showSurvivorIncomeColumn(
+  comparisons: HouseholdStrategy[],
+  peopleCount: number,
+): boolean {
+  return peopleCount === 2 && comparisons.some((c) => c.survivorIncome != null);
+}
+
+/**
+ * True when the survivor-income column rises with filing age for THIS
+ * household — the claim the column's caption used to assert unconditionally.
+ *
+ * It is false for an ordinary household, not a contrived one: an older higher
+ * earner with a much younger spouse (Dan b. 1958 PIA 2400 plan-to 78, Sarah
+ * b. 1968 PIA 1200 plan-to 90) is paid $36,480 to the survivor under the
+ * optimal strategy and **$0** under "both delay to 70", because under that
+ * row the survivor has not filed by the year after the death and nothing has
+ * started. `survivorGap` is null there, so no gap branch covered it either.
+ *
+ * "Delaying" is read COMPONENT-WISE: row R delays row S when every person
+ * files at least as late in R as in S. That is the only reading under which
+ * the claim is well defined. A single "total delay" number (the two ages
+ * summed) mixes the two people and ranks strategies that are not comparable
+ * at all — Dan and Sarah's own optimum (Dan 70 / Sarah 62y1m, $35,712) sums
+ * to LESS than their FRA row (67/67, $28,800) while paying the survivor more,
+ * because this figure tracks the first-to-die's filing age rather than the
+ * household's total delay. Component-wise those two rows are simply
+ * incomparable, 70/70 genuinely delays both of them, and it pays at least as
+ * much as either.
+ *
+ * So: every comparable pair must be non-decreasing, and at least one pair
+ * must strictly increase. A flat column (every row $0 — the
+ * survivor-under-60 case) is therefore not "rising", and neither is a column
+ * with no comparable pair in it. Rows with no figure are skipped rather than
+ * counted as zero: a missing figure is not a low one.
+ *
+ * Comparing `filingAges[i]` across rows is slot-based, which is safe here and
+ * only here — every row of one analysis holds the same person in slot i, so
+ * swapping entry order permutes all rows alike and the relation is unchanged.
+ */
+export function survivorIncomeRisesWithDelay(comparisons: HouseholdStrategy[]): boolean {
+  const rows = comparisons.filter(
+    (c): c is HouseholdStrategy & { survivorIncome: number } => c.survivorIncome != null,
+  );
+
+  const delays = (later: HouseholdStrategy, earlier: HouseholdStrategy) =>
+    later.filingAges.length === earlier.filingAges.length &&
+    later.filingAges.every((f, i) => f.decimalYears >= earlier.filingAges[i].decimalYears);
+
+  let sawIncrease = false;
+  for (const later of rows) {
+    for (const earlier of rows) {
+      if (later === earlier || !delays(later, earlier)) continue;
+      if (later.survivorIncome < earlier.survivorIncome) return false;
+      if (later.survivorIncome > earlier.survivorIncome) sawIncrease = true;
+    }
+  }
+  return sawIncrease;
 }
 
 /** The absolute month index convention `BenefitBand` uses, back to a MonthDate. */
@@ -443,12 +609,23 @@ export async function analyzeHousehold(
 ): Promise<HouseholdAnalysis> {
   if (household.status === 'married') {
     const [personA, personB] = household.people;
-    const recipientA = createRecipientFor(personA);
-    const recipientB = createRecipientFor(personB);
+
+    // The single point the pair enters the engine. Everything from here to
+    // the returned object runs in ENGINE order, and `reorder` maps two-element
+    // arrays between the two orders. A two-element permutation is its own
+    // inverse, so ONE array and ONE function serve both directions: engine
+    // slot i holds display person `order[i]`, and display person i sits in
+    // engine slot `order[i]`.
+    const order: readonly [number, number] =
+      compareForEngine(personA, personB) <= 0 ? [0, 1] : [1, 0];
+    const reorder = <T>(pair: readonly T[]): [T, T] => [pair[order[0]], pair[order[1]]];
+
+    const enginePeople = reorder(household.people);
+    const [recipient0, recipient1] = enginePeople.map(createRecipientFor);
 
     const ranked = await rankedCoupleStrategies(
-      recipientA,
-      recipientB,
+      recipient0,
+      recipient1,
       assumptions.discountRate,
       asOf,
     );
@@ -456,84 +633,99 @@ export async function analyzeHousehold(
       throw new Error('No eligible couple filing strategies');
     }
 
-    const { optimal, comparisons } = buildComparisons(
-      ranked,
-      ranked[0],
-      household.people,
-      'married',
-    );
+    const { optimal, comparisons } = buildComparisons(ranked, ranked[0], enginePeople, 'married');
 
+    // Display order from here on for anything a reader sees attached to a
+    // person: filing-age columns, the recommendation sentence, `people`.
+    const displayFilingAges = reorder(optimal.filingAges);
     const people = household.people.map((person, i) =>
-      analyzePerson(person, optimal.filingAges[i], assumptions.annualCola, asOf),
+      analyzePerson(person, displayFilingAges[i], assumptions.annualCola, asOf),
     );
 
     // The top-up accrues to the lower earner, claimed on the higher earner's
     // record. Classified via the engine's own `classifyEarnerDependent`
     // (strict `>` on PIA) rather than a local comparison, so this module
     // cannot disagree with the engine about who is the higher earner.
-    const { earnerIndex } = classifyEarnerDependent([recipientA, recipientB]);
-    const aIsHigher = earnerIndex === 0;
-    const higher = aIsHigher ? recipientA : recipientB;
-    const lower = aIsHigher ? recipientB : recipientA;
-    const lowerIndex = aIsHigher ? 1 : 0;
+    // `earnerIndex` is an ENGINE slot, like everything else in this block.
+    const { earnerIndex } = classifyEarnerDependent([recipient0, recipient1]);
+    const slot0IsHigher = earnerIndex === 0;
+    const higher = slot0IsHigher ? recipient0 : recipient1;
+    const lower = slot0IsHigher ? recipient1 : recipient0;
+    const lowerIndex = slot0IsHigher ? 1 : 0;
 
     // On an exact PIA tie `classifyEarnerDependent` still has to return SOME
     // slot — `higherEarningsThan` is a strict `>`, so it falls through to a
     // fixed positional default (always index 1) rather than breaking
-    // symmetrically. That default is not a fact about either person: swap
-    // which physical person occupies which slot and the SAME slot still
-    // wins, so the "lower earner" it names is whoever was entered first.
+    // symmetrically. The slot is now filled by `compareForEngine` rather than
+    // by typing order, so the engine's answer is at least stable for a given
+    // household — but it is still a slot, not a fact about either person, and
+    // there genuinely is no lower earner when the two PIAs are equal.
     // Checked directly (neither is higher-earning than the other) rather
     // than inferred from `earnerIndex`, so this doesn't depend on knowing
     // which direction the classifier's default happens to point.
     const isPiaTie =
-      !higherEarningsThan(recipientA, recipientB) && !higherEarningsThan(recipientB, recipientA);
+      !higherEarningsThan(recipient0, recipient1) && !higherEarningsThan(recipient1, recipient0);
 
-    const labelA = personLabel(personA.name, 0);
-    const labelB = personLabel(personB.name, 1);
+    // Display-order labels — the text a reader sees. Reordered into engine
+    // slots for everything that indexes by slot, so the label text stays
+    // attached to the person it names whichever slot they landed in.
+    const displayLabels: [string, string] = [
+      personLabel(personA.name, 0),
+      personLabel(personB.name, 1),
+    ];
+    const engineLabels = reorder(displayLabels);
 
     const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
-      household.people,
-      [recipientA, recipientB],
+      enginePeople,
+      [recipient0, recipient1],
       optimal.filingAges.map((f) => f.monthDuration),
-      [labelA, labelB],
+      engineLabels,
     );
 
     const comparisonsWithSurvivor = withSurvivorIncome(
       comparisons,
-      household.people,
-      [recipientA, recipientB],
-      [labelA, labelB],
+      enginePeople,
+      [recipient0, recipient1],
+      engineLabels,
       finalIndexByPersonId,
       people,
       bands,
     );
-    const optimalWithSurvivor = comparisonsWithSurvivor.find((c) => c.isOptimal) ?? optimal;
+    // Back to display order for the two-element arrays a reader sees. Every
+    // other field is keyed by `personId` and so needs no mapping.
+    const displayRows = comparisonsWithSurvivor.map((c) => ({
+      ...c,
+      filingAges: reorder(c.filingAges),
+    }));
+    const optimalWithSurvivor = displayRows.find((c) => c.isOptimal) ?? {
+      ...optimal,
+      filingAges: displayFilingAges,
+    };
 
     return {
       status: 'married',
       people,
       optimal: optimalWithSurvivor,
-      comparisons: comparisonsWithSurvivor,
+      comparisons: displayRows,
       combinedTimeline: buildCombinedTimeline(bands, people),
       periods: bands,
       survivorGap,
       finalIndexByPersonId,
       spousalTopUp: spousalFiguresFrom(
         bands,
-        { [personA.id]: recipientA, [personB.id]: recipientB },
+        { [enginePeople[0].id]: recipient0, [enginePeople[1].id]: recipient1 },
         higher,
         lower,
-        isPiaTie ? null : lowerIndex === 0 ? labelA : labelB,
+        isPiaTie ? null : engineLabels[lowerIndex],
       ),
       recommendation:
-        `${labelA} files at ${optimal.filingAges[0].label} · ` +
-        `${labelB} files at ${optimal.filingAges[1].label}`,
+        `${displayLabels[0]} files at ${displayFilingAges[0].label} · ` +
+        `${displayLabels[1]} files at ${displayFilingAges[1].label}`,
       recommendationDetail:
         `The ssa.tools couple optimizer maximizes combined expected present value at ` +
-        `${formatCurrency(optimal.expectedNpv)} when ${labelA} files at age ` +
-        `${optimal.filingAges[0].label} and ${labelB} files at age ` +
-        `${optimal.filingAges[1].label}.`,
+        `${formatCurrency(optimal.expectedNpv)} when ${displayLabels[0]} files at age ` +
+        `${displayFilingAges[0].label} and ${displayLabels[1]} files at age ` +
+        `${displayFilingAges[1].label}.`,
       assumptions,
       asOf,
     };

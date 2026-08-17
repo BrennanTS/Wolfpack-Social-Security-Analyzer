@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 import type { SurvivorGap } from '../../lib/benefitPeriods';
 import type { CombinedTimelinePoint, HouseholdAnalysis } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
-import { CombinedIncomeBars, HouseholdSection } from './HouseholdSection';
+import { CombinedIncomeBars, HouseholdSection, StrategyTable } from './HouseholdSection';
 import { MethodologyAppendix } from './ReportDocument';
 import { benefitSeriesLabel } from '../methodologyCopy';
 
@@ -217,6 +217,140 @@ describe('HouseholdSection — the household page as the report composes it', ()
     expect(page).toContain('Each person’s segments');
     expect(page).toContain('today’s dollars, before any cost-of-living adjustment');
     expect(page).toContain('Benefit amounts are in today’s dollars');
+  });
+});
+
+/**
+ * The printed survivor-income column and its caption.
+ *
+ * `analysisWith` carries `comparisons: []`, which is exactly the "no row has a
+ * figure" shape — so these tests build their own rows. The column and the
+ * caption share one gate (`showSurvivorIncomeColumn`), asserted here on the
+ * surface where a caption printing over a column of em dashes would actually
+ * be seen.
+ */
+describe('HouseholdSection — the printed survivor-income column', () => {
+  const rows = (survivorIncome: [number | null, number | null]) =>
+    [
+      {
+        key: 'optimal', label: 'Optimal', isOptimal: true, expectedNpv: 1, deltaVsOptimal: 0,
+        filingAges: [{ label: '70', decimalYears: 70 }, { label: '62', decimalYears: 62 }],
+        survivorIncome: survivorIncome[0],
+      },
+      {
+        key: 'latest', label: 'Both delay to 70', isOptimal: false, expectedNpv: 1,
+        deltaVsOptimal: -1,
+        filingAges: [{ label: '70', decimalYears: 70 }, { label: '70', decimalYears: 70 }],
+        survivorIncome: survivorIncome[1],
+      },
+    ] as unknown as HouseholdAnalysis['comparisons'];
+
+  // The page's own text walk cannot see inside `<StrategyTable />` (an
+  // uncalled component element has no children to walk), so the column itself
+  // is asserted on that component directly and the caption on the page.
+  const table = (survivorIncome: [number | null, number | null]) =>
+    collectText(
+      StrategyTable({
+        comparisons: rows(survivorIncome),
+        people: [{ id: 'a', name: 'Avery' }, { id: 'b', name: 'Blake' }] as Person[],
+      }),
+    ).join(' ');
+
+  const page = (survivorIncome: [number | null, number | null]) =>
+    collectText(
+      HouseholdSection({
+        analysis: {
+          ...analysisWith(null),
+          comparisons: rows(survivorIncome),
+        } as unknown as HouseholdAnalysis,
+        footerText: 'f',
+      }),
+    ).join(' ');
+
+  it('prints the column and its caption when the rows carry figures', () => {
+    expect(table([36_480, 41_000])).toContain('Survivor income');
+    expect(table([36_480, 41_000])).toContain('$36,480');
+    expect(page([36_480, 41_000])).toContain("each spouse's own life-expectancy input");
+  });
+
+  it('prints neither the column nor its caption when no row carries a figure', () => {
+    // Identical final months: `firstDeath` returns null for every row, so
+    // every cell would be an em dash and the caption would assert figures
+    // that are not on the page.
+    expect(table([null, null])).not.toContain('Survivor income');
+    // One em dash survives, in the optimal row's "vs. best" cell — the
+    // survivor column's own dashes are what must be gone, and the header
+    // above is what proves the column is.
+    expect((table([null, null]).match(/—/g) ?? []).length).toBe(1);
+    expect(page([null, null])).not.toContain("each spouse's own life-expectancy input");
+  });
+
+  it('drops the delay claim in print too when the figures fall with later filing', () => {
+    const text = page([36_480, 0]);
+    expect(text).not.toContain('Delaying raises');
+    expect(text).toContain('not simply larger for later filing');
+  });
+});
+
+/**
+ * The spousal sentence in print, on an exact PIA tie.
+ *
+ * Both print call sites passed a hardcoded `'the lower earner'`, which made
+ * `spousalSummary`'s `subject === null` branch unreachable on this surface: a
+ * tie household has `atFra === 0`, so print fell into the `atFra <= 0` branch
+ * and asserted something about "the lower earner" for a household with
+ * neither a higher nor a lower one — while the screen printed the symmetric
+ * sentence for the same household.
+ */
+describe('HouseholdSection — the spousal sentence on a PIA tie', () => {
+  const tieAnalysis = (): HouseholdAnalysis =>
+    ({
+      ...analysisWith(null),
+      spousalTopUp: {
+        atFra: 0,
+        atRecommendedFilingAge: 0,
+        startsAtSpouseAge: null,
+        lowerEarnerLabel: null,
+      },
+    }) as unknown as HouseholdAnalysis;
+
+  it('states the symmetric no-lower-earner sentence on the household page', () => {
+    const text = collectText(
+      HouseholdSection({ analysis: tieAnalysis(), footerText: 'f' }),
+    ).join(' ');
+    expect(text).toContain('Both spouses have the same Primary Insurance Amount');
+    // The sentence print used to take instead, presupposing a higher and a
+    // lower earner this household does not have.
+    expect(text).not.toContain("half of the higher earner's PIA");
+  });
+
+  it('states it in the methodology appendix on the same page', () => {
+    const analysis = tieAnalysis();
+    const text = collectText(
+      HouseholdSection({
+        analysis,
+        footerText: 'f',
+        appendix: MethodologyAppendix({ analysis }),
+      }),
+    ).join(' ');
+    expect(text).toContain('Both spouses have the same Primary Insurance Amount');
+    expect(text).not.toContain("half of the higher earner's PIA");
+  });
+
+  it('still names the lower earner in print when there is one', () => {
+    // Guard: the fix must not have turned the subject off everywhere.
+    const analysis = {
+      ...analysisWith(null),
+      spousalTopUp: {
+        atFra: 250,
+        atRecommendedFilingAge: 200,
+        startsAtSpouseAge: '69 years, 1 months',
+        lowerEarnerLabel: 'Blake',
+      },
+    } as unknown as HouseholdAnalysis;
+    const text = collectText(HouseholdSection({ analysis, footerText: 'f' })).join(' ');
+    expect(text).toContain("The lower earner's spousal top-up is");
+    expect(text).not.toContain('Both spouses have the same Primary Insurance Amount');
   });
 });
 

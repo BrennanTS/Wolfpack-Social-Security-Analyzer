@@ -13,7 +13,11 @@ import {
   survivorGapNote,
   survivorIncomeCaption,
 } from './methodologyCopy';
-import { analyzeHousehold, type HouseholdAnalysis } from '../lib/household';
+import {
+  analyzeHousehold,
+  type HouseholdAnalysis,
+  type HouseholdStrategy,
+} from '../lib/household';
 import type { IncomeCliff } from '../lib/incomeCliff';
 import type { Person } from '../lib/personAnalysis';
 
@@ -528,11 +532,38 @@ describe('survivorGapNote', () => {
   });
 });
 
+/**
+ * Comparison rows carrying only what the caption reads: each row's filing
+ * ages (for the total-delay ordering) and its survivor-income figure. The
+ * cast is the same device `analysisWith` above uses and for the same reason —
+ * a full `HouseholdStrategy` carries engine objects (`MonthDuration`), and
+ * this is a copy test, not an engine test. The engine-fed version of these
+ * assertions lives in `household.test.ts`, on a real household.
+ */
+function rowsWith(...entries: [ages: number[], income: number | null][]): HouseholdStrategy[] {
+  return entries.map(([ages, income], i) => ({
+    key: `row-${i}`,
+    filingAges: ages.map((decimalYears) => ({ decimalYears })),
+    survivorIncome: income,
+  })) as unknown as HouseholdStrategy[];
+}
+
+/** Delaying genuinely does raise the survivor's income for this household. */
+const RISING = rowsWith([[67, 67], 44000], [[70, 70], 52000], [[70, 64], 48000]);
+
+/**
+ * The household that falsified the old unbranched claim, in row form: Dan
+ * b. 1958 PIA 2400 plan-to 78 with Sarah b. 1968 PIA 1200 plan-to 90. The
+ * optimum (Dan 70, Sarah 62y1m) leaves the survivor $36,480; delaying both to
+ * 70 leaves her $0, because she has not filed by the year after his death.
+ * `survivorGap` is null for it — no gap branch ever covered this.
+ */
+const FALLING = rowsWith([[70, 62.08], 36480], [[70, 70], 0]);
+
 describe('survivorIncomeCaption', () => {
   it('states the figure assumes the life-expectancy-implied death direction, without naming one', () => {
-    const caption = survivorIncomeCaption(null);
+    const caption = survivorIncomeCaption(RISING, null);
     expect(caption).toContain("each spouse's own life-expectancy input");
-    expect(caption).toContain('Delaying raises this every year the survivor lives through it');
     // The earlier version hardcoded a direction — false for a household whose
     // higher earner happens to be the one projected to survive, with no gap
     // firing to correct it (that direction is a fact about who dies first
@@ -542,8 +573,45 @@ describe('survivorIncomeCaption', () => {
     expect(caption).not.toContain('understate');
   });
 
+  it('makes the delay claim when the rows beneath it actually rise', () => {
+    const caption = survivorIncomeCaption(RISING, null);
+    expect(caption).toContain('Delaying raises this figure for this household');
+    expect(caption).not.toContain('not simply larger for later filing');
+  });
+
+  it('states the composition fact instead when delaying LOWERS the figure', () => {
+    // The critical case: no gap at all, so nothing else in the caption would
+    // have caught it. The old copy said "Delaying raises this every year the
+    // survivor lives through it" directly beneath a column reading $36,480
+    // for the optimum and $0 for "both delay to 70".
+    const caption = survivorIncomeCaption(FALLING, null);
+    expect(caption).not.toContain('Delaying raises');
+    expect(caption).toContain('not simply larger for later filing');
+    expect(caption).toContain('whether the survivor has begun collecting by that year');
+    expect(caption).toContain('shows $0');
+    // Both drivers named, not just the survivor's own filing age: the figure
+    // is a survivor benefit derived from the first-to-die's record too.
+    expect(caption).toContain('what the first spouse to die had filed for');
+  });
+
+  it('does not read a flat all-zero column as rising', () => {
+    const caption = survivorIncomeCaption(rowsWith([[67, 67], 0], [[70, 70], 0]), null);
+    expect(caption).not.toContain('Delaying raises');
+  });
+
+  it('claims nothing about figures when no row has one', () => {
+    // Both people reach their plan-to age in the same month: `firstDeath`
+    // returns null, every cell is an em dash. Both surfaces hide the column
+    // and this caption; if one ever renders it anyway, it must not assert
+    // figures — or a dollars basis for figures that are not there.
+    const caption = survivorIncomeCaption(rowsWith([[67, 67], null], [[70, 70], null]), null);
+    expect(caption).toContain('No strategy in this table has a figure');
+    expect(caption).not.toContain('Delaying raises');
+    expect(caption).not.toMatch(/today.s dollars/i);
+  });
+
   it('renders the same for undefined as for null, so a caller need not pass the field', () => {
-    expect(survivorIncomeCaption(undefined)).toBe(survivorIncomeCaption(null));
+    expect(survivorIncomeCaption(RISING, undefined)).toBe(survivorIncomeCaption(RISING, null));
   });
 
   it('points at the existing gap note rather than restating its figures, when the survivor has already reached 60', () => {
@@ -553,10 +621,10 @@ describe('survivorIncomeCaption', () => {
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
     };
-    const caption = survivorIncomeCaption(gap);
+    const caption = survivorIncomeCaption(RISING, gap);
     expect(caption).toContain('understate what the survivor would actually receive');
     expect(caption).toContain('see the note below');
-    expect(caption).toContain('Delaying raises this every year the survivor lives through it');
+    expect(caption).toContain('Delaying raises this figure for this household');
     // The gap note's own figures belong to `survivorGapNote`, not here — a
     // second rendering of them is the exact duplication three of this
     // project's prior defects were made of.
@@ -571,20 +639,18 @@ describe('survivorIncomeCaption', () => {
     // no personal band that month. Every named row shares the same death
     // month (filing strategy doesn't move it — see `withSurvivorIncome`), and
     // every row's own filing age is >= 62, so no row's survivor benefit has
-    // started either. The column reads $0 across every strategy: delaying
-    // raises nothing, and nothing is understated *yet* (that starts at 60).
+    // started either. The column reads $0 across every strategy — which the
+    // rise check now reads off the rows rather than inferring from the guard.
     const gap = {
       survivorLabel: 'Blake',
       deceasedMonthly: 2016,
       survivorOwnMonthly: null,
       survivorUnder60: true,
     };
-    const caption = survivorIncomeCaption(gap);
+    const caption = survivorIncomeCaption(rowsWith([[67, 67], 0], [[70, 70], 0]), gap);
     expect(caption).toContain('has not yet reached the age a widow(er) benefit can start');
-    expect(caption).toContain("every strategy's figure is $0 here");
-    expect(caption).toContain('delaying raises none of them');
     expect(caption).toContain('see the note below');
-    expect(caption).not.toContain('Delaying raises this every year the survivor lives through it');
+    expect(caption).not.toContain('Delaying raises');
     expect(caption).not.toContain('understate');
   });
 
@@ -594,20 +660,27 @@ describe('survivorIncomeCaption', () => {
   // branches, since the basis clause is appended in every one of them.
   describe('dollars mode', () => {
     it('defaults to naming today’s dollars when mode is omitted', () => {
-      expect(survivorIncomeCaption(null)).toMatch(/today.s dollars, before any cost-of-living/i);
+      expect(survivorIncomeCaption(RISING, null)).toMatch(
+        /today.s dollars, before any cost-of-living/i,
+      );
     });
 
     it('names today’s dollars in real mode, in the no-gap branch', () => {
-      const caption = survivorIncomeCaption(null, 'real');
+      const caption = survivorIncomeCaption(RISING, null, 'real');
       expect(caption).toMatch(/today.s dollars, before any cost-of-living/i);
       expect(caption).not.toMatch(/nominal/i);
     });
 
     it('names nominal dollars and calls out Combined PV by contrast, in the no-gap branch', () => {
-      const caption = survivorIncomeCaption(null, 'nominal');
+      const caption = survivorIncomeCaption(RISING, null, 'nominal');
       expect(caption).toMatch(/nominal/i);
       expect(caption).toMatch(/Combined PV/);
       expect(caption).not.toMatch(/today.s dollars, before any cost-of-living/i);
+    });
+
+    it('states the dollars basis in the falling branch too', () => {
+      expect(survivorIncomeCaption(FALLING, null, 'real')).toMatch(/today.s dollars/i);
+      expect(survivorIncomeCaption(FALLING, null, 'nominal')).toMatch(/nominal/i);
     });
 
     it('states the dollars basis in the under-60 branch too', () => {
@@ -617,8 +690,9 @@ describe('survivorIncomeCaption', () => {
         survivorOwnMonthly: null,
         survivorUnder60: true,
       };
-      expect(survivorIncomeCaption(gap, 'real')).toMatch(/today.s dollars/i);
-      expect(survivorIncomeCaption(gap, 'nominal')).toMatch(/nominal/i);
+      const zeroed = rowsWith([[67, 67], 0], [[70, 70], 0]);
+      expect(survivorIncomeCaption(zeroed, gap, 'real')).toMatch(/today.s dollars/i);
+      expect(survivorIncomeCaption(zeroed, gap, 'nominal')).toMatch(/nominal/i);
     });
 
     it('states the dollars basis in the gap branch too', () => {
@@ -628,8 +702,8 @@ describe('survivorIncomeCaption', () => {
         survivorOwnMonthly: 1760,
         survivorUnder60: false,
       };
-      expect(survivorIncomeCaption(gap, 'real')).toMatch(/today.s dollars/i);
-      expect(survivorIncomeCaption(gap, 'nominal')).toMatch(/nominal/i);
+      expect(survivorIncomeCaption(RISING, gap, 'real')).toMatch(/today.s dollars/i);
+      expect(survivorIncomeCaption(RISING, gap, 'nominal')).toMatch(/nominal/i);
     });
   });
 });
