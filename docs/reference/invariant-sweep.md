@@ -113,7 +113,21 @@ Negative results are the point of a sweep, and these are strong ones.
 | No sentinel or empty substitution in rendered copy | 2,000 households × 2 modes, after fix 1 | **0 failures** |
 | Screen and print state the same sentences in real dollars | every shared sentence, married households | **0 failures** |
 
-Full run: **17 tests across 4 sweep files, all passing, 1,500 households, ~131s.**
+Full run: **18 tests across 5 sweep files (1 skipped — the candidate search is a tool, not an assertion), all passing, 1,500 households, ~131s.**
+
+```
+PASS timeline roll-ups: 0 failures
+PASS copy sentinels: 0 failures
+PASS order independence (1125 married households): 0 failures
+PASS monthly series vs bands: 0 failures
+PASS duplicate sentences on one surface: 0 failures
+PASS income cliff vs timeline: 0 failures
+PASS screen vs print: 0 failures
+PASS strategy table consistency: 0 failures
+  strategy row keys reached: fra, latest, optimal
+PASS nominal vs real: 0 failures
+PASS scalar vs timeline deflator: 0 failures
+```
 
 Order independence holding over the *whole* analysis across 3,000 married households is the result worth noting. It took three attempts to achieve, and the first two passed their tests. This is the first evidence that covers the timeline, periods, cliff, filing ages and every rendered label at once.
 
