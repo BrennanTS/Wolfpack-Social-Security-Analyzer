@@ -83,7 +83,9 @@ The gain is zero or negative — the survivor already claims early enough that n
 
 This phase therefore adds **new** scenarios with varied life expectancies and age gaps — the shape that makes the defect reachable. Additive, so nothing existing moves. Every expected value hand-derived from SSA's published rules and only then confirmed against the engine, as `gen-fixtures.mjs` already enforces for the spousal figures.
 
-Three non-fixture assertions do move: `household.test.ts:842`, `methodologyCopy.ts:542` and `methodologyCopy.test.ts:558`. They currently pin the `$0` that this phase explains rather than removes; update them to assert the new sentence, and do not weaken them.
+**Nothing existing moves at all.** The measurement listed three non-fixture assertions that would change — `household.test.ts:842`, `methodologyCopy.ts:542`, `methodologyCopy.test.ts:558` — but those were measured against the *literal correction*, which this phase rejects. This phase changes no displayed figure: it adds a section beside them. The `$0` and the sentence explaining it both stay exactly as they are, because they correctly describe what the engine models.
+
+That makes this phase purely additive, which is the strongest safety property available here given the golden suite cannot see the underlying defect. If an existing assertion does move, that is a signal the phase has changed something it should not have — stop and report rather than updating it.
 
 **Unit:** the search returns the earliest month when the survivor's own benefit later exceeds the survivor benefit, and survivor-FRA when it does not; a zero gain when the survivor already claims optimally; null for a single claimant and for a set `survivorGap`.
 
