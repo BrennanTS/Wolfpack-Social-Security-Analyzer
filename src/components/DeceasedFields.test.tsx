@@ -98,12 +98,29 @@ describe('DeceasedFields', () => {
       ).toBeInTheDocument();
     });
 
+    it('puts claim-before-death on the survivor field ONLY, never on her own', () => {
+      // `widowedErrors` now scopes this error to the survivor axis, so it can
+      // no longer reach the own-benefit field: her own retirement benefit is
+      // independent of the death date. The sentence names the survivor
+      // benefit, so appearing beside "Your own benefit started" would be a
+      // true sentence about the wrong number — this project's recurring
+      // defect shape.
+      renderFields({ errors: { survivorSince: 'claimBeforeDeath' } });
+      const ownField = screen.getByTestId('ac-own-since-field');
+      expect(
+        within(ownField).queryByText(
+          'A survivor benefit cannot start before the month after the death.',
+        ),
+      ).not.toBeInTheDocument();
+    });
+
     it('claim-before-birth, on the own-since field', () => {
       renderFields({ errors: { ownSince: 'claimBeforeBirth' } });
       const field = screen.getByTestId('ac-own-since-field');
-      expect(
-        within(field).getByText('That date is before this person was born.'),
-      ).toBeInTheDocument();
+      // Second person: this date is the WIDOW's own claim, and the form's
+      // other fieldset is about someone else, so "this person" left the
+      // reader to guess which of the two was meant.
+      expect(within(field).getByText('That date is before you were born.')).toBeInTheDocument();
     });
 
     it('check-amount-unreachable', () => {
@@ -130,9 +147,11 @@ describe('DeceasedFields', () => {
     });
 
     it('the already-claimed leave-blank hint', () => {
+      // "they" was the deceased — a leftover from when these two dates sat
+      // inside the Deceased Spouse fieldset. The benefit is hers.
       renderFields();
       expect(
-        screen.getByText('Leave blank if they have not started that benefit yet.'),
+        screen.getByText('Leave blank if you have not started that benefit yet.'),
       ).toBeInTheDocument();
     });
   });

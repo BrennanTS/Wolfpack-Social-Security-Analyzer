@@ -48,7 +48,10 @@ const ERROR_TEXT: Record<WidowedFieldError, string> = {
   deathBeforeBirth: 'Date of death cannot be before date of birth.',
   deathInFuture: 'Date of death cannot be in the future.',
   claimBeforeDeath: 'A survivor benefit cannot start before the month after the death.',
-  claimBeforeBirth: 'That date is before this person was born.',
+  // Second person throughout: both already-claimed dates are the WIDOW's own,
+  // and this form's other fieldset is about someone else. "this person" left
+  // the reader to guess which of the two the sentence meant.
+  claimBeforeBirth: 'That date is before you were born.',
   checkAmountUnreachable:
     'No Social Security benefit reaches that amount — check for an extra digit.',
 };
@@ -393,7 +396,9 @@ export function DeceasedFields({
             </select>
           </div>
           {errors.ownSince && <span className="field-error">{ERROR_TEXT[errors.ownSince]}</span>}
-          <span className="field-hint">Leave blank if they have not started that benefit yet.</span>
+          {/* "they" was the deceased — a leftover from when these two dates
+              sat inside the Deceased Spouse fieldset. The benefit is hers. */}
+          <span className="field-hint">Leave blank if you have not started that benefit yet.</span>
         </div>
       </fieldset>
     </>
