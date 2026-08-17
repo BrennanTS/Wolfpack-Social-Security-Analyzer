@@ -377,6 +377,10 @@ git commit -m "refactor: drop the engine's brand name from the screen"
 | `pdf/PersonSection.tsx` | `Recommended Strategy (ssa.tools)` | `Recommended Strategy` |
 | `pdf/HouseholdSection.tsx` | `Household — Recommended Strategy (ssa.tools)` | `Household — Recommended Strategy` |
 | `pdf/ReportDocument.tsx` | `Prepared by {BRAND_NAME} using the open-source ssa.tools engine for educational planning only.` | `Prepared by {BRAND_NAME} for educational planning only.` |
+| `src/lib/household.ts:887` | `The ssa.tools couple optimizer maximizes combined expected present value at ` | `The couple optimizer maximizes combined expected present value at ` |
+| `src/lib/household.ts:1244` | `ssa.tools recommends filing at age {label} ` | `The optimizer recommends filing at age {label} ` |
+
+> **`src/lib/household.ts` was missing from this plan's original file list — a defect found during Task 3's review.** Those two strings build `recommendationDetail`, which renders on **both** surfaces: `HouseholdPanel.tsx:163` on screen and `pdf/HouseholdSection.tsx:249` in print. They are among the most prominent sentences in the app. `src/lib/household.test.ts:1284` pins the old wording and must be re-pinned to the new.
 
 > The PDF losing its attribution is the user's explicit decision, against the recommendation to keep it — see the spec's "Decisions worth recording". Implement it as specified.
 
@@ -417,6 +421,21 @@ git commit -m "refactor: drop the engine's brand name from the printed report"
 
 **Interfaces:**
 - Consumes: `screenSurface`, `pdfSurface` from `validation/sweep/surfaces.ts`.
+
+- [ ] **Step 0: Extend `surfaces.ts` to cover the recommendation sentences**
+
+> **Added after Task 3's review found the gap.** `surfaces.ts` models `methodologyCopy`'s output but **not** `analysis.recommendation` or `analysis.recommendationDetail` — two of the most prominent sentences in the app, rendered on screen at `HouseholdPanel.tsx:161-163` and in print at `pdf/HouseholdSection.tsx:248-249`. Without this step the guard below would pass while `household.ts`'s mentions remained, reporting success over a surface it never looked at.
+
+Add both to `screenSurface` and to `pdfSurface`, sourced from the analysis:
+
+```ts
+  push(lines, 'HouseholdPanel.recommendation', analysis.recommendation);
+  push(lines, 'HouseholdPanel.recommendationDetail', analysis.recommendationDetail);
+```
+
+and the print equivalents keyed `pdf/HouseholdSection.recommendation` / `…recommendationDetail`.
+
+This widens the sweep's existing sentinel, duplicate-sentence and screen-vs-print checks to cover them too — a genuine improvement independent of this cleanup. **Run `npm run sweep` immediately after and before writing the new test:** if any pre-existing invariant now fails on these sentences, that is a real finding about copy this project has never checked. Report it rather than suppressing it.
 
 - [ ] **Step 1: Write the failing test**
 
