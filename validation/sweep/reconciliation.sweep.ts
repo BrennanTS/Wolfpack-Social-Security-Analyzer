@@ -137,6 +137,51 @@ describe('the timeline agrees with itself', () => {
   });
 });
 
+describe('the strategy table agrees with itself', () => {
+  it(`ranks, deltas and the optimal flag are consistent (${COUNT} households)`, async () => {
+    const findings: Finding[] = [];
+
+    for (let index = 0; index < COUNT; index++) {
+      const { household, label } = householdAt(index);
+      const analysis = await analyze(household);
+      const { comparisons, optimal } = analysis;
+
+      const flagged = comparisons.filter((c) => c.isOptimal);
+      if (flagged.length !== 1) {
+        findings.push({ index, label, detail: `${flagged.length} rows flagged optimal, expected 1` });
+      }
+
+      for (const c of comparisons) {
+        if (c.expectedNpv > optimal.expectedNpv + EPS) {
+          findings.push({
+            index,
+            label,
+            detail: `${c.key} NPV ${c.expectedNpv} exceeds the optimum ${optimal.expectedNpv}`,
+          });
+        }
+        const implied = Math.round((c.expectedNpv - optimal.expectedNpv) * 100) / 100;
+        if (!near(c.deltaVsOptimal, implied)) {
+          findings.push({
+            index,
+            label,
+            detail: `${c.key} deltaVsOptimal ${c.deltaVsOptimal} != ${implied}`,
+          });
+        }
+        if (c.filingAges.length !== analysis.people.length) {
+          findings.push({
+            index,
+            label,
+            detail: `${c.key} has ${c.filingAges.length} filing ages for ${analysis.people.length} people`,
+          });
+        }
+      }
+    }
+
+    console.log(summarize('strategy table consistency', findings));
+    expect(findings).toEqual([]);
+  });
+});
+
 describe('the dollars toggle is a pure transform', () => {
   it(`nominal differs from real by exactly the deflator (${COUNT} households)`, async () => {
     const findings: Finding[] = [];
