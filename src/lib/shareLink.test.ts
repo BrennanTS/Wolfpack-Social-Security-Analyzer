@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BLANK_FORM, type AnalyzerFormState } from './formState';
 import { buildShareUrl, fromShareParams, toShareParams } from './shareLink';
+import { BLANK_ALREADY_CLAIMED, BLANK_DECEASED } from './widowedForm';
 
 const married: AnalyzerFormState = {
   ...BLANK_FORM,
@@ -312,6 +313,32 @@ describe('widowed share links', () => {
     const back = fromShareParams(new URLSearchParams('m=w&csy=2024&csm=13&coy=2030&com=0'));
     expect(back.alreadyClaimed.survivorSinceMonth).toBe('');
     expect(back.alreadyClaimed.ownSinceMonth).toBe('');
+  });
+
+  // The READ side of the scoping the WRITE side is already pinned for above.
+  // The round-trip tests cannot reach it: they only ever decode params that
+  // `toShareParams` wrote, and on a married or single link that params set
+  // carries no `d*`/`c*` keys at all — so `readWidowed` would return exactly
+  // `BLANK_DECEASED`/`BLANK_ALREADY_CLAIMED` and calling it unconditionally
+  // looks identical. Deleting the `maritalStatus === 'widowed' ?` guard in
+  // `fromShareParams` left the whole suite green. A hand-written link is the
+  // only way to see it: widowed keys present, `m=1`, and they must be ignored.
+  it('ignores widowed parameters on a non-widowed link', () => {
+    const married = fromShareParams(new URLSearchParams('m=1&dy=1960&dm=3&dk=c&csy=2024'));
+    expect(married.deceased).toEqual(BLANK_DECEASED);
+    expect(married.alreadyClaimed).toEqual(BLANK_ALREADY_CLAIMED);
+
+    const single = fromShareParams(new URLSearchParams('m=0&dy=1960&dm=3&dk=c&csy=2024'));
+    expect(single.deceased).toEqual(BLANK_DECEASED);
+    expect(single.alreadyClaimed).toEqual(BLANK_ALREADY_CLAIMED);
+  });
+
+  it('still reads those same parameters when the link IS widowed', () => {
+    // The guard above must not be satisfiable by ignoring the keys always.
+    const widowed = fromShareParams(new URLSearchParams('m=w&dy=1960&dm=3&dk=c&csy=2024'));
+    expect(widowed.deceased.birthYear).toBe(1960);
+    expect(widowed.deceased.recordKind).toBe('checkAmount');
+    expect(widowed.alreadyClaimed.survivorSinceYear).toBe(2024);
   });
 });
 

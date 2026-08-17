@@ -1631,6 +1631,55 @@ describe('analyzeHousehold — widowed', () => {
     expect(people[0].recommendedMonthly).toBeGreaterThan(ownRecordOnly);
   });
 
+  it('reports the LATER of the two dates when it is her own filing', async () => {
+    // The spec's own worked example, and the shape SSA's published guidance
+    // leads with: claim the survivor benefit as early as it can still be
+    // claimed, then switch up to a larger own record at 70. Ten years of
+    // survivor-only income come FIRST, and the steady-state figure is the one
+    // after the switch.
+    //
+    // Every other widowed fixture in this file has the survivor claim as the
+    // later date, so `Math.max(survivorClaimIndex, ownFilingIndex)` was
+    // indistinguishable from `survivorClaimIndex` alone — that mutation left
+    // the whole suite green. This is the golden corpus's
+    // `widowed-1964-survivor-first-then-own-70` household, the case where
+    // showing the earlier month's amount is the misleading answer the spec
+    // forbids: it would print ten years of reduced survivor benefit as
+    // "what you will be getting".
+    const ownLaterHousehold: Household = {
+      status: 'widowed',
+      people: [{ ...widowPerson, piaMonthly: 2400, lifeExpectancy: 90 }],
+      deceased: {
+        birthYear: 1959, birthMonth: 3, deathYear: 2023, deathMonth: 9,
+        record: { kind: 'pia', piaMonthly: 1800, filed: null },
+      },
+      alreadyClaimed: { survivorSince: null, ownSince: null },
+    };
+
+    const { optimal, periods, people } = await analyzeHousehold(
+      ownLaterHousehold, assumptions, asOf,
+    );
+
+    const birthIndex = widowPerson.birthYear * 12 + (widowPerson.birthMonth - 1);
+    const survivorClaimIndex = optimal.survivorClaimDate!.monthIndex;
+    const ownFilingIndex = birthIndex + optimal.filingAges[0].monthDuration.asMonths();
+    // The premise of this test. If the optimizer ever stops preferring this
+    // shape for this household, this says so rather than quietly reverting to
+    // the same coincidence every other fixture has.
+    expect(ownFilingIndex).toBeGreaterThan(survivorClaimIndex);
+
+    const bandedAt = (month: number) =>
+      periods
+        .filter((b) => b.startIndex <= month && month <= b.endIndex)
+        .reduce((t, b) => t + b.monthlyAmount, 0);
+
+    expect(people[0].recommendedMonthly).toBeCloseTo(bandedAt(ownFilingIndex), 2);
+    // And is NOT the earlier month's income — the survivor benefit alone,
+    // which she receives for the eight years before she files.
+    expect(bandedAt(survivorClaimIndex)).toBeGreaterThan(0);
+    expect(people[0].recommendedMonthly).not.toBeCloseTo(bandedAt(survivorClaimIndex), 2);
+  });
+
   it('carries whether the deceased PIA was estimated', async () => {
     const known = await analyzeHousehold(household, assumptions, asOf);
     expect(known.piaEstimated).toBe(false);
