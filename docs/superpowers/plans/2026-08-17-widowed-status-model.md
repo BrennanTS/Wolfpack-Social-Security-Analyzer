@@ -60,6 +60,8 @@ Create `src/lib/deceased.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
+import { benefitOnDate } from '$lib/benefit-calculator';
+import { MonthDuration } from '$lib/month-time';
 import { deceasedContext, deceasedPia, type Deceased } from './deceased';
 import { monthIndexOf } from './benefitPeriods';
 
@@ -71,7 +73,7 @@ describe('deceasedPia', () => {
       ...base,
       record: { kind: 'pia', piaMonthly: 2400, filed: { year: 2016, month: 7 } },
     };
-    expect(deceasedPia(d)).toEqual({ piaMonthly: 2400, estimated: true === false ? 0 : false });
+    expect(deceasedPia(d)).toEqual({ piaMonthly: 2400, estimated: false });
   });
 
   it('recovers a PIA from a check amount to within a dollar', () => {
@@ -84,8 +86,6 @@ describe('deceasedPia', () => {
       record: { kind: 'pia', piaMonthly: 2400, filed: { year: 2016, month: 7 } },
     };
     const { recipient, filingDate } = deceasedContext(known);
-    const { benefitOnDate } = await import('$lib/benefit-calculator');
-    const { MonthDuration } = await import('$lib/month-time');
     const check = benefitOnDate(
       recipient,
       filingDate,
@@ -123,21 +123,6 @@ describe('deceasedContext', () => {
   });
 });
 ```
-
-Then fix the first test's obviously-wrong expectation before running — it should read:
-
-```ts
-    expect(deceasedPia(d)).toEqual({ piaMonthly: 2400, estimated: false });
-```
-
-and make the second test's `describe` callback `async` is NOT needed — hoist the two imports to the top of the file instead:
-
-```ts
-import { benefitOnDate } from '$lib/benefit-calculator';
-import { MonthDuration } from '$lib/month-time';
-```
-
-and drop the two `await import(...)` lines.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
