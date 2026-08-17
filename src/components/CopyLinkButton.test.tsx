@@ -10,7 +10,7 @@ const form = {
     name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male' as const,
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
-  hasSpouse: false,
+  maritalStatus: 'single' as const,
 };
 
 afterEach(() => vi.unstubAllGlobals());

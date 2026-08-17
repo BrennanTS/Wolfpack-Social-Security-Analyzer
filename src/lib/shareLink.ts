@@ -106,8 +106,11 @@ function writePerson(
 export function toShareParams(form: AnalyzerFormState): URLSearchParams {
   const params = new URLSearchParams();
   writePerson(params, 'a', form.personA);
-  if (form.hasSpouse !== null) params.set('m', form.hasSpouse ? '1' : '0');
-  if (form.hasSpouse) writePerson(params, 'b', form.personB);
+  // Widowed carries no share-link encoding yet — see the module comment on
+  // `fromShareParams` for why `m` stays binary here.
+  if (form.maritalStatus === 'married') params.set('m', '1');
+  else if (form.maritalStatus === 'single') params.set('m', '0');
+  if (form.maritalStatus === 'married') writePerson(params, 'b', form.personB);
   params.set('cola', String(form.annualCola));
   // `dr` travels as a PERCENT so the link is human-readable and matches the
   // slider; the form stores a fraction. Convert on both sides.
@@ -118,7 +121,9 @@ export function toShareParams(form: AnalyzerFormState): URLSearchParams {
 
 export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
   const married = params.get('m');
-  const hasSpouse = married === '1' ? true : married === '0' ? false : null;
+  // `m=w` (widowed) is Task 4's deliverable — until then an unrecognized `m`
+  // value (including a future `w`) falls back to null, same as absent.
+  const maritalStatus = married === '1' ? 'married' : married === '0' ? 'single' : null;
 
   const cola = num(params, 'cola');
 
@@ -152,8 +157,10 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
 
   return {
     personA,
-    personB: hasSpouse ? readPerson(params, 'b') : BLANK_FORM.personB,
-    hasSpouse,
+    personB: maritalStatus === 'married' ? readPerson(params, 'b') : BLANK_FORM.personB,
+    maritalStatus,
+    deceased: BLANK_FORM.deceased,
+    alreadyClaimed: BLANK_FORM.alreadyClaimed,
     annualCola: cola !== null && isInBounds(cola, COLA_BOUNDS) ? cola : BLANK_FORM.annualCola,
     discountRate:
       discountFraction !== null && isDiscountRateInBounds(discountFraction)

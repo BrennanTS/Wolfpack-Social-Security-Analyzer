@@ -45,7 +45,9 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
 
   const [personA, setPersonA] = useState<PersonFormFields>(initialForm.personA);
   const [personB, setPersonB] = useState<PersonFormFields>(initialForm.personB);
-  const [hasSpouse, setHasSpouse] = useState<boolean | null>(initialForm.hasSpouse);
+  const [maritalStatus, setMaritalStatus] = useState<AnalyzerFormState['maritalStatus']>(
+    initialForm.maritalStatus,
+  );
   const [annualCola, setAnnualCola] = useState(initialForm.annualCola);
   const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
   const [dollarsMode, setDollarsMode] = useState<DollarsMode>(initialForm.dollarsMode);
@@ -78,12 +80,17 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     () => ({
       personA,
       personB,
-      hasSpouse,
+      maritalStatus,
+      // Widowed intake (deceased/already-claimed fields) is Task 5's
+      // deliverable — this UI never sets maritalStatus to 'widowed', so these
+      // stay at their blank defaults.
+      deceased: BLANK_FORM.deceased,
+      alreadyClaimed: BLANK_FORM.alreadyClaimed,
       annualCola,
       discountRate,
       dollarsMode,
     }),
-    [personA, personB, hasSpouse, annualCola, discountRate, dollarsMode],
+    [personA, personB, maritalStatus, annualCola, discountRate, dollarsMode],
   );
 
   const inputsComplete = isFormComplete(form);
@@ -128,7 +135,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personA, personB, hasSpouse, discountRate]);
+  }, [personA, personB, maritalStatus, discountRate]);
 
   // Re-seeds the suggested life expectancy only when the identity inputs
   // (date of birth, gender) actually changed — not on every edit to a
@@ -153,7 +160,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       ssaSuggested: suggestedLifeExpectancyFor(personA),
       gender: personA.gender,
     },
-    ...(hasSpouse
+    ...(maritalStatus === 'married'
       ? [
           {
             label: personLabel(personB.name, 1),
@@ -167,7 +174,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   ];
 
   function handleMaritalChange(married: boolean) {
-    setHasSpouse(married);
+    setMaritalStatus(married ? 'married' : 'single');
   }
 
   async function handleExportPdf() {
@@ -252,17 +259,21 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               <div className="segmented-control" role="group" aria-label="Marital status">
                 <button
                   type="button"
-                  className={`segment-btn ${hasSpouse === false ? 'segment-btn-active' : ''}`}
+                  className={`segment-btn ${
+                    maritalStatus === 'single' ? 'segment-btn-active' : ''
+                  }`}
                   onClick={() => handleMaritalChange(false)}
-                  aria-pressed={hasSpouse === false}
+                  aria-pressed={maritalStatus === 'single'}
                 >
                   Single
                 </button>
                 <button
                   type="button"
-                  className={`segment-btn ${hasSpouse === true ? 'segment-btn-active' : ''}`}
+                  className={`segment-btn ${
+                    maritalStatus === 'married' ? 'segment-btn-active' : ''
+                  }`}
                   onClick={() => handleMaritalChange(true)}
-                  aria-pressed={hasSpouse === true}
+                  aria-pressed={maritalStatus === 'married'}
                 >
                   Married
                 </button>
@@ -272,7 +283,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               </span>
             </div>
 
-            {hasSpouse && (
+            {maritalStatus === 'married' && (
               <PersonFields person={personB} index={1} onChange={handlePersonBChange} />
             )}
 
@@ -292,7 +303,8 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               {inputsComplete && personA.gender ? (
                 <>
                   Analyzing <strong>{genderLabel(personA.gender)}</strong>
-                  {hasSpouse ? ', married (ssa.tools couple)' : ', single'} claimant —
+                  {maritalStatus === 'married' ? ', married (ssa.tools couple)' : ', single'}{' '}
+                  claimant —
                   benefits via <strong>ssa.tools</strong> engine.
                 </>
               ) : (

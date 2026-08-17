@@ -12,7 +12,7 @@ const married: AnalyzerFormState = {
     name: 'Sarah', birthYear: 1964, birthMonth: 2, gender: 'female',
     monthlyBenefit: 2100, lifeExpectancy: null,
   },
-  hasSpouse: true,
+  maritalStatus: 'married',
   annualCola: 2.5,
   // A FRACTION (0.025 = 2.5%), unlike annualCola above — see the module
   // comment. A value of `2.5` here would mean 250%, fail the dr bounds check
@@ -27,7 +27,7 @@ const single: AnalyzerFormState = {
     name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male',
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
-  hasSpouse: false,
+  maritalStatus: 'single',
 };
 
 describe('round trip', () => {
@@ -42,7 +42,7 @@ describe('round trip', () => {
 
   it('restores a single household without person B', () => {
     const restored = fromShareParams(toShareParams(single));
-    expect(restored.hasSpouse).toBe(false);
+    expect(restored.maritalStatus).toBe('single');
     expect(restored.personA.birthYear).toBe(1962);
     expect(restored.personB).toEqual(BLANK_FORM.personB);
   });
@@ -173,7 +173,7 @@ describe('per-person life expectancy params', () => {
       name: '', birthYear: 1962, birthMonth: 3, gender: 'female',
       monthlyBenefit: 1200, lifeExpectancy: 92,
     },
-    hasSpouse: true,
+    maritalStatus: 'married',
   };
 
   it('round-trips two distinct values', () => {
@@ -191,7 +191,7 @@ describe('per-person life expectancy params', () => {
   });
 
   it('omits ble for a single claimant', () => {
-    const params = toShareParams({ ...form, hasSpouse: false });
+    const params = toShareParams({ ...form, maritalStatus: 'single' });
     expect(params.get('ale')).toBe('85');
     expect(params.has('ble')).toBe(false);
   });

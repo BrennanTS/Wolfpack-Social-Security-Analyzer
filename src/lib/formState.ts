@@ -5,6 +5,16 @@ import { analyzeHousehold, type Household, type HouseholdAnalysis } from './hous
 import { getCurrentAge, type Gender, type Person } from './personAnalysis';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
 import { DEFAULT_DISCOUNT_RATE } from './ssaTools';
+import {
+  BLANK_ALREADY_CLAIMED,
+  BLANK_DECEASED,
+  isWidowedComplete,
+  toAlreadyClaimed,
+  toDeceased,
+  widowedErrors,
+  type AlreadyClaimedFormFields,
+  type DeceasedFormFields,
+} from './widowedForm';
 
 export interface PersonFormFields {
   name: string;
@@ -22,7 +32,16 @@ export interface PersonFormFields {
 export interface AnalyzerFormState {
   personA: PersonFormFields;
   personB: PersonFormFields;
-  hasSpouse: boolean | null;
+  /**
+   * Null means "not yet chosen", which is what gates the analysis. Replaces the
+   * former boolean `hasSpouse`: a widowed household is neither single nor
+   * married, and a third boolean would have made every read site guess.
+   */
+  maritalStatus: 'single' | 'married' | 'widowed' | null;
+  /** Only meaningful when `maritalStatus === 'widowed'`. */
+  deceased: DeceasedFormFields;
+  /** Only meaningful when `maritalStatus === 'widowed'`. */
+  alreadyClaimed: AlreadyClaimedFormFields;
   annualCola: number;
   discountRate: number;
   /**
@@ -48,7 +67,9 @@ const BLANK_PERSON: PersonFormFields = {
 export const BLANK_FORM: AnalyzerFormState = {
   personA: BLANK_PERSON,
   personB: BLANK_PERSON,
-  hasSpouse: null,
+  maritalStatus: null,
+  deceased: BLANK_DECEASED,
+  alreadyClaimed: BLANK_ALREADY_CLAIMED,
   annualCola: CPI_DEFAULT_COLA,
   discountRate: DEFAULT_DISCOUNT_RATE,
   dollarsMode: 'real',
@@ -64,17 +85,34 @@ function isPersonComplete(p: PersonFormFields): boolean {
 }
 
 export function isFormComplete(form: AnalyzerFormState): boolean {
-  if (form.hasSpouse === null || form.personA.lifeExpectancy === null) return false;
+  if (form.maritalStatus === null || form.personA.lifeExpectancy === null) return false;
   if (!isPersonComplete(form.personA)) return false;
   // Married analyses require real spouse data — never defaulted from person A.
-  if (form.hasSpouse && !isPersonComplete(form.personB)) return false;
+  if (form.maritalStatus === 'married' && !isPersonComplete(form.personB)) return false;
+
+  if (form.maritalStatus === 'widowed') {
+    if (!isWidowedComplete(form.deceased)) return false;
+    // An impossible combination must not reach the engine — several of these
+    // produce a throw rather than a wrong answer.
+    const { birthYear, birthMonth } = form.personA;
+    if (birthYear === '' || birthMonth === '') return false;
+    const errors = widowedErrors(
+      form.deceased,
+      form.alreadyClaimed,
+      { year: birthYear, month: birthMonth },
+      new Date(),
+    );
+    if (Object.keys(errors).length > 0) return false;
+  }
 
   // A person with no work record of their own is legitimate — they may draw a
   // spousal benefit on their partner's record. A household where *nobody*
-  // earns has nothing to analyze.
-  const benefits = form.hasSpouse
-    ? [form.personA.monthlyBenefit, form.personB.monthlyBenefit]
-    : [form.personA.monthlyBenefit];
+  // earns has nothing to analyze. A widow always has the deceased's record.
+  if (form.maritalStatus === 'widowed') return true;
+  const benefits =
+    form.maritalStatus === 'married'
+      ? [form.personA.monthlyBenefit, form.personB.monthlyBenefit]
+      : [form.personA.monthlyBenefit];
   return benefits.some((b) => b !== '' && b > 0);
 }
 
@@ -123,7 +161,15 @@ function toPerson(fields: PersonFormFields, id: 'a' | 'b'): Person {
 
 export function toHousehold(form: AnalyzerFormState): Household {
   const personA = toPerson(form.personA, 'a');
-  if (!form.hasSpouse) return { status: 'single', people: [personA] };
+  if (form.maritalStatus === 'widowed') {
+    return {
+      status: 'widowed',
+      people: [personA],
+      deceased: toDeceased(form.deceased),
+      alreadyClaimed: toAlreadyClaimed(form.alreadyClaimed),
+    };
+  }
+  if (form.maritalStatus !== 'married') return { status: 'single', people: [personA] };
   return { status: 'married', people: [personA, toPerson(form.personB, 'b')] };
 }
 
