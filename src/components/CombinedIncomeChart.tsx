@@ -1,7 +1,11 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { DollarsMode } from '../lib/dollarsMode';
-import { visibleBenefitSeries, type CombinedTimelinePoint } from '../lib/household';
+import {
+  monthDateAt,
+  visibleBenefitSeries,
+  type MonthlyIncomePoint,
+} from '../lib/household';
 import { firstDeath } from '../lib/incomeCliff';
 import type { Person } from '../lib/personAnalysis';
 import { formatCurrency, personLabel } from '../lib/format';
@@ -16,12 +20,19 @@ import {
 
 interface CombinedIncomeChartProps {
   /**
-   * Already in the units the caller wants shown — `HouseholdPanel` is the
-   * one place that calls `toNominal`, so the chart, the caption below it and
-   * every other reader of this same timeline can never disagree about which
-   * dollars they're looking at.
+   * One point per MONTH, not per year — `buildMonthlyIncomeSeries` in
+   * `household.ts`, built from the raw engine bands (`analysis.periods`),
+   * not from `analysis.combinedTimeline`. A calendar-year bucket can't
+   * represent a mid-year handover without either prorating it (a ramp) or
+   * crediting a whole year's rate to both the outgoing and incoming band
+   * (a double-counted spike) — monthly resolution has neither problem,
+   * since a given month has exactly the bands active that month. Already in
+   * the units the caller wants shown — `HouseholdPanel` is the one place
+   * that calls `toNominalMonthly`, so the chart, the caption below it and
+   * every other reader of the household's dollars-mode choice can never
+   * disagree about which dollars they're looking at.
    */
-  timeline: CombinedTimelinePoint[];
+  monthlySeries: MonthlyIncomePoint[];
   people: Person[];
   /**
    * The one survivor direction the engine does not model. When set, the bands
@@ -39,9 +50,9 @@ interface CombinedIncomeChartProps {
    */
   finalIndexByPersonId?: Record<string, number>;
   /**
-   * Decides only the caption's closing sentence — `timeline` above already
-   * carries the actual real-or-nominal figures. Defaults to `'real'` so
-   * every test written before the toggle existed keeps asserting the
+   * Decides only the caption's closing sentence — `monthlySeries` above
+   * already carries the actual real-or-nominal figures. Defaults to `'real'`
+   * so every test written before the toggle existed keeps asserting the
    * sentence that was already correct.
    */
   dollarsMode?: DollarsMode;
@@ -62,6 +73,15 @@ interface CombinedIncomeChartProps {
  * `ResponsiveContainer` wrapper, axis/tooltip styling) so the household tab
  * doesn't look like a different app.
  *
+ * Plotted at MONTHLY resolution though the axis still reads in years (see
+ * `monthlySeries` above and `buildMonthlyIncomeSeries` in `household.ts`) —
+ * every band is flat at its own annual rate for exactly the months it pays,
+ * so filing and death both render as a single clean step rather than a ramp
+ * (an earlier, calendar-year-bucketed version) or a spike where two bands'
+ * full rates landed in the same shared year (a calendar-year version that
+ * tried to fix the ramp by crediting the whole year to any band that merely
+ * touched it).
+ *
  * Deliberately holds no React hooks: `pdf/HouseholdSection.test.tsx`
  * established the pattern this file's own tests reuse for the parts Recharts
  * never mounts in jsdom — call the component directly and walk the JSX tree
@@ -69,7 +89,7 @@ interface CombinedIncomeChartProps {
  * outside a render pass.
  */
 export function CombinedIncomeChart({
-  timeline,
+  monthlySeries,
   people,
   survivorGap,
   finalIndexByPersonId = {},
@@ -79,20 +99,20 @@ export function CombinedIncomeChart({
   const gap = survivorGap ?? null;
   const gapNote = survivorGapNote(gap);
 
-  const series = visibleBenefitSeries(timeline, people).map((s) => ({
+  const series = visibleBenefitSeries(monthlySeries, people).map((s) => ({
     ...s,
     name: benefitSeriesLabel(personLabel(people[s.personIndex]?.name, s.personIndex), s.type),
     color: seriesColor(s.personIndex, s.type),
   }));
 
-  // The year each person first appears with a positive total — read off the
+  // The first MONTH each person appears with a positive total — read off the
   // same `byPersonId` roll-up the tooltip uses, so "when the benefit was
   // claimed" is exactly the data already on screen, not a second computation
   // of a benefit rule.
-  const filingYearByPersonId: Record<string, number> = {};
+  const filingMonthByPersonId: Record<string, number> = {};
   for (const p of people) {
-    const point = timeline.find((pt) => (pt.byPersonId[p.id] ?? 0) > 0);
-    if (point) filingYearByPersonId[p.id] = point.year;
+    const point = monthlySeries.find((pt) => (pt.byPersonId[p.id] ?? 0) > 0);
+    if (point) filingMonthByPersonId[p.id] = point.monthIndex;
   }
 
   // First death, for a couple only — via `firstDeath`, the one place that
@@ -104,21 +124,47 @@ export function CombinedIncomeChart({
   // the cliff callout was absent and the survivor column was all em dashes
   // while this chart still drew a "First death" marker on the same screen.
   // `incomeCliff.ts:37-41` warns against precisely this second derivation.
-  const rawDeathYear =
-    people.length > 1
-      ? (firstDeath([people[0].id, people[1].id], finalIndexByPersonId)?.deathYear ?? null)
+  //
+  // `deathMonthIndex` is the DECEASED's own inclusive final month — still
+  // paid, in full, that month. The household's shape actually changes the
+  // month after, so the marker sits at `deathMonthIndex + 1`: the exact
+  // month `buildMonthlyIncomeSeries` first stops including their band (and,
+  // if the engine models it, first includes the survivor's step-up).
+  const death =
+    people.length > 1 ? firstDeath([people[0].id, people[1].id], finalIndexByPersonId) : null;
+  const rawDeathStepMonth = death !== null ? death.deathMonthIndex + 1 : null;
+  // `XAxis` below is a numeric month-index axis: a `ReferenceLine` whose `x`
+  // falls outside the plotted range renders nothing at all, silently. Every
+  // filing marker's month is guaranteed to be within range (it's read
+  // directly off `monthlySeries`), but the death step month is computed
+  // independently from `finalIndexByPersonId` and can precede the series'
+  // first month — reachable for a person who dies having never held a band.
+  // Checking range here turns that into a deliberate omission instead of a
+  // marker that was built but silently never appeared.
+  const seriesMonths = monthlySeries.map((p) => p.monthIndex);
+  const minMonth = seriesMonths[0];
+  const maxMonth = seriesMonths[seriesMonths.length - 1];
+  const deathStepMonth =
+    rawDeathStepMonth !== null &&
+    minMonth !== undefined &&
+    rawDeathStepMonth >= minMonth &&
+    rawDeathStepMonth <= maxMonth
+      ? rawDeathStepMonth
       : null;
-  // `XAxis` below has no `type="number"`, so it's a category axis: a
-  // `ReferenceLine` whose `x` isn't one of the chart's actual year
-  // categories renders nothing at all, silently. Every filing-marker year is
-  // guaranteed to be a real category (it's read directly off `timeline`), but
-  // the death year is computed independently from `finalIndexByPersonId` and
-  // can precede the timeline's first year — reachable for a person who dies
-  // having never held a band. Checking membership here turns that into a
-  // deliberate omission instead of a marker that was built but silently
-  // never appeared.
-  const deathYear =
-    rawDeathYear !== null && timeline.some((p) => p.year === rawDeathYear) ? rawDeathYear : null;
+
+  // One tick per calendar year, not per month — `monthlySeries` has ~12
+  // points per year, far too dense to label individually. The first tick is
+  // clamped to the series' own first month rather than that year's January,
+  // since the household's timeline can start mid-year and a tick before the
+  // plotted range wouldn't align with any point Recharts actually draws.
+  const yearTicks: number[] = [];
+  if (minMonth !== undefined && maxMonth !== undefined) {
+    const minYear = Math.floor(minMonth / 12);
+    const maxYear = Math.floor(maxMonth / 12);
+    for (let year = minYear; year <= maxYear; year++) {
+      yearTicks.push(Math.max(minMonth, year * 12));
+    }
+  }
 
   return (
     <div className="chart-container">
@@ -170,9 +216,13 @@ export function CombinedIncomeChart({
       </div>
       <div className="chart-surface">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={timeline} margin={{ top: 8, right: 16, left: 8, bottom: 20 }}>
+          <AreaChart data={monthlySeries} margin={{ top: 8, right: 16, left: 8, bottom: 20 }}>
             <XAxis
-              dataKey="year"
+              dataKey="monthIndex"
+              type="number"
+              domain={minMonth !== undefined && maxMonth !== undefined ? [minMonth, maxMonth] : undefined}
+              ticks={yearTicks}
+              tickFormatter={(monthIndex: number) => String(Math.floor(monthIndex / 12))}
               tick={{ fill: CHART_MUTED, fontSize: 11 }}
               axisLine={{ stroke: CHART_AXIS_LINE }}
               tickLine={false}
@@ -192,25 +242,26 @@ export function CombinedIncomeChart({
                 const num = typeof value === 'number' ? value : 0;
                 return [formatCurrency(num), name];
               }}
-              labelFormatter={(year) => `Year ${year}`}
+              labelFormatter={(label) => {
+                const monthIndex = typeof label === 'number' ? label : Number(label);
+                return Number.isFinite(monthIndex) ? monthDateAt(monthIndex).toString() : '';
+              }}
             />
             {series.map((s) => (
               <Area
                 key={s.key}
-                // `buildCombinedTimeline` now holds each band flat at its
-                // annual rate for every year it pays at least one month, so
-                // the only genuine slope left to draw is the transition
-                // itself — and that should render as a step at the year
-                // boundary, not a ramp across it. `linear` still draws a
-                // diagonal across the one-year gap between a full year and
-                // the zero (or full) year beside it, because Recharts
-                // interpolates directly between adjacent yearly points with
-                // no boundary point of its own; `stepAfter` holds each
-                // point's value flat until the next year, then jumps —
-                // exactly the "flat until death, then a step" shape the
-                // user asked for.
-                type="stepAfter"
-                dataKey={(point: CombinedTimelinePoint) => point.bySeries[s.key] ?? 0}
+                // At one point per MONTH, a plain `linear` interpolation
+                // between two adjacent points already reads as vertical: the
+                // diagonal Recharts draws across a single month's width — 1
+                // to 2 pixels wide in a typical ~240-point, multi-decade
+                // chart — is imperceptible from a true step. `stepAfter` is
+                // no longer needed to make the transition read as a step;
+                // `linear` is the straight-line rendering the user actually
+                // asked for, and every plateau in between is flat regardless
+                // of interpolation, since adjacent months in the same band
+                // carry the identical value.
+                type="linear"
+                dataKey={(point: MonthlyIncomePoint) => point.bySeries[s.key] ?? 0}
                 name={s.name}
                 stackId="household"
                 stroke={s.color}
@@ -232,12 +283,12 @@ export function CombinedIncomeChart({
               consistent treatment.
             */}
             {people.map((p, i) => {
-              const year = filingYearByPersonId[p.id];
-              if (year === undefined) return null;
+              const monthIndex = filingMonthByPersonId[p.id];
+              if (monthIndex === undefined) return null;
               return (
                 <ReferenceLine
                   key={`filing-${p.id}`}
-                  x={year}
+                  x={monthIndex}
                   stroke={CHART_MUTED}
                   strokeDasharray="4 4"
                   label={{
@@ -249,9 +300,9 @@ export function CombinedIncomeChart({
                 />
               );
             })}
-            {deathYear !== null && (
+            {deathStepMonth !== null && (
               <ReferenceLine
-                x={deathYear}
+                x={deathStepMonth}
                 stroke={CHART_RED}
                 strokeDasharray="3 3"
                 label={{

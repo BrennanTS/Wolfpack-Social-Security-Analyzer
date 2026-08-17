@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReactElement } from 'react';
 import type { SurvivorGap } from '../../lib/benefitPeriods';
-import type { CombinedTimelinePoint, HouseholdAnalysis } from '../../lib/household';
+import type { HouseholdAnalysis, MonthlyIncomePoint } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
 import { CombinedIncomeBars, HouseholdSection, StrategyTable } from './HouseholdSection';
 import { MethodologyAppendix } from './ReportDocument';
@@ -125,14 +125,16 @@ describe('HouseholdSection — the printed combined-income caption', () => {
     expect(text).not.toContain('sum to what they were actually paid');
   });
 
-  // The caption's third rewrite: `buildCombinedTimeline` stopped prorating a
-  // filing or final year to the months actually paid and started crediting
-  // the full annual rate instead, so the printed page has to disclose the
-  // same cost the screen caption does.
-  it('prints that a filing year and a final year render at full height though only part is paid', () => {
+  // The chart (and now `CombinedIncomeBars`, its PDF twin) is plotted at
+  // MONTHLY resolution, so there is no year-bucket artifact left to
+  // disclose. A briefly-shipped, calendar-year-bucketed version of this
+  // caption needed a clause saying a filing/final year rendered at full
+  // height though only part was paid; pinned absent here since it shipped
+  // once already.
+  it('does not claim a filing or final year renders at full height', () => {
     const text = printed(null);
-    expect(text).toMatch(/filing year and a final year render at the same height as a full one/i);
-    expect(text).toMatch(/only part of each is actually paid/i);
+    expect(text).toMatch(/annual rate/i);
+    expect(text).not.toMatch(/filing year and a final year render at the same height/i);
     expect(text).not.toMatch(/shorter than a full one/i);
   });
 });
@@ -481,36 +483,38 @@ describe('CombinedIncomeBars — the printed combined-income decomposition', () 
   ];
 
   it('prints a legend entry per benefit type, not per person', () => {
-    const timeline: CombinedTimelinePoint[] = [
+    const monthlySeries: MonthlyIncomePoint[] = [
       {
+        monthIndex: 2030 * 12,
         year: 2030,
         bySeries: { 'a:personal': 12000, 'b:spousal': 6000 },
         byPersonId: { a: 12000, b: 6000 },
         total: 18000,
       },
     ];
-    const text = collectText(CombinedIncomeBars({ timeline, people })).join(' ');
+    const text = collectText(CombinedIncomeBars({ monthlySeries, people })).join(' ');
     expect(text).toContain(benefitSeriesLabel('Avery', 'personal'));
     expect(text).toContain(benefitSeriesLabel('Blake', 'spousal'));
   });
 
-  it('omits a band and its legend entry when every year of it is zero', () => {
+  it('omits a band and its legend entry when every month of it is zero', () => {
     // A $0.00 spousal band — reachable, not invented; see
     // `household.test.ts` ("keeps the start date of a spousal entitlement
     // that is fully absorbed") and `CombinedIncomeChart.test.tsx`'s
-    // `timelineWithZeroSpousal`, which pins this against real
+    // `monthlySeriesWithZeroSpousal`, which pins this against real
     // `analyzeHousehold` output. Hand-built here only to isolate this
     // component's own zero-dropping wiring from the pipeline coverage those
     // files own.
-    const timeline: CombinedTimelinePoint[] = [
+    const monthlySeries: MonthlyIncomePoint[] = [
       {
+        monthIndex: 2030 * 12,
         year: 2030,
         bySeries: { 'a:personal': 12000, 'b:spousal': 0 },
         byPersonId: { a: 12000, b: 0 },
         total: 12000,
       },
     ];
-    const text = collectText(CombinedIncomeBars({ timeline, people })).join(' ');
+    const text = collectText(CombinedIncomeBars({ monthlySeries, people })).join(' ');
     expect(text).not.toMatch(/spousal/i);
     // Self-sufficient against a `visibleBenefitSeries` that returned `[]`
     // unconditionally: that would also make the assertion above pass, so

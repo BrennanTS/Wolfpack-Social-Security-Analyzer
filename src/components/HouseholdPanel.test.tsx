@@ -57,6 +57,12 @@ function buildAnalysis(): HouseholdAnalysis {
     combinedTimeline: [
       { year: 2032, bySeries: { 'a:personal': 35_712 }, byPersonId: { a: 35_712 }, total: 35_712 },
     ],
+    // `HouseholdPanel` now also builds the chart's own monthly series from
+    // `periods` (`buildMonthlyIncomeSeries`, not `combinedTimeline`) — empty
+    // here since none of these tests assert on the chart's rendered bars,
+    // only on the break-even section and the survivor-gap note, neither of
+    // which reads `periods`.
+    periods: [],
     recommendation: 'Claim at age 70',
     recommendationDetail: 'ssa.tools recommends filing at age 70.',
     assumptions: { annualCola: 0, discountRate: 3 },

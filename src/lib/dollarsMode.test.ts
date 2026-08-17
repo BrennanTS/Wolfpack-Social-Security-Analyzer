@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { toNominal, toNominalAmount } from './dollarsMode';
-import type { CombinedTimelinePoint } from './household';
+import { toNominal, toNominalAmount, toNominalMonthly } from './dollarsMode';
+import type { CombinedTimelinePoint, MonthlyIncomePoint } from './household';
 
 const point = (year: number, total: number): CombinedTimelinePoint => ({
   year,
+  bySeries: { 'a:personal': total },
+  byPersonId: { a: total },
+  total,
+});
+
+const monthlyPoint = (monthIndex: number, total: number): MonthlyIncomePoint => ({
+  monthIndex,
+  year: Math.floor(monthIndex / 12),
   bySeries: { 'a:personal': total },
   byPersonId: { a: total },
   total,
@@ -41,5 +49,32 @@ describe('toNominalAmount', () => {
 
   it('is the identity at a zero COLA', () => {
     expect(toNominalAmount(1000, 0, 2026, 2046)).toBe(1000);
+  });
+});
+
+describe('toNominalMonthly', () => {
+  it('preserves monthIndex, which toNominal has no field for', () => {
+    const out = toNominalMonthly([monthlyPoint(2036 * 12 + 3, 1000)], 2.5, 2026);
+    expect(out[0].monthIndex).toBe(2036 * 12 + 3);
+  });
+
+  it('agrees with toNominal on the same year regardless of which month within it', () => {
+    // Two months of the same calendar year compound by the same factor —
+    // the COLA is annual, not monthly.
+    const jan = toNominalMonthly([monthlyPoint(2036 * 12 + 0, 1000)], 2.5, 2026)[0];
+    const dec = toNominalMonthly([monthlyPoint(2036 * 12 + 11, 1000)], 2.5, 2026)[0];
+    expect(jan.total).toBeCloseTo(dec.total, 6);
+    expect(jan.total).toBeCloseTo(toNominal([point(2036, 1000)], 2.5, 2026)[0].total, 6);
+  });
+
+  it('scales every series, not just the total', () => {
+    const out = toNominalMonthly([monthlyPoint(2036 * 12, 1000)], 2.5, 2026);
+    expect(out[0].bySeries['a:personal']).toBeCloseTo(1280.08, 1);
+    expect(out[0].byPersonId.a).toBeCloseTo(1280.08, 1);
+  });
+
+  it('is the identity at a zero COLA', () => {
+    const input = [monthlyPoint(2026 * 12, 1000), monthlyPoint(2046 * 12 + 5, 2000)];
+    expect(toNominalMonthly(input, 0, 2026)).toEqual(input);
   });
 });

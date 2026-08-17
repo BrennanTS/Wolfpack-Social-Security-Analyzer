@@ -422,7 +422,7 @@ export function survivorIncomeRisesWithDelay(comparisons: HouseholdStrategy[]): 
 }
 
 /** The absolute month index convention `BenefitBand` uses, back to a MonthDate. */
-function monthDateAt(index: number): MonthDate {
+export function monthDateAt(index: number): MonthDate {
   return MonthDate.initFromYearsMonths({
     years: Math.floor(index / 12),
     months: index % 12,
@@ -430,38 +430,32 @@ function monthDateAt(index: number): MonthDate {
 }
 
 /**
- * Household income per calendar year under the recommended strategy —
- * the ANNUAL RATE each band pays, not the calendar-year sum.
+ * Household income per calendar year under the recommended strategy.
  *
- * A band contributes its full `monthlyAmount * 12` to every year in which it
- * pays at least one month (via `monthsInYear(band, year) > 0`, reused for
- * that boolean rather than its count), and nothing to a year it does not
- * touch at all. A filing year and a final year therefore render at the same
- * height as every full year beside them, even though only part of each was
- * actually paid — the cost this buys is a chart that is FLAT from filing to
- * death, with a clean step at every transition, rather than a chart that
- * ramps up and down at both ends of every band and reads as income rising or
- * falling when only the calendar is short. The bands carry no COLA and no
- * consumer applies one, so these are constant (real) dollars. (The previous
- * comment here claimed the chart layer applied the COLA slider;
- * `HouseholdPanel` passes the timeline straight through, so it never did.)
+ * Every figure is the engine's: each band contributes
+ * `monthsInYear × monthlyAmount`, so a filing year, a death year and a
+ * mid-year survivor step-up all carry their true number of payments rather
+ * than a flat twelve. The bands carry no COLA and no consumer applies one, so
+ * these are constant (real) dollars. (The previous comment here claimed the
+ * chart layer applied the COLA slider; `HouseholdPanel` passes the timeline
+ * straight through, so it never did.)
  *
- * This reverses an earlier, arithmetically-correct version that prorated a
- * partial year to `monthsInYear × monthlyAmount`: precise, but the precision
- * bought nothing, because it is consumed only by this chart and its PDF
- * twin — `incomeCliff` and `survivorIncome` (`incomeCliff.ts`, `household.ts`
- * below) read full calendar years on either side of a death, not the partial
- * ones this function now flattens. (Both are reachable at a partial year
- * too, in edge-case households where a filing or a second death lands inside
- * the very year being read — verified separately and unaffected by this
- * change, since it changes what a PARTIAL year renders as, not which years
- * `incomeCliff`/`survivorIncome` pick.) What it cost instead was the shape:
- * a partial year rendered as a slope, at both ends of every band, which is
- * why the first death used to render as a two-year descent rather than a
- * step.
+ * This is a CALENDAR-YEAR sum, not an annual rate, and it is deliberately
+ * left that way: `incomeCliff` and `survivorIncome` below both read only full
+ * calendar years either side of a death, where a rate and a sum agree, so the
+ * precision here costs them nothing. A version of this function briefly
+ * credited the full annual rate to every year a band merely touched (to fix
+ * the on-screen chart's ramps) — that duplicated a mid-year handover into
+ * BOTH the outgoing and incoming band's full rate for the year they shared,
+ * spiking a household above anything it ever actually received. The chart no
+ * longer reads this function at all; it builds its own MONTHLY series from
+ * the raw bands (`buildMonthlyIncomeSeries` below), where a month has exactly
+ * the bands active that month and nothing can double up. This function is
+ * back to exactly what it was before that attempt, for the readers that were
+ * never part of the problem.
  *
- * `bySeries` keys each figure `${personId}:${type}` — the chart's stacked
- * series. `byPersonId` is derived from it by summing each person's series, so
+ * `bySeries` keys each figure `${personId}:${type}` — the PDF's stacked
+ * bars. `byPersonId` is derived from it by summing each person's series, so
  * the two cannot disagree.
  */
 function buildCombinedTimeline(
@@ -482,7 +476,7 @@ function buildCombinedTimeline(
 
     const bySeries: Record<string, number> = {};
     for (const band of bands) {
-      const amount = monthsInYear(band, year) > 0 ? band.monthlyAmount * 12 : 0;
+      const amount = monthsInYear(band, year) * band.monthlyAmount;
       const seriesKey = `${band.personId}:${band.type}`;
       bySeries[seriesKey] = (bySeries[seriesKey] ?? 0) + amount;
     }
@@ -499,6 +493,82 @@ function buildCombinedTimeline(
       total += byPersonId[id];
     }
     points.push({ year, bySeries, byPersonId, total: roundCents(total) });
+  }
+  return points;
+}
+
+export interface MonthlyIncomePoint extends CombinedTimelinePoint {
+  /** Absolute month index — the same convention `BenefitBand.startIndex` uses. */
+  monthIndex: number;
+}
+
+/**
+ * Household income at MONTHLY resolution — the chart's own series, entirely
+ * separate from `buildCombinedTimeline`'s calendar-year sums above (which
+ * `incomeCliff` and `survivorIncome` still read, unchanged).
+ *
+ * A calendar year cannot represent a mid-year handover without distorting
+ * something: prorating a partial year draws it as a ramp (what the user
+ * objected to — Task 8's first attempt), and crediting the FULL annual rate
+ * to every year a band merely touches double-counts a transition year,
+ * because the outgoing band and the incoming band can each hold a nonzero
+ * share of the same calendar year without ever being paid in the same month
+ * (Task 8's second attempt — a household could show more income the year of
+ * a death than it ever actually received). A month has neither problem: it
+ * either falls inside a band or it doesn't, so at most one band of a given
+ * type can be active for a given person in a given month, and no month can
+ * ever sum two bands that were never both live at once. Every band renders
+ * flat at its own annual rate (`monthlyAmount * 12`) for exactly the months
+ * it pays, with a single clean step where one month's set of active bands
+ * differs from the next.
+ *
+ * `bySeries`/`byPersonId`/`total` follow the exact same keys and roll-up
+ * `buildCombinedTimeline` uses, so `visibleBenefitSeries` below (and
+ * `benefitSeriesLabel`/`seriesColor` beyond this module) work on either
+ * output unchanged — `MonthlyIncomePoint` is a `CombinedTimelinePoint` plus
+ * `monthIndex`, not a parallel shape.
+ */
+export function buildMonthlyIncomeSeries(
+  bands: BenefitBand[],
+  people: Person[],
+): MonthlyIncomePoint[] {
+  if (bands.length === 0) return [];
+
+  const start = Math.min(...bands.map((b) => b.startIndex));
+  const end = Math.max(...bands.map((b) => b.endIndex));
+
+  const points: MonthlyIncomePoint[] = [];
+  for (let monthIndex = start; monthIndex <= end; monthIndex++) {
+    // Seeded from `people` so every person keys into every month, including
+    // months they are paid nothing — the chart stacks on a stable key set.
+    const byPersonId: Record<string, number> = {};
+    for (const p of people) byPersonId[p.id] = 0;
+
+    const bySeries: Record<string, number> = {};
+    for (const band of bands) {
+      if (monthIndex < band.startIndex || monthIndex > band.endIndex) continue;
+      const seriesKey = `${band.personId}:${band.type}`;
+      bySeries[seriesKey] = (bySeries[seriesKey] ?? 0) + band.monthlyAmount * 12;
+    }
+
+    for (const [seriesKey, amount] of Object.entries(bySeries)) {
+      bySeries[seriesKey] = roundCents(amount);
+      const personId = seriesKey.slice(0, seriesKey.lastIndexOf(':'));
+      byPersonId[personId] = (byPersonId[personId] ?? 0) + bySeries[seriesKey];
+    }
+
+    let total = 0;
+    for (const id of Object.keys(byPersonId)) {
+      byPersonId[id] = roundCents(byPersonId[id]);
+      total += byPersonId[id];
+    }
+    points.push({
+      monthIndex,
+      year: Math.floor(monthIndex / 12),
+      bySeries,
+      byPersonId,
+      total: roundCents(total),
+    });
   }
   return points;
 }

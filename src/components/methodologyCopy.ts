@@ -153,25 +153,31 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * that was already correct for them. The print surface is the one caller
  * that always passes `'real'` explicitly, since it can't toggle.
  *
- * Rewritten a third time when `buildCombinedTimeline` (`household.ts`)
- * stopped prorating a filing or final year to the months actually paid and
- * started crediting the full annual rate instead — the change that turned a
- * misleading slope at the start and end of every band into a flat line with
- * a clean step. The opening sentence used to say each segment sums to what
- * was "actually paid... counting only the months actually paid," which the
- * new bands make false in the most direct way possible: a filing year and a
- * final year now render at the same height as a full year, though only part
- * of each is genuinely paid. This is the thirteenth instance on this project
- * of a right number shipping beside wrong text, and it was seen coming
- * rather than discovered after the fact — which is exactly why the sentence
- * changes in the same commit as the shape. Every household shape still gets
- * a true sentence from this rewrite: a single claimant reads the same
- * "annual rate ... own benefit" clause (this function just isn't currently
- * called for one — the on-screen and print call sites both gate on two
- * people), a household with no spousal or survivor band still gets a true
- * "any spousal or survivor segment" clause because "any" already covers
- * zero, and a household whose bands start or end mid-year is the exact case
- * the new wording exists to describe.
+ * Rewritten a third time (and partly undone in a fourth) chasing the same
+ * underlying change: the chart moving off calendar-year buckets entirely.
+ * The third rewrite paired with a version of `buildCombinedTimeline`
+ * (`household.ts`) that credited a band's full annual rate to every YEAR it
+ * merely touched, and added a clause disclosing the cost — a filing year and
+ * a final year rendering at full height though only part of each was paid.
+ * That version double-counted a transition year shared by an outgoing and an
+ * incoming band (the household could show more income the year of a death
+ * than it ever received), so `buildCombinedTimeline` reverted to calendar-
+ * year sums and the chart moved to its own MONTHLY series instead
+ * (`buildMonthlyIncomeSeries`, built from the raw bands, not from
+ * `combinedTimeline`). At monthly resolution there is no year-bucket
+ * artifact left to disclose — a month is simply in a band or not — so the
+ * fourth rewrite deletes that clause rather than reword it again: the
+ * opening sentence is back to stating only the annual-rate framing, which
+ * survives every version of this function and is true of the monthly
+ * series exactly as it was meant to be true of the (briefly) year-bucketed
+ * one. This is the thirteenth instance on this project of a right number
+ * shipping beside wrong text, caught before it shipped rather than after.
+ * Every household shape still gets a true sentence: a single claimant reads
+ * the same "annual rate ... own benefit" clause (this function just isn't
+ * currently called for one — the on-screen and print call sites both gate on
+ * two people), and a household with no spousal or survivor band still gets a
+ * true "any spousal or survivor segment" clause because "any" already covers
+ * zero.
  */
 export function combinedIncomeCaption(
   gap: SurvivorGap | null | undefined,
@@ -210,9 +216,7 @@ export function combinedIncomeCaption(
   // ASCII here renders straight quotes next to curly ones.
   return (
     `Each person’s segments show the annual rate they’re paid once a benefit is running — ` +
-    `${included} — not what actually changed hands that calendar year: a filing year and a ` +
-    'final year render at the same height as a full one, even though only part of each is ' +
-    'actually paid.' +
+    `${included}.` +
     survivorCaveat +
     ' A survivor segment is the increment above the personal band beneath it: ' +
     bandContinuityClause +

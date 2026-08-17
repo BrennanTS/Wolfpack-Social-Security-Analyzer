@@ -84,6 +84,10 @@ function buildAnalysis(status: 'single' | 'married'): HouseholdAnalysis {
         total: status === 'married' ? 58_752 : 35_712,
       },
     ],
+    // `HouseholdPanel` now also builds the chart's own monthly series from
+    // `periods` (`buildMonthlyIncomeSeries`, not `combinedTimeline`) — empty
+    // here since none of these tests assert on the chart's rendered bars.
+    periods: [],
     recommendation: status === 'married'
       ? 'Dan files at 70 · Sarah files at 64'
       : 'Claim at age 70',

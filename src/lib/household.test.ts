@@ -4,12 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   analyzeHousehold,
+  buildMonthlyIncomeSeries,
   showSurvivorIncomeColumn,
   survivorIncomeRisesWithDelay,
   visibleBenefitSeries,
   type Household,
   type HouseholdAnalysis,
 } from './household';
+import type { BenefitBand } from './benefitPeriods';
 import { incomeCliff } from './incomeCliff';
 import type { Person } from './personAnalysis';
 import { survivorIncomeCaption } from '../components/methodologyCopy';
@@ -330,6 +332,131 @@ describe('combinedTimeline', () => {
   });
 });
 
+describe('buildMonthlyIncomeSeries', () => {
+  it('returns one point per month, seeded for every person', () => {
+    const bands: BenefitBand[] = [
+      { personId: 'a', type: 'personal', startIndex: 0, endIndex: 2, monthlyAmount: 2000 },
+    ];
+    const points = buildMonthlyIncomeSeries(bands, [{ ...dan, id: 'a' }, { ...sarah, id: 'b' }]);
+    expect(points.map((p) => p.monthIndex)).toEqual([0, 1, 2]);
+    for (const p of points) {
+      expect(Object.keys(p.byPersonId).sort()).toEqual(['a', 'b']);
+      expect(p.byPersonId.b).toBe(0);
+    }
+  });
+
+  it('is flat at the annual rate for every month a band pays, with no ramp at either end', () => {
+    const bands: BenefitBand[] = [
+      { personId: 'a', type: 'personal', startIndex: 10, endIndex: 15, monthlyAmount: 2500 },
+    ];
+    const points = buildMonthlyIncomeSeries(bands, [{ ...dan, id: 'a' }]);
+    // Every month the band pays — first, middle, and last alike — carries
+    // the SAME figure: the full annual rate. Nothing prorates the edges.
+    for (const p of points) {
+      expect(p.total).toBeCloseTo(2500 * 12, 2);
+    }
+  });
+
+  // The exact regression this test file exists to pin: a household where a
+  // band ends the month before another band (for a DIFFERENT person, or a
+  // different type on the SAME person) begins right after it — the precise
+  // shape of a first death, where the deceased's final personal payment and
+  // the survivor's first step-up payment are adjacent but never
+  // simultaneous. Task 8's second attempt (crediting a band's full annual
+  // rate to every YEAR it touched) summed both bands' full rates into the
+  // one calendar year they shared, spiking the household above anything it
+  // ever actually received. At monthly resolution nothing can double up: a
+  // given month has exactly the bands active that month.
+  it('never sums two bands in the same month that were never both live at once', () => {
+    const bands: BenefitBand[] = [
+      // Dan's personal band ends month 11 (his death).
+      { personId: 'a', type: 'personal', startIndex: 0, endIndex: 11, monthlyAmount: 3800 },
+      // Sarah's own personal band runs the whole span.
+      { personId: 'b', type: 'personal', startIndex: 0, endIndex: 23, monthlyAmount: 1844 },
+      // Sarah's survivor step-up starts the very next month.
+      { personId: 'b', type: 'survivor', startIndex: 12, endIndex: 23, monthlyAmount: 1956 },
+    ];
+    const points = buildMonthlyIncomeSeries(bands, [{ ...dan, id: 'a' }, { ...sarah, id: 'b' }]);
+
+    const lastMonthAlive = points.find((p) => p.monthIndex === 11)!;
+    const firstMonthAfter = points.find((p) => p.monthIndex === 12)!;
+
+    // The last month Dan is alive: his personal band plus Sarah's personal
+    // band, and nothing from a survivor band that hasn't started yet.
+    expect(lastMonthAlive.bySeries['a:personal']).toBeCloseTo(3800 * 12, 2);
+    expect(lastMonthAlive.bySeries['b:survivor']).toBeUndefined();
+    expect(lastMonthAlive.total).toBeCloseTo((3800 + 1844) * 12, 2);
+
+    // The month right after: Sarah's personal band plus her survivor
+    // step-up, and NOTHING from Dan — not a trace of his rate carried into
+    // a month he never lived to see.
+    expect(firstMonthAfter.bySeries['a:personal']).toBeUndefined();
+    expect(firstMonthAfter.byPersonId.a).toBe(0);
+    expect(firstMonthAfter.total).toBeCloseTo((1844 + 1956) * 12, 2);
+
+    // The critical invariant: no month's total ever reaches the sum of ALL
+    // THREE bands at once — that sum is what the double-counting bug would
+    // have produced at the transition month.
+    const allThreeAtOnce = (3800 + 1844 + 1956) * 12;
+    for (const p of points) {
+      expect(p.total).toBeLessThan(allThreeAtOnce);
+    }
+  });
+
+  // The exact household the coordinator reported the double-counting spike
+  // on: Client (b. Feb 1958, PIA $3,000, plan-to 84) dies February 2042;
+  // Spouse (b. Mar 1960, PIA $2,000, plan-to 86) survives. Run through the
+  // real engine end to end, not a hand-built band fixture, so this pins the
+  // fix against `analyzeHousehold`'s actual output rather than an
+  // idealization of it.
+  it('does not spike the household above its real combined rate at the first death (real household)', async () => {
+    const client: Person = {
+      id: 'a', name: 'Client', birthYear: 1958, birthMonth: 2,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 84,
+    };
+    const spouse: Person = {
+      id: 'b', name: 'Spouse', birthYear: 1960, birthMonth: 3,
+      gender: 'female', piaMonthly: 2000, lifeExpectancy: 86,
+    };
+    const result = await analyzeHousehold(
+      { status: 'married', people: [client, spouse] },
+      assumptions,
+      asOf,
+    );
+    const people = result.people.map((p) => p.person);
+    const monthly = buildMonthlyIncomeSeries(result.periods, people);
+
+    const deathMonthIndex = Math.min(
+      result.finalIndexByPersonId.a,
+      result.finalIndexByPersonId.b,
+    );
+    // Guard: this fixture is only the regression it's meant to be if Client
+    // really does die first, mid-way through the couple's timeline.
+    expect(deathMonthIndex).toBe(result.finalIndexByPersonId.a);
+
+    const beforeSteadyState = monthly.find((p) => p.monthIndex === deathMonthIndex - 12)!.total;
+    const maxTotal = Math.max(...monthly.map((p) => p.total));
+    // The bug reported ~$99k — well above the ~$68k the household actually
+    // ever receives. The maximum monthly figure anywhere in the series must
+    // be no more than the household's own steady-state combined rate before
+    // the death (Client's own band never runs alongside Sarah's survivor
+    // band, so nothing else can exceed it either).
+    expect(maxTotal).toBeCloseTo(beforeSteadyState, 2);
+    expect(maxTotal).toBeLessThan(90000);
+
+    // The month Client dies still pays his full rate plus Spouse's own —
+    // flat, not prorated down.
+    const lastMonth = monthly.find((p) => p.monthIndex === deathMonthIndex)!;
+    expect(lastMonth.total).toBeCloseTo(beforeSteadyState, 2);
+
+    // The very next month drops to Spouse's own-plus-survivor total, in one
+    // clean step — never both totals at once.
+    const nextMonth = monthly.find((p) => p.monthIndex === deathMonthIndex + 1)!;
+    expect(nextMonth.byPersonId.a).toBe(0);
+    expect(nextMonth.total).toBeLessThan(lastMonth.total);
+  });
+});
+
 describe('visibleBenefitSeries', () => {
   const a: Person = { ...dan };
   const b: Person = { ...sarah };
@@ -410,15 +537,14 @@ describe('engine periods', () => {
     expect(result.periods.some((b) => b.personId === 'b' && b.type === 'survivor')).toBe(true);
   });
 
-  it('credits the full annual rate to a final year, not a prorated amount', async () => {
-    // The chart shows the annual RATE a band pays, not the calendar-year sum
-    // — a deliberate reversal of the older, arithmetically-precise timeline
-    // that credited only the months actually paid (see `buildCombinedTimeline`
-    // for why: the precision bought nothing but a misleading slope at both
-    // ends of every band). Dan is born in April with a plan-to age of 85, so
-    // by calendar count his last year pays only four months — but it must
-    // still render at the SAME height as a full year beside it, not 4/12 of
-    // one.
+  it('credits only the months a person is actually paid, not a flat twelve', async () => {
+    // `buildCombinedTimeline` (calendar-year sums, read only by `incomeCliff`
+    // and `survivorIncome`) credits 12 payments only for a year a band fully
+    // covers. Dan is born in April with a plan-to age of 85, so his last
+    // calendar year pays four months, not twelve. The chart itself no longer
+    // reads this function at all — see `buildMonthlyIncomeSeries` below —
+    // but this one still has to stay calendar-year-precise for the readers
+    // that do.
     //
     // The partial year asserted here is the *last* one rather than the first:
     // the optimizer's chosen filing age for this fixture lands in January
@@ -431,44 +557,12 @@ describe('engine periods', () => {
     const monthsPaid = (end % 12) + 1;
     expect(lastYear).toBe(dan.birthYear + dan.lifeExpectancy);
     expect(monthsPaid).toBe(dan.birthMonth); // April → Jan–Apr
-    expect(monthsPaid).toBeLessThan(12); // guard: the fixture must stay genuinely partial
 
     const point = result.combinedTimeline.find((p) => p.year === lastYear)!;
     const prior = result.combinedTimeline.find((p) => p.year === lastYear - 1)!;
-    // Same band, same monthly amount, on both sides of the calendar boundary
-    // — so the annual-rate figure is identical, not shorter.
-    expect(point.total).toBeCloseTo(prior.total, 2);
-  });
-
-  it('credits the full annual rate to a filing year, not a prorated amount', async () => {
-    // Mirrors the final-year test above from the other end of a band. A
-    // spouse with no record of her own draws a spousal band on Dan's record
-    // (see "sums every band into the year totals, spousal included" below)
-    // — the filing month is whatever the optimizer picks, not necessarily
-    // January, so this is the genuinely partial first year that test
-    // deliberately skips past.
-    const noRecord: Person = { ...sarah, piaMonthly: 0 };
-    const result = await analyzeHousehold(
-      { status: 'married', people: [dan, noRecord] },
-      assumptions,
-      asOf,
-    );
-    const spousal = result.periods.find((b) => b.type === 'spousal')!;
-    expect(spousal).toBeDefined();
-    const filingYear = Math.floor(spousal.startIndex / 12);
-    const monthsPaidInFilingYear = 12 - (spousal.startIndex % 12);
-    // Guard: without this, a spousal band that happens to start in January
-    // would make the assertion below pass vacuously — there would be no
-    // proration for the flat-rate change to avoid.
-    expect(monthsPaidInFilingYear).toBeLessThan(12);
-
-    const point = result.combinedTimeline.find((p) => p.year === filingYear)!;
-    const next = result.combinedTimeline.find((p) => p.year === filingYear + 1)!;
-    // Both years hold exactly the spousal band and nothing else for the
-    // no-record spouse (`byPersonId.b`), so they must match — the filing
-    // year is not credited fewer months than the full year right after it.
-    expect(point.byPersonId.b).toBeCloseTo(next.byPersonId.b, 2);
-    expect(point.byPersonId.b).toBeCloseTo(spousal.monthlyAmount * 12, 2);
+    expect(point.total).toBeLessThan(prior.total);
+    // And short by exactly the months he is not paid, not some other amount.
+    expect(point.total).toBeCloseTo((prior.total / 12) * monthsPaid, 2);
   });
 
   it('sums every band into the year totals, spousal included', async () => {

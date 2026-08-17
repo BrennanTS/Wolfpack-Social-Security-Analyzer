@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import type { HouseholdAnalysis, HouseholdStrategy } from '../lib/household';
+import { buildMonthlyIncomeSeries, type HouseholdAnalysis, type HouseholdStrategy } from '../lib/household';
 import { computeBreakEvens } from '../lib/benefitMath';
-import { toNominal, toNominalAmount, type DollarsMode } from '../lib/dollarsMode';
+import { toNominal, toNominalAmount, toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
 import { personLabel } from '../lib/format';
 import { firstDeath } from '../lib/incomeCliff';
 import { StrategyComparisonTable } from './StrategyComparisonTable';
@@ -66,15 +66,21 @@ function nominalComparisons(
  * Recomputing locally is cheap (pure array math over ≤9 claiming-age rows)
  * and keeps this section live.
  *
- * `dollarsMode` is applied exactly once here, before any of the three
- * dependent displays see the data: the chart's `timeline`, the strategy
- * table's `comparisons` (its survivor-income column), and the cliff callout
- * (via `displayAnalysis`, which carries the same transformed timeline) all
- * read the SAME already-transformed values rather than each calling
- * `toNominal` themselves — a chart in nominal beside a callout still in real
- * is the exact defect class this toggle exists to avoid, and three
- * independent transforms agreeing by construction is weaker than one
- * transform read three times.
+ * `dollarsMode` is applied exactly once here, before any of the four
+ * dependent displays see the data: the chart's `monthlySeries`, the strategy
+ * table's `comparisons` (its survivor-income column), the cliff callout (via
+ * `displayAnalysis`, which carries the same transformed `combinedTimeline`)
+ * all read the SAME already-transformed values rather than each calling
+ * `toNominal`/`toNominalMonthly` themselves — a chart in nominal beside a
+ * callout still in real is the exact defect class this toggle exists to
+ * avoid, and independent transforms agreeing by construction is weaker than
+ * one transform read everywhere. The chart's own series is a SEPARATE
+ * transform call (`toNominalMonthly`, not `toNominal` — see
+ * `buildMonthlyIncomeSeries`/`dollarsMode.ts` for why one function can't
+ * serve both shapes) over a SEPARATE input (`analysis.periods`, not
+ * `analysis.combinedTimeline`), but both calls read the same `dollarsMode`,
+ * `annualCola` and `asOfYear` right here, so the toggle still moves every
+ * surface together by construction.
  *
  * Uses the live `annualCola` prop, not `analysis.assumptions.annualCola` —
  * the same choice `breakEvens` above makes and for the same reason: the
@@ -84,11 +90,11 @@ function nominalComparisons(
  * for the anchor year regardless, since "today" for this analysis doesn't
  * change with the slider.
  *
- * Each of the three derived values is memoized on `[analysis, annualCola,
- * dollarsMode, asOfYear]` — `analysis.combinedTimeline` is otherwise a
- * stable array identity, and rebuilding a fresh one (and a fresh
- * `comparisons` array) on every unrelated re-render would hand `Area`/table
- * children new object identities for data that hadn't actually changed.
+ * Each derived value is memoized on `[analysis, annualCola, dollarsMode,
+ * asOfYear]` — `analysis.combinedTimeline`/`analysis.periods` are otherwise
+ * stable array identities, and rebuilding fresh ones on every unrelated
+ * re-render would hand `Area`/table children new object identities for data
+ * that hadn't actually changed.
  */
 export function HouseholdPanel({
   analysis,
@@ -134,6 +140,19 @@ export function HouseholdPanel({
         : analysis,
     [analysis, dollarsMode, displayTimeline, displayComparisons],
   );
+  // The chart's own series — monthly, not the annual `displayTimeline`
+  // above. Built from `analysis.periods` (the raw engine bands) via
+  // `buildMonthlyIncomeSeries`, then through the SAME dollars-mode decision
+  // as every other derived value here, via `toNominalMonthly` rather than
+  // `toNominal` (which has no field for `monthIndex` and would silently drop
+  // it — see `dollarsMode.ts`).
+  const displayMonthlySeries = useMemo(() => {
+    const monthly = buildMonthlyIncomeSeries(
+      analysis.periods,
+      analysis.people.map((p) => p.person),
+    );
+    return dollarsMode === 'nominal' ? toNominalMonthly(monthly, annualCola, asOfYear) : monthly;
+  }, [analysis, annualCola, dollarsMode, asOfYear]);
 
   return (
     <div className="results">
@@ -151,7 +170,7 @@ export function HouseholdPanel({
       />
 
       <CombinedIncomeChart
-        timeline={displayTimeline}
+        monthlySeries={displayMonthlySeries}
         people={people}
         survivorGap={analysis.survivorGap}
         finalIndexByPersonId={analysis.finalIndexByPersonId}

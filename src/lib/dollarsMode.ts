@@ -13,7 +13,7 @@
  * justify itself by being the one that requires a transform.
  */
 import { roundCents } from './benefitMath';
-import type { CombinedTimelinePoint } from './household';
+import type { CombinedTimelinePoint, MonthlyIncomePoint } from './household';
 
 export type DollarsMode = 'real' | 'nominal';
 
@@ -75,4 +75,33 @@ export function toNominalAmount(
     asOfYear,
   );
   return transformed.total;
+}
+
+/**
+ * `toNominal`'s monthly counterpart, for the chart's own series
+ * (`buildMonthlyIncomeSeries` in `household.ts`) — same compounding, same
+ * `nominalFactor`/`scale` helpers, keyed off each point's `year` exactly as
+ * `toNominal` is (the COLA compounds once per calendar year regardless of
+ * which month within it a point falls on, so every month of the same year
+ * gets the same factor). Kept separate from `toNominal` rather than
+ * generalized onto it, since `toNominal`'s return type is relied on
+ * elsewhere to be exactly `CombinedTimelinePoint[]`; this one instead
+ * preserves `monthIndex`, which `toNominal` has no field for and would
+ * otherwise silently drop.
+ */
+export function toNominalMonthly(
+  series: MonthlyIncomePoint[],
+  annualCola: number,
+  asOfYear: number,
+): MonthlyIncomePoint[] {
+  return series.map((point) => {
+    const factor = nominalFactor(annualCola, asOfYear, point.year);
+    return {
+      monthIndex: point.monthIndex,
+      year: point.year,
+      bySeries: scale(point.bySeries, factor),
+      byPersonId: scale(point.byPersonId, factor),
+      total: roundCents(point.total * factor),
+    };
+  });
 }

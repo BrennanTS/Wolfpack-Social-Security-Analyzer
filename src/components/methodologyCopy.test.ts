@@ -720,20 +720,21 @@ describe('survivorIncomeCaption', () => {
  * survivor segment. These tests pin the corrected "segments sum to" wording
  * and the new survivor-increment explanation against drifting back.
  *
- * Rewritten a third time when `buildCombinedTimeline` stopped prorating a
- * filing or final year to the months actually paid and started crediting the
- * full annual rate instead: "segments... sum to what they were actually
- * paid... counting only the months actually paid" became false in the most
- * direct way — a filing year and a final year now render at full height. The
- * tests below pin the "annual rate... not what actually changed hands"
- * wording that replaced it.
+ * Rewritten a third time (crediting a band's full annual rate to every year
+ * it merely touched) and partly undone in a fourth once that version turned
+ * out to double-count a transition year shared by an outgoing and an
+ * incoming band — the chart moved to its own MONTHLY series instead
+ * (`buildMonthlyIncomeSeries` in `household.ts`), which has no year-bucket
+ * artifact left to disclose. The third rewrite's added clause ("a filing
+ * year and a final year render at the same height as a full one") is
+ * therefore gone, not reworded again; the tests below pin its absence
+ * alongside the "annual rate" framing that survives every version.
  */
 describe('combinedIncomeCaption', () => {
   it('claims spousal and survivor segments are included when they are', () => {
     const caption = combinedIncomeCaption(null);
     expect(caption).toContain('their own benefit, plus any spousal or survivor segment');
     expect(caption).toContain('annual rate');
-    expect(caption).toContain('only part of each is actually paid');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
     expect(caption).not.toContain('No survivor segment is included');
   });
@@ -750,15 +751,21 @@ describe('combinedIncomeCaption', () => {
     expect(caption).toContain('No survivor segment is included for this household');
     // The parts that stay true either way.
     expect(caption).toContain('annual rate');
-    expect(caption).toContain('only part of each is actually paid');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
   });
 
-  it('says the filing and final year render at full height though only part is paid', () => {
+  // The clause a briefly-shipped, calendar-year-bucketed version of the
+  // chart needed and a monthly-resolution one does not — a month is either
+  // inside a band or it isn't, so there is no partial-year height to
+  // disclose. Pinned absent rather than left untested, since this exact
+  // clause shipped once already and is the obvious thing to accidentally
+  // reintroduce.
+  it('does not claim a filing or final year renders at full height, now that the chart is monthly', () => {
     const caption = combinedIncomeCaption(null);
-    expect(caption).toMatch(/filing year and a final year render at the same height as a full one/i);
+    expect(caption).not.toMatch(/filing year and a final year render at the same height/i);
     expect(caption).not.toMatch(/shorter than a full one/i);
     expect(caption).not.toMatch(/counting only the months actually paid/i);
+    expect(caption).not.toMatch(/only part of each is actually paid/i);
   });
 
   it('treats an unpassed gap the same as no gap', () => {

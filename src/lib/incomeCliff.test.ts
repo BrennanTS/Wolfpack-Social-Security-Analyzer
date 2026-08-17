@@ -188,10 +188,12 @@ describe('incomeCliff', () => {
     expect(firstDeath(['a', 'b'], { a: 500, b: 600 })).toEqual({
       deathYear: Math.floor(500 / 12),
       survivorIndex: 1,
+      deathMonthIndex: 500,
     });
     expect(firstDeath(['a', 'b'], { a: 600, b: 500 })).toEqual({
       deathYear: Math.floor(500 / 12),
       survivorIndex: 0,
+      deathMonthIndex: 500,
     });
   });
 });

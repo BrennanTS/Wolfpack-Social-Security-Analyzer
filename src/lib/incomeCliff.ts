@@ -31,6 +31,16 @@ export interface FirstDeath {
   deathYear: number;
   /** Index (0 or 1), in `people`/id-array order, of whoever survives. */
   survivorIndex: 0 | 1;
+  /**
+   * The deceased's own inclusive final month, on the same absolute-month
+   * index `BenefitBand` uses — the exact month the household's income shape
+   * changes is one month later. Exposed so a consumer that needs
+   * month-precision (the chart's monthly series, for its "First death"
+   * marker) reads it from here rather than re-deriving `Math.min` over the
+   * two final indexes itself — the same duplication risk `deathYear` exists
+   * to prevent, at finer grain.
+   */
+  deathMonthIndex: number;
 }
 
 /**
@@ -64,9 +74,10 @@ export function firstDeath(
   // first.
   const firstIndex = finalIndexes[0] < finalIndexes[1] ? 0 : 1;
   const survivorIndex: 0 | 1 = firstIndex === 0 ? 1 : 0;
-  const deathYear = Math.floor(finalIndexes[firstIndex] / 12);
+  const deathMonthIndex = finalIndexes[firstIndex];
+  const deathYear = Math.floor(deathMonthIndex / 12);
 
-  return { deathYear, survivorIndex };
+  return { deathYear, survivorIndex, deathMonthIndex };
 }
 
 /**

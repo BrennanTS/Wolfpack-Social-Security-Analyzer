@@ -6,9 +6,9 @@ import { render, screen } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ReferenceLine } from 'recharts';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
-import { analyzeHousehold } from '../lib/household';
+import { analyzeHousehold, buildMonthlyIncomeSeries } from '../lib/household';
 import type { SurvivorGap } from '../lib/benefitPeriods';
-import type { CombinedTimelinePoint } from '../lib/household';
+import type { MonthlyIncomePoint } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -59,9 +59,9 @@ const blythe: Person = {
 };
 const zeroSpousalAssumptions = { annualCola: 0, discountRate: 0.025 };
 
-let timelineWithSpousal: CombinedTimelinePoint[];
-let timelineWithSurvivor: CombinedTimelinePoint[];
-let timelineWithZeroSpousal: CombinedTimelinePoint[];
+let monthlySeriesWithSpousal: MonthlyIncomePoint[];
+let monthlySeriesWithSurvivor: MonthlyIncomePoint[];
+let monthlySeriesWithZeroSpousal: MonthlyIncomePoint[];
 
 beforeAll(async () => {
   const spousalResult = await analyzeHousehold(
@@ -69,7 +69,7 @@ beforeAll(async () => {
     assumptions,
     asOf,
   );
-  timelineWithSpousal = spousalResult.combinedTimeline;
+  monthlySeriesWithSpousal = buildMonthlyIncomeSeries(spousalResult.periods, [dan, noRecordSarah]);
 
   // dan/sarah (real figures both ways) — confirmed by `household.test.ts`
   // ("exposes the engine periods on the analysis") to produce a genuine
@@ -79,14 +79,14 @@ beforeAll(async () => {
     assumptions,
     asOf,
   );
-  timelineWithSurvivor = survivorResult.combinedTimeline;
+  monthlySeriesWithSurvivor = buildMonthlyIncomeSeries(survivorResult.periods, [dan, sarah]);
 
   const zeroResult = await analyzeHousehold(
     { status: 'married', people: [avery, blythe] },
     zeroSpousalAssumptions,
     asOf,
   );
-  timelineWithZeroSpousal = zeroResult.combinedTimeline;
+  monthlySeriesWithZeroSpousal = buildMonthlyIncomeSeries(zeroResult.periods, [avery, blythe]);
   // Guard: if the optimizer ever stopped filing Blythe past her own FRA,
   // this fixture would stop being the $0-band case, and the "omits a band"
   // test below would pass vacuously — there would be no band to hide. Fail
@@ -101,12 +101,19 @@ beforeAll(async () => {
 
 const people = [dan, sarah];
 
-// `bySeries` added so this fixture still satisfies `CombinedTimelinePoint`;
+// `bySeries` added so this fixture still satisfies `MonthlyIncomePoint`;
 // the exact composition doesn't matter for the caption/note tests below,
 // which don't read the series breakdown.
-const timeline: CombinedTimelinePoint[] = [
-  { year: 2030, bySeries: { 'a:personal': 24000 }, byPersonId: { a: 24000, b: 0 }, total: 24000 },
+const monthlySeries: MonthlyIncomePoint[] = [
   {
+    monthIndex: 2030 * 12,
+    year: 2030,
+    bySeries: { 'a:personal': 24000 },
+    byPersonId: { a: 24000, b: 0 },
+    total: 24000,
+  },
+  {
+    monthIndex: 2031 * 12,
     year: 2031,
     bySeries: { 'a:personal': 24000, 'b:personal': 18000 },
     byPersonId: { a: 24000, b: 18000 },
@@ -117,10 +124,11 @@ const timeline: CombinedTimelinePoint[] = [
 // For the single-claimant tests below: `visibleBenefitSeries` now throws if
 // a `bySeries` key names someone absent from `people` (see household.ts —
 // that used to default silently to person 0, drawing a wrong label with no
-// visible error), so a single-person `people` array needs a timeline whose
-// series only ever name that one person, not the two-person `timeline` above.
-const singleTimeline: CombinedTimelinePoint[] = [
-  { year: 2030, bySeries: { 'a:personal': 24000 }, byPersonId: { a: 24000 }, total: 24000 },
+// visible error), so a single-person `people` array needs a series whose
+// points only ever name that one person, not the two-person `monthlySeries`
+// above.
+const singleMonthlySeries: MonthlyIncomePoint[] = [
+  { monthIndex: 2030 * 12, year: 2030, bySeries: { 'a:personal': 24000 }, byPersonId: { a: 24000 }, total: 24000 },
 ];
 
 /**
@@ -136,38 +144,38 @@ const singleTimeline: CombinedTimelinePoint[] = [
 describe('CombinedIncomeChart', () => {
   it('renders without throwing for a two-person household', () => {
     expect(() =>
-      render(<CombinedIncomeChart timeline={timeline} people={people} />),
+      render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />),
     ).not.toThrow();
   });
 
   it('renders without throwing for a single-person household', () => {
     expect(() =>
-      render(<CombinedIncomeChart timeline={singleTimeline} people={[people[0]]} />),
+      render(<CombinedIncomeChart monthlySeries={singleMonthlySeries} people={[people[0]]} />),
     ).not.toThrow();
   });
 
   it('labels the legend with personLabel names, not raw ids', () => {
-    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     expect(screen.getByText(/Dan/)).toBeDefined();
     expect(screen.getByText(/Sarah/)).toBeDefined();
   });
 
   it('falls back to Client/Spouse when a person has no name', () => {
     const unnamed = [{ id: 'a' }, { id: 'b' }] as Person[];
-    render(<CombinedIncomeChart timeline={timeline} people={unnamed} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={unnamed} />);
     expect(screen.getByText(/Client/)).toBeDefined();
     expect(screen.getByText(/Spouse/)).toBeDefined();
   });
 
-  // `buildCombinedTimeline` now sums the engine's benefit-period bands, so a
+  // `buildMonthlyIncomeSeries` sums the engine's benefit-period bands, so a
   // person's band is their personal benefit PLUS any spousal and survivor
-  // benefit, credited at its full annual rate for every year it pays at
-  // least one month. The caption used to say the exact opposite of all
-  // three — that bands were own-benefit-only, that a no-record spouse showed
-  // as $0, and that survivor benefits were unmodeled. These guard the
-  // corrected caption against drifting back.
+  // benefit, credited at its full annual rate for every month it pays. The
+  // caption used to say the exact opposite of all three — that bands were
+  // own-benefit-only, that a no-record spouse showed as $0, and that
+  // survivor benefits were unmodeled. These guard the corrected caption
+  // against drifting back.
   it('says the bands include spousal and survivor benefits, for a couple', () => {
-    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
     expect(caveat.textContent).toMatch(/spousal or survivor segment/i);
     // The claims the rebase falsified must not come back.
@@ -185,7 +193,7 @@ describe('CombinedIncomeChart', () => {
   // rather than replacing it, against drifting back to either the old
   // wording or silence.
   it("says each person's segments show the annual rate, and explains the survivor increment", () => {
-    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
     expect(caveat.textContent).toMatch(/segments show the annual rate they.re paid/i);
     expect(caveat.textContent).toMatch(/survivor segment is the increment above the personal band/i);
@@ -195,36 +203,31 @@ describe('CombinedIncomeChart', () => {
     expect(caveat.textContent).not.toMatch(/sum to what they were actually paid/i);
   });
 
-  // `buildCombinedTimeline` now credits a band's full annual rate to every
-  // year it pays at least one month, rather than prorating a filing or final
-  // year to the months actually paid — the change that turns the misleading
-  // slope at the start and end of every band into a flat line with a clean
-  // step. The caption has to disclose the resulting cost: a filing year and
-  // a final year render at full height though only part of each is paid.
-  it('discloses that a filing year and a final year render at full height though only part is paid', () => {
-    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+  // The chart is plotted at MONTHLY resolution (`buildMonthlyIncomeSeries`),
+  // so there is no year-bucket artifact left to disclose — a month is either
+  // inside a band or it isn't. An earlier, calendar-year-bucketed version of
+  // the chart needed a clause here saying a filing/final year rendered at
+  // full height though only part was paid; that clause shipped once and was
+  // removed once the resolution changed, so it's worth pinning its absence
+  // rather than leaving it untested.
+  it('does not claim a filing or final year renders at full height', () => {
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
     expect(caveat.textContent).toMatch(/annual rate/i);
-    expect(caveat.textContent).toMatch(
-      /filing year and a final year render at the same height as a full one/i,
-    );
-    expect(caveat.textContent).toMatch(/only part of each is actually paid/i);
-    // The old, now-false claim: the previous wording said a partial year was
-    // shorter than a full one, which stopped being true once the bands
-    // stopped prorating.
+    expect(caveat.textContent).not.toMatch(/filing year and a final year render at the same height/i);
     expect(caveat.textContent).not.toMatch(/shorter than a full one/i);
   });
 
   it('states that the amounts carry no cost-of-living adjustment', () => {
-    // `HouseholdPanel` passes the timeline straight to the chart, so the COLA
+    // `HouseholdPanel` passes the series straight to the chart, so the COLA
     // slider never reaches these figures. Saying so is the honest caption.
-    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
     expect(caveat.textContent).toMatch(/before any cost-of-living adjustment/i);
   });
 
   it('omits the caveat for a single claimant, who has no second band', () => {
-    render(<CombinedIncomeChart timeline={singleTimeline} people={[people[0]]} />);
+    render(<CombinedIncomeChart monthlySeries={singleMonthlySeries} people={[people[0]]} />);
     expect(screen.queryByTestId('combined-income-caveat')).toBeNull();
   });
 
@@ -255,7 +258,7 @@ describe('CombinedIncomeChart', () => {
   // second, conditional sentence saying so.
   it('discloses the unmodeled survivor direction when there is one', () => {
     render(
-      <CombinedIncomeChart timeline={timeline} people={people} survivorGap={contemporaneous} />,
+      <CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={contemporaneous} />,
     );
     const note = screen.getByTestId('survivor-gap-note');
     expect(note.textContent).toMatch(/no step-up is shown for Sarah/i);
@@ -269,7 +272,7 @@ describe('CombinedIncomeChart', () => {
   // rendered unconditionally while the note beneath said otherwise.
   it('stops claiming survivor benefits are included when they are not', () => {
     render(
-      <CombinedIncomeChart timeline={timeline} people={people} survivorGap={contemporaneous} />,
+      <CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={contemporaneous} />,
     );
     const caveat = screen.getByTestId('combined-income-caveat');
     expect(caveat.textContent).not.toMatch(/or survivor segment is included/i);
@@ -277,7 +280,7 @@ describe('CombinedIncomeChart', () => {
   });
 
   it('quotes no figure on screen for a survivor who has not filed at the death', () => {
-    render(<CombinedIncomeChart timeline={timeline} people={people} survivorGap={notFiled} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={notFiled} />);
     const note = screen.getByTestId('survivor-gap-note');
     expect(note.textContent).toMatch(/has not filed on their own record by then/i);
     // Exactly one dollar figure, and it is the deceased's — the survivor is
@@ -286,7 +289,7 @@ describe('CombinedIncomeChart', () => {
   });
 
   it('says on screen that a step-up cannot begin before 60', () => {
-    render(<CombinedIncomeChart timeline={timeline} people={people} survivorGap={under60} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={under60} />);
     const note = screen.getByTestId('survivor-gap-note');
     expect(note.textContent).toMatch(/is under 60 then/i);
     expect(note.textContent).toMatch(/from age 60 onward/i);
@@ -294,25 +297,25 @@ describe('CombinedIncomeChart', () => {
   });
 
   it('shows no survivor-gap note when the engine models the direction', () => {
-    render(<CombinedIncomeChart timeline={timeline} people={people} survivorGap={null} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={null} />);
     expect(screen.queryByTestId('survivor-gap-note')).toBeNull();
   });
 
   it('shows no survivor-gap note when the prop is omitted entirely', () => {
-    render(<CombinedIncomeChart timeline={timeline} people={people} />);
+    render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     expect(screen.queryByTestId('survivor-gap-note')).toBeNull();
   });
 
   describe('one legend entry per benefit type', () => {
     it('renders a legend entry per benefit type, not per person', () => {
       render(
-        <CombinedIncomeChart timeline={timelineWithSpousal} people={[dan, noRecordSarah]} />,
+        <CombinedIncomeChart monthlySeries={monthlySeriesWithSpousal} people={[dan, noRecordSarah]} />,
       );
       expect(screen.getByText(/Sarah — spousal/)).toBeInTheDocument();
       expect(screen.getByText(/Dan — own benefit/)).toBeInTheDocument();
     });
 
-    it('omits a band and its legend entry when every year of it is zero', () => {
+    it('omits a band and its legend entry when every month of it is zero', () => {
       // Scoped to the legend row, not the whole document: the caveat
       // paragraph above unconditionally says "any spousal or survivor
       // segment" — that's a statement about what the chart is capable of
@@ -320,7 +323,7 @@ describe('CombinedIncomeChart', () => {
       // a document-wide query for /spousal/i even once the zero band is
       // correctly dropped.
       const { container } = render(
-        <CombinedIncomeChart timeline={timelineWithZeroSpousal} people={[avery, blythe]} />,
+        <CombinedIncomeChart monthlySeries={monthlySeriesWithZeroSpousal} people={[avery, blythe]} />,
       );
       const legend = container.querySelector('.chart-legend-row');
       expect(legend?.textContent).not.toMatch(/spousal/i);
@@ -373,42 +376,47 @@ describe('CombinedIncomeChart', () => {
         : label;
     }
 
-    it('marks each person filing and the first death', () => {
+    it('marks each person filing and the first death, at the exact month', () => {
       const finalIndexByPersonId = { a: 2046 * 12 + 2, b: 2040 * 12 + 8 };
       const tree = CombinedIncomeChart({
-        timeline: timelineWithSurvivor,
+        monthlySeries: monthlySeriesWithSurvivor,
         people: [dan, sarah],
         finalIndexByPersonId,
       });
       const lines = collectReferenceLines(tree);
 
-      const expectedDeathYear = Math.floor(
-        Math.min(finalIndexByPersonId.a, finalIndexByPersonId.b) / 12,
-      );
+      // The household's shape changes the month AFTER the deceased's own
+      // final month — that's where `buildMonthlyIncomeSeries` first stops
+      // including their band, so that's where the marker belongs.
+      const expectedDeathStepMonth =
+        Math.min(finalIndexByPersonId.a, finalIndexByPersonId.b) + 1;
       expect(
-        lines.some((rl) => rl.props.x === expectedDeathYear && labelText(rl) === 'First death'),
+        lines.some((rl) => rl.props.x === expectedDeathStepMonth && labelText(rl) === 'First death'),
       ).toBe(true);
 
-      // The filing years read off the same `byPersonId` roll-up the tooltip
-      // uses — "when the benefit was claimed" is the real data already on
-      // screen, not a second computation of a benefit rule.
-      const danFilingYear = timelineWithSurvivor.find((p) => (p.byPersonId.a ?? 0) > 0)!.year;
-      const sarahFilingYear = timelineWithSurvivor.find((p) => (p.byPersonId.b ?? 0) > 0)!.year;
+      // The filing months read off the same `byPersonId` roll-up the
+      // tooltip uses — "when the benefit was claimed" is the real data
+      // already on screen, not a second computation of a benefit rule.
+      const danFilingMonth = monthlySeriesWithSurvivor.find((p) => (p.byPersonId.a ?? 0) > 0)!
+        .monthIndex;
+      const sarahFilingMonth = monthlySeriesWithSurvivor.find((p) => (p.byPersonId.b ?? 0) > 0)!
+        .monthIndex;
       expect(
-        lines.some((rl) => rl.props.x === danFilingYear && labelText(rl) === 'Dan files'),
+        lines.some((rl) => rl.props.x === danFilingMonth && labelText(rl) === 'Dan files'),
       ).toBe(true);
       expect(
-        lines.some((rl) => rl.props.x === sarahFilingYear && labelText(rl) === 'Sarah files'),
+        lines.some((rl) => rl.props.x === sarahFilingMonth && labelText(rl) === 'Sarah files'),
       ).toBe(true);
     });
 
     it('omits the death marker for a single claimant', () => {
-      // `timelineWithSurvivor` is dan/sarah's real 2-person timeline, whose
-      // `bySeries` names both `a` and `b` — inconsistent with a single-person
-      // `people` array now that `visibleBenefitSeries` throws on that
-      // mismatch (see household.ts). `singleTimeline` names only `a`.
+      // `monthlySeriesWithSurvivor` is dan/sarah's real 2-person series,
+      // whose `bySeries` names both `a` and `b` — inconsistent with a
+      // single-person `people` array now that `visibleBenefitSeries` throws
+      // on that mismatch (see household.ts). `singleMonthlySeries` names
+      // only `a`.
       const tree = CombinedIncomeChart({
-        timeline: singleTimeline,
+        monthlySeries: singleMonthlySeries,
         people: [dan],
         finalIndexByPersonId: { a: 2046 * 12 + 2 },
       });
@@ -426,7 +434,7 @@ describe('CombinedIncomeChart', () => {
       // screen. One derivation, one answer.
       const tied = 2046 * 12 + 2;
       const tree = CombinedIncomeChart({
-        timeline: timelineWithSurvivor,
+        monthlySeries: monthlySeriesWithSurvivor,
         people: [dan, sarah],
         finalIndexByPersonId: { a: tied, b: tied },
       });
@@ -436,16 +444,16 @@ describe('CombinedIncomeChart', () => {
       expect(lines.some((rl) => labelText(rl) === 'Dan files')).toBe(true);
     });
 
-    // `XAxis` has no `type="number"`, so it's a category axis: a
-    // `ReferenceLine` whose `x` isn't one of the chart's own year categories
-    // renders nothing at all — reachable when the first death precedes the
-    // timeline's first year (a person who dies having never held a band).
-    // The component must recognize that case and skip constructing the
-    // marker, rather than build one that Recharts would have silently
-    // dropped anyway.
-    it('omits the death marker when the first death precedes the timeline, rather than silently vanishing', () => {
-      const isolatedTimeline: CombinedTimelinePoint[] = [
+    // `XAxis` is a numeric month-index axis: a `ReferenceLine` whose `x`
+    // falls outside the plotted domain renders nothing at all — reachable
+    // when the first death precedes the series' first month (a person who
+    // dies having never held a band). The component must recognize that
+    // case and skip constructing the marker, rather than build one Recharts
+    // would have silently dropped anyway.
+    it('omits the death marker when the first death precedes the series, rather than silently vanishing', () => {
+      const isolatedMonthlySeries: MonthlyIncomePoint[] = [
         {
+          monthIndex: 2030 * 12,
           year: 2030,
           bySeries: { 'a:personal': 24000, 'b:personal': 18000 },
           byPersonId: { a: 24000, b: 18000 },
@@ -453,9 +461,9 @@ describe('CombinedIncomeChart', () => {
         },
       ];
       const tree = CombinedIncomeChart({
-        timeline: isolatedTimeline,
+        monthlySeries: isolatedMonthlySeries,
         people: [dan, sarah],
-        // a's death (2010) precedes the timeline's first year (2030).
+        // a's death (2010) precedes the series' first month (2030).
         finalIndexByPersonId: { a: 2010 * 12 + 2, b: 2040 * 12 + 8 },
       });
       const lines = collectReferenceLines(tree);

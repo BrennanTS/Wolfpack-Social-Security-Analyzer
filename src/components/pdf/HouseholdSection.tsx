@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import { Page, Text, View, Svg, Line, Rect } from '@react-pdf/renderer';
 import {
+  buildMonthlyIncomeSeries,
   showSurvivorIncomeColumn,
   visibleBenefitSeries,
-  type CombinedTimelinePoint,
   type HouseholdAnalysis,
   type HouseholdStrategy,
+  type MonthlyIncomePoint,
 } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
 import { toNominalAmount } from '../../lib/dollarsMode';
@@ -101,19 +102,30 @@ export function StrategyTable({
 }
 
 /**
- * Compact stacked bar chart of combined annual household income by year, one
- * segment per benefit type (own benefit, spousal, survivor) — the same
- * decomposition `CombinedIncomeChart` draws on screen, from the same
- * `visibleBenefitSeries` selection, the same `seriesColor` palette and the
- * same `benefitSeriesLabel` legend text. Exported so `HouseholdSection.test.tsx`
- * can assert on its decomposition in isolation from the household page's own
- * caption text.
+ * Compact stacked bar chart of combined household income at MONTHLY
+ * resolution, one segment per benefit type (own benefit, spousal, survivor)
+ * — the same decomposition `CombinedIncomeChart` draws on screen, from the
+ * same `visibleBenefitSeries` selection, the same `seriesColor` palette and
+ * the same `benefitSeriesLabel` legend text, and now the same monthly series
+ * shape (`MonthlyIncomePoint`, built by `buildMonthlyIncomeSeries` from the
+ * raw engine bands rather than from `analysis.combinedTimeline`) — for the
+ * same reason the screen chart moved off calendar-year buckets: a bucket
+ * either prorates a partial year into a ramp or, if credited at the band's
+ * full annual rate instead, double-counts a transition year shared by an
+ * outgoing and an incoming band. Print and screen would otherwise show two
+ * different shapes for the same household under the one shared caption
+ * (`combinedIncomeCaption`) — this keeps that caption true of both. Bars are
+ * simply narrower (twelve per calendar year instead of one), which reads as
+ * a solid block wherever a band is flat and as a single narrow step at a
+ * transition, rather than visibly denser. Exported so
+ * `HouseholdSection.test.tsx` can assert on its decomposition in isolation
+ * from the household page's own caption text.
  */
 export function CombinedIncomeBars({
-  timeline,
+  monthlySeries,
   people,
 }: {
-  timeline: CombinedTimelinePoint[];
+  monthlySeries: MonthlyIncomePoint[];
   people: Person[];
 }) {
   const W = CONTENT_W;
@@ -124,21 +136,34 @@ export function CombinedIncomeBars({
   const padB = 14;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
-  const maxTotal = Math.max(...timeline.map((t) => t.total), 1);
-  const barW = plotW / timeline.length;
-  const labelStep = Math.max(1, Math.ceil(timeline.length / 8));
+  const maxTotal = Math.max(...monthlySeries.map((t) => t.total), 1);
+  const barW = plotW / monthlySeries.length;
 
-  const series = visibleBenefitSeries(timeline, people).map((s) => ({
+  const series = visibleBenefitSeries(monthlySeries, people).map((s) => ({
     ...s,
     name: benefitSeriesLabel(personLabel(people[s.personIndex]?.name, s.personIndex), s.type),
     color: seriesColor(s.personIndex, s.type),
   }));
 
+  // One label per CALENDAR YEAR, at the first month of that year in the
+  // series — not one per Nth data point, now that there are ~12 points per
+  // year rather than one. Thinned further (same `Math.ceil(.../8)` shape the
+  // old per-point version used) if there are too many years to fit.
+  const yearFirstIndex = new Map<number, number>();
+  const years: number[] = [];
+  monthlySeries.forEach((point, i) => {
+    if (!yearFirstIndex.has(point.year)) {
+      yearFirstIndex.set(point.year, i);
+      years.push(point.year);
+    }
+  });
+  const yearLabelStep = Math.max(1, Math.ceil(years.length / 8));
+
   return (
     <View>
       <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         <Line x1={padL} y1={padT + plotH} x2={W - padR} y2={padT + plotH} stroke={BORDER} strokeWidth={0.5} />
-        {timeline.map((point, i) => {
+        {monthlySeries.map((point, i) => {
           let yTop = padT + plotH;
           return series.map((s) => {
             const amount = point.bySeries[s.key] ?? 0;
@@ -147,7 +172,7 @@ export function CombinedIncomeBars({
             yTop = y;
             return (
               <Rect
-                key={`${point.year}-${s.key}`}
+                key={`${point.monthIndex}-${s.key}`}
                 x={padL + i * barW + 0.5}
                 y={y}
                 width={Math.max(barW - 1, 0.5)}
@@ -157,16 +182,16 @@ export function CombinedIncomeBars({
             );
           });
         })}
-        {timeline.map((point, i) =>
-          i % labelStep === 0 ? (
+        {years.map((year, yearIdx) =>
+          yearIdx % yearLabelStep === 0 ? (
             <Text
-              key={`lbl-${point.year}`}
-              x={padL + i * barW + barW / 2}
+              key={`lbl-${year}`}
+              x={padL + yearFirstIndex.get(year)! * barW + barW / 2}
               y={H - 3}
               style={{ fontSize: 5.5, fill: MUTED }}
               textAnchor="middle"
             >
-              {point.year}
+              {year}
             </Text>
           ) : null,
         )}
@@ -264,7 +289,10 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       </Text>
       {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
       <View style={styles.chartBox}>
-        <CombinedIncomeBars timeline={analysis.combinedTimeline} people={people} />
+        <CombinedIncomeBars
+          monthlySeries={buildMonthlyIncomeSeries(analysis.periods, people)}
+          people={people}
+        />
       </View>
 
       {cliff && (
