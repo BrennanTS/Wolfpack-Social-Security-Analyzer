@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Analyzer } from './Analyzer';
+import { ABOUT_CARDS } from '../lib/about';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
@@ -194,10 +195,19 @@ describe('Analyzer', () => {
         // married couple optimizer runs a real search, so this needs more
         // than vitest's default 5s test timeout.
         await screen.findByTestId('methodology-spousal', {}, { timeout: 10000 });
-        // "Early claiming (before FRA)" is one of the four card titles that
-        // moved verbatim to About — if a card were left behind (or
-        // reintroduced) on the main surface, this is present there too.
-        expect(screen.queryByText('Early claiming (before FRA)')).not.toBeInTheDocument();
+        // All four cards that moved to About — not just one of them.
+        // Checking a single title left a partial regression undetected: a
+        // card left behind or reintroduced would pass so long as it wasn't
+        // the one title this test happened to check. Sourced from
+        // `ABOUT_CARDS` itself so this list cannot drift out of sync with
+        // what actually moved.
+        for (const card of ABOUT_CARDS) {
+          expect(screen.queryByText(card.title)).not.toBeInTheDocument();
+        }
+        // And the one card that's supposed to stay actually did — an
+        // implementation that deleted the spousal card too would otherwise
+        // satisfy the absence checks above just as well.
+        expect(screen.getByText('Spousal benefits')).toBeInTheDocument();
       },
       15000,
     );
