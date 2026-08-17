@@ -48,7 +48,9 @@ spousalTopUp?: { atFra; atRecommendedFilingAge; startsAtSpouseAge: string | null
 Two properties of the bands you must design around:
 
 - **Survivor is a top-up on a continuing personal band.** The engine emits Survivor as *replacing* Personal at the full amount; 2b-i splits it so the personal band continues and the survivor band carries the difference. So the survivor band is **already** the increment — do not subtract anything again.
-- **The deceased's personal band was extended to the survivor's death**, not their own. This makes the first-death month **underivable from the bands**, which is why Task 1 exposes it explicitly.
+- **The first-death month is not derivable from the bands**, which is why Task 1 exposes it explicitly. A person who dies before filing holds no band at all, so their death month is nowhere in the band ends to be read.
+
+  *(Corrected after execution, and this is the sentence Phase 3 will design from — the original wording was wrong. It said the split "extends the deceased's personal band to the survivor's death." It does not: `splitDualEntitlement` carries forward `latestPersonalBand(bands, survivor.personId)` — the **survivor's own** band — and the engine already ends the earner's personal periods at `earnerFinalDate`, `strategy-calc.ts:104-110`. The field is still needed, for the reason stated above.)*
 
 ---
 
