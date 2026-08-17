@@ -224,9 +224,11 @@ describe('widowedSearchRanges', () => {
     // drawn since Aug 2024 would be reported as starting in Jan 2026, at a
     // different age and a different (unreduced-by-less) amount.
     //
-    // Both dates are set here so BOTH branches of `widowedSearchRanges` are
-    // covered — the early return and the per-axis one — and both sit before
-    // `asOf`, which is the whole point.
+    // Three of `widowedSearchRanges`'s paths are exercised here, not just the
+    // early return above: the both-claimed early return, the per-axis
+    // SURVIVOR ternary (`survivorOnly` below), and the per-axis OWN ternary
+    // (`ownOnly` below) — each with a past date that must come back
+    // unfloored.
     // A 1958-born widow, not `free`'s 1964 one: an already-claimed OWN filing
     // date in the past has to be a date she was at least 62 on, and `free`'s
     // widow does not reach 62 until after `asOf`. This household is the real
@@ -263,6 +265,20 @@ describe('widowedSearchRanges', () => {
       survivorSinceIndex,
     ]);
     expect(bestWidowedOutcome(survivorOnly).survivorClaimIndex).toBe(survivorSinceIndex);
+
+    // And the own-axis analogue: she has filed on her own record but has not
+    // yet claimed the survivor benefit — a common real household shape, and
+    // the one the per-axis OWN ternary handles. Flooring it to
+    // `scoringStartIndex` (the way a searched candidate is floored) would
+    // silently restate her 2023 filing as starting in `asOf`, at a different
+    // age and a different (unreduced-by-less) amount.
+    const ownOnly: WidowedInput = {
+      ...free,
+      survivor: { ...widow, birthYear: 1958 },
+      alreadyClaimed: { survivorSince: null, ownSince: { year: 2023, month: 3 } },
+    };
+    expect(widowedSearchRanges(ownOnly).own).toEqual([ownSinceIndex, ownSinceIndex]);
+    expect(bestWidowedOutcome(ownOnly).ownFilingIndex).toBe(ownSinceIndex);
   });
 
   it('clamps a death-month survivor date in the both-already-claimed path too', () => {
