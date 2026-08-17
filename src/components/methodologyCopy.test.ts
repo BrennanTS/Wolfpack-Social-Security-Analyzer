@@ -1212,22 +1212,25 @@ describe('survivorClaimNote', () => {
       baselineHasSurvivorBand: true,
     })!;
     expect(note).toContain('This is not a recommendation');
-    // Discriminating: the `true` branch names the date the plan already
+    // Discriminating: the `true` branch names the date the chart already
     // shows, and must not also read like the `false` branch, which claims no
     // such date is shown at all — a ternary bug that swapped the two would
     // pass a merely-`toContain` check on either alone.
     expect(note).toContain('instead of the date');
     expect(note).not.toContain('does not otherwise show');
+    // Points at the chart, not an invented "plan" noun — the thing that
+    // actually shows a survivor-benefit start date on this page.
+    expect(note).toContain('the chart above');
   });
 
-  it('does not claim the alternative is earlier than a plan the baseline never showed', () => {
+  it('does not claim the alternative is earlier than a chart the baseline never showed it on', () => {
     // `baselineHasSurvivorBand: false` means there is NO survivor benefit
     // anywhere on screen for this figure to be an alternative to — a phrase
-    // like "earlier than the plan shows" would be false here, since the plan
-    // shows nothing. Discriminating in the same way as the `true`-branch test
-    // above: deleting the ternary and always emitting the `true` clause must
-    // fail THIS assertion, where the previous, non-discriminating regexes
-    // did not.
+    // like "earlier than the chart shows" would be false here, since the
+    // chart shows nothing. Discriminating in the same way as the
+    // `true`-branch test above: deleting the ternary and always emitting the
+    // `true` clause must fail THIS assertion, where a merely-`toMatch`
+    // regex calibrated to the wrong phrasing would not.
     const note = survivorClaimNote({
       claimIndex: 2035 * 12 + 4,
       claimAge: '60',
@@ -1241,15 +1244,32 @@ describe('survivorClaimNote', () => {
     expect(note).toMatch(/\$102,960/);
     expect(note).toContain('does not otherwise show');
     expect(note).not.toContain('instead of the date');
+    expect(note).toContain('the chart above');
   });
 
-  it('states its own dollars basis and disclaims present value, independent of any toggle', () => {
+  it('disclaims present value unconditionally, in both dollars modes', () => {
+    const build = (mode: 'real' | 'nominal') =>
+      survivorClaimNote(
+        {
+          claimIndex: 2036 * 12 + 4,
+          claimAge: '68 years, 0 months',
+          survivorLabel: 'Sarah',
+          baselineTotal: 300_000,
+          bestTotal: 435_700,
+          gain: 135_700,
+          baselineHasSurvivorBand: true,
+        },
+        mode,
+      )!;
+    expect(build('real')).toMatch(/not a present value/i);
+    expect(build('nominal')).toMatch(/not a present value/i);
+  });
+
+  it('states its dollars basis only in nominal mode, where the figure and the page can disagree', () => {
     // `gain`/`baselineTotal`/`bestTotal` are real-dollars sums straight off
-    // the engine's bands and are never run through the nominal transform —
-    // this function has no `mode` parameter to get that wrong, and always
-    // states 'real' regardless of what the page's dollars-mode toggle
-    // currently shows elsewhere.
-    const note = survivorClaimNote({
+    // the engine's bands and are NEVER run through the nominal transform —
+    // `mode` here only decides whether to SAY so, never whether to convert.
+    const alt = {
       claimIndex: 2036 * 12 + 4,
       claimAge: '68 years, 0 months',
       survivorLabel: 'Sarah',
@@ -1257,10 +1277,32 @@ describe('survivorClaimNote', () => {
       bestTotal: 435_700,
       gain: 135_700,
       baselineHasSurvivorBand: true,
-    })!;
-    expect(note).toContain('today’s dollars, before any cost-of-living adjustment');
-    expect(note).not.toMatch(/nominal/i);
-    expect(note).toMatch(/not a present value/i);
+    };
+
+    // Real mode (the default, and print's only mode): `incomeCliffSentence`
+    // directly above already states this exact clause, so repeating it here
+    // would print the identical sentence twice on one page. The clause must
+    // be ABSENT — this is the assertion that matters, not the presence check
+    // below.
+    const real = survivorClaimNote(alt, 'real')!;
+    expect(real).not.toMatch(/nominal/i);
+    expect(real).not.toContain('today’s dollars, before any cost-of-living adjustment');
+
+    // Nominal mode: the figure above says future dollars, this figure has
+    // not moved, and that mismatch is exactly what the clause exists to
+    // prevent a reader from missing. The GAIN ITSELF must be unchanged
+    // between the two calls — only the disclosure differs.
+    const nominal = survivorClaimNote(alt, 'nominal')!;
+    expect(nominal).toContain('today’s dollars, before any cost-of-living adjustment');
+    expect(nominal).toContain('$135,700');
+    expect(real.replace(/\s*Unlike the figures above,.*?adjustment\.\s*/, ' ')).toBe(
+      nominal.replace(/\s*Unlike the figures above,.*?adjustment\.\s*/, ' '),
+    );
+
+    // The default with no `mode` argument at all matches the explicit
+    // `'real'` call — every pre-existing call site keeps its exact prior
+    // wording.
+    expect(survivorClaimNote(alt)).toBe(real);
   });
 
   it('reads correctly for a bare-year claim age, e.g. exactly 60', () => {

@@ -230,6 +230,66 @@ describe('HouseholdPanel', () => {
     expect(queryByTestId('survivor-claim-note')).toBeNull();
   });
 
+  // Wiring for the dollars-basis clause: `HouseholdPanel` passes `dollarsMode`
+  // through to `SurvivorClaimNote` unchanged (never through `toNominal*` —
+  // the figure itself must not move), only so the note can decide whether to
+  // STATE the basis. Real mode must omit it (the callout above already said
+  // so); nominal mode must include it (the one case the two figures can be
+  // mistaken for the same basis).
+  it('passes dollarsMode through to the survivor-claim note without transforming the figure', () => {
+    const personA = buildPersonAnalysis('a', 'Dan');
+    const personB = buildPersonAnalysis('b', 'Sarah');
+    const married = {
+      ...buildAnalysis(),
+      status: 'married',
+      people: [personA, personB],
+      finalIndexByPersonId: { a: 2047 * 12 + 3, b: 2052 * 12 + 1 },
+      combinedTimeline: [
+        { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
+        { year: 2047, bySeries: {}, byPersonId: {}, total: 55000 },
+        { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
+      ],
+      survivorClaim: {
+        claimIndex: 2047 * 12 + 5,
+        claimAge: '68 years, 0 months',
+        survivorLabel: 'Sarah',
+        baselineTotal: 300_000,
+        bestTotal: 435_700,
+        gain: 135_700,
+        baselineHasSurvivorBand: true,
+      },
+    } as HouseholdAnalysis;
+
+    const real = render(
+      <HouseholdPanel
+        analysis={married}
+        annualCola={0}
+        dollarsMode="real"
+        onDollarsModeChange={() => {}}
+      />,
+    );
+    const realText = screen.getByTestId('survivor-claim-note').textContent!;
+    expect(realText).toContain('135,700');
+    expect(realText).not.toContain('today’s dollars, before any cost-of-living adjustment');
+    real.unmount();
+
+    const nominal = render(
+      <HouseholdPanel
+        analysis={married}
+        annualCola={2.5}
+        dollarsMode="nominal"
+        onDollarsModeChange={() => {}}
+      />,
+    );
+    const nominalText = screen.getByTestId('survivor-claim-note').textContent!;
+    // The gain itself is UNCHANGED — this is the assertion that matters: the
+    // toggle must decide only whether to disclose the basis, never transform
+    // the figure.
+    expect(nominalText).toContain('135,700');
+    expect(nominalText).toContain('today’s dollars, before any cost-of-living adjustment');
+    nominal.unmount();
+  });
+
   it('falls back to the Client/Spouse label when person A is unnamed', () => {
     const analysis = buildAnalysis();
     const unnamed = {

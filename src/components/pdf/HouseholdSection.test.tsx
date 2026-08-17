@@ -511,6 +511,43 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
     expect(text).not.toMatch(/separate survivor claim date/i);
     expect(text).not.toContain('68 years, 0 months');
   });
+
+  // Regression: print always renders real dollars, and `incomeCliffSentence`
+  // right above already states "today's dollars, before any cost-of-living
+  // adjustment" once (the combined-income caption also legitimately ends in
+  // this same clause, for an unrelated sentence about an unrelated chart —
+  // that pre-existing occurrence is not the defect this guards against, so
+  // this compares WITH and WITHOUT the claim note rather than asserting an
+  // absolute count). A version of `survivorClaimNote` that stated its own
+  // basis unconditionally added a second, genuinely duplicate copy of the
+  // cliff sentence's own clause when the claim note rendered. Counted, not
+  // `toContain` — the same reason the "exactly once" test above counts
+  // rather than contains.
+  it('does not repeat the dollars-basis clause the cliff sentence already stated', () => {
+    const countBasisClauses = (survivorClaim: typeof claim | null) => {
+      const analysis = { ...analysisWithCliff(null), survivorClaim };
+      const text = collectText(
+        HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
+      ).join(' ');
+      return {
+        text,
+        count: (text.match(/today.s dollars, before any cost-of-living adjustment/g) ?? [])
+          .length,
+      };
+    };
+
+    const without = countBasisClauses(null);
+    const withNote = countBasisClauses(claim);
+
+    // Guard: both sections really are on the page (the cliff sentence and
+    // the claim note), so the comparison below isn't passing vacuously
+    // because the note didn't render.
+    expect(withNote.text).toContain('Income at the First Death');
+    expect(withNote.text).toContain('$135,700');
+    // The count with the note present must equal the count without it — the
+    // note added no new occurrence of the clause in real mode.
+    expect(withNote.count).toBe(without.count);
+  });
 });
 
 /**

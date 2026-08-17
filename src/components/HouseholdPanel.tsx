@@ -187,8 +187,12 @@ export function HouseholdPanel({
           transform that only rewrites `combinedTimeline`/`comparisons` above
           — so this reads the same field either way. Using `analysis` here
           says so directly rather than implying a mode-dependence that isn't
-          there. */}
-      <SurvivorClaimNote analysis={analysis} />
+          there. `dollarsMode` IS still passed through, separately — not to
+          transform the figure, but so the note can decide whether stating
+          its (unchanging) dollars basis would repeat what the callout above
+          already said (real mode) or is the one time that disclosure is
+          needed (nominal mode). */}
+      <SurvivorClaimNote analysis={analysis} dollarsMode={dollarsMode} />
 
       <BreakEvenSection
         breakEvens={breakEvens}

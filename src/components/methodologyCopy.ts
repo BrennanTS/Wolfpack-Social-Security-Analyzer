@@ -164,40 +164,61 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * test may use a shorter life expectancy without being a counterexample to
  * anything the running app can actually produce.)
  *
- * States its own dollars basis and disclaims present value explicitly,
- * rather than reading either off `dollarsMode` or the recommendation box
- * beside it: `gain`/`baselineTotal`/`bestTotal` come straight from summing
- * engine bands (see `survivorClaim.ts`), the same real-dollars, no-COLA
- * figures `analysis.periods` itself carries, and neither caller ever
- * transforms them — `HouseholdPanel` deliberately passes the untransformed
- * `analysis`, not the dollars-mode-adjusted `displayAnalysis`, for exactly
- * this reason. So the figure is real dollars regardless of what the on-screen
- * toggle currently shows elsewhere on the page, and `dollarsBasisClause`
- * (this file, above) is called with `'real'` unconditionally — not with a
- * `mode` parameter this function doesn't have — to say so rather than leave a
- * dollar figure with no unit statement sitting one line below a sentence
- * that ends by naming a DIFFERENT basis in nominal mode. It is also an
- * undiscounted sum of dollars paid, not a present value — unlike the
- * recommendation box's own `expectedNpv` two paragraphs above, which is — so
- * the sentence says that explicitly too rather than let "over its lifetime"
- * imply the two figures are the same kind of number.
+ * `gain`/`baselineTotal`/`bestTotal` are real-dollars, no-COLA sums straight
+ * off the engine's bands (see `survivorClaim.ts`) — the same figures
+ * `analysis.periods` itself carries — and neither caller ever transforms
+ * them: `HouseholdPanel` deliberately passes the untransformed `analysis`,
+ * not the dollars-mode-adjusted `displayAnalysis`, and the PDF has only one
+ * mode anyway. `mode` here therefore never changes the number; it decides
+ * only whether to SAY the basis, and only when saying it prevents a real
+ * misreading. In `'real'` mode — the default, and the PDF's only mode — the
+ * sentence directly above (`incomeCliffSentence`) has already stated "these
+ * figures are in today's dollars, before any cost-of-living adjustment," and
+ * this figure agrees with it, so repeating the identical clause one
+ * paragraph later would be the exact duplication-without-drift failure this
+ * project has hit twice before: single-sourcing a sentence stops it from
+ * DRIFTING between two call sites, but does nothing to stop it printing
+ * TWICE when both call sites render on the same page — different failure,
+ * same root cause. In `'nominal'` mode the mistake is real: the figure above
+ * says future dollars, this figure has not moved, and a reader who has just
+ * read "future dollars" one line up has every reason to assume this number
+ * is priced the same way. That is the one case this clause exists for, and
+ * the only one it fires in.
+ *
+ * Also disclaims present value unconditionally, in both modes: unlike the
+ * dollars basis, this isn't stated anywhere else on the page. `gain` is an
+ * undiscounted sum of dollars paid, unlike the recommendation box's own
+ * `expectedNpv` a few paragraphs above, which is a present value — so the
+ * sentence says so explicitly rather than let "over its lifetime" imply the
+ * two figures are the same kind of number.
  */
-export function survivorClaimNote(alt: SurvivorClaimAlternative | null): string | null {
+export function survivorClaimNote(
+  alt: SurvivorClaimAlternative | null,
+  mode: DollarsMode = 'real',
+): string | null {
   if (!alt) return null;
 
   const { survivorLabel, claimAge, gain, baselineHasSurvivorBand } = alt;
 
   const claimClause = baselineHasSurvivorBand
-    ? `claim the survivor benefit at age ${claimAge} instead of the date the plan above shows ` +
+    ? `claim the survivor benefit at age ${claimAge} instead of the date the chart above shows ` +
       `it starting`
-    : `claim a widow(er) benefit at age ${claimAge}, one the plan above does not otherwise show`;
+    : `claim a widow(er) benefit at age ${claimAge}, one the chart above does not otherwise show`;
+
+  // Only in nominal mode: in real mode `incomeCliffSentence` directly above
+  // has already said this, and this figure agrees with it — repeating it
+  // would print the identical clause twice on one page.
+  const basisClause =
+    mode === 'nominal'
+      ? ` Unlike the figures above, these ${dollarsBasisClause('real')}.`
+      : '';
 
   return (
     `If ${survivorLabel} were to ${claimClause}, the household would gain an estimated ` +
     `${formatCurrency(gain)} — a straight sum of dollars paid over its lifetime, not a present ` +
-    `value. These ${dollarsBasisClause('real')}. This is not a recommendation: the ` +
-    `recommendation above comes from an optimizer that holds each spouse's own filing date ` +
-    `fixed and cannot model a separate survivor claim date.`
+    `value.${basisClause} This is not a recommendation: the recommendation above comes from an ` +
+    `optimizer that holds each spouse's own filing date fixed and cannot model a separate ` +
+    `survivor claim date.`
   );
 }
 
