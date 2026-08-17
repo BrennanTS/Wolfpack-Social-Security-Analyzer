@@ -1,7 +1,13 @@
 import type { ReactNode } from 'react';
 import { Page, Text, View } from '@react-pdf/renderer';
 import { computeBreakEvens, type ClaimingOption } from '../../lib/benefitMath';
-import { formatCurrency, formatCurrencyPrecise, fraLabel, personLabel } from '../../lib/format';
+import {
+  formatCurrency,
+  formatCurrencyPrecise,
+  fraLabel,
+  personLabel,
+  yearsMonthsLabel,
+} from '../../lib/format';
 import type { PersonAnalysis } from '../../lib/personAnalysis';
 import { nearestWholeClaimAge } from '../../lib/ssaTools';
 import { PdfChart, PdfHeatmap, PdfMonthlyRamp, PdfOpportunityCost } from './charts';
@@ -85,7 +91,7 @@ export function PersonSection({ analysis, index, annualCola, footerText, appendi
       <View style={styles.profileGrid}>
         {[
           ['Date of Birth', dob],
-          ['Current Age', `${currentAge.years} years, ${currentAge.months} months`],
+          ['Current Age', yearsMonthsLabel(currentAge.years, currentAge.months)],
           ['Full Retirement Age', fraLabel(fra)],
           ['PIA (Benefit at FRA)', `${formatCurrencyPrecise(person.piaMonthly)}/mo`],
           ['Life Expectancy', `Age ${person.lifeExpectancy}`],

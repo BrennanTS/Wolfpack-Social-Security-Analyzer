@@ -13,6 +13,7 @@ import {
   expectedNPVSingle,
 } from '$lib/strategy/calculations/expected-npv';
 import { strategySumCentsSingle } from '$lib/strategy/calculations/strategy-calc';
+import { yearsMonthsLabel } from './format';
 import type { Gender } from './lifeExpectancy';
 
 /** Default birth day when the UI only collects month/year (ssa.tools convention). */
@@ -64,7 +65,7 @@ export function fraFromBirthYear(birthYear: number): { years: number; months: nu
 export function formatFilingAge(age: MonthDuration): FilingAgeDisplay {
   const years = age.years();
   const months = age.modMonths();
-  const label = months === 0 ? `${years}` : `${years} years, ${months} months`;
+  const label = months === 0 ? `${years}` : yearsMonthsLabel(years, months);
   return {
     years,
     months,

@@ -134,7 +134,7 @@ describe('spousalMethodologyCopy', () => {
       analysisWith({
         atFra: 250,
         atRecommendedFilingAge: 200,
-        startsAtSpouseAge: '69 years, 1 months',
+        startsAtSpouseAge: '69 years, 1 month',
         lowerEarnerLabel: 'Spouse',
       }),
     );
@@ -525,7 +525,7 @@ describe('survivorGapNote', () => {
       analysisWith({
         atFra: 250,
         atRecommendedFilingAge: 200,
-        startsAtSpouseAge: '69 years, 1 months',
+        startsAtSpouseAge: '69 years, 1 month',
         lowerEarnerLabel: 'Spouse',
       }),
     );

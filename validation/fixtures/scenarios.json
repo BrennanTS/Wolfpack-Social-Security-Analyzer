@@ -1001,7 +1001,7 @@
     },
     {
       "id": "married-1960-partial-topup",
-      "description": "Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000. spousalTopUpAtFra: unreduced entitlement = max(0, 2500/2 - 1000) = $250 — a dateless reference figure. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15 the optimizer files the worker at 70 (Jun 1960 + 70y = Jun 2030) and the spouse at 64y9m (May 1961 + 64y9m = Feb 2026). The benefit starts at max(Feb 2026, Jun 2030) = Jun 2030, when the spouse is Jun 2030 - May 1961 = 69y1m (startsAtSpouseAge '69 years, 1 months') — past her FRA of 67, so months early = 0 and the top-up is unreduced: $250.00. Was $203.13 while the reduction was wrongly measured from her own 64y9m filing (27 months early).",
+      "description": "Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000. spousalTopUpAtFra: unreduced entitlement = max(0, 2500/2 - 1000) = $250 — a dateless reference figure. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15 the optimizer files the worker at 70 (Jun 1960 + 70y = Jun 2030) and the spouse at 64y9m (May 1961 + 64y9m = Feb 2026). The benefit starts at max(Feb 2026, Jun 2030) = Jun 2030, when the spouse is Jun 2030 - May 1961 = 69y1m (startsAtSpouseAge '69 years, 1 month') — past her FRA of 67, so months early = 0 and the top-up is unreduced: $250.00. Was $203.13 while the reduction was wrongly measured from her own 64y9m filing (27 months early).",
       "mode": "full",
       "inputs": {
         "asOf": "2026-01-15",
@@ -1080,7 +1080,7 @@
         ],
         "spousalTopUpAtFra": 250,
         "spousalTopUpAtFilingAge": 250,
-        "startsAtSpouseAge": "69 years, 1 months",
+        "startsAtSpouseAge": "69 years, 1 month",
         "optimalAgeRangeByPerson": [
           [
             62,
