@@ -227,3 +227,68 @@ describe('buildShareUrl', () => {
     expect(url).toMatch(/ay=1962/);
   });
 });
+
+describe('widowed share links', () => {
+  const form: AnalyzerFormState = {
+    ...BLANK_FORM,
+    maritalStatus: 'widowed',
+    personA: {
+      name: '', birthYear: 1964, birthMonth: 6, gender: 'female',
+      monthlyBenefit: 1200, lifeExpectancy: 92,
+    },
+    deceased: {
+      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      recordKind: 'pia', piaMonthly: 3000, hadFiled: true,
+      checkAmount: '', filedYear: 2022, filedMonth: 5,
+    },
+    alreadyClaimed: {
+      survivorSinceYear: 2024, survivorSinceMonth: 8, ownSinceYear: '', ownSinceMonth: '',
+    },
+  };
+
+  it('round-trips a widowed household', () => {
+    const back = fromShareParams(toShareParams(form));
+    expect(back.maritalStatus).toBe('widowed');
+    expect(back.deceased).toEqual(form.deceased);
+    expect(back.alreadyClaimed).toEqual(form.alreadyClaimed);
+  });
+
+  it('round-trips the check-amount route', () => {
+    const check = {
+      ...form,
+      deceased: {
+        ...form.deceased, recordKind: 'checkAmount' as const, piaMonthly: '' as const,
+        hadFiled: null, checkAmount: 2400,
+      },
+    };
+    expect(fromShareParams(toShareParams(check)).deceased).toEqual(check.deceased);
+  });
+
+  it('leaves an unset already-claimed date absent, not zero', () => {
+    const params = toShareParams(form);
+    expect(params.get('coy')).toBeNull();
+    expect(fromShareParams(params).alreadyClaimed.ownSinceYear).toBe('');
+  });
+
+  it('writes no widowed parameters for a married household', () => {
+    const married = { ...BLANK_FORM, maritalStatus: 'married' as const };
+    const params = toShareParams(married);
+    expect(params.get('dy')).toBeNull();
+    expect(params.get('m')).toBe('1');
+  });
+});
+
+describe('legacy share links', () => {
+  // Links already in circulation carry m=1 / m=0. They must keep working
+  // unchanged — that compatibility is why the widowed value was added to this
+  // parameter rather than replacing it.
+  it('still reads m=1 as married and m=0 as single', () => {
+    expect(fromShareParams(new URLSearchParams('m=1')).maritalStatus).toBe('married');
+    expect(fromShareParams(new URLSearchParams('m=0')).maritalStatus).toBe('single');
+  });
+
+  it('leaves the status unchosen when m is absent or unrecognised', () => {
+    expect(fromShareParams(new URLSearchParams('')).maritalStatus).toBeNull();
+    expect(fromShareParams(new URLSearchParams('m=x')).maritalStatus).toBeNull();
+  });
+});
