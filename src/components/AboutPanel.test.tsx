@@ -27,9 +27,20 @@ describe('AboutPanel', () => {
   // Titles alone don't pin the load-bearing numbers inside each card body.
   // Once `Analyzer.tsx`'s original "How This Works" block is deleted,
   // `about.ts` becomes the sole source of these percentages with nothing else
-  // on screen to catch a corrupted figure by eye.
-  it('states the early-claiming and delayed-credit figures exactly', () => {
+  // on screen to catch a corrupted figure by eye. The FRA card gets the most
+  // scrutiny of the three: it has no on-screen predecessor from before this
+  // change (Task 1's report confirms `Analyzer.tsx` never had an FRA card),
+  // so this is the first and only place its own figures have ever been
+  // checked against reality — verified against `fraFromBirthYear` and the
+  // engine's own schedule (66 for 1943-1954, rising to 67 for 1960+).
+  it('states the FRA, early-claiming, and delayed-credit figures exactly', () => {
     render(<AboutPanel open onClose={() => {}} />);
+    expect(
+      screen.getByText(
+        "Set by birth year on SSA's published schedule — 66 for those born 1943-1954, " +
+          'rising to 67 for 1960 and later.',
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         'Benefits are reduced 5/9 of 1% per month for the first 36 months early, then ' +

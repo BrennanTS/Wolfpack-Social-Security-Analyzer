@@ -210,10 +210,26 @@ describe('AssumptionsPanel per-person life expectancy', () => {
   });
 });
 
-it('no longer renders the thirty-year CPI history', () => {
-  // Moved to the About panel. The COLA slider and its hint stay here; only
-  // the reference table left.
-  renderPanel();
-  expect(screen.queryByText(/BLS CPI-U/)).not.toBeInTheDocument();
-  expect(screen.queryByText('30-yr average')).not.toBeInTheDocument();
+describe('AssumptionsPanel CPI history', () => {
+  it('no longer renders the thirty-year CPI history', () => {
+    // Moved to the About panel. The COLA slider and its hint stay here; only
+    // the reference table left.
+    renderPanel();
+    expect(screen.queryByText(/BLS CPI-U/)).not.toBeInTheDocument();
+    expect(screen.queryByText('30-yr average')).not.toBeInTheDocument();
+  });
+
+  // A positive control: the two absence checks above would also pass if this
+  // panel rendered an empty div. Pin that the COLA slider and its hint —
+  // exactly what the comment above says stays — actually survived.
+  it('still renders the COLA slider and its hint', () => {
+    renderPanel();
+    expect(colaInput()).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Benefit math uses SSA historical COLA tables (ssa.tools). This rate applies to ' +
+          'illustrative cumulative charts only.',
+      ),
+    ).toBeInTheDocument();
+  });
 });

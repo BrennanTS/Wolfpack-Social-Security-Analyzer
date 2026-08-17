@@ -1,5 +1,9 @@
 /**
- * Narrative copy for the Analyzer's "How This Works" panel.
+ * Narrative copy for the Analyzer's methodology sections — the static "How
+ * This Works" reference cards now live in the About panel (`lib/about.ts`);
+ * this module is what remains on the main surface, the household-specific
+ * "This household's spousal benefit" card, plus the sentences shared with
+ * the PDF.
  *
  * Lives beside the components rather than in `lib/` because it is
  * presentation, not calculation — but in its own module rather than inside
@@ -504,8 +508,8 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
 }
 
 /**
- * The "Spousal benefits" methodology copy for the Analyzer's "How This Works"
- * panel.
+ * The "Spousal benefits" methodology copy for the Analyzer's "This
+ * household's spousal benefit" card (main surface, not the About panel).
  *
  * Reads the household's own `spousalTopUp` — the amount that accrues to the
  * *lower earner*, named via `lowerEarnerLabel` — rather than recomputing a

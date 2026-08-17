@@ -467,7 +467,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               />
 
               <div className="methodology">
-                <h3>How This Works</h3>
+                <h3>This household&rsquo;s spousal benefit</h3>
                 <div className="method-grid">
                   <div>
                     <strong>Spousal benefits</strong>
