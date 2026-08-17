@@ -26,5 +26,12 @@ export default defineConfig({
     // is for unit tests.
     testTimeout: 600_000,
     hookTimeout: 600_000,
+    // Vitest buffers console output and prints it only for FAILING tests.
+    // That is right for unit tests and wrong here: a sweep's value is in what
+    // it reports on a pass — the reachability table, the candidate search,
+    // the "0 failures across N households" counts. Without this the harness
+    // runs green and silent, which is indistinguishable from a harness that
+    // checks nothing.
+    disableConsoleIntercept: true,
   },
 });

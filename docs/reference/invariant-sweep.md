@@ -118,6 +118,18 @@ Order independence holding over the *whole* analysis across 3,000 married househ
 
 The arithmetic results are consistent with the project's history: **the numbers have never been the problem.**
 
+## Corpus expansion
+
+One golden scenario was added, **`married-1964-tie-no-survivor-band`** — found by `find-candidates.sweep.ts`, not hand-picked. It pins three branches the original thirty could not reach, in one household:
+
+- an **exact PIA tie** with *differing* plan-to ages (85 vs 88) — `married-1964-dual-high-earners` is also a tie, but both its people plan to 85, so it cannot reach the two below;
+- **`startsAtSpouseAge: null`** — a spousal entitlement that never begins, the case whose em-dash sentinel once reached a client PDF;
+- **`baselineHasSurvivorBand: false`** — the population Phase 3A's spec amendment was about: a survivor benefit worth $1,595 here that the engine emits no band for, so the app would otherwise show nothing of it. Until this scenario the golden suite could not see that branch at all.
+
+It was authored by searching with the **same pipeline the fixture runs through**, which is the lesson from Phase 3A: a fixture specified from a unit test's *forced* filing ages returned `null` in production, because forced filing ages are not optimizer-chosen filing ages.
+
+The suite is now 33 scenarios and 771 tests, and `fixtures:gen` is idempotent.
+
 ## What the sweep still cannot see
 
 Stated plainly, because a coverage claim that overstates itself is worse than none.
