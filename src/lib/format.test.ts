@@ -6,6 +6,7 @@ import {
   formatCurrencyPrecise,
   fraLabel,
   personLabel,
+  yearsMonthsLabel,
 } from './format';
 
 describe('currency formatting', () => {
@@ -46,6 +47,24 @@ describe('formatAgeDisplay', () => {
   it('reads naturally at an exact birthday', () => {
     expect(formatAgeDisplay({ years: 66, months: 0 })).toBe('66 years old');
     expect(formatAgeDisplay({ years: 66, months: 3 })).toBe('66 years, 3 months');
+  });
+});
+
+describe('yearsMonthsLabel', () => {
+  // 62y1m is the earliest a retirement benefit can begin — entitlement needs
+  // a full month at 62 — so this is not an exotic input, it is the single
+  // most commonly recommended filing age in the app.
+  it('says "1 month", never "1 months"', () => {
+    expect(yearsMonthsLabel(62, 1)).toBe('62 years, 1 month');
+  });
+
+  it('says "1 year" for a single year', () => {
+    expect(yearsMonthsLabel(1, 4)).toBe('1 year, 4 months');
+  });
+
+  it('pluralizes everything else', () => {
+    expect(yearsMonthsLabel(66, 10)).toBe('66 years, 10 months');
+    expect(yearsMonthsLabel(70, 0)).toBe('70 years, 0 months');
   });
 });
 

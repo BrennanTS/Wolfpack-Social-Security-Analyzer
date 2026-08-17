@@ -31,15 +31,31 @@ export function formatCurrencyPerYear(amount: number): string {
   return `${formatCurrency(amount)}/yr`;
 }
 
+/**
+ * "62 years, 1 month" — the single source of truth for a years-and-months
+ * age label.
+ *
+ * Four sites used to interpolate a bare `months` plural, so an age with
+ * exactly one month printed "62 years, 1 months". That is not an exotic
+ * input: SSA entitlement needs a full month at 62, which makes **62y1m the
+ * earliest anyone can claim** and one of the most frequently recommended
+ * filing ages the app prints.
+ */
+export function yearsMonthsLabel(years: number, months: number): string {
+  const y = `${years} ${years === 1 ? 'year' : 'years'}`;
+  const m = `${months} ${months === 1 ? 'month' : 'months'}`;
+  return `${y}, ${m}`;
+}
+
 /** Structural parameter rather than FraResult, so this module imports nothing. */
 export function fraLabel(fra: { years: number; months: number }): string {
   if (fra.months === 0) return `${fra.years}`;
-  return `${fra.years} years, ${fra.months} months`;
+  return yearsMonthsLabel(fra.years, fra.months);
 }
 
 export function formatAgeDisplay(age: { years: number; months: number }): string {
   if (age.months === 0) return `${age.years} years old`;
-  return `${age.years} years, ${age.months} months`;
+  return yearsMonthsLabel(age.years, age.months);
 }
 
 /**

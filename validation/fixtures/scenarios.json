@@ -1001,7 +1001,7 @@
     },
     {
       "id": "married-1960-partial-topup",
-      "description": "Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000. spousalTopUpAtFra: unreduced entitlement = max(0, 2500/2 - 1000) = $250 — a dateless reference figure. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15 the optimizer files the worker at 70 (Jun 1960 + 70y = Jun 2030) and the spouse at 64y9m (May 1961 + 64y9m = Feb 2026). The benefit starts at max(Feb 2026, Jun 2030) = Jun 2030, when the spouse is Jun 2030 - May 1961 = 69y1m (startsAtSpouseAge '69 years, 1 months') — past her FRA of 67, so months early = 0 and the top-up is unreduced: $250.00. Was $203.13 while the reduction was wrongly measured from her own 64y9m filing (27 months early).",
+      "description": "Worker Jun 1960 PIA $2,500; spouse May 1961 own PIA $1,000. spousalTopUpAtFra: unreduced entitlement = max(0, 2500/2 - 1000) = $250 — a dateless reference figure. spousalTopUpAtFilingAge: with asOf pinned to 2026-01-15 the optimizer files the worker at 70 (Jun 1960 + 70y = Jun 2030) and the spouse at 64y9m (May 1961 + 64y9m = Feb 2026). The benefit starts at max(Feb 2026, Jun 2030) = Jun 2030, when the spouse is Jun 2030 - May 1961 = 69y1m (startsAtSpouseAge '69 years, 1 month') — past her FRA of 67, so months early = 0 and the top-up is unreduced: $250.00. Was $203.13 while the reduction was wrongly measured from her own 64y9m filing (27 months early).",
       "mode": "full",
       "inputs": {
         "asOf": "2026-01-15",
@@ -1080,7 +1080,7 @@
         ],
         "spousalTopUpAtFra": 250,
         "spousalTopUpAtFilingAge": 250,
-        "startsAtSpouseAge": "69 years, 1 months",
+        "startsAtSpouseAge": "69 years, 1 month",
         "optimalAgeRangeByPerson": [
           [
             62,
@@ -1918,6 +1918,118 @@
           }
         ],
         "survivorClaim": null,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": true,
+        "assertSummaryCards": true
+      }
+    },
+    {
+      "id": "married-1964-tie-no-survivor-band",
+      "description": "Two spouses with the SAME PIA ($3,000) and DIFFERENT plan-to ages (85 vs 88) - a combination no other scenario in this file carries, and one that pins three branches at once that the original 30 could not reach. Person A Dec 1964 F PIA $3,000, plan-to 85; person B Nov 1961 F PIA $3,000, plan-to 88. Found by validation/sweep/find-candidates.sweep.ts (SWEEP_FIND=survivor-no-band) rather than hand-picked - the sweep searches with the SAME pipeline the fixture runs through, which is the only reliable way to author a fixture that actually reaches a branch. A prior fixture specified from a unit test's forced filing ages returned null in production; see married-1958-widow-claims-late's note. BRANCH 1 - exact PIA tie. spousalTopUpAtFra = max(0, 3000/2 - 3000) = $0, independently derivable, so no hand-derived spousal fields are needed here. More importantly lowerEarnerLabel is null: higherEarningsThan is a strict >, so on a tie there genuinely IS no lower earner, and the app models that as an absence rather than naming whichever spouse was entered first. married-1964-dual-high-earners is also a tie, but both its people plan to 85, so it cannot reach the branches below. BRANCH 2 - a spousal entitlement that never begins. startsAtSpouseAge is null: with a $0 top-up there is no month in which a spousal benefit is payable, so there is no date to state and every display layer must say so rather than print a sentinel. An em-dash sentinel chosen for this case once escaped into a client PDF as \"beginning at age - -\". BRANCH 3 - a survivor benefit the chart shows nothing of. recommendedFilingAgeByPerson (engine-recorded): person A 62y2m (Dec 1964 + 62y2m = Feb 2027) and person B 70y0m (Nov 1961 + 70y = Nov 2031). Person B dies Nov 1961 + 88y = Nov 2049; person A dies Dec 1964 + 85y = Dec 2049, one month later, so A is the survivor by a single month - the narrowest first-death margin in this file. survivorClaim is ENGINE-RECORDED, exactly like recommendedFilingAgeByPerson, and is {claimAge: \"85\", gain: 1595} straight from analyzeHousehold. Its baselineHasSurvivorBand is FALSE: the engine emits no survivor band at all for this household, so the $1,595 is money the app would otherwise show nowhere. That is the population Phase 3A's spec amendment was about (docs/superpowers/specs/2026-08-16-survivor-claim-alternative-design.md, \"When it must say nothing\"), and until this scenario the golden suite could not see it: married-1958-widow-claims-late records a non-null claim WITH a baseline band, and every other married scenario records null. AGING-OUT: person B is born Nov 1961 and turns 70 in NOVEMBER 2031. The Playwright golden-scenarios spec drives the live app against the real wall-clock date rather than this scenario's pinned asOf of 2026-01-15, so from Nov 2031 the optimizer has no prospective filing age left for her and the UI renders its \"Analysis unavailable\" path. Set uiTestable: false at that point (the Vitest engine suite is unaffected either way, since it passes asOf explicitly). This is later than married-1958-widow-claims-late's Feb 2028 deadline, so that scenario ages out first.",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "married",
+        "people": [
+          {
+            "birthYear": 1964,
+            "birthMonth": 12,
+            "gender": "female",
+            "piaMonthly": 3000,
+            "lifeExpectancy": 85
+          },
+          {
+            "birthYear": 1961,
+            "birthMonth": 11,
+            "gender": "female",
+            "piaMonthly": 3000,
+            "lifeExpectancy": 88
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 2100,
+            "63": 2250,
+            "64": 2400,
+            "65": 2600,
+            "66": 2800,
+            "67": 3000,
+            "68": 3240,
+            "69": 3480,
+            "70": 3720
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": 0,
+        "spousalTopUpAtFilingAge": 0,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 62,
+            "months": 2
+          },
+          {
+            "years": 70,
+            "months": 0
+          }
+        ],
+        "survivorClaim": {
+          "claimAge": "85",
+          "gain": 1595
+        },
         "invariants": [
           "monthlyMonotonicIncreasing",
           "expectedPvPositive"

@@ -370,7 +370,7 @@ describe('HouseholdSection — the spousal sentence on a PIA tie', () => {
       spousalTopUp: {
         atFra: 250,
         atRecommendedFilingAge: 200,
-        startsAtSpouseAge: '69 years, 1 months',
+        startsAtSpouseAge: '69 years, 1 month',
         lowerEarnerLabel: 'Blake',
       },
     } as unknown as HouseholdAnalysis;

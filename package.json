@@ -18,7 +18,8 @@
     "record:ssatools": "node validation/scripts/record.mjs ssatools",
     "record:app": "node validation/scripts/record.mjs app",
     "prepare": "git config core.hooksPath .githooks",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sweep": "vitest run --config vitest.sweep.config.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
