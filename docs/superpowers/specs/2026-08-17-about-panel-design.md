@@ -86,7 +86,14 @@ All twenty mentions go, from screen and print alike.
 
 **Component.** The About drawer opens and closes from the header, renders all five sections, and traps Escape the way `ResourcesPanel` does.
 
-**A regression guard worth having: assert `ssa.tools` appears nowhere in rendered screen or print output**, except the Resources panel's links. That is a single test that holds the whole cleanup in place, and it will catch the next person reintroducing a parenthetical — which is more valuable than asserting each of the twenty individually.
+**A regression guard worth having: assert `ssa.tools` appears nowhere in the rendered ANALYSIS surface**, screen or print. That is a single test that holds the whole cleanup in place, and it will catch the next person reintroducing a parenthetical — more valuable than asserting each of the twenty individually.
+
+Two exemptions, both deliberate and both outside the working surface:
+
+- **The About panel's engine attribution** — naming the engine there is the entire point of this change, so the guard must scope to the analysis flow rather than the whole app.
+- **`resources.ts`'s two links.**
+
+> The first exemption was missing from this spec's first draft, whose success criterion said "nowhere except `resources.ts`'s two links" — which would have made the About panel fail its own test. Corrected before planning.
 
 **Copy.** Every replacement string is pinned verbatim, as `DeceasedFields`' strings now are. This project's recurring defect is copy, and a rename touching twenty sites is precisely where a half-applied change hides — the adviser-tone rename is still half-applied from an earlier phase for exactly this reason.
 
@@ -94,7 +101,7 @@ All twenty mentions go, from screen and print alike.
 
 ## Success criteria
 
-1. `ssa.tools` appears nowhere in rendered screen or PDF output except `resources.ts`'s two links, enforced by a test.
+1. `ssa.tools` appears nowhere in the rendered analysis surface — screen or PDF — enforced by a test. The About panel's engine attribution and `resources.ts`'s two links are the only places it survives.
 2. The About drawer opens from the header and carries the orienting paragraph, the five method cards, the engine attribution, the CPI history and the version.
 3. `AssumptionsPanel` no longer renders the CPI history; `Analyzer` no longer renders "How This Works".
 4. No replacement loses information — every mention that stood in for a fact is replaced by that fact.
