@@ -57,7 +57,10 @@ describe('survivorClaimAlternative', () => {
     const result = run([age(70), age(70)]);
     expect(result).not.toBeNull();
     expect(result!.gain).toBeGreaterThan(0);
-    expect(result!.bestTotal).toBe(result!.baselineTotal + result!.gain);
+    // No `bestTotal === baselineTotal + gain` check: `gain` is computed as
+    // exactly that difference (`survivorClaim.ts:241-243`), so it reads as an
+    // assertion but cannot fail. The three totals for this exact run are
+    // pinned individually in 'pins the headline household, hand-derived'.
     expect(result!.survivorLabel).toBe('Sarah');
   });
 

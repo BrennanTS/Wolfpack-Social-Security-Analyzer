@@ -231,7 +231,9 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     // [62, 70] — the entire legal range — for all 21 full scenarios, so before
     // this the suite could not detect a moved filing age at all, and every
     // downstream figure it pins (the spousal start, the reduced top-up, the
-    // whole benefit-period decomposition) is a function of these ages.
+    // whole benefit-period decomposition) is a function of these ages. (The
+    // window is still [62, 70] for all 23 full scenarios; it was 21 before
+    // the two differing-plan-to-age scenarios were added.)
     const expectedAges = scenario.expected.recommendedFilingAgeByPerson;
     expect(expectedAges, 'full-mode scenarios must record their filing ages').not.toBeNull();
     const result = await run(scenario);
@@ -248,13 +250,29 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     // (src/lib/survivorClaim.ts) searches over the optimizer's own chosen
     // filing ages, which have no published closed form to re-derive from —
     // see survivorClaim in scenarios.ts and gen-fixtures.mjs's preserve-or-
-    // throw handling of it. Every one of this file's original 30 scenarios
-    // records null here (they all give both people a plan-to age of 85,
-    // which makes the survivor-start rule bit-exact across every filing-age
-    // combination the optimizer considers for them — see
-    // docs/reference/survivor-start-impact.md §3), so this assertion is
-    // non-vacuous only because later scenarios (differing plan-to ages) were
-    // added specifically to reach a non-null case.
+    // throw handling of it.
+    //
+    // Every one of this file's original 30 scenarios records null here, by
+    // two different routes — and only one of them is about the search:
+    //
+    //  - 19 of the 30 record null STRUCTURALLY, whatever their inputs. 10 are
+    //    single 'full' scenarios, where `survivorClaimAlternative` returns
+    //    null on its own `people.length !== 2` guard (there is no "both
+    //    people" to give a plan-to age to), and 9 are 'factorsOnly', which
+    //    never run the pipeline at all and are not even in `fullScenarios`
+    //    above. Varying a life expectancy on one of these can never make it
+    //    non-null; if you are adding a scenario to reach the search, it has
+    //    to be a married one.
+    //  - the remaining 11 are married 'full', and those are the only nulls
+    //    the search actually produced. They all give both people a plan-to
+    //    age of 85, which makes the survivor-start rule bit-exact across all
+    //    61,823 filing-age combinations the optimizer considers for THEM (see
+    //    docs/reference/survivor-start-impact.md §3 — both the bit-exactness
+    //    and that combination count scope to these 11, not to all 30).
+    //
+    // So this assertion is non-vacuous only because later married scenarios
+    // with differing plan-to ages were added specifically to reach a non-null
+    // case.
     const result = await run(scenario);
     if (scenario.expected.survivorClaim === null) {
       expect(result.survivorClaim).toBeNull();

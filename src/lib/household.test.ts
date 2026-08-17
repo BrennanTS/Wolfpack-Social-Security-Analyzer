@@ -976,10 +976,36 @@ function canonicalize(analysis: HouseholdAnalysis) {
  * The household below is a real, deterministic one (not a hand-built
  * `SurvivorClaimAlternative`) chosen because ssa.tools' own optimizer happens
  * to file Ann early enough, and Bob late enough, that Bob's own recommended
- * filing date lands after Ann's death. Its exact figures are pinned against
- * the live engine output so a future engine or `household.ts` change that
- * quietly stops wiring this through fails a test here, not just in
- * `survivorClaim.test.ts`'s hand-derived unit fixtures.
+ * filing date lands after Ann's death. Its exact figures are pinned so a
+ * future engine or `household.ts` change that quietly moves them fails a test
+ * here, not just in `survivorClaim.test.ts`'s hand-derived unit fixtures —
+ * and outside the golden suite this is the only optimizer-driven check of the
+ * `baselineHasSurvivorBand: false` population at all.
+ *
+ * The pinned figures are OPTIMIZER-DRIVEN and are not the forced-age ones.
+ * `survivorClaim.test.ts`'s own `baselineHasSurvivorBand: false` case runs the
+ * same two people at a hand-picked [70, 70] and gets $102,960; that figure
+ * does not transfer here, because the optimizer files Bob at 68y8m, not 70.
+ * Derivation, all of it a consequence of the recorded filing ages (Ann 65y9m,
+ * Bob 68y8m) and the two plan-to ages:
+ *
+ *  - Ann dies May 2027 at 62, before her own 65y9m filing date, so no band of
+ *    hers is ever emitted and her survivor base is her full $1,200 PIA.
+ *  - Bob files at 68y8m = Jan 2044 and holds a $2,720/mo personal band from
+ *    there to his plan-to month, May 2065: 257 months x $2,720 = $699,040.
+ *    That band is the WHOLE displayed baseline — no survivor band exists, so
+ *    `baselineHasSurvivorBand` is false and this is the population the flag
+ *    is for.
+ *  - The search's best month is his SSA age 60, May 2035 (claimAge '60'),
+ *    paying 0.715 x $1,200 = $858/mo. It is worth having only until his own
+ *    $2,720 starts: May 2035 through Dec 2043 = 104 months x $858 = $89,232,
+ *    which is the gain, and $699,040 + $89,232 = $788,272 the best total.
+ *
+ * A moved optimizer recommendation moves all three, which is the point: the
+ * previous version of this test asserted only `gain > 0` and
+ * `bestTotal === baselineTotal + gain` — and the latter is how
+ * `survivorClaim.ts:241-243` computes `gain` in the first place, so it could
+ * not fail for any household at all.
  *
  * Ann's `lifeExpectancy: 62` is below this app's own input floor
  * (`LIFE_EXPECTANCY_BOUNDS.min = 75`, `formBounds.ts`) — deliberately, to get
@@ -1009,10 +1035,11 @@ describe('analyzeHousehold — survivor claim alternative', () => {
     );
     expect(result.survivorClaim).not.toBeNull();
     expect(result.survivorClaim!.survivorLabel).toBe('Bob');
-    expect(result.survivorClaim!.gain).toBeGreaterThan(0);
-    expect(result.survivorClaim!.bestTotal).toBe(
-      result.survivorClaim!.baselineTotal + result.survivorClaim!.gain,
-    );
+    expect(result.survivorClaim!.baselineHasSurvivorBand).toBe(false);
+    expect(result.survivorClaim!.claimAge).toBe('60'); // May 2035
+    expect(result.survivorClaim!.baselineTotal).toBe(699_040); // 257 x $2,720
+    expect(result.survivorClaim!.bestTotal).toBe(788_272);
+    expect(result.survivorClaim!.gain).toBe(89_232); // 104 x $858
   });
 
   it('sets survivorClaim to null for a single claimant', async () => {

@@ -64,7 +64,11 @@ Both surfaces — screen and PDF — via one function in `methodologyCopy.ts`, a
 
 ### When it must say nothing
 
-The gain is zero or negative — the survivor already claims early enough that nothing improves. There is no survivor period. The death direction is the one the engine cannot model (`survivorGap` is set). A single claimant. In each case the section does not render at all rather than rendering an empty or hedged version.
+> **Amended 2026-08-16, after implementation — this list originally included "There is no survivor period", and that was wrong.** Suppressing the no-survivor-period case deletes real money from the page: it is precisely the population where the engine emitted no survivor band at all, so nothing on screen tells the household the entitlement exists. `survivorClaim.test.ts:209-224` pins one at **$102,960** — a widower with a genuine age-60 entitlement on his late wife's record, of which the app would otherwise show nothing. The shipped module therefore **reports** that population and **discriminates** it with the `baselineHasSurvivorBand` flag, so the copy can say "one the chart above does not otherwise show" instead of the "earlier than the chart shows" phrasing that would be false with no band on screen. The implementation is right and this spec was wrong; the criterion below is amended to match, and the deviation is deliberate, not drift.
+
+The gain is zero or negative — the survivor already claims early enough that nothing improves. The death direction is the one the engine cannot model (`survivorGap` is set). A single claimant. In each case the section does not render at all rather than rendering an empty or hedged version.
+
+A household with **no survivor period** is not on that list: the section renders, with `baselineHasSurvivorBand: false`, and the sentence is worded for a page that shows no survivor band.
 
 ## Architecture
 
@@ -98,7 +102,7 @@ That makes this phase purely additive, which is the strongest safety property av
 1. For a household where the survivor's own filing falls well after the first death, the app shows a claim month, a gain, and the statement that the optimizer cannot consider it.
 2. Every **existing** scenario's recommended filing ages are unchanged — this phase does not re-optimize. New scenarios record theirs for the first time, so there is no baseline to hold; they are pinned like any other engine-recorded value.
 3. No existing fixture value moves.
-4. The section renders nothing when the gain is zero, when there is no survivor period, when `survivorGap` is set, and for a single claimant.
+4. The section renders nothing when the gain is zero, when `survivorGap` is set, and for a single claimant. *(Amended 2026-08-16, after implementation: "when there is no survivor period" was struck from this criterion for the reason given under "When it must say nothing" above — that population is reported, not suppressed, because suppressing it deletes real money the page shows nowhere else.)*
 5. Every amount comes from `survivorBenefit()` or `benefitOnDate()`; the app computes no benefit rule.
 6. New scenarios with varied life expectancies make the defect and the fix visible to the golden suite.
 7. `npm run lint`, the unit and component suite, `npm run build` and the e2e suite all pass.

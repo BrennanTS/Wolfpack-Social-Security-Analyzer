@@ -503,6 +503,34 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
     expect(text).toMatch(/optimizer/i);
   });
 
+  // Order, not just presence. The note is written to be read AFTER the cliff
+  // section — it names no death year of its own because the cliff sentence
+  // directly above has just given one, and in nominal mode on screen its
+  // dollars-basis clause is phrased as a contrast with those same figures. A
+  // note printed above them would be a forward reference to a sentence the
+  // reader has not reached. The on-screen surface pins this with a real
+  // `compareDocumentPosition` check (`HouseholdPanel.test.tsx`); print had
+  // presence coverage only, and `collectText` already returns the strings in
+  // document order, so an index comparison is all it needs.
+  it('prints the note after the income-cliff section, not before it', () => {
+    const analysis = { ...analysisWithCliff(null), survivorClaim: claim };
+    const parts = collectText(
+      HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
+    );
+    const heading = parts.findIndex((t) => t.includes('Income at the First Death'));
+    const cliffSentence = parts.findIndex((t) => t.includes('At the first death, projected for'));
+    const note = parts.findIndex((t) => t.includes('$135,700'));
+    // Guards: all three really are on the page, so the ordering below is not
+    // comparing against a -1 from something that never rendered.
+    expect(heading).toBeGreaterThanOrEqual(0);
+    expect(cliffSentence).toBeGreaterThanOrEqual(0);
+    expect(note).toBeGreaterThanOrEqual(0);
+    expect(note).toBeGreaterThan(heading);
+    // The stronger of the two: after the cliff SENTENCE, not merely after the
+    // heading that opens the section.
+    expect(note).toBeGreaterThan(cliffSentence);
+  });
+
   it('prints nothing when there is no alternative to show', () => {
     const analysis = { ...analysisWithCliff(null), survivorClaim: null };
     const text = collectText(

@@ -1295,14 +1295,88 @@ describe('survivorClaimNote', () => {
     const nominal = survivorClaimNote(alt, 'nominal')!;
     expect(nominal).toContain('today’s dollars, before any cost-of-living adjustment');
     expect(nominal).toContain('$135,700');
-    expect(real.replace(/\s*Unlike the figures above,.*?adjustment\.\s*/, ' ')).toBe(
-      nominal.replace(/\s*Unlike the figures above,.*?adjustment\.\s*/, ' '),
+    expect(real.replace(/\s*Unlike the chart above and.*?adjustment\.\s*/, ' ')).toBe(
+      nominal.replace(/\s*Unlike the chart above and.*?adjustment\.\s*/, ' '),
     );
 
     // The default with no `mode` argument at all matches the explicit
     // `'real'` call — every pre-existing call site keeps its exact prior
     // wording.
     expect(survivorClaimNote(alt)).toBe(real);
+  });
+
+  it('scopes the nominal basis clause to the figures the toggle actually moves', () => {
+    // It used to read "Unlike the figures above", which is false of the page
+    // it renders on: the dollars toggle rewrites the chart, the cliff figures
+    // and the survivor-income column only. The recommendation card's
+    // `expectedNpv` — the first dollar figure on the page — and the strategy
+    // table's Combined PV and "vs. best" columns stay in present-value
+    // dollars in both modes, and `survivorIncomeCaption`'s own nominal branch
+    // says so two paragraphs up the same screen.
+    const nominal = survivorClaimNote(
+      {
+        claimIndex: 2036 * 12 + 4,
+        claimAge: '68 years, 0 months',
+        survivorLabel: 'Sarah',
+        baselineTotal: 300_000,
+        bestTotal: 435_700,
+        gain: 135_700,
+        baselineHasSurvivorBand: true,
+      },
+      'nominal',
+    )!;
+    expect(nominal).not.toContain('Unlike the figures above');
+    expect(nominal).toContain('Unlike the chart above and the income figures at the first death');
+    // The sentence it contradicted, rendered on the same screen — pinned here
+    // so a future reword of either one has to face the other.
+    expect(
+      survivorIncomeCaption(
+        [{ survivorIncome: 36_480 } as HouseholdStrategy],
+        null,
+        'nominal',
+      ),
+    ).toContain('Combined PV beside it, which stays in present-value dollars');
+  });
+
+  it('names the benefit with one on-screen noun in both branches', () => {
+    // The chart legend this sentence points at says "survivor"
+    // (`benefitSeriesLabel`), so both halves of the ternary say "survivor
+    // benefit". They used to split — "the survivor benefit" when a band was
+    // on screen, "a widow(er) benefit" when none was — which reads as two
+    // different benefits rather than one shown two ways.
+    const base = {
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '60',
+      survivorLabel: 'Bob',
+      baselineTotal: 0,
+      bestTotal: 102_960,
+      gain: 102_960,
+    };
+    for (const baselineHasSurvivorBand of [true, false]) {
+      const note = survivorClaimNote({ ...base, baselineHasSurvivorBand })!;
+      expect(note).toMatch(/survivor benefit at age 60/);
+      expect(note).not.toMatch(/widow\(er\)/);
+    }
+  });
+
+  it('does not describe the optimizer as holding filing ages fixed', () => {
+    // The strategy table directly above varies exactly those ages, row by
+    // row, so "holds each spouse's own filing date fixed" read as a denial of
+    // the table. What is true — and what the module's own docstring already
+    // said — is that it carries ONE filing date per person, with no second
+    // date for a survivor claim.
+    const note = survivorClaimNote({
+      claimIndex: 2036 * 12 + 4,
+      claimAge: '60',
+      survivorLabel: 'Bob',
+      baselineTotal: 0,
+      bestTotal: 102_960,
+      gain: 102_960,
+      baselineHasSurvivorBand: false,
+    })!;
+    expect(note).toContain('carries a single filing date per person');
+    expect(note).not.toContain('filing date fixed');
+    expect(note).toContain('cannot model a separate survivor claim date');
   });
 
   it('reads correctly for a bare-year claim age, e.g. exactly 60', () => {

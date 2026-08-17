@@ -131,7 +131,11 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * three engine states it collapses. When it is `false` there is no survivor
  * band anywhere on screen for this figure to be earlier or later than, so the
  * sentence below says only that the figure is not otherwise shown, never that
- * it is "earlier" than a date the household would have no way to see.
+ * it is "earlier" than a date the household would have no way to see. Both
+ * branches say "survivor benefit", not "widow(er) benefit" in one and
+ * "survivor" in the other: `benefitSeriesLabel` puts "survivor" in the chart
+ * legend the sentence points at, and a second noun for the same band in the
+ * two halves of one ternary reads as two different benefits.
  *
  * Deliberately does not restate the death year (`incomeCliffSentence`,
  * rendered directly above this note on both surfaces, already gives it) or
@@ -185,6 +189,19 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * is priced the same way. That is the one case this clause exists for, and
  * the only one it fires in.
  *
+ * That nominal clause names the two surfaces the toggle actually moves above
+ * this note — the combined-income chart and the first-death figures — rather
+ * than "the figures above", which is false of the page it renders on. The
+ * toggle rewrites `combinedTimeline` and the `survivorIncome` column only
+ * (`HouseholdPanel`'s `nominalComparisons`); the recommendation card's
+ * `expectedNpv` at the top of the page and the table's Combined PV and
+ * "vs. best" columns stay in present-value dollars in both modes, and
+ * `survivorIncomeCaption`'s own nominal branch — two paragraphs up the same
+ * screen — says so in as many words. A universal "unlike the figures above"
+ * therefore contradicted a sentence the reader can see without scrolling.
+ * The adjacent "not a present value" already carries the Combined PV
+ * distinction, so only the quantifier needed narrowing.
+ *
  * Also disclaims present value unconditionally, in both modes: unlike the
  * dollars basis, this isn't stated anywhere else on the page. `gain` is an
  * undiscounted sum of dollars paid, unlike the recommendation box's own
@@ -203,21 +220,25 @@ export function survivorClaimNote(
   const claimClause = baselineHasSurvivorBand
     ? `claim the survivor benefit at age ${claimAge} instead of the date the chart above shows ` +
       `it starting`
-    : `claim a widow(er) benefit at age ${claimAge}, one the chart above does not otherwise show`;
+    : `claim a survivor benefit at age ${claimAge}, one the chart above does not otherwise show`;
 
   // Only in nominal mode: in real mode `incomeCliffSentence` directly above
   // has already said this, and this figure agrees with it — repeating it
-  // would print the identical clause twice on one page.
+  // would print the identical clause twice on one page. The two surfaces
+  // named here are the two the toggle actually moves above this note; it is
+  // deliberately not "the figures above", which would be false of the
+  // present-value figures on the same screen.
   const basisClause =
     mode === 'nominal'
-      ? ` Unlike the figures above, these ${dollarsBasisClause('real')}.`
+      ? ` Unlike the chart above and the income figures at the first death, these ` +
+        `${dollarsBasisClause('real')}.`
       : '';
 
   return (
     `If ${survivorLabel} were to ${claimClause}, the household would gain an estimated ` +
     `${formatCurrency(gain)} — a straight sum of dollars paid over its lifetime, not a present ` +
     `value.${basisClause} This is not a recommendation: the recommendation above comes from an ` +
-    `optimizer that holds each spouse's own filing date fixed and cannot model a separate ` +
+    `optimizer that carries a single filing date per person and cannot model a separate ` +
     `survivor claim date.`
   );
 }
