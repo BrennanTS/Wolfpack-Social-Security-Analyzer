@@ -282,14 +282,20 @@ export function personScreenSurface(analysis: HouseholdAnalysis, index: number):
   const lines: Line[] = [];
   const p = analysis.people[index];
   if (p === undefined) return lines;
-  if (p.soloFilingAge != null && p.soloFilingAge.label !== p.filingAge.label) {
+
+  const householdBest = p.householdBestFilingAge ?? p.filingAge;
+  const soloDiffers =
+    p.soloFilingAge != null && p.soloFilingAge.label !== householdBest.label;
+  const shownDiffers = p.filingAge.label !== householdBest.label;
+  if (soloDiffers || shownDiffers) {
     push(
       lines,
       'PersonPanel.soloVsHouseholdNote',
       soloVsHouseholdNote(
         personLabel(p.person.name, index),
-        p.filingAge.label,
-        p.soloFilingAge.label,
+        householdBest.label,
+        soloDiffers ? p.soloFilingAge!.label : null,
+        shownDiffers ? p.filingAge.label : null,
       ),
     );
   }

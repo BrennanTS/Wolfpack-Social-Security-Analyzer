@@ -11,6 +11,7 @@ import {
   type ClaimingTablePrefs,
 } from '../lib/claimingRows';
 import { firstMonthInYear, type FilingAgeChoice } from '../lib/scenario';
+import type { FilingAgeDisplay } from '../lib/ssaTools';
 import { formatCurrency, formatCurrencyPrecise, fraLabel, personLabel } from '../lib/format';
 import { scenarioEyebrow } from '../lib/scenario';
 import { soloVsHouseholdNote } from './methodologyCopy';
@@ -74,7 +75,14 @@ export function PersonPanel({
   // `age` is a whole year (62-70). Round to the nearest whole claiming age so
   // exactly one row is always marked, the same way the deleted ResultsPanel
   // did via `nearestWholeClaimAge`. A whole-year optimum rounds to itself.
-  const selectedAge = nearestWholeClaimAge(filingAge.decimalYears);
+  // THREE ages, each answering a different question — see
+  // `householdBestFilingAge`. `shownAge` is what every figure on this page is
+  // built from and is what the charts below mark; `bestTogetherAge` is what
+  // the optimizer chose for the household; `soloAge` is what this person
+  // would choose alone.
+  const shownAge = nearestWholeClaimAge(filingAge.decimalYears);
+  const householdBest = analysis.householdBestFilingAge ?? filingAge;
+  const bestTogetherAge = nearestWholeClaimAge(householdBest.decimalYears);
   // What this person would file at ALONE — null for a single claimant, where
   // it equals the household answer by construction. When the two differ the
   // table marks both, because the disagreement is the useful thing: a lower
@@ -89,7 +97,10 @@ export function PersonPanel({
     analysis.soloFilingAge == null
       ? null
       : nearestWholeClaimAge(analysis.soloFilingAge.decimalYears);
-  const showBothBadges = soloAge !== null && soloAge !== selectedAge;
+  // Only when there is a second answer to distinguish it from; otherwise the
+  // qualifier implies a disagreement that is not there.
+  const showBothBadges = soloAge !== null && soloAge !== bestTogetherAge;
+  const shownDiffers = shownAge !== bestTogetherAge;
 
   // Live-COLA break-evens for this person, recomputed the same way
   // HouseholdPanel recomputes person A's (see that component's doc comment):
@@ -140,6 +151,25 @@ export function PersonPanel({
     .map((o) => o.months);
   const shownRows = editingRows ? rows : visibleClaimingRows(rows);
   const hiddenRowCount = rows.filter((r) => r.hidden).length;
+
+  /**
+   * Which row carries a marker for a given age.
+   *
+   * An optimizer age is frequently a non-whole-year month (64y5m), which no
+   * whole-year row matches — so the rule is: if the adviser has ADDED a row
+   * sitting exactly on it, that row wins; otherwise the nearest whole year
+   * does, and exactly one row is marked either way.
+   *
+   * Shared by all three markers rather than written per badge. Rewriting the
+   * best-together badge without it silently dropped the exact-row case,
+   * leaving an added row at the optimizer's own age unmarked.
+   */
+  const marks = (row: ClaimingRow, age: FilingAgeDisplay): boolean => {
+    const exact = rows.some((r) => r.years === age.years && r.months === age.months);
+    return exact
+      ? row.years === age.years && row.months === age.months
+      : row.months === 0 && row.years === nearestWholeClaimAge(age.decimalYears);
+  };
 
   const breakEvens = computeBreakEvens(claimingOptions, annualCola);
 
@@ -193,12 +223,13 @@ export function PersonPanel({
           Monthly benefit and lifetime total to age {lifeExpectancy} at 0% discount.
           Charts may use {annualCola}% COLA for illustration.
         </p>
-        {showBothBadges && (
+        {(showBothBadges || shownDiffers) && (
           <p className="chart-caveat" data-testid="solo-vs-household">
             {soloVsHouseholdNote(
               personLabel(analysis.person.name, index),
-              filingAge.label,
-              analysis.soloFilingAge!.label,
+              (analysis.householdBestFilingAge ?? filingAge).label,
+              analysis.soloFilingAge?.label ?? null,
+              shownDiffers ? filingAge.label : null,
             )}
           </p>
         )}
@@ -231,15 +262,15 @@ export function PersonPanel({
                 // added row at that exact age would otherwise go unmarked
                 // while a whole year beside it wore the badge, so an exact
                 // match wins over the rounded one.
-                const isRecommended = rows.some((r) => r.months !== 0 && r.years === filingAge.years && r.months === filingAge.months)
-                  ? row.years === filingAge.years && row.months === filingAge.months
-                  : row.months === 0 && row.years === selectedAge;
+                const isShown = marks(row, filingAge);
+                const isBestTogether = marks(row, householdBest);
                 return (
                   <tr
                     key={row.id}
                     data-testid={`claim-row-${row.id}`}
                     className={[
-                      isRecommended ? 'row-optimal' : '',
+                      isBestTogether ? 'row-optimal' : '',
+                      shownDiffers && isShown ? 'row-selected' : '',
                       !row.isEligible ? 'row-future' : '',
                       row.hidden ? 'row-hidden' : '',
                     ]
@@ -264,19 +295,25 @@ export function PersonPanel({
                     )}
                     <td>
                       <strong>{row.label}</strong>
-                      {isRecommended && (
+                      {/* The OPTIMIZER's answer, never the shown scenario's.
+                          Wiring this to the shown age put "Best together" on
+                          62 for a household whose optimum was 70. */}
+                      {isBestTogether && (
                         <span className="badge" data-testid="badge-best">
-                          {/* "Best together" only when there is a second
-                              answer to distinguish it from. On a single
-                              claimant's table, and on a married one where the
-                              two coincide, a qualifier would imply a
-                              disagreement that is not there. */}
                           {showBothBadges ? 'Best together' : 'Best'}
                         </span>
                       )}
                       {showBothBadges && row.months === 0 && row.years === soloAge && (
                         <span className="badge badge-solo" data-testid="badge-solo">
                           Best alone
+                        </span>
+                      )}
+                      {/* What the page is actually built from, when that is
+                          not the optimum. Without it the row every figure
+                          comes from carries no mark at all. */}
+                      {shownDiffers && isShown && (
+                        <span className="badge badge-shown" data-testid="badge-shown">
+                          Shown
                         </span>
                       )}
                     </td>
@@ -286,7 +323,7 @@ export function PersonPanel({
                     <td>
                       {!row.isEligible ? (
                         <span className="status-future">Future</span>
-                      ) : isRecommended ? (
+                      ) : isShown ? (
                         <span className="status-optimal">Optimal</span>
                       ) : (
                         <span className="status-eligible">Eligible</span>
@@ -420,7 +457,7 @@ export function PersonPanel({
         <BenefitChart
           options={claimingOptions}
           lifeExpectancy={analysis.person.lifeExpectancy}
-          optimalAge={selectedAge}
+          optimalAge={shownAge}
           annualCola={annualCola}
         />
 
@@ -429,7 +466,7 @@ export function PersonPanel({
 
       <OptionalChartsPanel
         claimingOptions={claimingOptions}
-        optimalAge={selectedAge}
+        optimalAge={shownAge}
         lifeExpectancy={analysis.person.lifeExpectancy}
         annualCola={annualCola}
         visibility={chartVisibility}

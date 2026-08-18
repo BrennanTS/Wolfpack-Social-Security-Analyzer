@@ -49,6 +49,7 @@ function BenefitTable({
   optimalLifetime,
   optimalRowId,
   soloRowId,
+  shownRowId,
 }: {
   rows: ClaimingRow[];
   optimalLifetime: number;
@@ -59,6 +60,8 @@ function BenefitTable({
    * or a married one whose two answers coincide.
    */
   soloRowId: string;
+  /** The row the page's figures come from, when that is not the optimum. */
+  shownRowId: string;
 }) {
   return (
     <View>
@@ -83,6 +86,9 @@ function BenefitTable({
               )}
               {soloRowId !== '' && row.id === soloRowId && (
                 <Text style={styles.badgeShown}>ALONE</Text>
+              )}
+              {shownRowId !== '' && row.id === shownRowId && (
+                <Text style={styles.badgeShown}>SHOWN</Text>
               )}
             </View>
             <Text style={[styles.td, { width: COL.monthly }]}>
@@ -144,14 +150,23 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
 
   // `== null` — an analysis built before this field existed carries
   // `undefined`, not `null`. See `PersonPanel` for the same convention.
+  // Three ages, as on screen — see `householdBestFilingAge`. `optimalAge`
+  // above is the SHOWN scenario's, which is what the charts mark.
+  const bestTogetherAge = nearestWholeClaimAge(
+    (analysis.householdBestFilingAge ?? analysis.filingAge).decimalYears,
+  );
+  const bestTogetherRow = tableRows.find(
+    (r) => r.months === 0 && r.years === bestTogetherAge,
+  );
   const soloAge =
     analysis.soloFilingAge == null
       ? null
       : nearestWholeClaimAge(analysis.soloFilingAge.decimalYears);
   const soloRow =
-    soloAge === null || soloAge === optimalAge
+    soloAge === null || soloAge === bestTogetherAge
       ? undefined
       : tableRows.find((r) => r.months === 0 && r.years === soloAge);
+  const shownDiffers = optimalAge !== bestTogetherAge;
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -205,12 +220,18 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
       <BenefitTable
         rows={tableRows}
         optimalLifetime={optimalRow?.lifetimeBenefits ?? optimal.lifetimeBenefits}
-        optimalRowId={optimalRow?.id ?? ''}
+        optimalRowId={bestTogetherRow?.id ?? ''}
         soloRowId={soloRow?.id ?? ''}
+        shownRowId={shownDiffers ? (optimalRow?.id ?? '') : ''}
       />
-      {soloRow !== undefined && analysis.soloFilingAge != null && (
+      {(soloRow !== undefined || shownDiffers) && (
         <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
-          {soloVsHouseholdNote(name, analysis.filingAge.label, analysis.soloFilingAge.label)}
+          {soloVsHouseholdNote(
+            name,
+            (analysis.householdBestFilingAge ?? analysis.filingAge).label,
+            soloRow !== undefined ? (analysis.soloFilingAge?.label ?? null) : null,
+            shownDiffers ? analysis.filingAge.label : null,
+          )}
         </Text>
       )}
 

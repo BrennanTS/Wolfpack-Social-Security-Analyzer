@@ -366,3 +366,105 @@ describe('PersonPanel — editing the claiming-age table', () => {
     expect(screen.queryByTestId('claim-add')).not.toBeInTheDocument();
   });
 });
+
+describe('PersonPanel — three ages, three labels', () => {
+  const age = (years: number, months = 0) => ({
+    years, months,
+    label: months === 0 ? String(years) : `${years} years, ${months} months`,
+    decimalYears: years + months / 12,
+    monthDuration: null as never,
+  });
+
+  /**
+   * The reported defect. An adviser adds a "both at 62" scenario, so the page
+   * is built on 62 — while the optimizer's own answer is 70 and the household
+   * table one screen up badges 70 as BEST and prices 62 at $171,728 less.
+   *
+   * "Best together" followed the SHOWN scenario, so it landed on 62: the
+   * optimizer's label on the adviser's choice.
+   */
+  // The fixture's person is 63, so its table runs 63..70 — the reported
+  // household's 62y1m is simply not a row here. Age 64 stands in for it: the
+  // logic under test is which age each marker follows, not which ages exist.
+  function scenarioSelected() {
+    return {
+      ...buildAnalysis(age(64)),
+      soloFilingAge: age(70),
+      householdBestFilingAge: age(70),
+    } as unknown as PersonAnalysis;
+  }
+
+  const render3 = (analysis: PersonAnalysis) =>
+    render(<PersonPanel analysis={analysis} index={0} annualCola={2.5} />);
+
+  it('puts the Best badge on the optimizer’s age, not on the shown scenario', () => {
+    render3(scenarioSelected());
+    const badge = screen.getByTestId('badge-best');
+    // 70 — what the optimizer chose. NOT 62, which is what is being shown.
+    expect(badge.closest('tr')).toHaveAttribute('data-testid', 'claim-row-70');
+    expect(screen.getByTestId('claim-row-64')).not.toContainElement(badge);
+    // No "together" qualifier: this person's solo answer is ALSO 70, so
+    // there is no together-vs-alone disagreement to name. The qualifier
+    // appearing here would imply one.
+    expect(badge).toHaveTextContent('Best');
+    expect(badge).not.toHaveTextContent('together');
+    expect(screen.queryByTestId('badge-solo')).not.toBeInTheDocument();
+  });
+
+  it('marks the row the figures actually come from', () => {
+    // Without this the row every number on the page is built from carries no
+    // mark at all, because the Best badge has moved away from it.
+    render3(scenarioSelected());
+    expect(screen.getByTestId('badge-shown').closest('tr')).toHaveAttribute(
+      'data-testid',
+      'claim-row-64',
+    );
+  });
+
+  it('never attributes the adviser’s choice to the optimizer', () => {
+    // The note said "the optimizer chooses age 62 years, 1 month" about an
+    // age the optimizer had rejected.
+    render3(scenarioSelected());
+    const note = screen.getByTestId('solo-vs-household').textContent ?? '';
+    expect(note).toContain('age 70');
+    expect(note).not.toMatch(/optimizer[^.]*age 64/);
+    // And it says plainly which age the figures are on, and whose choice it was.
+    expect(note).toContain('You are looking at age 64');
+    expect(note).toContain('which you chose');
+  });
+
+  it('collapses to a single Best when all three ages agree', () => {
+    const agreed = {
+      ...buildAnalysis(age(70)),
+      soloFilingAge: null,
+      householdBestFilingAge: age(70),
+    } as unknown as PersonAnalysis;
+    render3(agreed);
+    expect(screen.getByTestId('badge-best')).toHaveTextContent('Best');
+    expect(screen.getByTestId('badge-best')).not.toHaveTextContent('together');
+    expect(screen.queryByTestId('badge-solo')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('badge-shown')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('solo-vs-household')).not.toBeInTheDocument();
+  });
+
+  it('marks all three separately when all three differ', () => {
+    const allDiffer = {
+      ...buildAnalysis(age(64)),
+      soloFilingAge: age(70),
+      householdBestFilingAge: age(66),
+    } as unknown as PersonAnalysis;
+    render3(allDiffer);
+    expect(screen.getByTestId('badge-best').closest('tr')).toHaveAttribute(
+      'data-testid',
+      'claim-row-66',
+    );
+    expect(screen.getByTestId('badge-solo').closest('tr')).toHaveAttribute(
+      'data-testid',
+      'claim-row-70',
+    );
+    expect(screen.getByTestId('badge-shown').closest('tr')).toHaveAttribute(
+      'data-testid',
+      'claim-row-64',
+    );
+  });
+});

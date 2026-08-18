@@ -1465,6 +1465,9 @@ export async function analyzeHousehold(
         assumptions.annualCola,
         asOf,
         solo.length > 0 ? solo[0].filingAges[0] : null,
+        // The OPTIMUM's age for this person, not the shown scenario's. These
+        // differ the moment an adviser selects any other row.
+        displayOptimalAges[i],
       );
     });
 
@@ -1622,7 +1625,19 @@ export async function analyzeHousehold(
     (ages) => ages,
   );
 
-  const people = [analyzePerson(person, selected.filingAges[0], assumptions.annualCola, asOf)];
+  const people = [
+    analyzePerson(
+      person,
+      selected.filingAges[0],
+      assumptions.annualCola,
+      asOf,
+      // A single claimant's solo answer IS the household's, so there is
+      // nothing to contrast — but the optimum still differs from the shown
+      // scenario whenever one has been chosen.
+      null,
+      optimal.filingAges[0],
+    ),
+  ];
 
   const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
     household.people,

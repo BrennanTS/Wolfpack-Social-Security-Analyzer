@@ -816,26 +816,52 @@ export function survivorIncomeCaption(
 }
 
 /**
- * Why a person's own best filing age can differ from the household's.
+ * Why the ages marked on a person's table differ from each other.
  *
- * Printed only when the two actually disagree — which for a married couple is
- * common, not exotic. The reason is always the same shape: one spouse's
- * filing age also sets what the other inherits, so the household's answer
- * optimises something this person's own table cannot see.
+ * Up to three are in play and each answers a different question: what the
+ * optimizer chose for the household, what this person would choose alone,
+ * and what the figures on the page are actually built from. Any two of them
+ * can coincide, so every clause here is conditional — a sentence naming an
+ * age that is not on screen is worse than no sentence.
  *
- * Deliberately does not say which is "right". Both are, for the question each
- * asks, and an adviser choosing between them is doing their job rather than
- * correcting an error.
+ * The version this replaces said "the optimizer chooses age X" where X was
+ * the SHOWN scenario's age. For a household whose optimum was 70 and whose
+ * adviser had selected 62 years 1 month, it attributed the adviser's choice
+ * to the optimizer, on the same page as a comparison table pricing that
+ * choice $171,728 below the optimum.
+ *
+ * `soloAge` is null for a single claimant, where their own answer IS the
+ * household's. `shownAge` is null while the shown scenario is the optimum,
+ * which is the default and by far the commonest case.
  */
 export function soloVsHouseholdNote(
   label: string,
-  householdAge: string,
-  soloAge: string,
+  householdBestAge: string,
+  soloAge: string | null,
+  shownAge: string | null,
 ): string {
-  return (
-    `Two answers, because there are two questions. On ${label}'s own record alone, age ` +
-    `${soloAge} is worth the most. For the household — where a filing age also sets what ` +
-    `a surviving spouse inherits — the optimizer chooses age ${householdAge}, and that is ` +
-    `the age every other figure in this report is built on.`
-  );
+  const parts: string[] = [];
+
+  if (soloAge !== null) {
+    parts.push(
+      `Two answers, because there are two questions. On ${label}'s own record alone, age ` +
+        `${soloAge} is worth the most. For the household — where a filing age also sets what ` +
+        `a surviving spouse inherits — the optimizer chooses age ${householdBestAge}.`,
+    );
+  } else {
+    parts.push(`The optimizer's own answer for this household is age ${householdBestAge}.`);
+  }
+
+  if (shownAge !== null) {
+    // Stated last and stated plainly: this is the one that decides what every
+    // other number on the page means.
+    parts.push(
+      `You are looking at age ${shownAge}, which you chose — every figure in this report is ` +
+        `built on it, not on the optimizer's answer.`,
+    );
+  } else {
+    parts.push('That is the age every figure in this report is built on.');
+  }
+
+  return parts.join(' ');
 }

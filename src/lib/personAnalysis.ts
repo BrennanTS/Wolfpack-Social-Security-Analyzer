@@ -71,6 +71,24 @@ export interface PersonAnalysis {
    * that; showing only hers would recommend against her own household.
    */
   soloFilingAge: FilingAgeDisplay | null;
+  /**
+   * The age the OPTIMIZER chose for this person — the household's own best
+   * answer, whatever scenario is currently being shown.
+   *
+   * Distinct from `filingAge`, and equal to it only while the shown scenario
+   * IS the optimum. Conflating the two put "Best together" on age 62 for a
+   * household whose optimum was 70, on the same screen as a comparison table
+   * badging 70 as best and pricing 62 at $171,728 less — and made
+   * `soloVsHouseholdNote` say "the optimizer chooses age 62 years, 1 month"
+   * about an age the optimizer had rejected.
+   *
+   * Three ages now exist per person and each answers a different question:
+   * `householdBestFilingAge` (best for the household), `soloFilingAge` (best
+   * for them alone), and `filingAge` (what the figures on the page are
+   * actually built from). Any label naming one of them must not be attached
+   * to another.
+   */
+  householdBestFilingAge: FilingAgeDisplay;
   breakEvens: BreakEvenPair[];
   ssaSuggestedLifeExpectancy: number;
 }
@@ -101,6 +119,8 @@ export function analyzePerson(
   annualCola: number,
   asOf: Date = new Date(),
   soloFilingAge: FilingAgeDisplay | null = null,
+  /** Defaults to `filingAge` — true whenever no scenario has been chosen. */
+  householdBestFilingAge: FilingAgeDisplay = filingAge,
 ): PersonAnalysis {
   const recipient = createPiaRecipient(
     person.birthYear,
@@ -141,6 +161,7 @@ export function analyzePerson(
       filingAge.monthDuration,
     ).benefit,
     soloFilingAge,
+    householdBestFilingAge,
     breakEvens: computeBreakEvens(claimingOptions, annualCola),
     ssaSuggestedLifeExpectancy: getSuggestedLifeExpectancy(currentAge.years, person.gender),
   };
