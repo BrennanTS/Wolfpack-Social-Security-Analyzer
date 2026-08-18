@@ -12,6 +12,7 @@ import type { Person } from '../../lib/personAnalysis';
 import { toNominalAmount } from '../../lib/dollarsMode';
 import { incomeCliff } from '../../lib/incomeCliff';
 import { seriesColor } from '../../lib/chartTheme';
+import { formatPercent } from '../../lib/cpiHistory';
 import { formatCurrency, personLabel } from '../../lib/format';
 import {
   benefitSeriesLabel,
@@ -24,6 +25,8 @@ import {
   survivorClaimNote,
   survivorGapNote,
   survivorIncomeCaption,
+  HOUSEHOLD_VALUE_COLUMN_HEADER,
+  householdValueCaption,
   SURVIVOR_INCOME_COLUMN_HEADER,
 } from '../methodologyCopy';
 import { scenarioEyebrow } from '../../lib/scenario';
@@ -38,7 +41,10 @@ interface Props {
 }
 
 /** Household strategy-comparison columns (must sum to CONTENT_W). */
-const HCOL = { label: 130, person: 80, npv: 90, delta: 66, survivor: 70 };
+// `npv` widened and `label` narrowed by the same amount when "Combined PV"
+// became "Household value": the header is four characters longer and wrapped
+// at the old width. Must still sum to CONTENT_W.
+const HCOL = { label: 118, person: 80, npv: 102, delta: 66, survivor: 70 };
 
 /**
  * Exported for `HouseholdSection.test.tsx` for the same reason
@@ -72,7 +78,7 @@ export function StrategyTable({
             {personLabel(p.name, i)}
           </Text>
         ))}
-        <Text style={[styles.th, { width: HCOL.npv }]}>Combined PV</Text>
+        <Text style={[styles.th, { width: HCOL.npv }]}>{HOUSEHOLD_VALUE_COLUMN_HEADER}</Text>
         <Text style={[styles.th, { width: HCOL.delta }]}>vs. best</Text>
         {showSurvivorIncome && (
           <Text style={[styles.th, { width: HCOL.survivor }]}>{SURVIVOR_INCOME_COLUMN_HEADER}</Text>
@@ -282,10 +288,15 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
 
       <Text style={styles.sectionTitle}>Strategy Comparison</Text>
       <Text style={styles.sectionDesc}>
-        Combined expected present value for each filing strategy, so you can see what the
-        optimizer rejected and by how much.
+        What the optimizer rejected, and by how much.
       </Text>
       <StrategyTable comparisons={analysis.comparisons} people={people} />
+      {/* The column's meaning, under the column rather than above the
+          heading — and the same sentence the screen prints, so the two
+          surfaces cannot describe the figure differently. */}
+      <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
+        {householdValueCaption(formatPercent(analysis.assumptions.discountRate * 100, 2))}
+      </Text>
       {showSurvivorIncomeColumn(analysis.comparisons, people.length) && (
         // Same gate as the table's own column (shared, not retyped), so the
         // caption cannot print over a column that isn't there — or over one

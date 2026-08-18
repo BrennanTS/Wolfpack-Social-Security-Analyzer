@@ -38,6 +38,9 @@ function buildAnalysis(filingAge: PersonAnalysis['filingAge']): PersonAnalysis {
     })),
     filingAge,
     monthlyAtFilingAge: 2976,
+    // Null: these fixtures are single claimants, where a person's own best
+    // filing age IS the household's and a second badge would be noise.
+    soloFilingAge: null,
     breakEvens: [],
     ssaSuggestedLifeExpectancy: 82,
   } as unknown as PersonAnalysis;

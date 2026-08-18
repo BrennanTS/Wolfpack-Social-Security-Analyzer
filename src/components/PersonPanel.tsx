@@ -13,6 +13,7 @@ import {
 import { firstMonthInYear, type FilingAgeChoice } from '../lib/scenario';
 import { formatCurrency, formatCurrencyPrecise, fraLabel, personLabel } from '../lib/format';
 import { scenarioEyebrow } from '../lib/scenario';
+import { soloVsHouseholdNote } from './methodologyCopy';
 import { nearestWholeClaimAge } from '../lib/ssaTools';
 import { computeBreakEvens } from '../lib/benefitMath';
 import { DEFAULT_CHART_VISIBILITY, type ChartKey } from '../lib/chartVisibility';
@@ -74,6 +75,21 @@ export function PersonPanel({
   // exactly one row is always marked, the same way the deleted ResultsPanel
   // did via `nearestWholeClaimAge`. A whole-year optimum rounds to itself.
   const selectedAge = nearestWholeClaimAge(filingAge.decimalYears);
+  // What this person would file at ALONE — null for a single claimant, where
+  // it equals the household answer by construction. When the two differ the
+  // table marks both, because the disagreement is the useful thing: a lower
+  // earner with the longer horizon is often better off alone at 70 and
+  // better off for the household at 66, since they inherit a survivor
+  // benefit that delaying their own record cannot beat.
+  // `== null`, not `=== null` — the same convention the strategy table uses
+  // for `survivorIncome`, and for the same reason: an analysis built before
+  // this field existed carries `undefined`, not `null`, and must take the
+  // "nothing to contrast" path rather than throw on the property access.
+  const soloAge =
+    analysis.soloFilingAge == null
+      ? null
+      : nearestWholeClaimAge(analysis.soloFilingAge.decimalYears);
+  const showBothBadges = soloAge !== null && soloAge !== selectedAge;
 
   // Live-COLA break-evens for this person, recomputed the same way
   // HouseholdPanel recomputes person A's (see that component's doc comment):
@@ -177,6 +193,15 @@ export function PersonPanel({
           Monthly benefit and lifetime total to age {lifeExpectancy} at 0% discount.
           Charts may use {annualCola}% COLA for illustration.
         </p>
+        {showBothBadges && (
+          <p className="chart-caveat" data-testid="solo-vs-household">
+            {soloVsHouseholdNote(
+              personLabel(analysis.person.name, index),
+              filingAge.label,
+              analysis.soloFilingAge!.label,
+            )}
+          </p>
+        )}
         <div className="table-wrap">
           <table data-testid="benefit-table" className={editingRows ? 'strategy-editing' : ''}>
             <thead>
@@ -239,7 +264,21 @@ export function PersonPanel({
                     )}
                     <td>
                       <strong>{row.label}</strong>
-                      {isRecommended && <span className="badge">Best</span>}
+                      {isRecommended && (
+                        <span className="badge" data-testid="badge-best">
+                          {/* "Best together" only when there is a second
+                              answer to distinguish it from. On a single
+                              claimant's table, and on a married one where the
+                              two coincide, a qualifier would imply a
+                              disagreement that is not there. */}
+                          {showBothBadges ? 'Best together' : 'Best'}
+                        </span>
+                      )}
+                      {showBothBadges && row.months === 0 && row.years === soloAge && (
+                        <span className="badge badge-solo" data-testid="badge-solo">
+                          Best alone
+                        </span>
+                      )}
                     </td>
                     <td data-testid="cell-monthly">{formatCurrencyPrecise(row.monthlyBenefit)}</td>
                     <td data-testid="cell-percent">{row.percentOfPia}%</td>

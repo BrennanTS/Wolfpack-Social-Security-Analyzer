@@ -1152,17 +1152,17 @@ function coupleRecommendationDetail(
   if (isPiaTie) {
     return (
       `Both spouses have the same PIA, so neither is the engine's higher earner and it can ` +
-      `model either one as the dependent. Under the model shown here, the best combined ` +
-      `expected present value is ${formatCurrency(expectedNpv)}, with ${labels[0]} filing at ` +
+      `model either one as the dependent. Under the model shown here, the best household ` +
+      `value is ${formatCurrency(expectedNpv)}, with ${labels[0]} filing at ` +
       `age ${ages[0]} and ${labels[1]} at age ${ages[1]}. The other model is equally ` +
       `admissible and need not give the same ages or the same value.`
     );
   }
 
   return (
-    `The couple optimizer maximizes combined expected present value at ` +
-    `${formatCurrency(expectedNpv)} when ${labels[0]} files at age ${ages[0]} and ` +
-    `${labels[1]} files at age ${ages[1]}.`
+    `The couple optimizer maximizes the household's value at ${formatCurrency(expectedNpv)} ` +
+    `when ${labels[0]} files at age ${ages[0]} and ${labels[1]} files at age ${ages[1]}, ` +
+    `assuming each lives to the plan-to age set for them.`
   );
 }
 
@@ -1189,7 +1189,10 @@ function selectedScenarioDetail(
   selectedNpv: number,
   optimalNpv: number,
 ): string {
-  const value = labels.length > 1 ? 'combined expected present value' : 'expected present value';
+  // One phrase for both household shapes. "Combined" is redundant beside
+  // "household", and neither is an *expected* value any more — the optimizer
+  // discounts one assumed future rather than averaging over mortality.
+  const value = 'household value';
   const filings = labels.map((l, i) => `${l} at age ${ages[i]}`).join(' and ');
   const bestFilings = labels.map((l, i) => `${l} at age ${optimalAges[i]}`).join(' and ');
   const shortfall = Math.round((optimalNpv - selectedNpv) * 100) / 100;
@@ -1442,9 +1445,28 @@ export async function analyzeHousehold(
     // different pairs, and this is the one the reader is looking at.
     const displayFilingAges = reorder(selected.filingAges);
     const displayOptimalAges = reorder(optimal.filingAges);
-    const people = household.people.map((person, i) =>
-      analyzePerson(person, displayFilingAges[i], assumptions.annualCola, asOf),
-    );
+    // What each spouse would choose ALONE, for the contrast the person tabs
+    // draw. Same optimizer, same discount rate, same plan-to age, same `asOf`
+    // — the only difference is that the other person is not there, which is
+    // exactly the comparison an adviser is being shown.
+    //
+    // Cheap enough to do unconditionally now that the optimizer takes a fixed
+    // horizon rather than fetching and weighting a mortality table.
+    const people = household.people.map((person, i) => {
+      const solo = rankedSingleStrategies(
+        createRecipientFor(person),
+        assumptions.discountRate,
+        person.lifeExpectancy,
+        asOf,
+      );
+      return analyzePerson(
+        person,
+        displayFilingAges[i],
+        assumptions.annualCola,
+        asOf,
+        solo.length > 0 ? solo[0].filingAges[0] : null,
+      );
+    });
 
     // The top-up accrues to the lower earner, claimed on the higher earner's
     // record. Classified via the engine's own `classifyEarnerDependent`
@@ -1647,8 +1669,9 @@ export async function analyzeHousehold(
     recommendation: `Claim at age ${selected.filingAges[0].label}`,
     recommendationDetail: selectedRow.isOptimal
       ? `The optimizer recommends filing at age ${optimal.filingAges[0].label} ` +
-        `(${formatCurrency(people[0].monthlyAtFilingAge)}/month) for the highest expected ` +
-        `present value, ${formatCurrency(optimal.expectedNpv)}.`
+        `(${formatCurrency(people[0].monthlyAtFilingAge)}/month) for the highest household ` +
+        `value, ${formatCurrency(optimal.expectedNpv)}, assuming they live to age ` +
+        `${person.lifeExpectancy}.`
       : selectedScenarioDetail(
           [personLabel(person.name, 0)],
           [selected.filingAges[0].label],

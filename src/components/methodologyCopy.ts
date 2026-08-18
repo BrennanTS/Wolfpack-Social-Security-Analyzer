@@ -198,12 +198,12 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
  * than "the figures above", which is false of the page it renders on. The
  * toggle rewrites `combinedTimeline` and the `survivorIncome` column only
  * (`HouseholdPanel`'s `nominalComparisons`); the recommendation card's
- * `expectedNpv` at the top of the page and the table's Combined PV and
+ * `expectedNpv` at the top of the page and the table's household-value and
  * "vs. best" columns stay in present-value dollars in both modes, and
  * `survivorIncomeCaption`'s own nominal branch — two paragraphs up the same
  * screen — says so in as many words. A universal "unlike the figures above"
  * therefore contradicted a sentence the reader can see without scrolling.
- * The adjacent "not a present value" already carries the Combined PV
+ * The adjacent "not a present value" already carries the household-value
  * distinction, so only the quantifier needed narrowing.
  *
  * Also disclaims present value unconditionally, in both modes: unlike the
@@ -647,6 +647,41 @@ export const INCOME_CLIFF_HEADING = 'Income at the First Death';
 export const SURVIVOR_INCOME_COLUMN_HEADER = 'Survivor income';
 
 /**
+ * The money column of the married and single comparison tables.
+ *
+ * Was "Combined PV", and the word that had to go is not "Combined" — it is
+ * the *expected* in "expected present value", which the header only implied.
+ * The optimizer used to weight every filing age by SSA period-table
+ * mortality, so the figure genuinely was an expectation across how long
+ * someone might live. It now discounts a single stream to each person's
+ * plan-to age (`planToAgeDistribution`), which is a present value of one
+ * assumed future rather than an average over many.
+ *
+ * The figures are systematically larger than the old ones for that reason —
+ * they price no chance of dying early — so a header that kept implying an
+ * expectation would have understated what changed.
+ */
+export const HOUSEHOLD_VALUE_COLUMN_HEADER = 'Household value';
+
+/**
+ * What that column means, under the table on both surfaces.
+ *
+ * Names both assumptions in one sentence, because each is load-bearing and
+ * neither is visible in the number: the horizon (each person's plan-to age,
+ * assumed reached) and the discounting (at the assumed rate). A reader who
+ * has seen an older report, or another tool's mortality-weighted figure,
+ * needs to know these are not the same quantity.
+ */
+export function householdValueCaption(discountRatePercent: string): string {
+  return (
+    `Household value is the present value of everything the household receives if each ` +
+    `person lives to the plan-to age set for them, discounted at ${discountRatePercent}. It ` +
+    `assumes those ages are reached rather than averaging across how long someone might ` +
+    `live, so it is not comparable with a mortality-weighted figure.`
+  );
+}
+
+/**
  * The caption under the strategy table's survivor-income column — the figure
  * a single lifetime PV number cannot show at all: what each strategy leaves
  * the survivor with, year after year. Shared by the on-screen table and the
@@ -730,7 +765,7 @@ export const SURVIVOR_INCOME_COLUMN_HEADER = 'Survivor income';
  * same fact.
  *
  * `mode` adds one more thing every figure-bearing branch states: which
- * dollars the column is in. The column sits directly beside "Combined PV",
+ * dollars the column is in. The column sits directly beside the household-value column,
  * which stays in present-value dollars regardless of this toggle — a real
  * risk of two unmarked unit systems in one table, worse once nominal makes
  * the two columns diverge further apart. `HouseholdPanel` is the only caller
@@ -754,7 +789,7 @@ export function survivorIncomeCaption(
   const basisClause =
     mode === 'nominal'
       ? ' This column is in future (nominal) dollars, compounded forward using the assumed ' +
-        'COLA — unlike Combined PV beside it, which stays in present-value dollars regardless ' +
+        `COLA — unlike ${HOUSEHOLD_VALUE_COLUMN_HEADER} beside it, which stays in present-value dollars regardless ` +
         'of this toggle.'
       : ' This column is in today’s dollars, before any cost-of-living adjustment.';
 
@@ -762,7 +797,7 @@ export function survivorIncomeCaption(
   const riseClause = survivorIncomeRisesWithDelay(comparisons)
     ? 'Delaying raises this figure for this household, and the survivor keeps the higher ' +
       'amount for every year they outlive their spouse — the argument for delaying that the ' +
-      'Combined PV column alone cannot show.'
+      `${HOUSEHOLD_VALUE_COLUMN_HEADER} column alone cannot show.`
     : 'For this household the figure is not simply larger for later filing: it turns on what ' +
       'the first spouse to die had filed for AND on whether the survivor has begun collecting ' +
       'by that year — a strategy under which the survivor’s own benefit has not started by ' +
@@ -778,4 +813,29 @@ export function survivorIncomeCaption(
         'see the note below.';
 
   return `${base} ${riseClause}${gapClause}${basisClause}`;
+}
+
+/**
+ * Why a person's own best filing age can differ from the household's.
+ *
+ * Printed only when the two actually disagree — which for a married couple is
+ * common, not exotic. The reason is always the same shape: one spouse's
+ * filing age also sets what the other inherits, so the household's answer
+ * optimises something this person's own table cannot see.
+ *
+ * Deliberately does not say which is "right". Both are, for the question each
+ * asks, and an adviser choosing between them is doing their job rather than
+ * correcting an error.
+ */
+export function soloVsHouseholdNote(
+  label: string,
+  householdAge: string,
+  soloAge: string,
+): string {
+  return (
+    `Two answers, because there are two questions. On ${label}'s own record alone, age ` +
+    `${soloAge} is worth the most. For the household — where a filing age also sets what ` +
+    `a surviving spouse inherits — the optimizer chooses age ${householdAge}, and that is ` +
+    `the age every other figure in this report is built on.`
+  );
 }

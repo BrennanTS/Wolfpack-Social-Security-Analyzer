@@ -157,7 +157,7 @@ describe('StrategyComparisonTable', () => {
     expect(caption.textContent).not.toContain('Sarah');
   });
 
-  // The column sits directly beside "Combined PV", which always stays in
+  // The column sits directly beside "Household value", which always stays in
   // present-value dollars regardless of this toggle — the caption is the
   // only thing in the table naming which dollars THIS column is in.
   describe('dollarsMode', () => {
@@ -168,7 +168,7 @@ describe('StrategyComparisonTable', () => {
       );
     });
 
-    it('names nominal dollars, contrasted against Combined PV, when passed nominal', () => {
+    it('names nominal dollars, contrasted against Household value, when passed nominal', () => {
       render(
         <StrategyComparisonTable
           comparisons={comparisons}
@@ -178,7 +178,7 @@ describe('StrategyComparisonTable', () => {
       );
       const caption = screen.getByTestId('survivor-income-caption');
       expect(caption).toHaveTextContent(/nominal/i);
-      expect(caption).toHaveTextContent(/Combined PV/);
+      expect(caption).toHaveTextContent(/Household value/);
     });
   });
 });

@@ -44,6 +44,9 @@ import {
   widowedLifetimeCaption,
 } from '../../src/components/widowedCopy';
 import { widowedBenefitsOverlap } from '../../src/lib/widowedStages';
+import { householdValueCaption, soloVsHouseholdNote } from '../../src/components/methodologyCopy';
+import { formatPercent } from '../../src/lib/cpiHistory';
+import { personLabel } from '../../src/lib/format';
 import { incomeCliff } from '../../src/lib/incomeCliff';
 import { toNominalAmount, type DollarsMode } from '../../src/lib/dollarsMode';
 import type { HouseholdAnalysis } from '../../src/lib/household';
@@ -143,6 +146,11 @@ export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
 
   push(
     lines,
+    'StrategyComparisonTable.householdValueCaption',
+    householdValueCaption(formatPercent(analysis.assumptions.discountRate * 100, 2)),
+  );
+  push(
+    lines,
     'StrategyComparisonTable.survivorIncomeCaption',
     survivorIncomeCaption(analysis.comparisons, analysis.survivorGap, mode),
   );
@@ -203,6 +211,11 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
       'pdf/HouseholdSection.survivorIncomeCaption',
       survivorIncomeCaption(analysis.comparisons, analysis.survivorGap, 'real'),
     );
+    push(
+      lines,
+      'pdf/HouseholdSection.householdValueCaption',
+      householdValueCaption(formatPercent(analysis.assumptions.discountRate * 100, 2)),
+    );
     push(lines, 'pdf/HouseholdSection.subtitle', COMBINED_INCOME_SUBTITLE);
     push(
       lines,
@@ -247,6 +260,47 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
   push(lines, 'pdf/MethodologyAppendix.coupleModelingNote', coupleModelingNote(analysis.survivorGap));
 
   return lines;
+}
+
+/**
+ * ONE person's tab, and ONE person's printed page — a single reader's view of
+ * a single person.
+ *
+ * Separate from the household surfaces above, not folded into them, because
+ * the duplicate check's question is "does one reader see this sentence
+ * twice?" On screen `HouseholdView` mounts only the active tab, so two people
+ * never share a reader; in print they are two pages. Modelling both people's
+ * notes as one surface reported a duplicate for every household whose two
+ * spouses file at the same age — the explanatory half of the sentence is
+ * identical then, and correctly so, because it is explaining the same age to
+ * two different readers.
+ *
+ * That false positive is exactly what this model is for: it fired on the
+ * first full run, and the model was wrong rather than the copy.
+ */
+export function personScreenSurface(analysis: HouseholdAnalysis, index: number): Line[] {
+  const lines: Line[] = [];
+  const p = analysis.people[index];
+  if (p === undefined) return lines;
+  if (p.soloFilingAge != null && p.soloFilingAge.label !== p.filingAge.label) {
+    push(
+      lines,
+      'PersonPanel.soloVsHouseholdNote',
+      soloVsHouseholdNote(
+        personLabel(p.person.name, index),
+        p.filingAge.label,
+        p.soloFilingAge.label,
+      ),
+    );
+  }
+  return lines;
+}
+
+export function personPdfSurface(analysis: HouseholdAnalysis, index: number): Line[] {
+  return personScreenSurface(analysis, index).map((line) => ({
+    ...line,
+    source: line.source.replace('PersonPanel.', 'pdf/PersonSection.'),
+  }));
 }
 
 export const SURFACES = [

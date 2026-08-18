@@ -2632,3 +2632,12 @@ tbody tr:hover {
   opacity: 0.72;
   transition: opacity 0.15s var(--ease);
 }
+
+/* "Best alone" sits beside "Best together" on a married person's table. A
+   lighter fill, because it is the secondary answer: the household's age is
+   what every other figure in the report is built on. */
+.badge-solo {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+}

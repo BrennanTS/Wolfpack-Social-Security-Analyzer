@@ -282,10 +282,11 @@ describe('a single claimant', () => {
     expect(chosen.recommendation).toBe('Claim at age 65');
     expect(chosen.people[0].filingAge.label).toBe('65');
     expect(chosen.selected.expectedNpv).toBeLessThan(best.optimal.expectedNpv);
-    // Singular wording — "combined" would be a second person this household
-    // does not have.
-    expect(chosen.recommendationDetail).toContain('expected present value');
-    expect(chosen.recommendationDetail).not.toContain('combined expected present value');
+    // One phrase for both household shapes now: "combined" was redundant
+    // beside "household", and neither is an *expected* value since the
+    // optimizer stopped weighting by mortality.
+    expect(chosen.recommendationDetail).toContain('household value');
+    expect(chosen.recommendationDetail).not.toContain('expected present value');
   });
 });
 

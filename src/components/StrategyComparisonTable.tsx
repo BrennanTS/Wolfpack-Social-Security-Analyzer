@@ -5,7 +5,12 @@ import { formatCurrency, personLabel } from '../lib/format';
 import { showSurvivorIncomeColumn, type HouseholdStrategy } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { EyeIcon } from './EyeIcon';
-import { SURVIVOR_INCOME_COLUMN_HEADER, survivorIncomeCaption } from './methodologyCopy';
+import {
+  HOUSEHOLD_VALUE_COLUMN_HEADER,
+  householdValueCaption,
+  SURVIVOR_INCOME_COLUMN_HEADER,
+  survivorIncomeCaption,
+} from './methodologyCopy';
 import {
   addScenario,
   BEST_ROW_ID,
@@ -40,6 +45,12 @@ interface StrategyComparisonTableProps {
   survivorGap?: SurvivorGap | null;
   dollarsMode?: DollarsMode;
   /**
+   * The discount rate the household value is discounted at, already formatted
+   * as a percent. Optional so a call site with fixed rows can omit the
+   * caption entirely rather than print one naming a rate it does not know.
+   */
+  discountRateLabel?: string;
+  /**
    * The scenario list behind these rows. Editing is offered only when this
    * and `onScenariosChange` and `filingAgeOptions` are all present — a
    * widowed household, or a test rendering fixed rows, simply gets the table.
@@ -67,7 +78,7 @@ function monthsAvailable(options: FilingAgeChoice[], years: number): number[] {
  *
  * **Edit mode edits this table in place** rather than swapping in a separate
  * editor. The value cells become controls and two control columns appear, but
- * Combined PV and "vs. best" stay where they are and keep updating: the whole
+ * the money columns stay where they are and keep updating: the whole
  * reason to build a scenario is to see what it costs, and an editor that
  * hides the figures makes you guess at the one number you came for.
  *
@@ -91,6 +102,7 @@ export function StrategyComparisonTable({
   people,
   survivorGap,
   dollarsMode = 'real',
+  discountRateLabel,
   scenarios,
   onScenariosChange,
   filingAgeOptions,
@@ -184,7 +196,7 @@ export function StrategyComparisonTable({
             {people.map((p, i) => (
               <th key={p.id}>{personLabel(p.name, i)}</th>
             ))}
-            <th>Combined PV</th>
+            <th>{HOUSEHOLD_VALUE_COLUMN_HEADER}</th>
             <th>vs. best</th>
             {showSurvivorIncome && <th>{SURVIVOR_INCOME_COLUMN_HEADER}</th>}
             {editing && (
@@ -356,6 +368,11 @@ export function StrategyComparisonTable({
         </tbody>
       </table>
 
+      {discountRateLabel !== undefined && (
+        <p className="chart-caveat" data-testid="household-value-caption">
+          {householdValueCaption(discountRateLabel)}
+        </p>
+      )}
       {showSurvivorIncome && (
         <p className="chart-caveat" data-testid="survivor-income-caption">
           {survivorIncomeCaption(rows, survivorGap, dollarsMode)}

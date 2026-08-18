@@ -28,6 +28,9 @@ function buildPersonAnalysis(id: 'a' | 'b', name: string): PersonAnalysis {
       years: 70, months: 0, label: '70', decimalYears: 70, monthDuration: null as never,
     },
     monthlyAtFilingAge: 2976,
+    // Null: these fixtures are single claimants, where a person's own best
+    // filing age IS the household's and a second badge would be noise.
+    soloFilingAge: null,
     // Deliberately stale relative to whatever `annualCola` a test passes in —
     // the whole point of the fix under test is that HouseholdPanel must NOT
     // read this field for its break-even section.

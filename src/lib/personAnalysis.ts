@@ -53,6 +53,24 @@ export interface PersonAnalysis {
   filingAge: FilingAgeDisplay;
   /** The monthly benefit at `filingAge`. */
   monthlyAtFilingAge: number;
+  /**
+   * The age this person would file at if they were the ONLY claimant —
+   * everything else held constant: the same discount rate, the same plan-to
+   * age, the same reference date.
+   *
+   * Null for a single claimant, where it would equal `filingAge` by
+   * construction and a second badge saying so would be noise, and for a
+   * widow(er), whose decision is two dates rather than a filing age.
+   *
+   * Non-null for a married person, where it frequently DISAGREES with the
+   * household's answer and the disagreement is the point. Measured: a
+   * lower-earning spouse with the longer horizon has a solo answer of 70 and
+   * a household answer of 66 — she inherits the higher earner's survivor
+   * benefit, so delaying her own record past 66 buys her nothing the
+   * household does not already get. Showing only the household figure hides
+   * that; showing only hers would recommend against her own household.
+   */
+  soloFilingAge: FilingAgeDisplay | null;
   breakEvens: BreakEvenPair[];
   ssaSuggestedLifeExpectancy: number;
 }
@@ -82,6 +100,7 @@ export function analyzePerson(
   filingAge: FilingAgeDisplay,
   annualCola: number,
   asOf: Date = new Date(),
+  soloFilingAge: FilingAgeDisplay | null = null,
 ): PersonAnalysis {
   const recipient = createPiaRecipient(
     person.birthYear,
@@ -121,6 +140,7 @@ export function analyzePerson(
       recipient,
       filingAge.monthDuration,
     ).benefit,
+    soloFilingAge,
     breakEvens: computeBreakEvens(claimingOptions, annualCola),
     ssaSuggestedLifeExpectancy: getSuggestedLifeExpectancy(currentAge.years, person.gender),
   };

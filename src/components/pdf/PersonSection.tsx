@@ -11,6 +11,7 @@ import {
 import type { PersonAnalysis } from '../../lib/personAnalysis';
 import { visibleClaimingRows, type ClaimingRow } from '../../lib/claimingRows';
 import { scenarioEyebrow } from '../../lib/scenario';
+import { soloVsHouseholdNote } from '../methodologyCopy';
 import { nearestWholeClaimAge } from '../../lib/ssaTools';
 import { PdfChart, PdfHeatmap, PdfMonthlyRamp, PdfOpportunityCost } from './charts';
 import { COL, MONTHS, styles } from './theme';
@@ -47,10 +48,17 @@ function BenefitTable({
   rows,
   optimalLifetime,
   optimalRowId,
+  soloRowId,
 }: {
   rows: ClaimingRow[];
   optimalLifetime: number;
   optimalRowId: string;
+  /**
+   * The row this person would file at ALONE, when it differs from the
+   * household's. Empty when there is nothing to contrast — a single claimant,
+   * or a married one whose two answers coincide.
+   */
+  soloRowId: string;
 }) {
   return (
     <View>
@@ -68,7 +76,14 @@ function BenefitTable({
           <View key={row.id} style={[styles.tableRow, isOptimal ? styles.tableRowOptimal : {}]}>
             <View style={[styles.tdAge, { width: COL.age }]}>
               <Text style={styles.tdBold}>{row.label}</Text>
-              {isOptimal && <Text style={styles.badge}>OPT</Text>}
+              {/* Same rule as the screen: the qualifier appears only when
+                  there is a second answer to distinguish it from. */}
+              {isOptimal && (
+                <Text style={styles.badge}>{soloRowId === '' ? 'OPT' : 'TOGETHER'}</Text>
+              )}
+              {soloRowId !== '' && row.id === soloRowId && (
+                <Text style={styles.badgeShown}>ALONE</Text>
+              )}
             </View>
             <Text style={[styles.td, { width: COL.monthly }]}>
               {formatCurrencyPrecise(row.monthlyBenefit)}
@@ -127,6 +142,17 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
   );
   const optimalRow = exactRow ?? tableRows.find((r) => r.months === 0 && r.years === optimalAge);
 
+  // `== null` — an analysis built before this field existed carries
+  // `undefined`, not `null`. See `PersonPanel` for the same convention.
+  const soloAge =
+    analysis.soloFilingAge == null
+      ? null
+      : nearestWholeClaimAge(analysis.soloFilingAge.decimalYears);
+  const soloRow =
+    soloAge === null || soloAge === optimalAge
+      ? undefined
+      : tableRows.find((r) => r.months === 0 && r.years === soloAge);
+
   return (
     <Page size="LETTER" style={styles.page}>
       {leadingHeader}
@@ -180,7 +206,13 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         rows={tableRows}
         optimalLifetime={optimalRow?.lifetimeBenefits ?? optimal.lifetimeBenefits}
         optimalRowId={optimalRow?.id ?? ''}
+        soloRowId={soloRow?.id ?? ''}
       />
+      {soloRow !== undefined && analysis.soloFilingAge != null && (
+        <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
+          {soloVsHouseholdNote(name, analysis.filingAge.label, analysis.soloFilingAge.label)}
+        </Text>
+      )}
 
       <Text style={styles.sectionTitle}>Cumulative Lifetime Benefits</Text>
       <Text style={styles.sectionDesc}>

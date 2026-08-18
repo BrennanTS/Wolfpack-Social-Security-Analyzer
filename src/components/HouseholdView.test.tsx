@@ -37,6 +37,9 @@ function buildPersonAnalysis(id: 'a' | 'b', name: string): PersonAnalysis {
       years: 70, months: 0, label: '70', decimalYears: 70, monthDuration: null as never,
     },
     monthlyAtFilingAge: 2976,
+    // Null: these fixtures are single claimants, where a person's own best
+    // filing age IS the household's and a second badge would be noise.
+    soloFilingAge: null,
     breakEvens: [],
     ssaSuggestedLifeExpectancy: 82,
   } as unknown as PersonAnalysis;

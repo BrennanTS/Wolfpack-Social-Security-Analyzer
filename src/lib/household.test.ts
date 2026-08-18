@@ -1339,8 +1339,12 @@ describe('analyzeHousehold — entry order', () => {
         asOf,
       );
       expect(result.recommendationDetail).toContain(
-        'The couple optimizer maximizes combined expected present value',
+        "The couple optimizer maximizes the household's value",
       );
+      // The word that had to go when the optimizer stopped weighting by
+      // mortality: the figure is a present value of one assumed future, not
+      // an expectation across how long someone might live.
+      expect(result.recommendationDetail).not.toContain('expected present value');
       expect(result.recommendationDetail).not.toContain('Both spouses have the same PIA');
     });
 

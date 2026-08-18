@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { buildMonthlyIncomeSeries, type HouseholdAnalysis, type HouseholdStrategy } from '../lib/household';
 import { computeBreakEvens } from '../lib/benefitMath';
+import { formatPercent } from '../lib/cpiHistory';
 import { toNominal, toNominalAmount, toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
 import { personLabel } from '../lib/format';
 import { firstDeath } from '../lib/incomeCliff';
@@ -194,6 +195,7 @@ export function HouseholdPanel({
         people={people}
         survivorGap={analysis.survivorGap}
         dollarsMode={dollarsMode}
+        discountRateLabel={formatPercent(analysis.assumptions.discountRate * 100, 2)}
         scenarios={scenarios}
         onScenariosChange={onScenariosChange}
         filingAgeOptions={analysis.filingAgeOptions}

@@ -19,7 +19,13 @@ import { incomeCliff } from '../../src/lib/incomeCliff';
 import type { DollarsMode } from '../../src/lib/dollarsMode';
 import { householdAt, widowedHouseholdAt } from './households';
 import { analyze, stubLifeTableFetch, summarize, sweepCorpus, type Finding } from './harness';
-import { pdfSurface, screenSurface, type Line } from './surfaces';
+import {
+  pdfSurface,
+  personPdfSurface,
+  personScreenSurface,
+  screenSurface,
+  type Line,
+} from './surfaces';
 
 const COUNT = Number(process.env.SWEEP_COUNT ?? 2000);
 /**
@@ -125,7 +131,16 @@ describe('rendered copy', () => {
       const analysis = await analyze(household);
 
       for (const mode of MODES) {
-        const lines = [...screenSurface(analysis, mode), ...pdfSurface(analysis)];
+        const lines = [
+          ...screenSurface(analysis, mode),
+          ...pdfSurface(analysis),
+          // Each person's own tab and page, which no household surface
+          // covers — see `personScreenSurface`.
+          ...analysis.people.flatMap((_, i) => [
+            ...personScreenSurface(analysis, i),
+            ...personPdfSurface(analysis, i),
+          ]),
+        ];
         for (const line of lines) {
           for (const { name, re } of SENTINELS) {
             if (re.test(line.text)) {
@@ -158,6 +173,15 @@ describe('rendered copy', () => {
       for (const dup of duplicatesIn(pdfSurface(analysis))) {
         findings.push({ index, label, detail: `[pdf] ${dup}` });
       }
+      // Per person, never pooled: one reader sees one tab and one page.
+      analysis.people.forEach((_, i) => {
+        for (const dup of duplicatesIn(personScreenSurface(analysis, i))) {
+          findings.push({ index, label, detail: `[person ${i}/screen] ${dup}` });
+        }
+        for (const dup of duplicatesIn(personPdfSurface(analysis, i))) {
+          findings.push({ index, label, detail: `[person ${i}/pdf] ${dup}` });
+        }
+      });
     }
 
     console.log(summarize('duplicate sentences on one surface', findings));
@@ -183,6 +207,7 @@ describe('rendered copy', () => {
  * this model cannot see and which is not worth pretending to check.
  */
 const SHARED: [screen: string, pdf: string][] = [
+  ['StrategyComparisonTable.householdValueCaption', 'pdf/HouseholdSection.householdValueCaption'],
   ['StrategyComparisonTable.survivorIncomeCaption', 'pdf/HouseholdSection.survivorIncomeCaption'],
   ['CombinedIncomeChart.combinedIncomeCaption', 'pdf/HouseholdSection.combinedIncomeCaption'],
   ['CombinedIncomeChart.survivorGapNote', 'pdf/HouseholdSection.survivorGapNote'],
@@ -220,6 +245,29 @@ describe('screen and print agree', () => {
 
       const screen = new Map(screenSurface(analysis, 'real').map((l) => [l.source, l.text]));
       const pdf = new Map(pdfSurface(analysis).map((l) => [l.source, l.text]));
+
+      // Each person's tab against their own printed page.
+      analysis.people.forEach((_, i) => {
+        const onScreen = personScreenSurface(analysis, i);
+        const inPrint = personPdfSurface(analysis, i);
+        if (onScreen.length !== inPrint.length) {
+          findings.push({
+            index,
+            label,
+            detail: `person ${i}: ${onScreen.length} screen lines vs ${inPrint.length} in print`,
+          });
+          return;
+        }
+        onScreen.forEach((line, n) => {
+          if (line.text !== inPrint[n].text) {
+            findings.push({
+              index,
+              label,
+              detail: `person ${i} ${line.source}:\n  "${line.text}"\n  "${inPrint[n].text}"`,
+            });
+          }
+        });
+      });
 
       for (const [screenKey, pdfKey] of pairs) {
         const a = screen.get(screenKey);

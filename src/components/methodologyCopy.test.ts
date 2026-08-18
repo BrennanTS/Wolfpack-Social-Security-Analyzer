@@ -656,7 +656,7 @@ describe('survivorIncomeCaption', () => {
     expect(caption).not.toContain('understate');
   });
 
-  // The column sits directly beside "Combined PV", which stays in
+  // The column sits directly beside "Household value", which stays in
   // present-value dollars no matter what this toggle does — two unmarked
   // unit systems in one table otherwise. Covered across all three gap
   // branches, since the basis clause is appended in every one of them.
@@ -673,10 +673,10 @@ describe('survivorIncomeCaption', () => {
       expect(caption).not.toMatch(/nominal/i);
     });
 
-    it('names nominal dollars and calls out Combined PV by contrast, in the no-gap branch', () => {
+    it('names nominal dollars and calls out Household value by contrast, in the no-gap branch', () => {
       const caption = survivorIncomeCaption(RISING, null, 'nominal');
       expect(caption).toMatch(/nominal/i);
-      expect(caption).toMatch(/Combined PV/);
+      expect(caption).toMatch(/Household value/);
       expect(caption).not.toMatch(/today.s dollars, before any cost-of-living/i);
     });
 
@@ -1315,7 +1315,7 @@ describe('survivorClaimNote', () => {
     // it renders on: the dollars toggle rewrites the chart, the cliff figures
     // and the survivor-income column only. The recommendation card's
     // `expectedNpv` — the first dollar figure on the page — and the strategy
-    // table's Combined PV and "vs. best" columns stay in present-value
+    // table's Household value and "vs. best" columns stay in present-value
     // dollars in both modes, and `survivorIncomeCaption`'s own nominal branch
     // says so two paragraphs up the same screen.
     const nominal = survivorClaimNote(
@@ -1340,7 +1340,7 @@ describe('survivorClaimNote', () => {
         null,
         'nominal',
       ),
-    ).toContain('Combined PV beside it, which stays in present-value dollars');
+    ).toContain('Household value beside it, which stays in present-value dollars');
   });
 
   it('names the benefit with one on-screen noun in both branches', () => {
