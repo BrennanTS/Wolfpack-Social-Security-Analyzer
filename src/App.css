@@ -1165,7 +1165,7 @@
 }
 
 .cola-input-row input[type='number'] {
-  width: 60px;
+  width: 92px;
   padding: 8px 10px;
   border: none;
   border-radius: var(--radius-sm);
@@ -1625,7 +1625,7 @@ tbody tr:hover {
 }
 
 .row-future {
-  opacity: 0.5;
+  opacity: 1;
 }
 
 .badge {
@@ -1663,7 +1663,7 @@ tbody tr:hover {
 }
 
 .status-future {
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-size: 0.8125rem;
 }
 
@@ -1718,7 +1718,7 @@ tbody tr:hover {
  * it would be. Styled to be read, not skimmed past.
  */
 .chart-caveat {
-  max-width: 62ch;
+  max-width: none;
   margin-top: 6px;
   padding-left: 10px;
   border-left: 2px solid var(--gold, #b8965a);
@@ -1863,6 +1863,15 @@ tbody tr:hover {
 /* ─── Heatmap ─── */
 .heatmap-wrap {
   overflow-x: auto;
+  /* Ramp endpoints per theme; `--t` is set inline per cell. Defined here
+     rather than on the grid so the legend bar below inherits the same ramp. */
+  --heat-lo: #f4efe4;
+  --heat-hi: #be9a57;
+}
+
+[data-theme='dark'] .heatmap-wrap {
+  --heat-lo: #232323;
+  --heat-hi: #7d6633;
 }
 
 .heatmap-grid {
@@ -1889,9 +1898,9 @@ tbody tr:hover {
 }
 
 .heatmap-x-label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-subtle);
+  color: var(--text-muted);
   text-align: center;
   padding-bottom: 4px;
 }
@@ -1910,7 +1919,16 @@ tbody tr:hover {
   color: var(--gold-dark);
 }
 
+/*
+ * The heatmap ramp is defined per theme rather than computed once in JS.
+ * A single shared ramp left pale low-value cells pale in dark mode while the
+ * label flipped to white, so the cheapest cells were the least readable. Each
+ * theme now stays inside a lightness band that one text colour can sit on.
+ * `--t` is the 0-1 position, set inline per cell by `LifetimeHeatmapChart`.
+ */
 .heatmap-cell {
+  --t: 0;
+  background: color-mix(in oklab, var(--heat-lo), var(--heat-hi) calc(var(--t) * 100%));
   border-radius: 4px;
   min-height: clamp(26px, 3.5vw, 36px);
   display: flex;
@@ -1938,14 +1956,14 @@ tbody tr:hover {
 }
 
 .heatmap-cell-value {
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.55);
-  letter-spacing: -0.02em;
+  color: rgba(0, 0, 0, 0.78);
+  letter-spacing: -0.01em;
 }
 
 [data-theme='dark'] .heatmap-cell-value {
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .heatmap-legend {
@@ -1962,11 +1980,7 @@ tbody tr:hover {
   width: 120px;
   height: 6px;
   border-radius: 2px;
-  background: linear-gradient(90deg, #ebe8e1, #8a8a8a, var(--gold));
-}
-
-[data-theme='dark'] .heatmap-legend-bar {
-  filter: brightness(0.75) saturate(0.6);
+  background: linear-gradient(90deg, var(--heat-lo), var(--heat-hi));
 }
 
 .heatmap-caption {
@@ -2283,7 +2297,7 @@ tbody tr:hover {
   }
 
   .heatmap-cell-value {
-    font-size: 0.5rem;
+    font-size: 0.625rem;
   }
 }
 

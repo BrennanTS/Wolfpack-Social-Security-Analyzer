@@ -70,13 +70,31 @@ for (const scenario of uiScenarios) {
       await expect(table).toBeVisible();
 
       const percentOfPiaByClaimAge = scenario.expected.percentOfPiaByClaimAgeByPerson[i];
-      for (const [age, monthly] of Object.entries(monthlyByClaimAge)) {
+
+      // The table shows only the ages still available to this person — their
+      // current age and every age ahead of it — so the rows it renders are a
+      // suffix of the fixture's 62..70, and which suffix depends on the real
+      // wall-clock date Playwright drives the app with. Read what rendered,
+      // assert it IS a suffix (nothing missing in the middle, nothing extra),
+      // then check every rendered row against the fixture. Skipping absent
+      // ages without the suffix check would let an empty table pass.
+      const renderedAges = (
+        await table.getByTestId(/^claim-row-/).evaluateAll((rows) =>
+          rows.map((r) => Number(r.getAttribute('data-testid')!.replace('claim-row-', ''))),
+        )
+      ).sort((a, b) => a - b);
+      const fixtureAges = Object.keys(monthlyByClaimAge).map(Number).sort((a, b) => a - b);
+      expect(renderedAges.length).toBeGreaterThan(0);
+      expect(renderedAges).toEqual(fixtureAges.slice(fixtureAges.length - renderedAges.length));
+
+      for (const age of renderedAges) {
         const row = page.getByTestId(`claim-row-${age}`);
         await expect(row.getByTestId('cell-monthly')).toHaveText(
-          tableCurrency(monthly),
+          tableCurrency(monthlyByClaimAge[String(age)]),
         );
-        const percent = percentOfPiaByClaimAge[age];
-        await expect(row.getByTestId('cell-percent')).toHaveText(`${percent}%`);
+        await expect(row.getByTestId('cell-percent')).toHaveText(
+          `${percentOfPiaByClaimAge[String(age)]}%`,
+        );
       }
 
       // Summary cards (FRA / age-62 / age-70) are only fixture-checked for

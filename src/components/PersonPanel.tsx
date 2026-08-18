@@ -41,6 +41,15 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
   // refactor only wired it back up on the married Household tab, silently
   // dropping it for single claimants and for each married person's own tab.
   // Rendering it here restores that for everyone, single or married.
+  // The table shows the decision still available: this person's current age
+  // and every age ahead of it. A row for 62 when they are 66 offers a choice
+  // that has already gone by, and `isEligible` — which means "has already
+  // reached this age" — labelled exactly those rows "Eligible", the opposite
+  // of what a reader takes it to mean.
+  const claimableOptions = claimingOptions.filter(
+    (o) => o.age >= analysis.currentAge.years,
+  );
+
   const breakEvens = computeBreakEvens(claimingOptions, annualCola);
 
   // Chart visibility is per-person state, not lifted to Analyzer/HouseholdView:
@@ -103,7 +112,7 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
               </tr>
             </thead>
             <tbody>
-              {claimingOptions.map((opt) => {
+              {claimableOptions.map((opt) => {
                 const isRecommended = opt.age === recommendedAge;
                 return (
                   <tr

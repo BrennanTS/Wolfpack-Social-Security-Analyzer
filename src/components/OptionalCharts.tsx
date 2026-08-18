@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import {
   BarChart,
   Bar,
@@ -20,7 +20,6 @@ import {
   generateMonthlyRampData,
   getHeatmapValue,
   getLivingAgeTicks,
-  heatmapColorWeb,
 } from '../lib/chartData';
 import {
   CHART_AXIS_LINE,
@@ -258,7 +257,10 @@ export function LifetimeHeatmapChart({
               <div
                 key={`${claimAge}-${livingAge}`}
                 className={`heatmap-cell${claimAge === optimalAge ? ' heatmap-cell-optimal-row' : ''}`}
-                style={{ backgroundColor: heatmapColorWeb(ratio) }}
+                // The ramp lives in CSS so light and dark can use different
+                // endpoints. A single shared ramp meant a pale cell kept pale
+                // in dark mode while the label flipped to white — unreadable.
+                style={{ '--t': ratio } as CSSProperties}
                 title={`Claim ${claimAge}, live to ${livingAge}: ${formatCurrency(value)} cumulative`}
               >
                 <span className="heatmap-cell-value">

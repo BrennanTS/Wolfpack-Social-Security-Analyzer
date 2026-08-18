@@ -122,9 +122,9 @@ a:hover {
   --fill-secondary: #2e2e2e;
   --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.12);
-  --text: #c8c8c8;
-  --text-muted: #949494;
-  --text-subtle: #6e6e6e;
+  --text: #e6e6e6;
+  --text-muted: #b4b4b4;
+  --text-subtle: #949494;
   --gold: #c4a66a;
   --gold-soft: rgba(196, 166, 106, 0.14);
   --blue: var(--gold);

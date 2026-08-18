@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { genderLabel } from '../lib/lifeExpectancy';
 import type { DollarsMode } from '../lib/dollarsMode';
 import type { HouseholdAnalysis } from '../lib/household';
 import { BRAND_NAME } from '../lib/brand';
@@ -404,23 +403,11 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
             />
           </div>
 
-          <div className="input-summary">
-            <p>
-              {inputsComplete && personA.gender ? (
-                <>
-                  Analyzing <strong>{genderLabel(personA.gender)}</strong>
-                  {maritalStatus === 'married'
-                    ? ', married'
-                    : maritalStatus === 'widowed'
-                      ? ', widowed (survivor + own)'
-                      : ', single'}{' '}
-                  claimant.
-                </>
-              ) : (
-                <>Complete your profile to generate a personalized claiming analysis.</>
-              )}
-            </p>
-          </div>
+          {!inputsComplete && (
+            <div className="input-summary">
+              <p>Complete your profile to generate a personalized claiming analysis.</p>
+            </div>
+          )}
         </div>
       </SettingsDrawer>
 
