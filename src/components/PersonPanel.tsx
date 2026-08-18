@@ -280,91 +280,97 @@ export function PersonPanel({
               })}
             </tbody>
           </table>
-        </div>
 
-      {canEditRows && (
-        <div className={`strategy-toolbar`}>
-          {editingRows && hiddenRowCount > 0 && (
-            <span className="strategy-toolbar-note" data-testid="claim-hidden-count">
-              {hiddenRowCount === 1 ? '1 hidden' : `${hiddenRowCount} hidden`}
-            </span>
-          )}
-          {editingRows && (
-            <>
-              <select
-                className="claim-add-years"
-                aria-label="Add a claiming age, years"
-                data-testid="claim-add-years"
-                value={addYears}
-                onChange={(e) => {
-                  const nextYears = Number(e.target.value);
-                  setAddYears(nextYears);
-                  setAddMonths(
-                    firstMonthInYear(
-                      (filingAgeOptions ?? [])
-                        .filter((o) => o.years === nextYears)
-                        .map((o) => o.months),
-                    ),
-                  );
-                }}
-              >
-                {[...new Set(filingAgeOptions!.map((o) => o.years))].map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="claim-add-months"
-                aria-label="Add a claiming age, months"
-                data-testid="claim-add-months"
-                value={addMonths}
-                onChange={(e) => setAddMonths(Number(e.target.value))}
-              >
-                {addMonthOptions.map((m) => (
-                  <option key={m} value={m}>
-                    {m === 1 ? '1 mo' : `${m} mos`}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="strategy-tool"
-                data-testid="claim-add"
-                onClick={() =>
-                  onClaimingPrefsChange!(
-                    addClaimingRow(
-                      claimingPrefs!,
-                      { years: addYears, months: addMonths },
-                      rows.map((r) => r.id),
-                    ),
-                  )
-                }
-              >
-                Add age
-              </button>
-              <button
-                type="button"
-                className="strategy-tool"
-                data-testid="claim-reset"
-                onClick={() => onClaimingPrefsChange!(resetClaimingPrefs())}
-                disabled={isDefaultClaimingPrefs(claimingPrefs!)}
-              >
-                Reset
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            className={`strategy-tool${editingRows ? ' strategy-tool-done' : ''}`}
-            data-testid="claim-edit-toggle"
-            aria-pressed={editingRows}
-            onClick={() => setEditingRows(!editingRows)}
-          >
-            {editingRows ? 'Done' : 'Edit'}
-          </button>
+          {canEditRows && (
+            <div
+              className={`strategy-toolbar${editingRows ? ' strategy-toolbar-editing' : ''}`}
+            >
+              {/* Only while editing, matching the comparison table: under the
+                  table a standing title would be a second heading for a
+                  section that already has one. */}
+              {editingRows && <span className="strategy-toolbar-title">Editing ages</span>}
+              {editingRows && hiddenRowCount > 0 && (
+                <span className="strategy-toolbar-note" data-testid="claim-hidden-count">
+                  {hiddenRowCount === 1 ? '1 hidden' : `${hiddenRowCount} hidden`}
+                </span>
+              )}
+            {editingRows && (
+              <>
+                <select
+                  className="claim-add-years"
+                  aria-label="Add a claiming age, years"
+                  data-testid="claim-add-years"
+                  value={addYears}
+                  onChange={(e) => {
+                    const nextYears = Number(e.target.value);
+                    setAddYears(nextYears);
+                    setAddMonths(
+                      firstMonthInYear(
+                        (filingAgeOptions ?? [])
+                          .filter((o) => o.years === nextYears)
+                          .map((o) => o.months),
+                      ),
+                    );
+                  }}
+                >
+                  {[...new Set(filingAgeOptions!.map((o) => o.years))].map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="claim-add-months"
+                  aria-label="Add a claiming age, months"
+                  data-testid="claim-add-months"
+                  value={addMonths}
+                  onChange={(e) => setAddMonths(Number(e.target.value))}
+                >
+                  {addMonthOptions.map((m) => (
+                    <option key={m} value={m}>
+                      {m === 1 ? '1 mo' : `${m} mos`}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="strategy-tool"
+                  data-testid="claim-add"
+                  onClick={() =>
+                    onClaimingPrefsChange!(
+                      addClaimingRow(
+                        claimingPrefs!,
+                        { years: addYears, months: addMonths },
+                        rows.map((r) => r.id),
+                      ),
+                    )
+                  }
+                >
+                  Add age
+                </button>
+                <button
+                  type="button"
+                  className="strategy-tool"
+                  data-testid="claim-reset"
+                  onClick={() => onClaimingPrefsChange!(resetClaimingPrefs())}
+                  disabled={isDefaultClaimingPrefs(claimingPrefs!)}
+                >
+                  Reset
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className={`strategy-tool${editingRows ? ' strategy-tool-done' : ''}`}
+              data-testid="claim-edit-toggle"
+              aria-pressed={editingRows}
+              onClick={() => setEditingRows(!editingRows)}
+            >
+              {editingRows ? 'Done' : 'Edit'}
+            </button>
+          </div>
+        )}
         </div>
-      )}
       </div>
 
       {/* `BreakEvenSection` renders nothing when there are no pairs — a

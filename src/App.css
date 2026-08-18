@@ -953,7 +953,7 @@
 }
 
 .birth-row select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2386868b' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
+  background-image: var(--select-chevron);
   background-repeat: no-repeat;
   background-position: right 14px center;
   padding-right: 38px;
@@ -2387,12 +2387,19 @@ tbody tr:hover {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 14px;
-  padding-top: 14px;
+  /* Inset from the card's edges. The rule still spans the full width — it is
+     this element's own border-top, above the padding — so the divider reads
+     as part of the table while the controls sit inside the card's margins
+     rather than flush against its corner. */
+  padding: 14px 16px 16px;
   border-top: 1px solid var(--border);
 }
 
-/* The single Edit button, before there is anything to edit alongside it. */
-.strategy-toolbar:not(.strategy-toolbar-editing) {
+/* Buttons to the right in both modes. `.strategy-toolbar-title`'s auto margin
+   below is what holds the label at the left edge; without one — which is
+   every view-mode bar — the lone Edit button would otherwise sit against the
+   caption rather than under the table's right edge. */
+.strategy-toolbar {
   justify-content: flex-end;
 }
 
@@ -2408,6 +2415,11 @@ tbody tr:hover {
 .strategy-toolbar-note {
   font-size: 0.75rem;
   color: var(--text-subtle);
+}
+
+/* Holds the left edge when there is no title beside it. */
+.strategy-toolbar-note:first-child {
+  margin-right: auto;
 }
 
 .strategy-tool {
@@ -2535,18 +2547,49 @@ tbody tr:hover {
   font-size: 0.8125rem;
 }
 
-.strategy-editing select {
+/* The house select: filled, borderless, its own chevron — the same treatment
+   `.birth-row select` gets in the sidebar, at the smaller size a table cell
+   and a toolbar can afford. Left native, these were the only unstyled
+   controls on the page. */
+.strategy-editing select,
+.claim-add-years,
+.claim-add-months {
+  box-sizing: border-box;
   min-height: 32px;
-  padding: 3px 6px;
-  font-size: 0.75rem;
+  padding: 4px 26px 4px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: var(--fill);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  color: var(--text);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: box-shadow 0.2s var(--ease), background-color 0.2s var(--ease);
+}
+
+.strategy-editing select:hover,
+.claim-add-years:hover,
+.claim-add-months:hover {
+  background-color: var(--fill-secondary);
+}
+
+.strategy-editing select:focus-visible,
+.claim-add-years:focus-visible,
+.claim-add-months:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--blue-soft);
 }
 
 .strategy-editing td[data-testid^='cell-age-'] select:first-of-type {
-  width: 58px;
+  width: 66px;
 }
 
 .strategy-editing td[data-testid^='cell-age-'] select:last-of-type {
-  width: 76px;
+  width: 84px;
 }
 
 .strategy-editing select + select {
@@ -2567,11 +2610,12 @@ tbody tr:hover {
   border: 0;
 }
 
-.claim-add-years,
+.claim-add-years {
+  width: 66px;
+}
+
 .claim-add-months {
-  min-height: 32px;
-  padding: 3px 8px;
-  font-size: 0.8125rem;
+  width: 84px;
 }
 
 /* A re-analysis over an output that is already on screen. Deliberately quiet:
