@@ -53,7 +53,7 @@ export const ENGINE_ATTRIBUTION = {
   body:
     'Benefit amounts, full retirement ages, spousal and survivor rules, and the ' +
     'mortality-weighted optimal filing search all come from the open-source ssa.tools ' +
-    'calculator, used under the MIT licence. This app supplies the dates, the household ' +
+    'calculator, used under the MIT license. This app supplies the dates, the household ' +
     'model and the presentation; it computes no benefit rule of its own.',
   href: 'https://ssa.tools/',
   linkText: 'ssa.tools',

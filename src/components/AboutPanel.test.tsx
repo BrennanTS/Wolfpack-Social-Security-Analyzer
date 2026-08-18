@@ -1,12 +1,33 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ABOUT_CARDS, ABOUT_INTRO } from '../lib/about';
+import { formatVersionLabel } from '../lib/version';
 import { AboutPanel } from './AboutPanel';
 
 describe('AboutPanel', () => {
   it('renders nothing when closed', () => {
     const { container } = render(<AboutPanel open={false} onClose={() => {}} />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // Two of the spec's five sections had no assertion at all: the intro
+  // paragraph and the version footer could both be deleted outright with a
+  // green suite, and the intro's text could be replaced with anything.
+  it('opens with the orienting paragraph, in its own words', () => {
+    render(<AboutPanel open onClose={() => {}} />);
+    expect(screen.getByText(ABOUT_INTRO)).toBeInTheDocument();
+    // Sourcing the string from `about.ts` proves it renders but not that it
+    // still says the two things that keep this panel honest, so pin those
+    // directly: what the tool is for, and what it explicitly is not.
+    expect(ABOUT_INTRO).toContain('models Social Security claiming decisions for a household');
+    expect(ABOUT_INTRO).toContain('not advice');
+    expect(ABOUT_INTRO).toContain('not affiliated with the Social Security Administration');
+  });
+
+  it('closes with the version footer', () => {
+    render(<AboutPanel open onClose={() => {}} />);
+    expect(screen.getByText(formatVersionLabel())).toBeInTheDocument();
   });
 
   it('carries the four method cards', () => {
@@ -22,6 +43,10 @@ describe('AboutPanel', () => {
     ]) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
+    // "Carries the four" has to mean four. Listing the titles proves each one
+    // is present and proves nothing about a fifth arriving beside them.
+    expect(ABOUT_CARDS).toHaveLength(4);
+    expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(4);
   });
 
   // Titles alone don't pin the load-bearing numbers inside each card body.
@@ -52,12 +77,33 @@ describe('AboutPanel', () => {
     ).toBeInTheDocument();
   });
 
+  // The fourth body, and the one with the weakest claim to being already
+  // reviewed: the other three moved verbatim out of `Analyzer.tsx`, while this
+  // one was rewritten for its new home — the sentence pointing the adviser at
+  // the slider is new prose that never rendered anywhere before. It makes two
+  // checkable claims and both are load-bearing: the table year, and the name
+  // of the control it sends the reader to (`AssumptionsPanel.tsx:50`).
+  it('states where the life-expectancy figure comes from and where to change it', () => {
+    render(<AboutPanel open onClose={() => {}} />);
+    expect(
+      screen.getByText(
+        "SSA's 2021 period life table supplies a suggested planning age for each person. " +
+          'Adjust it under Planning assumptions — every lifetime total moves with it.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('states the calculation engine once, with a link', () => {
     // The single attribution this whole change exists to consolidate.
     render(<AboutPanel open onClose={() => {}} />);
     const link = screen.getByRole('link', { name: /ssa\.tools/i });
     expect(link).toHaveAttribute('href', 'https://ssa.tools/');
-    expect(screen.getByText(/MIT/)).toBeInTheDocument();
+    // "license", not "licence". `resources.ts` says "MIT license" one click
+    // away and `ssaTools.ts` says "MIT License"; the app is American
+    // everywhere else it has the choice ("modeled"), so the two spellings
+    // sitting side by side were the defect, not the spelling itself.
+    expect(screen.getByText(/MIT license/)).toBeInTheDocument();
+    expect(screen.queryByText(/licence/i)).not.toBeInTheDocument();
   });
 
   it('carries the thirty-year CPI history', () => {
