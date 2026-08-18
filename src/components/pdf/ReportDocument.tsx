@@ -210,7 +210,19 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
  * count, so they stay correct even if a section's content wraps onto more
  * than one physical page.
  */
-export function ReportDocument({ analysis }: { analysis: HouseholdAnalysis }) {
+export function ReportDocument({
+  analysis,
+  claimingRowsByPerson = {},
+}: {
+  analysis: HouseholdAnalysis;
+  /**
+   * Each person's benefit-by-claiming-age rows, keyed by person id — the same
+   * arrays the screen renders. Defaulting to `{}` keeps every existing caller
+   * (and the report tests) on the whole-year rows `PersonSection` derives for
+   * itself.
+   */
+  claimingRowsByPerson?: Record<string, import('../../lib/claimingRows').ClaimingRow[]>;
+}) {
   // Exhaustive rather than `=== 'married'`: a widowed household used to fall
   // through to the single-claimant layout, printing a report that never
   // mentions the survivor benefit. See `householdDisplayShape`.
@@ -241,6 +253,7 @@ export function ReportDocument({ analysis }: { analysis: HouseholdAnalysis }) {
           index={i as 0 | 1}
           annualCola={analysis.assumptions.annualCola}
           isBest={analysis.scenarioIsBest}
+          claimingRows={claimingRowsByPerson[p.person.id]}
           footerText={footerText}
           appendix={isMarried ? undefined : appendix}
           leadingHeader={!isMarried && i === 0 ? leadingHeader : undefined}

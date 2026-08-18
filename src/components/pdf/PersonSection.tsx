@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Page, Text, View } from '@react-pdf/renderer';
-import { computeBreakEvens, type ClaimingOption } from '../../lib/benefitMath';
+import { computeBreakEvens } from '../../lib/benefitMath';
 import {
   formatCurrency,
   formatCurrencyPrecise,
@@ -9,6 +9,7 @@ import {
   yearsMonthsLabel,
 } from '../../lib/format';
 import type { PersonAnalysis } from '../../lib/personAnalysis';
+import { visibleClaimingRows, type ClaimingRow } from '../../lib/claimingRows';
 import { scenarioEyebrow } from '../../lib/scenario';
 import { nearestWholeClaimAge } from '../../lib/ssaTools';
 import { PdfChart, PdfHeatmap, PdfMonthlyRamp, PdfOpportunityCost } from './charts';
@@ -26,19 +27,30 @@ interface Props {
    * every call site meant before scenarios existed.
    */
   isBest?: boolean;
+  /**
+   * The rows of this person's benefit table, hidden ones included and flagged
+   * — the SAME array the screen renders, built once in `Analyzer`. Hiding a
+   * row on screen therefore hides it here too, which is the whole point of a
+   * single eye control per row.
+   *
+   * Optional: without it this falls back to the whole-year claiming options,
+   * which is exactly what the report printed before the table became
+   * editable.
+   */
+  claimingRows?: ClaimingRow[];
   footerText: string;
   appendix?: ReactNode;
   leadingHeader?: ReactNode;
 }
 
 function BenefitTable({
-  claimingOptions,
-  optimal,
-  optimalAge,
+  rows,
+  optimalLifetime,
+  optimalRowId,
 }: {
-  claimingOptions: ClaimingOption[];
-  optimal: ClaimingOption;
-  optimalAge: number;
+  rows: ClaimingRow[];
+  optimalLifetime: number;
+  optimalRowId: string;
 }) {
   return (
     <View>
@@ -49,21 +61,21 @@ function BenefitTable({
         <Text style={[styles.th, { width: COL.life }]}>Lifetime</Text>
         <Text style={[styles.th, { width: COL.diff }]}>vs. Optimal</Text>
       </View>
-      {claimingOptions.map((opt) => {
-        const diff = opt.lifetimeBenefits - optimal.lifetimeBenefits;
-        const isOptimal = opt.age === optimalAge;
+      {rows.map((row) => {
+        const diff = row.lifetimeBenefits - optimalLifetime;
+        const isOptimal = row.id === optimalRowId;
         return (
-          <View key={opt.age} style={[styles.tableRow, isOptimal ? styles.tableRowOptimal : {}]}>
+          <View key={row.id} style={[styles.tableRow, isOptimal ? styles.tableRowOptimal : {}]}>
             <View style={[styles.tdAge, { width: COL.age }]}>
-              <Text style={styles.tdBold}>{opt.age}</Text>
+              <Text style={styles.tdBold}>{row.label}</Text>
               {isOptimal && <Text style={styles.badge}>OPT</Text>}
             </View>
             <Text style={[styles.td, { width: COL.monthly }]}>
-              {formatCurrencyPrecise(opt.monthlyBenefit)}
+              {formatCurrencyPrecise(row.monthlyBenefit)}
             </Text>
-            <Text style={[styles.td, { width: COL.pia }]}>{opt.percentOfPia}%</Text>
+            <Text style={[styles.td, { width: COL.pia }]}>{row.percentOfPia}%</Text>
             <Text style={[styles.td, { width: COL.life }]}>
-              {formatCurrency(opt.lifetimeBenefits)}
+              {formatCurrency(row.lifetimeBenefits)}
             </Text>
             <Text style={[styles.td, { width: COL.diff }, diff < 0 ? styles.negative : {}]}>
               {diff === 0 ? '—' : formatCurrency(diff)}
@@ -82,7 +94,7 @@ function BenefitTable({
  * of two per-person pages for a married household — so it stays
  * self-contained rather than assuming a household header already ran.
  */
-export function PersonSection({ analysis, index, annualCola, isBest = true, footerText, appendix, leadingHeader }: Props) {
+export function PersonSection({ analysis, index, annualCola, isBest = true, claimingRows, footerText, appendix, leadingHeader }: Props) {
   const { person, fra, currentAge, claimingOptions, filingAge, monthlyAtFilingAge, ssaSuggestedLifeExpectancy } =
     analysis;
   const name = personLabel(person.name, index);
@@ -90,6 +102,30 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, foot
   const optimal = claimingOptions.find((o) => o.age === optimalAge) ?? claimingOptions[0];
   const dob = `${MONTHS[person.birthMonth - 1]} ${person.birthYear}`;
   const breakEvens = computeBreakEvens(claimingOptions, annualCola);
+
+  // The table's own rows. `claimingOptions` still drives every chart below —
+  // hiding a table row is a table decision, not a change to the analysis.
+  const tableRows = visibleClaimingRows(
+    claimingRows ??
+      claimingOptions.map((o) => ({
+        id: String(o.age),
+        years: o.age,
+        months: 0,
+        label: String(o.age),
+        monthlyBenefit: o.monthlyBenefit,
+        percentOfPia: o.percentOfPia,
+        lifetimeBenefits: o.lifetimeBenefits,
+        isEligible: o.isEligible,
+        added: false,
+        hidden: false,
+      })),
+  );
+  // An added row sitting exactly on the filing age wins the badge over the
+  // rounded whole year, the same rule the screen table applies.
+  const exactRow = tableRows.find(
+    (r) => r.years === analysis.filingAge.years && r.months === analysis.filingAge.months,
+  );
+  const optimalRow = exactRow ?? tableRows.find((r) => r.months === 0 && r.years === optimalAge);
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -140,7 +176,11 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, foot
         Monthly benefit and lifetime total through age {person.lifeExpectancy}, in
         today&rsquo;s dollars before any future cost-of-living adjustment, undiscounted
       </Text>
-      <BenefitTable claimingOptions={claimingOptions} optimal={optimal} optimalAge={optimalAge} />
+      <BenefitTable
+        rows={tableRows}
+        optimalLifetime={optimalRow?.lifetimeBenefits ?? optimal.lifetimeBenefits}
+        optimalRowId={optimalRow?.id ?? ''}
+      />
 
       <Text style={styles.sectionTitle}>Cumulative Lifetime Benefits</Text>
       <Text style={styles.sectionDesc}>

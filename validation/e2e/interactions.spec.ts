@@ -401,3 +401,39 @@ test('drives the whole report from a scenario edited in the comparison table', a
   await expect(page.getByTestId('strategy-row-s1')).toHaveCount(0);
   await expect(eyebrow).toHaveText(/Recommended Strategy/);
 });
+
+test('edits which claiming ages a person’s table shows, without moving the analysis', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await fillScenarioForm(page, married);
+  await page.getByRole('tab', { name: 'Dan' }).click();
+
+  // The household recommendation must not move for any of this — these rows
+  // are a display choice, not a strategy the analysis runs on.
+  const before = await page.getByTestId('stat-optimal-monthly').textContent();
+
+  await expect(page.getByTestId('claim-edit-toggle')).toHaveText('Edit');
+  await page.getByTestId('claim-edit-toggle').click();
+
+  // Hide a row: gone from the table once editing ends.
+  await page.getByTestId('claim-eye-67').click();
+  await expect(page.getByTestId('claim-hidden-count')).toHaveText('1 hidden');
+  await page.getByTestId('claim-edit-toggle').click();
+  await expect(page.getByTestId('claim-row-67')).toHaveCount(0);
+
+  // Add an exact age, which appears with its own label.
+  await page.getByTestId('claim-edit-toggle').click();
+  await page.getByTestId('claim-add-years').selectOption('69');
+  await page.getByTestId('claim-add-months').selectOption('1');
+  await page.getByTestId('claim-add').click();
+  await expect(page.getByTestId('claim-row-69-1')).toContainText('69 years, 1 month');
+
+  await expect(page.getByTestId('stat-optimal-monthly')).toHaveText(before ?? '');
+
+  // Reset brings the hidden row back and drops the added one.
+  await page.getByTestId('claim-reset').click();
+  await page.getByTestId('claim-edit-toggle').click();
+  await expect(page.getByTestId('claim-row-67')).toBeVisible();
+  await expect(page.getByTestId('claim-row-69-1')).toHaveCount(0);
+});

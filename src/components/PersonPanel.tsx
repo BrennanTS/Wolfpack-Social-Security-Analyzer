@@ -1,11 +1,23 @@
 import { useState } from 'react';
 import type { PersonAnalysis } from '../lib/personAnalysis';
+import {
+  addClaimingRow,
+  isDefaultClaimingPrefs,
+  removeClaimingRow,
+  resetClaimingPrefs,
+  toggleClaimingRowHidden,
+  visibleClaimingRows,
+  type ClaimingRow,
+  type ClaimingTablePrefs,
+} from '../lib/claimingRows';
+import { firstMonthInYear, type FilingAgeChoice } from '../lib/scenario';
 import { formatCurrency, formatCurrencyPrecise, fraLabel, personLabel } from '../lib/format';
 import { scenarioEyebrow } from '../lib/scenario';
 import { nearestWholeClaimAge } from '../lib/ssaTools';
 import { computeBreakEvens } from '../lib/benefitMath';
 import { DEFAULT_CHART_VISIBILITY, type ChartKey } from '../lib/chartVisibility';
 import { BenefitChart } from './BenefitChart';
+import { EyeIcon } from './EyeIcon';
 import { BreakEvenSection } from './BreakEvenSection';
 import { OptionalChartsPanel } from './OptionalChartsPanel';
 
@@ -20,9 +32,32 @@ interface PersonPanelProps {
    * to true, which is what every call site meant before scenarios existed.
    */
   isBest?: boolean;
+  /**
+   * The rows of the "Benefit by Claiming Age" table, hidden ones included and
+   * flagged. Built once in `Analyzer` (`buildClaimingRows`) and handed to both
+   * this component and the PDF's `PersonSection`, so the two cannot disagree
+   * about which rows a person's table has.
+   *
+   * Optional: without it this falls back to the whole-year claiming options,
+   * which is exactly what the table showed before it became editable.
+   */
+  claimingRows?: ClaimingRow[];
+  claimingPrefs?: ClaimingTablePrefs;
+  onClaimingPrefsChange?: (prefs: ClaimingTablePrefs) => void;
+  /** Every attainable filing age for THIS person — `analysis.filingAgeOptions[i]`. */
+  filingAgeOptions?: FilingAgeChoice[];
 }
 
-export function PersonPanel({ analysis, index, annualCola, isBest = true }: PersonPanelProps) {
+export function PersonPanel({
+  analysis,
+  index,
+  annualCola,
+  isBest = true,
+  claimingRows,
+  claimingPrefs,
+  onClaimingPrefsChange,
+  filingAgeOptions,
+}: PersonPanelProps) {
   const { fra, claimingOptions, filingAge, monthlyAtFilingAge } = analysis;
   // The planning horizon the adviser actually set, not SSA's suggestion.
   // `ssaSuggestedLifeExpectancy` is only ever the slider's *default*; the two
@@ -50,13 +85,45 @@ export function PersonPanel({ analysis, index, annualCola, isBest = true }: Pers
   // dropping it for single claimants and for each married person's own tab.
   // Rendering it here restores that for everyone, single or married.
   // The table shows the decision still available: this person's current age
-  // and every age ahead of it. A row for 62 when they are 66 offers a choice
-  // that has already gone by, and `isEligible` — which means "has already
-  // reached this age" — labelled exactly those rows "Eligible", the opposite
-  // of what a reader takes it to mean.
-  const claimableOptions = claimingOptions.filter(
-    (o) => o.age >= analysis.currentAge.years,
-  );
+  // and every age ahead of it, plus any age the adviser added. A row for 62
+  // when they are 66 offers a choice that has already gone by, and
+  // `isEligible` — which means "has already reached this age" — labelled
+  // exactly those rows "Eligible", the opposite of what a reader takes it to
+  // mean. `buildClaimingRows` in `claimingRows.ts` applies that same rule;
+  // the fallback here reproduces it for a call site that passes no rows.
+  const rows: ClaimingRow[] =
+    claimingRows ??
+    claimingOptions
+      .filter((o) => o.age >= analysis.currentAge.years)
+      .map((o) => ({
+        id: String(o.age),
+        years: o.age,
+        months: 0,
+        label: String(o.age),
+        monthlyBenefit: o.monthlyBenefit,
+        percentOfPia: o.percentOfPia,
+        lifetimeBenefits: o.lifetimeBenefits,
+        isEligible: o.isEligible,
+        added: false,
+        hidden: false,
+      }));
+
+  const canEditRows =
+    claimingPrefs !== undefined &&
+    onClaimingPrefsChange !== undefined &&
+    filingAgeOptions !== undefined &&
+    filingAgeOptions.length > 0;
+  const [editingRows, setEditingRows] = useState(false);
+  // The age the Add control is pointing at. Seeded to this person's own
+  // filing age so the commonest addition — "show me the exact age the
+  // optimizer picked" — is one click.
+  const [addYears, setAddYears] = useState(filingAge.years);
+  const [addMonths, setAddMonths] = useState(filingAge.months);
+  const addMonthOptions = (filingAgeOptions ?? [])
+    .filter((o) => o.years === addYears)
+    .map((o) => o.months);
+  const shownRows = editingRows ? rows : visibleClaimingRows(rows);
+  const hiddenRowCount = rows.filter((r) => r.hidden).length;
 
   const breakEvens = computeBreakEvens(claimingOptions, annualCola);
 
@@ -105,45 +172,165 @@ export function PersonPanel({ analysis, index, annualCola, isBest = true }: Pers
       </div>
 
       <div className="table-section">
-        <h3>Benefit by Claiming Age</h3>
+        <div className="table-section-head">
+          <h3>Benefit by Claiming Age</h3>
+          {canEditRows && (
+            <div className="strategy-toolbar strategy-toolbar-inline">
+              {editingRows && hiddenRowCount > 0 && (
+                <span className="strategy-toolbar-note" data-testid="claim-hidden-count">
+                  {hiddenRowCount === 1 ? '1 hidden' : `${hiddenRowCount} hidden`}
+                </span>
+              )}
+              {editingRows && (
+                <>
+                  <select
+                    className="claim-add-years"
+                    aria-label="Add a claiming age, years"
+                    data-testid="claim-add-years"
+                    value={addYears}
+                    onChange={(e) => {
+                      const nextYears = Number(e.target.value);
+                      setAddYears(nextYears);
+                      setAddMonths(
+                        firstMonthInYear(
+                          (filingAgeOptions ?? [])
+                            .filter((o) => o.years === nextYears)
+                            .map((o) => o.months),
+                        ),
+                      );
+                    }}
+                  >
+                    {[...new Set(filingAgeOptions!.map((o) => o.years))].map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="claim-add-months"
+                    aria-label="Add a claiming age, months"
+                    data-testid="claim-add-months"
+                    value={addMonths}
+                    onChange={(e) => setAddMonths(Number(e.target.value))}
+                  >
+                    {addMonthOptions.map((m) => (
+                      <option key={m} value={m}>
+                        {m === 1 ? '1 mo' : `${m} mos`}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="strategy-tool"
+                    data-testid="claim-add"
+                    onClick={() =>
+                      onClaimingPrefsChange!(
+                        addClaimingRow(
+                          claimingPrefs!,
+                          { years: addYears, months: addMonths },
+                          rows.map((r) => r.id),
+                        ),
+                      )
+                    }
+                  >
+                    Add age
+                  </button>
+                  <button
+                    type="button"
+                    className="strategy-tool"
+                    data-testid="claim-reset"
+                    onClick={() => onClaimingPrefsChange!(resetClaimingPrefs())}
+                    disabled={isDefaultClaimingPrefs(claimingPrefs!)}
+                  >
+                    Reset
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className={`strategy-tool${editingRows ? ' strategy-tool-done' : ''}`}
+                data-testid="claim-edit-toggle"
+                aria-pressed={editingRows}
+                onClick={() => setEditingRows(!editingRows)}
+              >
+                {editingRows ? 'Done' : 'Edit'}
+              </button>
+            </div>
+          )}
+        </div>
         <p className="table-desc" data-testid="benefit-table-caption">
           Monthly benefit and lifetime total to age {lifeExpectancy} at 0% discount.
           Charts may use {annualCola}% COLA for illustration.
         </p>
         <div className="table-wrap">
-          <table data-testid="benefit-table">
+          <table data-testid="benefit-table" className={editingRows ? 'strategy-editing' : ''}>
             <thead>
               <tr>
+                {editingRows && (
+                  <th>
+                    <span className="visually-hidden">Show on screen and in the report</span>
+                  </th>
+                )}
                 <th>Age</th>
                 <th>Monthly</th>
                 <th>% of PIA</th>
                 <th>Lifetime</th>
                 <th>Status</th>
+                {editingRows && (
+                  <th>
+                    <span className="visually-hidden">Remove</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {claimableOptions.map((opt) => {
-                const isRecommended = opt.age === selectedAge;
+              {shownRows.map((row) => {
+                // The optimizer's filing age is frequently a non-whole-year
+                // month, which never exactly matches a whole-year row —
+                // rounding to the nearest keeps exactly one row marked. An
+                // added row at that exact age would otherwise go unmarked
+                // while a whole year beside it wore the badge, so an exact
+                // match wins over the rounded one.
+                const isRecommended = rows.some((r) => r.months !== 0 && r.years === filingAge.years && r.months === filingAge.months)
+                  ? row.years === filingAge.years && row.months === filingAge.months
+                  : row.months === 0 && row.years === selectedAge;
                 return (
                   <tr
-                    key={opt.age}
-                    data-testid={`claim-row-${opt.age}`}
+                    key={row.id}
+                    data-testid={`claim-row-${row.id}`}
                     className={[
                       isRecommended ? 'row-optimal' : '',
-                      !opt.isEligible ? 'row-future' : '',
+                      !row.isEligible ? 'row-future' : '',
+                      row.hidden ? 'row-hidden' : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
                   >
+                    {editingRows && (
+                      <td className="cell-eye">
+                        <button
+                          type="button"
+                          className="row-eye"
+                          aria-pressed={!row.hidden}
+                          aria-label={`${row.hidden ? 'Show' : 'Hide'} age ${row.label}`}
+                          data-testid={`claim-eye-${row.id}`}
+                          onClick={() =>
+                            onClaimingPrefsChange!(toggleClaimingRowHidden(claimingPrefs!, row.id))
+                          }
+                        >
+                          <EyeIcon open={!row.hidden} />
+                        </button>
+                      </td>
+                    )}
                     <td>
-                      <strong>{opt.age}</strong>
+                      <strong>{row.label}</strong>
                       {isRecommended && <span className="badge">Best</span>}
                     </td>
-                    <td data-testid="cell-monthly">{formatCurrencyPrecise(opt.monthlyBenefit)}</td>
-                    <td data-testid="cell-percent">{opt.percentOfPia}%</td>
-                    <td>{formatCurrency(opt.lifetimeBenefits)}</td>
+                    <td data-testid="cell-monthly">{formatCurrencyPrecise(row.monthlyBenefit)}</td>
+                    <td data-testid="cell-percent">{row.percentOfPia}%</td>
+                    <td>{formatCurrency(row.lifetimeBenefits)}</td>
                     <td>
-                      {!opt.isEligible ? (
+                      {!row.isEligible ? (
                         <span className="status-future">Future</span>
                       ) : isRecommended ? (
                         <span className="status-optimal">Optimal</span>
@@ -151,6 +338,28 @@ export function PersonPanel({ analysis, index, annualCola, isBest = true }: Pers
                         <span className="status-eligible">Eligible</span>
                       )}
                     </td>
+                    {editingRows && (
+                      <td className="cell-remove">
+                        {row.added ? (
+                          <button
+                            type="button"
+                            className="row-remove"
+                            aria-label={`Remove age ${row.label}`}
+                            data-testid={`claim-remove-${row.id}`}
+                            onClick={() =>
+                              onClaimingPrefsChange!(removeClaimingRow(claimingPrefs!, row.id))
+                            }
+                          >
+                            ×
+                          </button>
+                        ) : (
+                          // A built-in row is hidden, never removed: it is
+                          // rebuilt from the person on every analysis, so a
+                          // delete would not stick.
+                          <span className="visually-hidden">Hide this row instead</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

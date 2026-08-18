@@ -2,6 +2,12 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
 import { personLabel } from '../lib/format';
+import {
+  prefsFor,
+  type ClaimingPrefsByPerson,
+  type ClaimingRow,
+  type ClaimingTablePrefs,
+} from '../lib/claimingRows';
 import type { ScenarioSet } from '../lib/scenario';
 import { HouseholdPanel } from './HouseholdPanel';
 import { PersonPanel } from './PersonPanel';
@@ -21,6 +27,10 @@ interface HouseholdViewProps {
   /** Threaded to the comparison table, which is where scenarios are edited. */
   scenarios?: ScenarioSet;
   onScenariosChange?: (scenarios: ScenarioSet) => void;
+  /** Each person's benefit-by-claiming-age rows, keyed by person id. */
+  claimingRowsByPerson?: Record<string, ClaimingRow[]>;
+  claimingPrefs?: ClaimingPrefsByPerson;
+  onClaimingPrefsChange?: (personId: string, prefs: ClaimingTablePrefs) => void;
 }
 
 interface TabDef {
@@ -46,6 +56,9 @@ export function HouseholdView({
   onDollarsModeChange = () => {},
   scenarios,
   onScenariosChange,
+  claimingRowsByPerson,
+  claimingPrefs,
+  onClaimingPrefsChange,
 }: HouseholdViewProps) {
   // Exhaustive rather than `=== 'married'`: a boolean test routed a widowed
   // household into the one-claimant branch below with no compile error and no
@@ -66,6 +79,19 @@ export function HouseholdView({
   const [active, setActive] = useState(0);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+  /** The claiming-table props for one person, or none when nothing is wired. */
+  function claimingProps(personIndex: number) {
+    const personId = analysis.people[personIndex].person.id;
+    if (claimingRowsByPerson === undefined || claimingPrefs === undefined) return {};
+    return {
+      claimingRows: claimingRowsByPerson[personId],
+      claimingPrefs: prefsFor(claimingPrefs, personId),
+      onClaimingPrefsChange: (next: ClaimingTablePrefs) =>
+        onClaimingPrefsChange?.(personId, next),
+      filingAgeOptions: analysis.filingAgeOptions[personIndex],
+    };
+  }
+
   if (shape === 'oneClaimant') {
     return (
       <PersonPanel
@@ -73,6 +99,7 @@ export function HouseholdView({
         index={0}
         annualCola={annualCola}
         isBest={analysis.scenarioIsBest}
+        {...claimingProps(0)}
       />
     );
   }
@@ -133,6 +160,7 @@ export function HouseholdView({
             index={(active - 1) as 0 | 1}
             annualCola={annualCola}
             isBest={analysis.scenarioIsBest}
+            {...claimingProps(active - 1)}
           />
         )}
       </div>

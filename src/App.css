@@ -2535,6 +2535,30 @@ tbody tr:hover {
   border: 0;
 }
 
+/* The claiming-age table's own Edit control, beside its heading rather than
+   above the table — the section already has a heading, and a second bar over
+   it would read as belonging to the caption. */
+.table-section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-section-head h3 {
+  margin-right: auto;
+}
+
+.strategy-toolbar-inline {
+  margin-bottom: 0;
+}
+
+.claim-add-years,
+.claim-add-months {
+  min-height: 30px;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+}
+
 /* A re-analysis over an output that is already on screen. Deliberately quiet:
    the run takes about 35ms, so anything louder reads as a fault rather than
    as work in progress. */

@@ -1,3 +1,4 @@
+import type { ClaimingRow } from './claimingRows';
 import type { HouseholdAnalysis } from './household';
 
 function reportFilename(): string {
@@ -5,12 +6,24 @@ function reportFilename(): string {
   return `Social-Security-Analysis-${date}.pdf`;
 }
 
-/** Generate and download a PDF without using the browser print dialog. */
-export async function downloadPdfReport(analysis: HouseholdAnalysis): Promise<void> {
+/**
+ * Generate and download a PDF without using the browser print dialog.
+ *
+ * `claimingRowsByPerson` is the SAME array the screen renders, built once in
+ * `Analyzer` — not rebuilt here. An adviser who hides a claiming age for a
+ * meeting and then exports must not find it back in the report, and two
+ * builders would eventually disagree about which rows a table has.
+ */
+export async function downloadPdfReport(
+  analysis: HouseholdAnalysis,
+  claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
+): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
   const { ReportDocument } = await import('../components/pdf/ReportDocument');
 
-  const blob = await pdf(<ReportDocument analysis={analysis} />).toBlob();
+  const blob = await pdf(
+    <ReportDocument analysis={analysis} claimingRowsByPerson={claimingRowsByPerson} />,
+  ).toBlob();
 
   const url = URL.createObjectURL(blob);
   try {

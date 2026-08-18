@@ -1,7 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { PersonPanel } from './PersonPanel';
 import type { PersonAnalysis } from '../lib/personAnalysis';
+import type { ClaimingRow, ClaimingTablePrefs } from '../lib/claimingRows';
+import type { FilingAgeChoice } from '../lib/scenario';
 
 // Minimal hand-built analysis — components take data as props and never
 // call the engine, so no mocking or fixture loading is needed here.
@@ -173,5 +176,190 @@ describe('PersonPanel', () => {
     expect(container.querySelector('.output-duo')?.className).toContain('output-duo-single');
     // The claiming-age table still renders, so the person's tab is not blank.
     expect(screen.getByTestId('claim-row-70')).toBeDefined();
+  });
+});
+
+describe('PersonPanel — editing the claiming-age table', () => {
+  const at70 = { years: 70, months: 0, label: '70', decimalYears: 70, monthDuration: null as never };
+  const base = buildAnalysis(at70);
+
+  const optionsFrom = (fromYears: number, fromMonths: number): FilingAgeChoice[] => {
+    const out: FilingAgeChoice[] = [];
+    for (let m = fromYears * 12 + fromMonths; m <= 70 * 12; m++) {
+      out.push({ years: Math.floor(m / 12), months: m % 12 });
+    }
+    return out;
+  };
+
+  const rowsFor = (over: Partial<ClaimingRow>[] = []): ClaimingRow[] =>
+    [63, 64, 65, 66, 67, 68, 69, 70].map((years, i) => ({
+      id: String(years),
+      years,
+      months: 0,
+      label: String(years),
+      monthlyBenefit: 1800 + years * 20,
+      percentOfPia: 75 + years,
+      lifetimeBenefits: 100_000,
+      isEligible: years <= 63,
+      added: false,
+      hidden: false,
+      ...(over[i] ?? {}),
+    }));
+
+  function renderEditable(
+    over: { rows?: ClaimingRow[]; prefs?: ClaimingTablePrefs } = {},
+  ) {
+    const onClaimingPrefsChange = vi.fn();
+    render(
+      <PersonPanel
+        analysis={base}
+        index={0}
+        annualCola={2.5}
+        claimingRows={over.rows ?? rowsFor()}
+        claimingPrefs={over.prefs ?? { hidden: [], added: [] }}
+        onClaimingPrefsChange={onClaimingPrefsChange}
+        filingAgeOptions={optionsFrom(63, 9)}
+      />,
+    );
+    return onClaimingPrefsChange;
+  }
+
+  const enterEdit = async () => userEvent.click(screen.getByTestId('claim-edit-toggle'));
+
+  it('offers no editing when nothing is wired to receive the change', () => {
+    render(<PersonPanel analysis={base} index={0} annualCola={2.5} />);
+    expect(screen.queryByTestId('claim-edit-toggle')).not.toBeInTheDocument();
+    // And the table still renders exactly as it did before.
+    expect(screen.getByTestId('claim-row-70')).toBeInTheDocument();
+  });
+
+  it('starts in view mode with no controls in the way', () => {
+    renderEditable();
+    expect(screen.getByTestId('claim-edit-toggle')).toHaveTextContent('Edit');
+    expect(screen.queryByTestId('claim-eye-65')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('claim-add')).not.toBeInTheDocument();
+  });
+
+  it('shows hidden rows only while editing', async () => {
+    const rows = rowsFor([{}, {}, { hidden: true }]);
+    renderEditable({ rows, prefs: { hidden: ['65'], added: [] } });
+    expect(screen.queryByTestId('claim-row-65')).not.toBeInTheDocument();
+    await enterEdit();
+    expect(screen.getByTestId('claim-row-65')).toBeInTheDocument();
+    expect(screen.getByTestId('claim-hidden-count')).toHaveTextContent('1 hidden');
+  });
+
+  it('hides a row through its eye', async () => {
+    const onChange = renderEditable();
+    await enterEdit();
+    await userEvent.click(screen.getByTestId('claim-eye-65'));
+    expect(onChange).toHaveBeenCalledWith({ hidden: ['65'], added: [] });
+  });
+
+  it('adds the age the control is pointing at', async () => {
+    const onChange = renderEditable();
+    await enterEdit();
+    // Seeded from this person's own filing age — 70y0m.
+    expect((screen.getByTestId('claim-add-years') as HTMLSelectElement).value).toBe('70');
+    await userEvent.selectOptions(screen.getByTestId('claim-add-years'), '69');
+    await userEvent.selectOptions(screen.getByTestId('claim-add-months'), '1');
+    await userEvent.click(screen.getByTestId('claim-add'));
+    expect(onChange).toHaveBeenLastCalledWith({
+      hidden: [],
+      added: [{ years: 69, months: 1 }],
+    });
+  });
+
+  it('snaps the add control’s month when its year changes', async () => {
+    renderEditable();
+    await enterEdit();
+    // 70 offers only month 0; moving to 63 must land on the person's floor,
+    // not carry a month across.
+    await userEvent.selectOptions(screen.getByTestId('claim-add-years'), '63');
+    expect((screen.getByTestId('claim-add-months') as HTMLSelectElement).value).toBe('9');
+    const months = [...(screen.getByTestId('claim-add-months') as HTMLSelectElement).options].map(
+      (o) => Number(o.value),
+    );
+    expect(months).toEqual([9, 10, 11]);
+  });
+
+  it('removes an added row and hides a built-in one', async () => {
+    const rows = [
+      ...rowsFor(),
+      {
+        id: '69-1', years: 69, months: 1, label: '69 years, 1 month',
+        monthlyBenefit: 2800, percentOfPia: 116.7, lifetimeBenefits: 100_000,
+        isEligible: false, added: true, hidden: false,
+      },
+    ].sort((a, b) => a.years * 12 + a.months - (b.years * 12 + b.months));
+    const onChange = renderEditable({ rows, prefs: { hidden: [], added: [{ years: 69, months: 1 }] } });
+    await enterEdit();
+    expect(screen.getByTestId('claim-remove-69-1')).toBeInTheDocument();
+    // A built-in row is hidden, never removed: it is rebuilt on every analysis.
+    expect(screen.queryByTestId('claim-remove-67')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('claim-remove-69-1'));
+    expect(onChange).toHaveBeenCalledWith({ hidden: [], added: [] });
+  });
+
+  it('renders an added age with its own label', async () => {
+    const rows = [
+      ...rowsFor(),
+      {
+        id: '69-1', years: 69, months: 1, label: '69 years, 1 month',
+        monthlyBenefit: 2800, percentOfPia: 116.7, lifetimeBenefits: 100_000,
+        isEligible: false, added: true, hidden: false,
+      },
+    ];
+    renderEditable({ rows });
+    expect(screen.getByTestId('claim-row-69-1')).toHaveTextContent('69 years, 1 month');
+  });
+
+  it('moves the Best badge to an added row sitting exactly on the filing age', () => {
+    // The badge normally lands on the nearest whole year. When the adviser
+    // adds the exact age, the rounded year must give it up — two rows wearing
+    // it, or the badge on the wrong one, is the defect this project keeps
+    // shipping.
+    const analysisAt69m1 = buildAnalysis({
+      years: 69, months: 1, label: '69 years, 1 month',
+      decimalYears: 69.08, monthDuration: null as never,
+    });
+    render(
+      <PersonPanel
+        analysis={analysisAt69m1}
+        index={0}
+        annualCola={2.5}
+        claimingRows={[
+          ...rowsFor(),
+          {
+            id: '69-1', years: 69, months: 1, label: '69 years, 1 month',
+            monthlyBenefit: 2800, percentOfPia: 116.7, lifetimeBenefits: 100_000,
+            isEligible: false, added: true, hidden: false,
+          },
+        ].sort((a, b) => a.years * 12 + a.months - (b.years * 12 + b.months))}
+        claimingPrefs={{ hidden: [], added: [{ years: 69, months: 1 }] }}
+        onClaimingPrefsChange={vi.fn()}
+        filingAgeOptions={optionsFrom(63, 9)}
+      />,
+    );
+    expect(within(screen.getByTestId('claim-row-69-1')).getByText('Best')).toBeInTheDocument();
+    expect(screen.getAllByText('Best')).toHaveLength(1);
+  });
+
+  it('resets, and offers nothing to reset when already at the defaults', async () => {
+    const onChange = renderEditable({ prefs: { hidden: ['65'], added: [] } });
+    await enterEdit();
+    expect(screen.getByTestId('claim-reset')).toBeEnabled();
+    await userEvent.click(screen.getByTestId('claim-reset'));
+    expect(onChange).toHaveBeenCalledWith({ hidden: [], added: [] });
+  });
+
+  it('returns to view mode, dropping every control', async () => {
+    const rows = rowsFor([{}, {}, { hidden: true }]);
+    renderEditable({ rows, prefs: { hidden: ['65'], added: [] } });
+    await enterEdit();
+    expect(screen.getByTestId('claim-row-65')).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('claim-edit-toggle'));
+    expect(screen.queryByTestId('claim-row-65')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('claim-add')).not.toBeInTheDocument();
   });
 });

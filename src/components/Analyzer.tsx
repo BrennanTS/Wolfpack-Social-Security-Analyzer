@@ -13,6 +13,13 @@ import {
 } from '../lib/formState';
 import { personLabel } from '../lib/format';
 import { downloadPdfReport } from '../lib/printReport';
+import {
+  buildClaimingRows,
+  prefsFor,
+  withPrefsFor,
+  type ClaimingPrefsByPerson,
+  type ClaimingRow,
+} from '../lib/claimingRows';
 import type { ScenarioSet } from '../lib/scenario';
 import { fromShareParams } from '../lib/shareLink';
 import {
@@ -63,6 +70,11 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
   const [dollarsMode, setDollarsMode] = useState<DollarsMode>(initialForm.dollarsMode);
   const [scenarios, setScenarios] = useState<ScenarioSet>(initialForm.scenarios);
+  // Which rows each person's benefit-by-claiming-age table shows. Display
+  // state, NOT form state: it never reaches the engine, so it is deliberately
+  // outside `form` and outside the analysis effect's dependencies — hiding a
+  // row must not re-run the optimizer.
+  const [claimingPrefs, setClaimingPrefs] = useState<ClaimingPrefsByPerson>({});
 
   // Strip the query string separately, because this is a side effect and
   // StrictMode double-invokes state initializers. replaceState is idempotent,
@@ -237,12 +249,24 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   // or belong to a form the adviser has since edited back to single/married.
   const widowedAnalysisUnavailable = analysis?.status === 'widowed';
 
+  // Built ONCE, here, and handed to both the screen and the PDF, so the two
+  // surfaces cannot disagree about which rows a person's table has. Keyed by
+  // person id rather than by slot, like everything else derived per person.
+  const claimingRowsByPerson: Record<string, ClaimingRow[]> = {};
+  for (const person of analysis?.people ?? []) {
+    claimingRowsByPerson[person.person.id] = buildClaimingRows(
+      person,
+      prefsFor(claimingPrefs, person.person.id),
+      asOf,
+    );
+  }
+
   async function handleExportPdf() {
     if (!analysis || analysis.status === 'widowed') return;
     setExportError(null);
     setExporting(true);
     try {
-      await downloadPdfReport(analysis);
+      await downloadPdfReport(analysis, claimingRowsByPerson);
     } catch {
       setExportError('PDF export failed. Please try again.');
     } finally {
@@ -482,6 +506,11 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 onDollarsModeChange={setDollarsMode}
                 scenarios={scenarios}
                 onScenariosChange={setScenarios}
+                claimingRowsByPerson={claimingRowsByPerson}
+                claimingPrefs={claimingPrefs}
+                onClaimingPrefsChange={(personId, next) =>
+                  setClaimingPrefs(withPrefsFor(claimingPrefs, personId, next))
+                }
               />
 
               <div className="methodology">
