@@ -396,16 +396,30 @@ describe('scenario share links', () => {
     expect(toShareParams(withScenarios(set)).get('sc')).toBeNull();
   });
 
+  /** Add and select — a link carries what is SHOWN, not what merely exists. */
+  const addAndShow = (ages: { years: number; months: number }[]) => {
+    const set = addScenario(resetScenarios(), ages);
+    return selectScenario(set, set.rows[set.rows.length - 1].id);
+  };
+
   it('writes the shown scenario’s ages, person A first', () => {
-    const set = addScenario(resetScenarios(), [
+    const set = addAndShow([
       { years: 65, months: 0 },
       { years: 66, months: 3 },
     ]);
     expect(toShareParams(withScenarios(set)).get('sc')).toBe('65-0.66-3');
   });
 
+  it('writes nothing for a custom row nobody selected', () => {
+    // `addScenario` no longer selects, so a link built while the report is
+    // still on the optimum must carry the optimum — not whichever row the
+    // adviser last typed in to compare against it.
+    const set = addScenario(resetScenarios(), [{ years: 65, months: 0 }]);
+    expect(toShareParams(withScenarios(set)).get('sc')).toBeNull();
+  });
+
   it('round-trips through a URL into a selected custom row', () => {
-    const set = addScenario(resetScenarios(), [
+    const set = addAndShow([
       { years: 65, months: 0 },
       { years: 66, months: 3 },
     ]);

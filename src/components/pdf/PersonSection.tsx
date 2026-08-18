@@ -55,9 +55,9 @@ function BenefitTable({
   optimalLifetime: number;
   optimalRowId: string;
   /**
-   * The row this person would file at ALONE, when it differs from the
-   * household's. Empty when there is nothing to contrast — a single claimant,
-   * or a married one whose two answers coincide.
+   * The row this person would file at ALONE. Empty only for a lone claimant,
+   * who has no household answer to be contrasted with; a married person whose
+   * two answers coincide still gets it, on the same row as TOGETHER.
    */
   soloRowId: string;
   /** The row the page's figures come from, when that is not the optimum. */
@@ -79,8 +79,10 @@ function BenefitTable({
           <View key={row.id} style={[styles.tableRow, isOptimal ? styles.tableRowOptimal : {}]}>
             <View style={[styles.tdAge, { width: COL.age }]}>
               <Text style={styles.tdBold}>{row.label}</Text>
-              {/* Same rule as the screen: the qualifier appears only when
-                  there is a second answer to distinguish it from. */}
+              {/* Same rule as the screen: TOGETHER whenever this person has
+                  a spouse, so the pair with ALONE stays legible even where
+                  both land on one row. OPT for a lone claimant, who has no
+                  second answer to be distinguished from. */}
               {isOptimal && (
                 <Text style={styles.badge}>{soloRowId === '' ? 'OPT' : 'TOGETHER'}</Text>
               )}
@@ -162,10 +164,13 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
     analysis.soloFilingAge == null
       ? null
       : nearestWholeClaimAge(analysis.soloFilingAge.decimalYears);
+  // Found whenever this person has a solo answer at all, even where it lands
+  // on the same row as the household's — see `PersonPanel` for why the pair
+  // of badges is worth more than the one. `soloRowId` non-empty is therefore
+  // "this person has a spouse", which is what picks TOGETHER over OPT.
   const soloRow =
-    soloAge === null || soloAge === bestTogetherAge
-      ? undefined
-      : tableRows.find((r) => r.months === 0 && r.years === soloAge);
+    soloAge === null ? undefined : tableRows.find((r) => r.months === 0 && r.years === soloAge);
+  const soloDiffers = soloAge !== null && soloAge !== bestTogetherAge;
   const shownDiffers = optimalAge !== bestTogetherAge;
 
   return (
@@ -224,12 +229,12 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         soloRowId={soloRow?.id ?? ''}
         shownRowId={shownDiffers ? (optimalRow?.id ?? '') : ''}
       />
-      {(soloRow !== undefined || shownDiffers) && (
+      {(soloDiffers || shownDiffers) && (
         <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
           {soloVsHouseholdNote(
             name,
             (analysis.householdBestFilingAge ?? analysis.filingAge).label,
-            soloRow !== undefined ? (analysis.soloFilingAge?.label ?? null) : null,
+            soloDiffers ? (analysis.soloFilingAge?.label ?? null) : null,
             shownDiffers ? analysis.filingAge.label : null,
           )}
         </Text>

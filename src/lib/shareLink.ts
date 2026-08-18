@@ -11,6 +11,7 @@ import { BLANK_FORM, type AnalyzerFormState, type PersonFormFields } from './for
 import type { Gender } from './personAnalysis';
 import {
   addScenario,
+  selectScenario,
   DEFAULT_SCENARIO_SET,
   resetScenarios,
   selectedRow,
@@ -134,7 +135,10 @@ function readScenarios(params: URLSearchParams): ScenarioSet {
     ages.push({ years, months });
   }
   if (ages.length === 0 || ages.length > 2) return DEFAULT_SCENARIO_SET;
-  return addScenario(resetScenarios(), ages);
+  // Selected explicitly: `addScenario` appends without selecting, and a
+  // shared link exists to reproduce the strategy its sender was looking at.
+  const set = addScenario(resetScenarios(), ages);
+  return selectScenario(set, set.rows[set.rows.length - 1].id);
 }
 
 function writeScenarios(params: URLSearchParams, scenarios: ScenarioSet): void {

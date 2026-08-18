@@ -403,11 +403,21 @@ describe('PersonPanel — three ages, three labels', () => {
     // 70 — what the optimizer chose. NOT 62, which is what is being shown.
     expect(badge.closest('tr')).toHaveAttribute('data-testid', 'claim-row-70');
     expect(screen.getByTestId('claim-row-64')).not.toContainElement(badge);
-    // No "together" qualifier: this person's solo answer is ALSO 70, so
-    // there is no together-vs-alone disagreement to name. The qualifier
-    // appearing here would imply one.
-    expect(badge).toHaveTextContent('Best');
-    expect(badge).not.toHaveTextContent('together');
+    // "together" even though this person's solo answer is ALSO 70: the
+    // qualifier names which question the row answers, and its pair with
+    // "Best alone" is what shows household-vs-individual at a glance. Both
+    // badges land on 70 here, which reads as the two answers agreeing.
+    expect(badge).toHaveTextContent('Best together');
+    expect(screen.getByTestId('badge-solo').closest('tr')).toHaveAttribute(
+      'data-testid',
+      'claim-row-70',
+    );
+  });
+
+  it('says plain "Best" for a lone claimant, who has no second answer', () => {
+    render3({ ...buildAnalysis(age(70)), soloFilingAge: null } as unknown as PersonAnalysis);
+    expect(screen.getByTestId('badge-best')).toHaveTextContent('Best');
+    expect(screen.getByTestId('badge-best')).not.toHaveTextContent('together');
     expect(screen.queryByTestId('badge-solo')).not.toBeInTheDocument();
   });
 

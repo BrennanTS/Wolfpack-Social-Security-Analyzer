@@ -97,9 +97,15 @@ export function PersonPanel({
     analysis.soloFilingAge == null
       ? null
       : nearestWholeClaimAge(analysis.soloFilingAge.decimalYears);
-  // Only when there is a second answer to distinguish it from; otherwise the
-  // qualifier implies a disagreement that is not there.
-  const showBothBadges = soloAge !== null && soloAge !== bestTogetherAge;
+  // "Best together" whenever there IS a household to be together with, even
+  // where the two answers agree — the contrast with "Best alone" is the point
+  // of the pair, and a bare "Best" on a married person's table drops it. Both
+  // badges land on one row when the two agree, which reads as "no difference
+  // here" rather than hiding that there was a second question.
+  const hasSolo = soloAge !== null;
+  // Whether the two answers actually DISAGREE — gates the note below, which
+  // exists to explain a disagreement and has nothing to say without one.
+  const soloDiffers = hasSolo && soloAge !== bestTogetherAge;
   const shownDiffers = shownAge !== bestTogetherAge;
 
   // Live-COLA break-evens for this person, recomputed the same way
@@ -223,12 +229,12 @@ export function PersonPanel({
           Monthly benefit and lifetime total to age {lifeExpectancy} at 0% discount.
           Charts may use {annualCola}% COLA for illustration.
         </p>
-        {(showBothBadges || shownDiffers) && (
+        {(soloDiffers || shownDiffers) && (
           <p className="chart-caveat" data-testid="solo-vs-household">
             {soloVsHouseholdNote(
               personLabel(analysis.person.name, index),
               (analysis.householdBestFilingAge ?? filingAge).label,
-              analysis.soloFilingAge?.label ?? null,
+              soloDiffers ? (analysis.soloFilingAge?.label ?? null) : null,
               shownDiffers ? filingAge.label : null,
             )}
           </p>
@@ -300,10 +306,10 @@ export function PersonPanel({
                           62 for a household whose optimum was 70. */}
                       {isBestTogether && (
                         <span className="badge" data-testid="badge-best">
-                          {showBothBadges ? 'Best together' : 'Best'}
+                          {hasSolo ? 'Best together' : 'Best'}
                         </span>
                       )}
-                      {showBothBadges && row.months === 0 && row.years === soloAge && (
+                      {hasSolo && row.months === 0 && row.years === soloAge && (
                         <span className="badge badge-solo" data-testid="badge-solo">
                           Best alone
                         </span>

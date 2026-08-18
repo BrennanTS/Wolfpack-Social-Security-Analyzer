@@ -129,14 +129,32 @@ describe('the default scenario set', () => {
   });
 });
 
+/** Add-then-select, for the tests that only need a handle on the new row. */
+const addSelected = (set: ScenarioSet, ages: FilingAgeChoice[]): ScenarioSet => {
+  const next = addScenario(set, ages);
+  return selectScenario(next, next.rows[next.rows.length - 1].id);
+};
+
 describe('addScenario', () => {
-  it('appends a custom row carrying the ages, and selects it', () => {
+  it('appends a custom row carrying the ages', () => {
     const set = addScenario(resetScenarios(), [at(65), at(66, 3)]);
     expect(set.rows).toHaveLength(5);
     const added = set.rows[4];
     expect(added.scenario).toEqual({ kind: 'custom', ages: [at(65), at(66, 3)] });
-    expect(set.selectedId).toBe(added.id);
     expect(added.label).toBe('Scenario 1');
+  });
+
+  it('leaves the selection where it was, so the report stays on the optimum', () => {
+    // Adding a row is an act of comparison. Selecting it rebuilds every
+    // figure in the report on an age the adviser typed in to look at, and
+    // moves "Best together" onto it over on the person tabs.
+    const set = addScenario(resetScenarios(), [at(62, 1), at(62, 1)]);
+    expect(set.selectedId).toBe(BEST_ROW_ID);
+  });
+
+  it('leaves a non-default selection alone too', () => {
+    const set = addScenario(selectScenario(resetScenarios(), 'fra'), [at(65)]);
+    expect(set.selectedId).toBe('fra');
   });
 
   it('copies the ages rather than aliasing the caller’s array', () => {
@@ -150,7 +168,7 @@ describe('addScenario', () => {
   it('never re-mints an id a deletion freed', () => {
     // s1, s2 → delete s1 → add. Reusing "s1" would make `selectedId` and
     // `removeScenario` address the wrong row.
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     const first = set.selectedId;
     set = addScenario(set, [at(66)]);
     set = removeScenario(set, first);
@@ -163,7 +181,7 @@ describe('addScenario', () => {
 
 describe('updateScenarioAges', () => {
   it('replaces the ages of a custom row', () => {
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     const id = set.selectedId;
     set = updateScenarioAges(set, id, [at(68, 4)]);
     expect(selectedRow(set).scenario).toEqual({ kind: 'custom', ages: [at(68, 4)] });
@@ -185,7 +203,7 @@ describe('updateScenarioAges', () => {
 
 describe('renameScenario', () => {
   it('renames without touching the scenario or the selection', () => {
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     const id = set.selectedId;
     set = renameScenario(set, id, 'Retire at 65');
     expect(selectedRow(set).label).toBe('Retire at 65');
@@ -196,20 +214,20 @@ describe('renameScenario', () => {
 
 describe('removeScenario', () => {
   it('removes a custom row', () => {
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     const id = set.selectedId;
     set = removeScenario(set, id);
     expect(set.rows.map((r) => r.id)).not.toContain(id);
   });
 
   it('moves the selection to Optimal when the selected row goes', () => {
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     set = removeScenario(set, set.selectedId);
     expect(set.selectedId).toBe(BEST_ROW_ID);
   });
 
   it('leaves the selection alone when a different row goes', () => {
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     const kept = set.selectedId;
     set = removeScenario(set, 'latest');
     expect(set.selectedId).toBe(kept);
@@ -241,13 +259,13 @@ describe('selectScenario', () => {
 describe('isDefaultScenarioSet', () => {
   it('is false once anything has changed', () => {
     expect(isDefaultScenarioSet(selectScenario(resetScenarios(), 'fra'))).toBe(false);
-    expect(isDefaultScenarioSet(addScenario(resetScenarios(), [at(65)]))).toBe(false);
+    expect(isDefaultScenarioSet(addSelected(resetScenarios(), [at(65)]))).toBe(false);
     expect(isDefaultScenarioSet(removeScenario(resetScenarios(), 'latest'))).toBe(false);
     expect(isDefaultScenarioSet(updateScenarioAges(resetScenarios(), 'fra', [at(64)]))).toBe(false);
   });
 
   it('is true again after a reset', () => {
-    const touched = addScenario(resetScenarios(), [at(65)]);
+    const touched = addSelected(resetScenarios(), [at(65)]);
     expect(isDefaultScenarioSet(resetScenarios())).toBe(true);
     expect(isDefaultScenarioSet(touched)).toBe(false);
   });
@@ -266,7 +284,7 @@ describe('scenarioLabel', () => {
   });
 
   it('uses the adviser’s own name for a custom row', () => {
-    const set = renameScenario(addScenario(resetScenarios(), [at(65)]), 's1', 'Retire at 65');
+    const set = renameScenario(addSelected(resetScenarios(), [at(65)]), 's1', 'Retire at 65');
     expect(scenarioLabel(selectedRow(set), true)).toBe('Retire at 65');
   });
 });
@@ -314,7 +332,7 @@ describe('toggleScenarioHidden', () => {
 
   it('moves the selection off a row it hides', () => {
     // Otherwise the report is built on a strategy that appears nowhere on it.
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     const id = set.selectedId;
     set = toggleScenarioHidden(set, id);
     expect(set.selectedId).toBe(BEST_ROW_ID);
@@ -322,7 +340,7 @@ describe('toggleScenarioHidden', () => {
   });
 
   it('leaves the selection alone when a different row is hidden', () => {
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     const kept = set.selectedId;
     set = toggleScenarioHidden(set, 'latest');
     expect(set.selectedId).toBe(kept);
@@ -336,7 +354,7 @@ describe('toggleScenarioHidden', () => {
 
 describe('selecting a hidden row', () => {
   it('reveals it, since the report has to show what it is built on', () => {
-    let set = addScenario(resetScenarios(), [at(65)]);
+    let set = addSelected(resetScenarios(), [at(65)]);
     const id = set.selectedId;
     set = toggleScenarioHidden(set, id);
     set = selectScenario(set, id);

@@ -160,7 +160,19 @@ export function toggleScenarioHidden(set: ScenarioSet, id: string): ScenarioSet 
 }
 
 /**
- * Appends a custom row and selects it.
+ * Appends a custom row, leaving the selection alone.
+ *
+ * Deliberately NOT selected. Adding a row is an act of comparison — "what
+ * would 62 and 1 month cost them?" — and the answer to that question is the
+ * delta against the optimum, which only stays on screen while the optimum is
+ * what everything is measured from. Auto-selecting the new row rebuilt the
+ * entire report on an age the adviser had merely typed in to look at, and put
+ * "Best together" on it over on the person tabs. Selection is its own act,
+ * via `selectScenario` and the editor's "Show this" control.
+ *
+ * Callers that DO want the new row selected — the share-link reader, whose
+ * whole job is to reproduce what the sender was looking at — call
+ * `selectScenario` on the appended row, which is always the last one.
  *
  * Ids are minted from the highest existing numeric suffix rather than from
  * `rows.length`, so deleting "Scenario 2" and adding another cannot mint a
@@ -180,7 +192,7 @@ export function addScenario(set: ScenarioSet, ages: FilingAgeChoice[]): Scenario
     hidden: false,
     scenario: { kind: 'custom', ages: ages.map((a) => ({ years: a.years, months: a.months })) },
   };
-  return { rows: [...set.rows, row], selectedId: id };
+  return { rows: [...set.rows, row], selectedId: set.selectedId };
 }
 
 /**

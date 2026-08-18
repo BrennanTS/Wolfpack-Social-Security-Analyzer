@@ -43,7 +43,13 @@ const run = (household: Household, scenarios: ScenarioSet = DEFAULT_SCENARIO_SET
   analyzeHousehold(household, assumptions, asOf, scenarios);
 
 /** The default four, plus one custom row carrying `ages`, selected. */
-const withCustom = (...ages: FilingAgeChoice[]) => addScenario(resetScenarios(), ages);
+// Add AND select — `addScenario` deliberately leaves the selection alone (a
+// new row is a comparison, not a choice), while every test below is about
+// what a SELECTED scenario does to the analysis.
+const withCustom = (...ages: FilingAgeChoice[]) => {
+  const set = addScenario(resetScenarios(), ages);
+  return selectScenario(set, set.rows[set.rows.length - 1].id);
+};
 
 /** The ages of a strategy, as plain pairs — what a scenario is made of. */
 const agesOf = (s: HouseholdAnalysis['selected']) =>
@@ -179,7 +185,7 @@ describe('selecting one of the built-in rows', () => {
     const best = await run(married);
     const fra = best.comparisons.find((c) => c.key === 'fra');
     expect(fra, 'this household must reach an FRA row for the test to mean anything').toBeDefined();
-    const set = addScenario(resetScenarios(), agesOf(fra!));
+    const set = withCustom(...agesOf(fra!));
     const result = await run(married, set);
     expect(result.selected.key).toBe(set.selectedId);
     expect(result.comparisons).toHaveLength(4);
@@ -190,7 +196,7 @@ describe('selecting one of the built-in rows', () => {
 
   it('marks the built-in Optimal row rather than a custom twin of it', async () => {
     const best = await run(married);
-    const result = await run(married, addScenario(resetScenarios(), agesOf(best.optimal)));
+    const result = await run(married, withCustom(...agesOf(best.optimal)));
     // The custom row is selected and carries the optimum's ages, so it IS the
     // optimum — but the badge stays on the built-in row it duplicates.
     expect(result.comparisons.filter((c) => c.isOptimal)).toHaveLength(1);

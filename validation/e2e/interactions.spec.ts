@@ -376,6 +376,17 @@ test('drives the whole report from a scenario edited in the comparison table', a
   await page.getByTestId('scenario-edit-toggle').click();
   await page.getByTestId('scenario-add').click();
   await expect(page.getByTestId('strategy-row-s1')).toBeVisible();
+
+  // Adding does NOT select. A new row is something to compare against the
+  // optimum, and the report stays on the optimum until somebody says
+  // otherwise — otherwise every figure, and the person tabs' "Best together"
+  // badge, would follow whatever was last typed in.
+  await expect(eyebrow).toHaveText(/Recommended Strategy/);
+  await expect(page.getByTestId('strategy-row-s1')).not.toHaveClass(/row-selected/);
+  await expect(page.getByTestId('strategy-row-optimal')).toHaveClass(/row-selected/);
+
+  // Selecting is its own act, here in the editor.
+  await page.getByTestId('scenario-use-s1').click();
   await page.getByTestId('scenario-years-s1-0').selectOption('65');
 
   // The whole surface follows the edited row, and the optimum keeps its own
