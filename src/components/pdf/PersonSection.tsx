@@ -105,7 +105,7 @@ export function PersonSection({ analysis, index, annualCola, footerText, appendi
       </View>
 
       <View style={styles.recBox}>
-        <Text style={styles.recEyebrow}>Recommended Strategy (ssa.tools)</Text>
+        <Text style={styles.recEyebrow}>Recommended Strategy</Text>
         <Text style={styles.recHeadline}>File at age {recommendedFilingAge.label}</Text>
         <Text style={styles.recBody}>
           {name} filing at age {recommendedFilingAge.label} yields {formatCurrency(recommendedMonthly)}

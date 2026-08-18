@@ -1,5 +1,9 @@
 /**
- * Narrative copy for the Analyzer's "How This Works" panel.
+ * Narrative copy for the Analyzer's methodology sections — the static "How
+ * This Works" reference cards now live in the About panel (`lib/about.ts`);
+ * this module is what remains on the main surface, the household-specific
+ * "This household's spousal benefit" card, plus the sentences shared with
+ * the PDF.
  *
  * Lives beside the components rather than in `lib/` because it is
  * presentation, not calculation — but in its own module rather than inside
@@ -385,10 +389,10 @@ export function combinedIncomeCaption(
  */
 export function coupleModelingNote(gap: SurvivorGap | null | undefined): string {
   return gap
-    ? 'The spousal top-up is modeled via the ssa.tools couple optimizer; the survivor ' +
+    ? 'The spousal top-up is modeled via the couple optimizer; the survivor ' +
         'benefit this household would actually receive is not — see the note on the ' +
         'household page.'
-    : 'The spousal top-up and survivor benefits are both modeled via the ssa.tools couple ' +
+    : 'The spousal top-up and survivor benefits are both modeled via the couple ' +
         'optimizer.';
 }
 
@@ -504,8 +508,8 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
 }
 
 /**
- * The "Spousal benefits" methodology copy for the Analyzer's "How This Works"
- * panel.
+ * The "Spousal benefits" methodology copy for the Analyzer's "This
+ * household's spousal benefit" card (main surface, not the About panel).
  *
  * Reads the household's own `spousalTopUp` — the amount that accrues to the
  * *lower earner*, named via `lowerEarnerLabel` — rather than recomputing a
@@ -528,7 +532,7 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
     'Survivor benefits are included in the recommendation and in the combined income timeline.';
 
   return (
-    'Married households are optimized jointly by ssa.tools, including the spousal top-up. ' +
+    'Married households are optimized jointly, including the spousal top-up. ' +
     `${spousalSummary(spousal, spousal.lowerEarnerLabel)} ${survivor}`
   );
 }
@@ -769,7 +773,7 @@ export function survivorIncomeCaption(
     : gap.survivorUnder60
       ? ' The survivor has not yet reached the age a widow(er) benefit can start — see the ' +
         'note below for what changes from age 60 onward.'
-      : ' The ssa.tools engine does not model survivor benefits in this household’s ' +
+      : ' The engine does not model survivor benefits in this household’s ' +
         'direction, so these figures understate what the survivor would actually receive — ' +
         'see the note below.';
 

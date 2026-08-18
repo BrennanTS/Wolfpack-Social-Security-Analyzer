@@ -244,7 +244,7 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Household</Text>
 
       <View style={styles.recBox}>
-        <Text style={styles.recEyebrow}>Household — Recommended Strategy (ssa.tools)</Text>
+        <Text style={styles.recEyebrow}>Household — Recommended Strategy</Text>
         <Text style={styles.recHeadline}>{analysis.recommendation}</Text>
         <Text style={styles.recBody}>{analysis.recommendationDetail}</Text>
         {spousal && (

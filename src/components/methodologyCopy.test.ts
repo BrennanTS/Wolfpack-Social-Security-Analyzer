@@ -900,7 +900,7 @@ describe('coupleModelingNote', () => {
   it('claims survivor benefits are modeled when they are', () => {
     const note = coupleModelingNote(null);
     expect(note).toContain('The spousal top-up and survivor benefits are both modeled');
-    expect(note).toContain('ssa.tools couple optimizer');
+    expect(note).toContain('the couple optimizer');
   });
 
   it('stops claiming survivor benefits are modeled for a gap household', () => {

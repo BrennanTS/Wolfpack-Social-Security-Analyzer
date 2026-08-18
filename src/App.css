@@ -796,7 +796,8 @@
   background: rgba(0, 0, 0, 0.55);
 }
 
-.drawer-backdrop-resources {
+.drawer-backdrop-resources,
+.drawer-backdrop-about {
   z-index: 105;
 }
 
@@ -2067,12 +2068,13 @@ tbody tr:hover {
   gap: 20px clamp(16px, 2.5vw, 28px);
 }
 
-.method-grid strong {
+.method-grid strong,
+.method-grid h4 {
   display: block;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 6px;
+  margin: 0 0 6px;
   letter-spacing: -0.02em;
 }
 

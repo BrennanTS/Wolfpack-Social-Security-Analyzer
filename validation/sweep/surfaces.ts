@@ -13,9 +13,15 @@
  *    sees one or the other, never both.
  *
  * Kept beside the components rather than inside them so the sweep can build a
- * surface without a DOM. Any drift between this file and the components is
- * itself worth catching — `render.sweep.tsx` cross-checks a sample against
- * the real rendered output.
+ * surface without a DOM.
+ *
+ * Nothing cross-checks this model against real rendered output — there is no
+ * DOM in the sweep and no renderer here, so a string a component renders but
+ * this file never pushes is invisible to every invariant below. The backstop
+ * is `src/lib/engineBrand.test.ts`, which reads the component sources
+ * directly. It covers only the engine's brand name, but for that one question
+ * it needs no model at all, which is exactly the gap: this file models what
+ * `methodologyCopy` and `household.ts` COMPUTE, and no JSX literal anywhere.
  */
 import {
   COMBINED_INCOME_SUBTITLE,
@@ -83,6 +89,9 @@ export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
 
   push(lines, 'Analyzer.spousalMethodologyCopy', spousalMethodologyCopy(analysis));
 
+  push(lines, 'HouseholdPanel.recommendation', analysis.recommendation);
+  push(lines, 'HouseholdPanel.recommendationDetail', analysis.recommendationDetail);
+
   return lines;
 }
 
@@ -98,6 +107,9 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
   const married = analysis.status === 'married';
 
   if (married) {
+    push(lines, 'pdf/HouseholdSection.recommendation', analysis.recommendation);
+    push(lines, 'pdf/HouseholdSection.recommendationDetail', analysis.recommendationDetail);
+
     if (spousal) {
       push(
         lines,

@@ -57,7 +57,7 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
   return (
     <div className="results">
       <div className="recommendation-card">
-        <span className="rec-label">{personLabel(analysis.person.name, index)} — Recommended Strategy (ssa.tools)</span>
+        <span className="rec-label">{personLabel(analysis.person.name, index)} — Recommended Strategy</span>
         <h2 data-testid="recommendation-title">{personLabel(analysis.person.name, index)}</h2>
         <div className="rec-stats">
           <div>
@@ -88,7 +88,7 @@ export function PersonPanel({ analysis, index, annualCola }: PersonPanelProps) {
       <div className="table-section">
         <h3>Benefit by Claiming Age</h3>
         <p className="table-desc" data-testid="benefit-table-caption">
-          Monthly benefit (ssa.tools) and lifetime total to age {lifeExpectancy} at 0% discount.
+          Monthly benefit and lifetime total to age {lifeExpectancy} at 0% discount.
           Charts may use {annualCola}% COLA for illustration.
         </p>
         <div className="table-wrap">

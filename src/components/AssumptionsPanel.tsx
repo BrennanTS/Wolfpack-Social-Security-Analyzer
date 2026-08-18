@@ -1,9 +1,4 @@
-import {
-  BLS_CPI_URL,
-  CPI_DEFAULT_COLA,
-  formatPercent,
-  getCpiLast30Years,
-} from '../lib/cpiHistory';
+import { CPI_DEFAULT_COLA, formatPercent } from '../lib/cpiHistory';
 import type { Gender } from '../lib/personAnalysis';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
 import { DEFAULT_DISCOUNT_RATE } from '../lib/ssaTools';
@@ -41,7 +36,6 @@ export function AssumptionsPanel({
   expanded,
   onToggle,
 }: AssumptionsPanelProps) {
-  const cpi = getCpiLast30Years();
   const usingDefaultCola = Math.abs(annualCola - CPI_DEFAULT_COLA) < 0.05;
   const usingDefaultDiscount = Math.abs(discountRate - DEFAULT_DISCOUNT_RATE) < 0.001;
 
@@ -60,7 +54,7 @@ export function AssumptionsPanel({
         <div className="assumptions-body">
           <div className="field advanced-field">
             <label htmlFor="discount">
-              Discount rate (ssa.tools) — {formatPercent(discountRate * 100, 2)}
+              Discount rate — {formatPercent(discountRate * 100, 2)}
             </label>
             <input
               id="discount"
@@ -76,11 +70,11 @@ export function AssumptionsPanel({
               <span>6%</span>
             </div>
             <span className="field-hint">
-              Used for mortality-weighted optimal filing (ssa.tools expected NPV). Default 2.5%
+              Used for mortality-weighted optimal filing (expected present value). Default 2.5%
               approximates long-term TIPS yield.
             </span>
             {usingDefaultDiscount && (
-              <p className="cpi-active-note">Using ssa.tools default discount rate.</p>
+              <p className="cpi-active-note">Using the default discount rate.</p>
             )}
           </div>
 
@@ -180,65 +174,9 @@ export function AssumptionsPanel({
               </button>
             </div>
             <span className="field-hint">
-              Benefit math uses SSA historical COLA tables (ssa.tools). This rate applies to
+              Benefit math uses SSA historical COLA tables. This rate applies to
               illustrative cumulative charts only.
             </span>
-          </div>
-
-          <div className="cpi-history">
-            <h3>BLS CPI-U — Last 30 Years</h3>
-            <p className="cpi-source">
-              Annual inflation from the{' '}
-              <a href={BLS_CPI_URL} target="_blank" rel="noopener noreferrer">
-                U.S. Bureau of Labor Statistics CPI-U
-              </a>{' '}
-              ({cpi.startYear}–{cpi.endYear}, December-to-December).
-            </p>
-
-            <div className="cpi-stats">
-              <div className="cpi-stat">
-                <span className="cpi-stat-value">{formatPercent(cpi.arithmeticMean, 2)}</span>
-                <span className="cpi-stat-label">30-yr average</span>
-              </div>
-              <div className="cpi-stat">
-                <span className="cpi-stat-value">{formatPercent(cpi.geometricMean, 2)}</span>
-                <span className="cpi-stat-label">Compound avg</span>
-              </div>
-              <div className="cpi-stat">
-                <span className="cpi-stat-value">
-                  {formatPercent(cpi.min, 1)} – {formatPercent(cpi.max, 1)}
-                </span>
-                <span className="cpi-stat-label">Range</span>
-              </div>
-            </div>
-
-            <div className="cpi-table-wrap">
-              <table className="cpi-table">
-                <thead>
-                  <tr>
-                    <th>Year</th>
-                    <th>CPI-U</th>
-                    <th>Year</th>
-                    <th>CPI-U</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: Math.ceil(cpi.years.length / 2) }, (_, i) => {
-                    const left = cpi.years[i];
-                    const right = cpi.years[i + Math.ceil(cpi.years.length / 2)];
-                    return (
-                      <tr key={left.year}>
-                        <td>{left.year}</td>
-                        <td>{formatPercent(left.rate, 1)}</td>
-                        <td>{right?.year ?? ''}</td>
-                        <td>{right ? formatPercent(right.rate, 1) : ''}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
             {usingDefaultCola && (
               <p className="cpi-active-note">
                 Chart COLA default matches the 30-year CPI-U arithmetic average.
