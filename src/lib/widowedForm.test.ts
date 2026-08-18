@@ -12,6 +12,17 @@ import {
 const asOf = new Date(2026, 0, 15);
 const survivorBirth = { year: 1964, month: 6 };
 
+/**
+ * A survivor old enough that the dates below clear the age floors on their
+ * own, so the rule actually under test in each case is the death-date one.
+ * Born June 1958: age 60 falls June 2018, age 62 June 2020.
+ *
+ * Added when `claimBeforeSixty`/`claimBeforeSixtyTwo` arrived — until then
+ * these fixtures could use any date at all, and several used ages SSA would
+ * never have paid.
+ */
+const olderBirth = { year: 1958, month: 6 };
+
 const filled: DeceasedFormFields = {
   birthYear: 1960, birthMonth: 3,
   deathYear: 2024, deathMonth: 3,
@@ -70,10 +81,10 @@ describe('widowedErrors', () => {
 
   it('rejects a survivor claim at or before the death month', () => {
     const at = { ...BLANK_ALREADY_CLAIMED, survivorSinceYear: 2024, survivorSinceMonth: 3 };
-    expect(widowedErrors(filled, at, survivorBirth, asOf).survivorSince).toBe('claimBeforeDeath');
+    expect(widowedErrors(filled, at, olderBirth, asOf).survivorSince).toBe('claimBeforeDeath');
 
     const after = { ...BLANK_ALREADY_CLAIMED, survivorSinceYear: 2024, survivorSinceMonth: 4 };
-    expect(widowedErrors(filled, after, survivorBirth, asOf).survivorSince).toBeUndefined();
+    expect(widowedErrors(filled, after, olderBirth, asOf).survivorSince).toBeUndefined();
   });
 
   it('rejects an own-benefit claim before the survivor was born', () => {
@@ -89,8 +100,10 @@ describe('widowedErrors', () => {
   // dates rejected her outright: `isFormComplete` false, no analysis at all,
   // under a reason that named a survivor benefit she had not claimed.
   it('accepts an own-benefit claim BEFORE the death — she filed at 62 while he was alive', () => {
+    // June 2020 is her 62nd birthday, so August 2020 is a legal own filing
+    // and the only thing that could flag it is the death rule.
     const beforeDeath = { ...BLANK_ALREADY_CLAIMED, ownSinceYear: 2020, ownSinceMonth: 8 };
-    expect(widowedErrors(filled, beforeDeath, survivorBirth, asOf)).toEqual({});
+    expect(widowedErrors(filled, beforeDeath, olderBirth, asOf)).toEqual({});
   });
 
   // Both halves in ONE call, so the fix cannot be "delete claimBeforeDeath":
@@ -101,7 +114,7 @@ describe('widowedErrors', () => {
       survivorSinceYear: 2020, survivorSinceMonth: 8,
       ownSinceYear: 2020, ownSinceMonth: 8,
     };
-    const errors = widowedErrors(filled, both, survivorBirth, asOf);
+    const errors = widowedErrors(filled, both, olderBirth, asOf);
     expect(errors.survivorSince).toBe('claimBeforeDeath');
     expect(errors.ownSince).toBeUndefined();
   });
@@ -141,7 +154,7 @@ describe('widowedErrors', () => {
     // A claimed date is a FACT, not a candidate. It legitimately sits before
     // today and must not be clamped forward or flagged.
     const past = { ...BLANK_ALREADY_CLAIMED, ownSinceYear: 2024, ownSinceMonth: 8 };
-    expect(widowedErrors(filled, past, survivorBirth, asOf)).toEqual({});
+    expect(widowedErrors(filled, past, olderBirth, asOf)).toEqual({});
   });
 
   it('rejects a check amount no real PIA could produce', () => {
@@ -201,5 +214,82 @@ describe('toAlreadyClaimed', () => {
   it('maps a partially-filled date to null rather than a nonsense month', () => {
     const partial = { ...BLANK_ALREADY_CLAIMED, survivorSinceYear: 2024, survivorSinceMonth: '' };
     expect(toAlreadyClaimed(partial as never).survivorSince).toBeNull();
+  });
+});
+
+describe('widowedErrors — the age floors', () => {
+  // Every threshold below was read off the engine, not off SSA's website:
+  // `analyzeHousehold` accepts an own filing at exactly 62 years 0 months and
+  // throws at 61 years 11 months, and it accepts a survivor claim at 59 —
+  // which is why that one guards a wrong answer rather than a crash.
+
+  it('rejects an own filing before 62, and accepts it at exactly 62', () => {
+    // Born June 1964: 62 years 0 months is June 2026.
+    const at62 = { ...BLANK_ALREADY_CLAIMED, ownSinceYear: 2026, ownSinceMonth: 6 };
+    expect(widowedErrors(filled, at62, survivorBirth, asOf).ownSince).toBeUndefined();
+
+    const oneMonthShort = { ...BLANK_ALREADY_CLAIMED, ownSinceYear: 2026, ownSinceMonth: 5 };
+    expect(widowedErrors(filled, oneMonthShort, survivorBirth, asOf).ownSince).toBe(
+      'claimBeforeSixtyTwo',
+    );
+  });
+
+  it('rejects a survivor claim before 60, and accepts it at exactly 60', () => {
+    // Born June 1964: 60 years 0 months is June 2024, after the March 2024
+    // death, so the death rule is not what is firing here.
+    const at60 = { ...BLANK_ALREADY_CLAIMED, survivorSinceYear: 2024, survivorSinceMonth: 6 };
+    expect(widowedErrors(filled, at60, survivorBirth, asOf).survivorSince).toBeUndefined();
+
+    // One month short — and the engine prices this happily, printing
+    // "Claim the survivor benefit at age 59 years, 11 months".
+    const oneMonthShort = {
+      ...BLANK_ALREADY_CLAIMED,
+      survivorSinceYear: 2024,
+      survivorSinceMonth: 5,
+    };
+    expect(widowedErrors(filled, oneMonthShort, survivorBirth, asOf).survivorSince).toBe(
+      'claimBeforeSixty',
+    );
+  });
+
+  it('keeps the two floors on their own axes', () => {
+    // 60 is legal for the survivor benefit and illegal for her own record.
+    // One call, so neither fix can be "apply one floor to both".
+    const both = {
+      survivorSinceYear: 2024, survivorSinceMonth: 8,
+      ownSinceYear: 2024, ownSinceMonth: 8,
+    };
+    const errors = widowedErrors(filled, both, survivorBirth, asOf);
+    expect(errors.survivorSince).toBeUndefined();
+    expect(errors.ownSince).toBe('claimBeforeSixtyTwo');
+  });
+
+  it('lets the more specific reason win over the age floor', () => {
+    // Before she was born is also before she was 62; the reader needs the
+    // first reason, not the second.
+    const beforeBirth = { ...BLANK_ALREADY_CLAIMED, ownSinceYear: 1950, ownSinceMonth: 1 };
+    expect(widowedErrors(filled, beforeBirth, survivorBirth, asOf).ownSince).toBe(
+      'claimBeforeBirth',
+    );
+  });
+
+  it('rejects a deceased who filed before their own 62nd birthday', () => {
+    // Born March 1960, so 62 falls March 2022. This crashed the analysis with
+    // the generic "Analysis failed" banner, and the filed date had no error
+    // slot beside it at all.
+    const early: DeceasedFormFields = {
+      ...filled, hadFiled: true, filedYear: 2019, filedMonth: 4,
+    };
+    expect(widowedErrors(early, BLANK_ALREADY_CLAIMED, survivorBirth, asOf).filed).toBe(
+      'filedBeforeSixtyTwo',
+    );
+
+    const legal: DeceasedFormFields = { ...early, filedYear: 2022, filedMonth: 3 };
+    expect(widowedErrors(legal, BLANK_ALREADY_CLAIMED, survivorBirth, asOf).filed).toBeUndefined();
+  });
+
+  it('says nothing about a filing date that is still half-typed', () => {
+    const halfTyped: DeceasedFormFields = { ...filled, hadFiled: true, filedYear: 2019, filedMonth: '' };
+    expect(widowedErrors(halfTyped, BLANK_ALREADY_CLAIMED, survivorBirth, asOf).filed).toBeUndefined();
   });
 });

@@ -74,7 +74,51 @@ export type WidowedFieldError =
   | 'deathInFuture'
   | 'claimBeforeDeath'
   | 'claimBeforeBirth'
+  /**
+   * An own-record filing before age 62. The engine's `benefitAtAge` throws
+   * outright ("Filing age must be at least 62"), so without this the household
+   * reached the analysis and came back as the generic "Analysis failed"
+   * banner — a real constraint, reported as an unknown fault.
+   */
+  | 'claimBeforeSixtyTwo'
+  /**
+   * A survivor benefit before age 60. This one is worse than a crash: the
+   * engine accepts it and returns figures, so the app printed
+   * "Claim the survivor benefit at age 59 years, 11 months" and a lifetime
+   * total to match — an answer that is simply not available.
+   *
+   * SSA does pay a survivor benefit earlier in two cases this app does not
+   * model: a disabled widow(er) from 50, and one caring for the deceased's
+   * child under 16 at any age. The message says so rather than asserting 60
+   * as universal.
+   */
+  | 'claimBeforeSixty'
+  /**
+   * The DECEASED filed before their own age 62. Same crash as
+   * `claimBeforeSixtyTwo`, on the other person's record, and the filed date
+   * had no error slot beside it at all until now.
+   */
+  | 'filedBeforeSixtyTwo'
   | 'checkAmountUnreachable';
+
+/**
+ * Field errors keyed by the field they render beside.
+ *
+ * Exported so `DeceasedFields` imports it rather than restating the key
+ * union — it had its own copy, and the copy silently stopped matching the
+ * moment `filed` was added here.
+ */
+export type WidowedErrors = Partial<
+  Record<'death' | 'survivorSince' | 'ownSince' | 'checkAmount' | 'filed', WidowedFieldError>
+>;
+
+/** Whole months from a birth to a later year/month. */
+const monthsBetween = (birth: YearMonth, at: YearMonth): number =>
+  idx(at.year, at.month) - idx(birth.year, birth.month);
+
+/** SSA's floors, in whole months, for the two dates a widow(er) chooses. */
+const OWN_RETIREMENT_FLOOR_MONTHS = 62 * 12;
+const SURVIVOR_FLOOR_MONTHS = 60 * 12;
 
 /** Absolute month index, matching `benefitPeriods.ts`'s convention. */
 const idx = (year: number, month: number): number => year * 12 + (month - 1);
@@ -111,10 +155,8 @@ export function widowedErrors(
   a: AlreadyClaimedFormFields,
   survivorBirth: YearMonth,
   asOf: Date,
-): Partial<Record<'death' | 'survivorSince' | 'ownSince' | 'checkAmount', WidowedFieldError>> {
-  const errors: Partial<
-    Record<'death' | 'survivorSince' | 'ownSince' | 'checkAmount', WidowedFieldError>
-  > = {};
+): WidowedErrors {
+  const errors: WidowedErrors = {};
 
   const birth = pair(d.birthYear, d.birthMonth);
   const death = pair(d.deathYear, d.deathMonth);
@@ -154,10 +196,35 @@ export function widowedErrors(
       // rejected the household outright — no analysis at all, under a reason
       // that named the survivor benefit she had not claimed.
       errors[field] = 'claimBeforeDeath';
+    } else if (
+      field === 'ownSince' &&
+      monthsBetween(survivorBirth, claim) < OWN_RETIREMENT_FLOOR_MONTHS
+    ) {
+      // OWN AXIS ONLY, and checked after the two above so the more specific
+      // reason wins. Verified against the engine rather than assumed: an
+      // own-filing at exactly 62 years 0 months is accepted, 61 years 11
+      // months throws.
+      errors[field] = 'claimBeforeSixtyTwo';
+    } else if (
+      field === 'survivorSince' &&
+      monthsBetween(survivorBirth, claim) < SURVIVOR_FLOOR_MONTHS
+    ) {
+      // SURVIVOR AXIS ONLY. Unlike every other error here this one guards a
+      // WRONG ANSWER rather than a crash — the engine happily prices a
+      // survivor benefit at 59, and the app printed it.
+      errors[field] = 'claimBeforeSixty';
     }
     // Deliberately no "in the past" check: an already-claimed date is a FACT,
     // and clamping or flagging it would contradict the model, which searches
     // around it rather than over it.
+  }
+
+  // The deceased's own filing date. Their record is the source of the survivor
+  // benefit, so a filing age the engine rejects fails the whole analysis just
+  // as surely as one of the survivor's own dates.
+  const filed = pair(d.filedYear, d.filedMonth);
+  if (filed && birth && monthsBetween(birth, filed) < OWN_RETIREMENT_FLOOR_MONTHS) {
+    errors.filed = 'filedBeforeSixtyTwo';
   }
 
   if (d.recordKind === 'checkAmount' && isWidowedComplete(d)) {

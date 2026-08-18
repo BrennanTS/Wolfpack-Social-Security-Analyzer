@@ -3,6 +3,7 @@ import type {
   AlreadyClaimedFormFields,
   DeceasedFormFields,
   WidowedFieldError,
+  WidowedErrors,
 } from '../lib/widowedForm';
 
 const MONTHS = [
@@ -52,13 +53,18 @@ const ERROR_TEXT: Record<WidowedFieldError, string> = {
   // and this form's other fieldset is about someone else. "this person" left
   // the reader to guess which of the two the sentence meant.
   claimBeforeBirth: 'That date is before you were born.',
+  claimBeforeSixtyTwo: 'You cannot file on your own record before age 62.',
+  // Names the two cases this app does not model rather than asserting 60 as
+  // universal — a disabled widow(er) can claim from 50, and one caring for
+  // the deceased's child under 16 at any age.
+  claimBeforeSixty:
+    'A survivor benefit starts at 60 at the earliest. Earlier claims (disability, ' +
+    'or caring for a child under 16) are outside what this tool models.',
+  filedBeforeSixtyTwo: 'Nobody can file for retirement before age 62 — check this date.',
   checkAmountUnreachable:
     'No Social Security benefit reaches that amount — check for an extra digit.',
 };
 
-type WidowedErrors = Partial<
-  Record<'death' | 'survivorSince' | 'ownSince' | 'checkAmount', WidowedFieldError>
->;
 
 interface DeceasedFieldsProps {
   deceased: DeceasedFormFields;
@@ -270,6 +276,7 @@ export function DeceasedFields({
                     {YEAR_OPTIONS}
                   </select>
                 </div>
+                {errors.filed && <span className="field-error">{ERROR_TEXT[errors.filed]}</span>}
               </div>
             )}
           </>
@@ -326,6 +333,7 @@ export function DeceasedFields({
                   {YEAR_OPTIONS}
                 </select>
               </div>
+              {errors.filed && <span className="field-error">{ERROR_TEXT[errors.filed]}</span>}
               <span className="field-hint" id="dec-check-amount-hint">
                 This is an estimate — a current check includes every cost-of-living increase
                 since they filed, which the benefit formula does not.
