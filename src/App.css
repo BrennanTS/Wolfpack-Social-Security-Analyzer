@@ -2387,8 +2387,16 @@ tbody tr:hover {
 .strategy-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* The single Edit button, before there is anything to edit alongside it. */
+.strategy-toolbar:not(.strategy-toolbar-editing) {
+  justify-content: flex-end;
 }
 
 .strategy-toolbar-title {
@@ -2406,8 +2414,8 @@ tbody tr:hover {
 }
 
 .strategy-tool {
-  padding: 5px 12px;
-  min-height: 30px;
+  padding: 6px 14px;
+  min-height: 32px;
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   background: transparent;
@@ -2435,14 +2443,32 @@ tbody tr:hover {
   color: var(--cream);
 }
 
-/* Both control columns are fixed and narrow so the money columns keep the
-   width they have in view mode — the table must not reflow when Edit is
-   pressed, or the figures appear to move with the click. */
+/* Both control columns are fixed and narrow so the money columns keep most of
+   the width they have in view mode — the table must not reflow far when Edit
+   is pressed, or the figures appear to move with the click. */
 .strategy-editing .cell-eye,
 .strategy-editing .cell-remove {
-  width: 28px;
-  padding-left: 4px;
-  padding-right: 4px;
+  width: 32px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* Rows carrying controls need more room VERTICALLY than rows carrying text —
+   a select inside an 11px-padded cell touches the rule above and below it —
+   and less horizontally, because two extra columns have to come from
+   somewhere. Taking it from the gutters rather than from the age cells is
+   what keeps each person's year and month controls on one line; at the
+   original 16px they wrapped, and a wrapped control reads as two fields. */
+.strategy-editing td,
+.strategy-editing th {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.strategy-editing td[data-testid^='cell-age-'] {
+  white-space: nowrap;
 }
 
 .row-eye,
@@ -2450,8 +2476,8 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
   border-radius: var(--radius-sm);
@@ -2488,8 +2514,8 @@ tbody tr:hover {
 }
 
 .row-use {
-  margin-left: 8px;
-  padding: 2px 8px;
+  margin-left: 10px;
+  padding: 4px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -2506,19 +2532,28 @@ tbody tr:hover {
 
 .scenario-name {
   width: 100%;
-  max-width: 170px;
-  padding: 3px 6px;
+  max-width: 150px;
+  min-height: 32px;
+  padding: 4px 8px;
   font-size: 0.8125rem;
 }
 
 .strategy-editing select {
-  min-height: 28px;
-  padding: 2px 4px;
+  min-height: 32px;
+  padding: 3px 6px;
   font-size: 0.75rem;
 }
 
+.strategy-editing td[data-testid^='cell-age-'] select:first-of-type {
+  width: 58px;
+}
+
+.strategy-editing td[data-testid^='cell-age-'] select:last-of-type {
+  width: 76px;
+}
+
 .strategy-editing select + select {
-  margin-left: 4px;
+  margin-left: 6px;
 }
 
 /* Visible to a screen reader, out of the layout for everyone else — used for
@@ -2535,28 +2570,11 @@ tbody tr:hover {
   border: 0;
 }
 
-/* The claiming-age table's own Edit control, beside its heading rather than
-   above the table — the section already has a heading, and a second bar over
-   it would read as belonging to the caption. */
-.table-section-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.table-section-head h3 {
-  margin-right: auto;
-}
-
-.strategy-toolbar-inline {
-  margin-bottom: 0;
-}
-
 .claim-add-years,
 .claim-add-months {
-  min-height: 30px;
-  padding: 2px 6px;
-  font-size: 0.75rem;
+  min-height: 32px;
+  padding: 3px 8px;
+  font-size: 0.8125rem;
 }
 
 /* A re-analysis over an output that is already on screen. Deliberately quiet:

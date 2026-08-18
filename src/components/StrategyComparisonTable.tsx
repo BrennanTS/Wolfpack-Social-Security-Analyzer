@@ -130,58 +130,6 @@ export function StrategyComparisonTable({
 
   return (
     <div className="table-wrap">
-      {canEdit && (
-        <div className="strategy-toolbar">
-          <span className="strategy-toolbar-title">
-            {editing ? 'Editing scenarios' : 'Scenarios'}
-          </span>
-          {editing && hiddenCount > 0 && (
-            <span className="strategy-toolbar-note" data-testid="hidden-count">
-              {hiddenCount === 1 ? '1 hidden' : `${hiddenCount} hidden`}
-            </span>
-          )}
-          {editing && (
-            <>
-              <button
-                type="button"
-                className="strategy-tool"
-                data-testid="scenario-add"
-                onClick={() =>
-                  change(
-                    addScenario(
-                      scenarios,
-                      (allComparisons ?? comparisons)
-                        .find((c) => c.isSelected)!
-                        .filingAges.map((f) => ({ years: f.years, months: f.months })),
-                    ),
-                  )
-                }
-              >
-                + Add scenario
-              </button>
-              <button
-                type="button"
-                className="strategy-tool"
-                data-testid="scenario-reset"
-                onClick={() => change(resetScenarios())}
-                disabled={isDefaultScenarioSet(scenarios)}
-              >
-                Reset
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            className={`strategy-tool${editing ? ' strategy-tool-done' : ''}`}
-            data-testid="scenario-edit-toggle"
-            aria-pressed={editing}
-            onClick={() => setEditing(!editing)}
-          >
-            {editing ? 'Done' : 'Edit'}
-          </button>
-        </div>
-      )}
-
       <table data-testid="strategy-table" className={editing ? 'strategy-editing' : ''}>
         <thead>
           <tr>
@@ -374,6 +322,59 @@ export function StrategyComparisonTable({
         <p className="chart-caveat" data-testid="survivor-income-caption">
           {survivorIncomeCaption(rows, survivorGap, dollarsMode)}
         </p>
+      )}
+
+      {canEdit && (
+        <div className={`strategy-toolbar`}>
+          {/* Only while editing. Under the table, a standing "Scenarios"
+              title would be a second heading for a block that already has
+              one; the Edit button alone is enough to say what it does. */}
+          {editing && <span className="strategy-toolbar-title">Editing scenarios</span>}
+          {editing && hiddenCount > 0 && (
+            <span className="strategy-toolbar-note" data-testid="hidden-count">
+              {hiddenCount === 1 ? '1 hidden' : `${hiddenCount} hidden`}
+            </span>
+          )}
+          {editing && (
+            <>
+              <button
+                type="button"
+                className="strategy-tool"
+                data-testid="scenario-add"
+                onClick={() =>
+                  change(
+                    addScenario(
+                      scenarios,
+                      (allComparisons ?? comparisons)
+                        .find((c) => c.isSelected)!
+                        .filingAges.map((f) => ({ years: f.years, months: f.months })),
+                    ),
+                  )
+                }
+              >
+                + Add scenario
+              </button>
+              <button
+                type="button"
+                className="strategy-tool"
+                data-testid="scenario-reset"
+                onClick={() => change(resetScenarios())}
+                disabled={isDefaultScenarioSet(scenarios)}
+              >
+                Reset
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className={`strategy-tool${editing ? ' strategy-tool-done' : ''}`}
+            data-testid="scenario-edit-toggle"
+            aria-pressed={editing}
+            onClick={() => setEditing(!editing)}
+          >
+            {editing ? 'Done' : 'Edit'}
+          </button>
+        </div>
       )}
     </div>
   );
