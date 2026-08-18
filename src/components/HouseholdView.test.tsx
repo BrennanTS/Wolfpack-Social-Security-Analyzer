@@ -59,6 +59,11 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     deltaVsOptimal: 0,
     isOptimal: true,
     isSelected: true,
+    // Widowed rows carry both: an undiscounted lifetime sum, and the second
+    // of the two dates. Null for the other statuses, as `household.ts` sets
+    // them.
+    lifetimeTotal: status === 'widowed' ? 1_243_000 : null,
+    survivorClaimDate: status === 'widowed' ? { monthIndex: 24_377, age: '67' } : null,
   };
   const earliest = {
     key: 'earliest' as const,
@@ -68,6 +73,8 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     deltaVsOptimal: -225_000,
     isOptimal: false,
     isSelected: false,
+    lifetimeTotal: status === 'widowed' ? 1_018_000 : null,
+    survivorClaimDate: status === 'widowed' ? { monthIndex: 24_305, age: '61' } : null,
   };
 
   return {
@@ -107,25 +114,42 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     recommendationDetail: 'The ssa.tools optimizer maximizes combined expected present value.',
     assumptions: { annualCola: 2.5, discountRate: 3 },
     asOf: new Date(2026, 7, 15),
+    piaEstimated: status === 'widowed' ? false : null,
+    deceased:
+      status === 'widowed'
+        ? {
+            birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 8,
+            piaMonthly: 3000, filed: { year: 2022, month: 6 },
+          }
+        : null,
   };
 }
 
 describe('HouseholdView', () => {
-  it('refuses to render a widowed household rather than showing the single-claimant view', () => {
+  it('gives a widowed household its own panel, never the single-claimant one', () => {
     // `analysis.status === 'married'` is a BOOLEAN test, so `'widowed'` used
     // to fall through to the single-claimant branch with no compile error and
     // no runtime complaint. What it rendered was not merely incomplete: the
-    // single-claimant panel shows the widow's own retirement benefit alone,
-    // never mentions the survivor benefit, and for one real household printed
-    // a recommended $845/mo against an actual recommended income of $3,000/mo.
+    // single-claimant panel shows the widow(er)'s own retirement benefit
+    // alone, never mentions the survivor benefit, and for one real household
+    // printed a recommended $845/mo against an actual recommended income of
+    // $3,000/mo.
     //
-    // The widowed display belongs to Phase 3B-ii. Until it exists, this must
-    // fail loudly — the point of the finding is that the next phase cannot
-    // ship the wrong view silently.
+    // This used to assert a throw, which was the honest behaviour while there
+    // was no widowed display. Now there is one, so the assertion is that it
+    // renders — and, just as importantly, that the single-claimant surface is
+    // NOT what rendered.
     const widowed = buildAnalysis('widowed');
-    expect(() => render(<HouseholdView analysis={widowed} annualCola={2.5} />)).toThrow(
-      /widowed/i,
-    );
+    render(<HouseholdView analysis={widowed} annualCola={2.5} />);
+
+    expect(screen.getByTestId('widowed-strategy-table')).toBeInTheDocument();
+    // The two markers of the single-claimant panel: its claiming-age table,
+    // and its age-62/age-70 summary cards (which read `claimingOptions`,
+    // emptied for a widow, and threw).
+    expect(screen.queryByTestId('benefit-table')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('summary-age62')).not.toBeInTheDocument();
+    // No tab strip either: the survivor benefit is not a second person.
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
   it('renders no tab strip for a single claimant', () => {

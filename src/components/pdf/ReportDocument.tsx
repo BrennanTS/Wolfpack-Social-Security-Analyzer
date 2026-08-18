@@ -10,8 +10,10 @@ import {
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalSummary,
 } from '../methodologyCopy';
+import { WIDOWED_MODELING_NOTE } from '../widowedCopy';
 import { HouseholdSection } from './HouseholdSection';
 import { PersonSection } from './PersonSection';
+import { WidowedSection } from './WidowedSection';
 import { styles } from './theme';
 
 interface MethodItem {
@@ -89,10 +91,22 @@ function formatReportDate(): string {
  * which of the two `spousalTopUp` quantities it shows, since one is reduced
  * for early filing and one isn't; no survivor figure is stated anywhere here.
  */
-function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem][] {
+/**
+ * Exported for `ReportDocument.test.tsx`. The pairs reach the page as PROPS
+ * on a row component, not as children, so a text walk over the rendered tree
+ * cannot see them — asserting on this function directly is both the honest
+ * unit and the only thing that can fail.
+ */
+export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem][] {
   const rep = analysis.people[0];
-  const age62 = rep.claimingOptions.find((o) => o.age === 62)!;
-  const age70 = rep.claimingOptions.find((o) => o.age === 70)!;
+  // Empty for a widow(er) — `analyzeWidowed` clears `claimingOptions` because
+  // a table of what this person's OWN record pays at each age describes income
+  // they may never receive. The two cards built from it are replaced below
+  // rather than guarded with a fallback figure: a `!` here threw on the very
+  // first widowed export.
+  const isWidowed = householdDisplayShape(analysis.status) === 'widowed';
+  const age62 = rep.claimingOptions.find((o) => o.age === 62);
+  const age70 = rep.claimingOptions.find((o) => o.age === 70);
   const cpi = getCpiLast30Years();
   const { annualCola } = analysis.assumptions;
   const spousal = analysis.spousalTopUp;
@@ -103,16 +117,30 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
         title: 'Full Retirement Age (FRA)',
         body: `Birth year ${rep.person.birthYear} → FRA ${fraLabel(rep.fra)} per SSA schedule.`,
       },
-      {
-        title: 'Early Claiming Reduction',
-        body: `5/9 of 1% per month (first 36 mo), then 5/12 of 1% thereafter. Age 62 = ${age62.percentOfPia}% of PIA.`,
-      },
+      isWidowed || age62 === undefined
+        ? {
+            title: 'Two Independent Dates',
+            body:
+              'A survivor benefit can start at 60 and an own-record benefit at 62. Deemed ' +
+              'filing does not apply to survivor benefits, so neither date forces the other.',
+          }
+        : {
+            title: 'Early Claiming Reduction',
+            body: `5/9 of 1% per month (first 36 mo), then 5/12 of 1% thereafter. Age 62 = ${age62.percentOfPia}% of PIA.`,
+          },
     ],
     [
-      {
-        title: 'Delayed Retirement Credits',
-        body: `2/3 of 1% per month past FRA to age 70. Age 70 = ${age70.percentOfPia}% of PIA.`,
-      },
+      isWidowed || age70 === undefined
+        ? {
+            title: 'Survivor Full Retirement Age',
+            body:
+              'Survivor benefits use their own full-retirement-age schedule, which is not the ' +
+              'retirement one — the two coincide only for birth years from 1962 onward.',
+          }
+        : {
+            title: 'Delayed Retirement Credits',
+            body: `2/3 of 1% per month past FRA to age 70. Age 70 = ${age70.percentOfPia}% of PIA.`,
+          },
       {
         title: 'Lifetime Benefit Projection',
         // The engine projects no future COLA — only the historical COLAs
@@ -137,7 +165,7 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
     ],
     [
       {
-        title: 'Spousal Benefit',
+        title: isWidowed ? 'Survivor Benefit' : 'Spousal Benefit',
         // Both arms are shared with the household page and the on-screen
         // panel: the married one so the three cannot branch differently on an
         // absent start date again, the single one so they cannot make three
@@ -151,7 +179,9 @@ function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem]
         // neither a higher nor a lower earner.
         body: spousal
           ? spousalSummary(spousal, spousal.lowerEarnerLabel === null ? null : 'the lower earner')
-          : SINGLE_CLAIMANT_BENEFIT_NOTE,
+          : isWidowed
+            ? WIDOWED_MODELING_NOTE
+            : SINGLE_CLAIMANT_BENEFIT_NOTE,
       },
       {
         title: 'Data Sources',
@@ -172,7 +202,8 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
   // Exhaustive, and repeated here rather than left to `ReportDocument` alone
   // because this block is exported and rendered on its own by
   // `HouseholdSection.test.tsx`. See `householdDisplayShape`.
-  const hasSpouse = householdDisplayShape(analysis.status) === 'twoClaimants';
+  const appendixShape = householdDisplayShape(analysis.status);
+  const hasSpouse = appendixShape === 'twoClaimants';
   const pairs = buildMethodPairs(analysis);
 
   return (
@@ -187,9 +218,11 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
           Prepared by {BRAND_NAME} for educational
           planning only. Not affiliated with the SSA. Benefit amounts are in today&rsquo;s
           dollars, before any future cost-of-living adjustment.{' '}
-          {hasSpouse
-            ? `${coupleModelingNote(analysis.survivorGap)} `
-            : `${SINGLE_CLAIMANT_BENEFIT_NOTE} `}
+          {appendixShape === 'widowed'
+            ? `${WIDOWED_MODELING_NOTE} `
+            : hasSpouse
+              ? `${coupleModelingNote(analysis.survivorGap)} `
+              : `${SINGLE_CLAIMANT_BENEFIT_NOTE} `}
           Projections exclude taxation, earnings limits, and future rule changes. Data:{' '}
           {BLS_CPI_URL}. Verify at ssa.gov before claiming.
         </Text>
@@ -226,7 +259,8 @@ export function ReportDocument({
   // Exhaustive rather than `=== 'married'`: a widowed household used to fall
   // through to the single-claimant layout, printing a report that never
   // mentions the survivor benefit. See `householdDisplayShape`.
-  const isMarried = householdDisplayShape(analysis.status) === 'twoClaimants';
+  const shape = householdDisplayShape(analysis.status);
+  const isMarried = shape === 'twoClaimants';
   const reportDate = formatReportDate();
   const footerText = `${BRAND_NAME} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
   const appendix = <MethodologyAppendix analysis={analysis} />;
@@ -238,6 +272,14 @@ export function ReportDocument({
       author={BRAND_NAME}
       subject="Social Security Claiming Analysis"
     >
+      {shape === 'widowed' && (
+        <WidowedSection
+          analysis={analysis}
+          footerText={footerText}
+          appendix={appendix}
+          leadingHeader={leadingHeader}
+        />
+      )}
       {isMarried && (
         <HouseholdSection
           analysis={analysis}
@@ -246,7 +288,10 @@ export function ReportDocument({
           leadingHeader={leadingHeader}
         />
       )}
-      {analysis.people.map((p, i) => (
+      {/* A widow(er)'s own page IS the widowed section — `PersonSection` is
+          built around `claimingOptions`, which is empty for them. */}
+      {shape !== 'widowed' &&
+        analysis.people.map((p, i) => (
         <PersonSection
           key={p.person.id}
           analysis={p}

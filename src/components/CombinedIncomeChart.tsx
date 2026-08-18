@@ -78,6 +78,15 @@ interface CombinedIncomeChartProps {
    * caller with nothing to do on change has nothing to pass here.
    */
   onDollarsModeChange?: (mode: DollarsMode) => void;
+  /**
+   * Overrides the caption beneath the chart. The default
+   * (`combinedIncomeCaption`) speaks of "each person's segments" and "any
+   * spousal or survivor segment", both of which a widow(er) has no use for —
+   * one person, and no spousal benefit anywhere in the household. Passed in
+   * rather than branched on a status here, so this component keeps knowing
+   * nothing about household shapes.
+   */
+  caption?: string;
 }
 
 /**
@@ -152,6 +161,7 @@ export function CombinedIncomeChart({
   finalIndexByPersonId = {},
   dollarsMode = 'real',
   onDollarsModeChange,
+  caption,
 }: CombinedIncomeChartProps) {
   const gap = survivorGap ?? null;
   const gapNote = survivorGapNote(gap);
@@ -332,9 +342,15 @@ export function CombinedIncomeChart({
             </button>
           </div>
         )}
-        {people.length > 1 && (
+        {/* `people.length > 1` was standing in for "the default caption is
+            about couples" — a single claimant has no spousal or survivor
+            segment for it to describe. A caller that passes its OWN caption
+            has one worth showing whatever the household's shape, which is
+            how a widow(er)'s chart came to render its legend and axis with
+            no caption under them at all. */}
+        {(caption !== undefined || people.length > 1) && (
           <p className="chart-caveat" data-testid="combined-income-caveat">
-            {combinedIncomeCaption(gap, dollarsMode)}
+            {caption ?? combinedIncomeCaption(gap, dollarsMode)}
           </p>
         )}
         {gapNote && (

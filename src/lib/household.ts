@@ -10,7 +10,7 @@ import {
   type BenefitBand,
   type SurvivorGap,
 } from './benefitPeriods';
-import type { Deceased } from './deceased';
+import { deceasedPia, type Deceased } from './deceased';
 import { formatCurrency, personLabel } from './format';
 import { firstDeath } from './incomeCliff';
 import { analyzePerson, getFullRetirementAge, type Person, type PersonAnalysis } from './personAnalysis';
@@ -66,37 +66,40 @@ export type Household =
     };
 
 /**
- * Which of the two display shapes the screen and the PDF should render, or a
- * loud failure if the answer is neither.
+ * Which display shape the screen and the PDF should render.
  *
- * The display layer knows two shapes: ONE claimant (a single page, no tab
- * strip, no household section) and TWO (tabs on screen, a household page in
- * print). Both surfaces used to decide with a boolean `status === 'married'`,
- * which silently routed a widowed household down the one-claimant path — no
- * compile error, and the result is not merely degraded but WRONG: that path
- * shows the widow's own retirement benefit alone, never mentioning the
- * survivor benefit that is usually the larger half of her income, and states a
+ * Three shapes, not two. ONE claimant (a single page, no tab strip, no
+ * household section), TWO (tabs on screen, a household page in print), and a
+ * WIDOW(ER), who is one person but not one benefit: their income is their own
+ * retirement benefit and a survivor benefit on someone else's record, claimed
+ * on two independent dates.
+ *
+ * Both surfaces used to decide with a boolean `status === 'married'`, which
+ * silently routed a widowed household down the one-claimant path — no compile
+ * error, and the result was not merely degraded but WRONG: that path shows
+ * the widow(er)'s own retirement benefit alone, never mentioning the survivor
+ * benefit that is usually the larger half of their income, and states a
  * recommended monthly figure that can be a third of what the recommendation
- * actually pays.
+ * actually pays. Worse, `analyzeWidowed` deliberately empties
+ * `claimingOptions`, so the single-claimant path's `claimingOptions.find(...)`
+ * for the age-62 and age-70 summary cards returns `undefined` and the panel
+ * throws.
  *
- * So the answer is a `switch` with a `never` arm rather than a boolean: adding
- * a fourth status is a compile error here, and `'widowed'` throws until Phase
- * 3B-ii builds its display. Refusing to render is the point — the failure mode
- * this replaces was rendering something plausible and false.
+ * Until Phase 3B-ii-b this function THREW for `'widowed'` rather than pick a
+ * wrong shape. The throw is gone because there is now a shape to name, not
+ * because the risk went away: a `switch` with a `never` arm still makes a
+ * fourth status a compile error here.
  */
-export function householdDisplayShape(status: Household['status']): 'oneClaimant' | 'twoClaimants' {
+export function householdDisplayShape(
+  status: Household['status'],
+): 'oneClaimant' | 'twoClaimants' | 'widowed' {
   switch (status) {
     case 'single':
       return 'oneClaimant';
     case 'married':
       return 'twoClaimants';
     case 'widowed':
-      throw new Error(
-        'A widowed household has no display yet (Phase 3B-ii). The single-claimant ' +
-          "path would show only the widow(er)'s own retirement benefit, omitting the " +
-          'survivor benefit entirely and understating the recommended monthly income. ' +
-          'Refusing to render rather than rendering it wrongly.',
-      );
+      return 'widowed';
     default: {
       const unhandled: never = status;
       throw new Error(`Unhandled household status: ${String(unhandled)}`);
@@ -331,6 +334,40 @@ export interface HouseholdAnalysis {
    * as equivalent to a known PIA.
    */
   piaEstimated: boolean | null;
+  /**
+   * The deceased spouse's record, as the display layers need it. Non-null
+   * ONLY for a widowed household.
+   *
+   * Carried on the analysis rather than re-read from the form by each
+   * surface: the PDF has no access to form state at all, and the on-screen
+   * card and the printed one must name the same PIA. The figure here is the
+   * one the survivor benefit was actually computed from — including a PIA
+   * recovered by bisection from a check amount, which is why `piaEstimated`
+   * beside it is load-bearing rather than decorative.
+   */
+  deceased: DeceasedSummary | null;
+}
+
+/** What a display layer needs to state about the deceased. */
+export interface DeceasedSummary {
+  birthYear: number;
+  /** 1-12. */
+  birthMonth: number;
+  deathYear: number;
+  /** 1-12. */
+  deathMonth: number;
+  /**
+   * The PIA the survivor benefit was computed from — known, or recovered from
+   * a check amount. `HouseholdAnalysis.piaEstimated` says which.
+   */
+  piaMonthly: number;
+  /**
+   * When they filed, or null if they died without filing. Null is not the
+   * same as "unknown": `deceasedContext` treats an unfiled death as filing at
+   * the death date for the engine's purposes, and a display layer must say
+   * "they had not filed" rather than print that substituted date as a fact.
+   */
+  filed: { year: number; month: number } | null;
 }
 
 /**
@@ -1321,6 +1358,19 @@ async function analyzeWidowed(
     assumptions,
     asOf,
     piaEstimated: best.piaEstimated,
+    // The PIA the search actually used, not the raw form input — for a check
+    // amount those differ, and the recovered figure is the one every survivor
+    // figure on the page came from.
+    deceased: {
+      birthYear: household.deceased.birthYear,
+      birthMonth: household.deceased.birthMonth,
+      deathYear: household.deceased.deathYear,
+      deathMonth: household.deceased.deathMonth,
+      piaMonthly: deceasedPia(household.deceased).piaMonthly,
+      // `checkAmount` always carries a filing date and `pia` may not; the
+      // union's shared field is already `YearMonth | null`.
+      filed: household.deceased.record.filed,
+    },
   };
 }
 
@@ -1515,6 +1565,7 @@ export async function analyzeHousehold(
       assumptions,
       asOf,
       piaEstimated: null,
+      deceased: null,
     };
   }
 
@@ -1602,5 +1653,6 @@ export async function analyzeHousehold(
     assumptions,
     asOf,
     piaEstimated: null,
+    deceased: null,
   };
 }

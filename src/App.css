@@ -2618,6 +2618,14 @@ tbody tr:hover {
   width: 84px;
 }
 
+/* The widow(er)'s three headline figures, in the card's `stats` column.
+   Everything about the layout comes from `.rec-stats`, which this sits
+   alongside — the only thing here is marking the third figure as the sum of
+   the two above it. */
+.widowed-stat-total .stat-value {
+  color: var(--gold-dark);
+}
+
 /* A re-analysis over an output that is already on screen. Deliberately quiet:
    the run takes about 35ms, so anything louder reads as a fault rather than
    as work in progress. */

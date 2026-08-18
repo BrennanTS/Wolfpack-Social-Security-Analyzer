@@ -62,74 +62,90 @@ describe('Analyzer', () => {
     });
   });
 
-  // A complete widowed household reaches `analyzeHousehold` (wired in an
-  // earlier phase) and gets a real `HouseholdAnalysis` back — Task 5 is what
-  // makes that reachable from the UI for the first time. `HouseholdView`
-  // still calls `householdDisplayShape`, which still throws for `'widowed'`
-  // on purpose (Phase 3B-ii-b builds the real display). Before this fix that
-  // throw was uncaught: with no error boundary anywhere in the app, the
-  // entire React tree unmounted — header, settings drawer, every typed value,
-  // gone, with no way back short of a reload (the share params are already
-  // stripped from the URL). These tests drive that same "complete widowed
-  // household" state via a seeded URL (Task 4's share-link params) and assert
-  // the degraded-but-honest placeholder renders instead.
+  // A complete widowed household now renders its own display (Phase
+  // 3B-ii-b). Before that it showed a placeholder, and before THAT the
+  // `householdDisplayShape` throw was uncaught: with no error boundary
+  // anywhere in the app the entire React tree unmounted — header, settings
+  // drawer, every typed value, gone, with no way back short of a reload (the
+  // share params are already stripped from the URL).
+  //
+  // These tests drive the same "complete widowed household" state via a
+  // seeded URL (the share-link params) and assert the real display renders,
+  // that it is NOT the single-claimant one, and that the two ways the old
+  // placeholder gate could have been got wrong stay closed.
   describe('a complete widowed household', () => {
     const WIDOWED_URL =
       '/?ay=1964&am=4&ag=f&ab=1200&le=90&m=w&dy=1960&dm=3&ddy=2024&ddm=1&dk=p&dp=2000&df=0';
 
-    it('shows a plain placeholder instead of crashing or showing a wrong result', async () => {
+    it('renders the widowed display, not the single-claimant one', async () => {
       window.history.pushState({}, '', WIDOWED_URL);
       renderAnalyzer();
 
       expect(
-        await screen.findByTestId('widowed-analysis-unavailable', {}, { timeout: 10000 }),
+        await screen.findByTestId('widowed-strategy-table', {}, { timeout: 10000 }),
       ).toBeInTheDocument();
 
-      // Never a partial figure and never the single-claimant view: neither
-      // table exists anywhere on the page.
+      // Never the single-claimant view: its claiming-age table and its
+      // age-62 summary card are the two markers, and the second used to
+      // throw outright on a widow's emptied `claimingOptions`.
       expect(screen.queryByTestId('benefit-table')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('summary-age62')).not.toBeInTheDocument();
+      // Nor the married one.
       expect(screen.queryByTestId('strategy-table')).not.toBeInTheDocument();
 
-      // The rest of the app survives — this is a branch inside the output
-      // panel, not an uncaught render error unmounting the tree.
+      // The rest of the app is intact.
       expect(screen.getByRole('heading', { name: 'Social Security Analyzer' })).toBeInTheDocument();
       expect(screen.getByLabelText(/date of death/i)).toBeInTheDocument();
     });
 
-    it('disables Export PDF and Copy Link rather than offering a dead end', async () => {
+    it('names both dates, not just the own-record one', async () => {
       window.history.pushState({}, '', WIDOWED_URL);
       renderAnalyzer();
 
-      await screen.findByTestId('widowed-analysis-unavailable', {}, { timeout: 10000 });
-
-      expect(screen.getByRole('button', { name: /export pdf/i })).toBeDisabled();
-      expect(screen.getByRole('button', { name: /copy link/i })).toBeDisabled();
+      const title = await screen.findByTestId('recommendation-title', {}, { timeout: 10000 });
+      // The defect this whole phase exists to prevent: a widow shown her own
+      // retirement benefit alone, with no mention of the survivor benefit
+      // that is usually the larger half of her income.
+      expect(title).toHaveTextContent(/survivor benefit/i);
+      expect(title).toHaveTextContent(/own record/i);
     });
 
-    // The gate is `analysis.status === 'widowed'`, NOT `maritalStatus`, and
-    // that difference had no test: swapping both sites to `maritalStatus` left
-    // 887/887 green, because every other widowed test drives the two to
-    // 'widowed' together at mount and they never disagree.
-    //
-    // They disagree here. Clicking Single flips `maritalStatus`
-    // SYNCHRONOUSLY, while `analysis` still holds the widowed result until the
-    // effect re-runs and `analyzeIfComplete` resolves. Under the weaker gate
-    // that one render is enough: the widowed branch is skipped, `HouseholdView`
-    // renders the widowed analysis, `householdDisplayShape` throws, and with no
-    // error boundary anywhere in the app the whole tree unmounts — the exact
-    // blank page this branch shipped to fix, reached from a different door.
+    it('offers Export PDF and Copy Link, which were dead ends before', async () => {
+      window.history.pushState({}, '', WIDOWED_URL);
+      renderAnalyzer();
+
+      await screen.findByTestId('widowed-strategy-table', {}, { timeout: 10000 });
+
+      expect(screen.getByRole('button', { name: /export pdf/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /copy link/i })).toBeEnabled();
+    });
+
+    it('drops the spousal methodology block, which contradicts what it just showed', async () => {
+      window.history.pushState({}, '', WIDOWED_URL);
+      renderAnalyzer();
+
+      await screen.findByTestId('widowed-strategy-table', {}, { timeout: 10000 });
+      // `spousalMethodologyCopy` falls back to the single-claimant note,
+      // which says survivor benefits are not modeled — on the same screen as
+      // a survivor benefit.
+      expect(screen.queryByTestId('methodology-spousal')).not.toBeInTheDocument();
+    });
+
+    // Clicking Single flips `maritalStatus` SYNCHRONOUSLY, while `analysis`
+    // still holds the widowed result until the effect re-runs and
+    // `analyzeIfComplete` resolves. Every widowed surface must therefore key
+    // off `analysis.status`, never off form state — a render where the two
+    // disagree used to unmount the whole tree.
     it('survives switching to Single while the widowed analysis is still held', async () => {
       window.history.pushState({}, '', WIDOWED_URL);
       renderAnalyzer();
 
-      await screen.findByTestId('widowed-analysis-unavailable', {}, { timeout: 10000 });
+      await screen.findByTestId('widowed-strategy-table', {}, { timeout: 10000 });
 
       await userEvent.click(within(maritalGroup()).getByRole('button', { name: 'Single' }));
 
       // The tree is still mounted: the header survived that render.
       expect(screen.getByRole('heading', { name: 'Social Security Analyzer' })).toBeInTheDocument();
-      // And the marital control still works, which it cannot if React
-      // unmounted the tree under it.
       expect(within(maritalGroup()).getByRole('button', { name: 'Single' })).toHaveAttribute(
         'aria-pressed',
         'true',

@@ -1306,18 +1306,22 @@ describe('analyzeHousehold — entry order', () => {
 });
 
 describe('householdDisplayShape', () => {
-  it('maps the two statuses the display layer can actually render', () => {
+  it('gives every status its own shape', () => {
     expect(householdDisplayShape('single')).toBe('oneClaimant');
     expect(householdDisplayShape('married')).toBe('twoClaimants');
+    expect(householdDisplayShape('widowed')).toBe('widowed');
   });
 
-  it('throws for a widowed household instead of returning a shape', () => {
-    // The whole point. `status === 'married'` as a boolean silently routed
-    // widowed into the one-claimant path on both surfaces — a view that omits
-    // the survivor benefit entirely and understates the recommended monthly
-    // income. Returning EITHER shape here would be wrong; there is no widowed
-    // display until Phase 3B-ii builds one.
-    expect(() => householdDisplayShape('widowed')).toThrow(/widowed/i);
+  it('never collapses widowed into either of the other two', () => {
+    // The whole point, and the reason this used to throw rather than return.
+    // `status === 'married'` as a boolean silently routed widowed into the
+    // one-claimant path on both surfaces — a view that omits the survivor
+    // benefit entirely, understates the recommended monthly income, and
+    // (since `analyzeWidowed` empties `claimingOptions`) throws on the
+    // age-62 summary card. A widow(er) is one claimant but not one benefit.
+    const shape = householdDisplayShape('widowed');
+    expect(shape).not.toBe('oneClaimant');
+    expect(shape).not.toBe('twoClaimants');
   });
 });
 

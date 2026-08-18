@@ -449,3 +449,55 @@ test('edits which claiming ages a person’s table shows, without moving the ana
   await expect(page.getByTestId('claim-row-67')).toBeVisible();
   await expect(page.getByTestId('claim-row-69-1')).toHaveCount(0);
 });
+
+test('renders a widowed household, and never the single-claimant view', async ({ page }) => {
+  // Seeded through the share link rather than the form: the widowed intake is
+  // several fields deep, and the link is also the route that used to unmount
+  // the whole tree when `householdDisplayShape` threw.
+  await page.goto(
+    '/?ay=1964&am=6&ag=f&ab=1200&ale=90&m=w&dy=1960&dm=3&ddy=2024&ddm=8&dk=p&dp=3000&df=1&dfy=2022&dfm=6',
+  );
+
+  await expect(page.getByTestId('widowed-strategy-table')).toBeVisible();
+
+  // Both dates in the headline. A widow(er) shown her own retirement benefit
+  // alone is the defect this whole phase exists to prevent.
+  const title = page.getByTestId('recommendation-title');
+  await expect(title).toContainText(/survivor benefit/i);
+  await expect(title).toContainText(/own record/i);
+
+  // The money column says what it is. `expectedNpv` holds an undiscounted
+  // lifetime sum for a widowed row, and it used to print under "Combined PV".
+  await expect(page.getByTestId('widowed-strategy-table')).toContainText('Lifetime total');
+  await expect(page.getByTestId('widowed-strategy-table')).not.toContainText('Combined PV');
+
+  // Neither of the other two surfaces.
+  await expect(page.getByTestId('benefit-table')).toHaveCount(0);
+  await expect(page.getByTestId('strategy-table')).toHaveCount(0);
+  await expect(page.getByRole('tablist')).toHaveCount(0);
+  // And no spousal methodology block, which says survivor benefits are not
+  // modeled — on a page built around one.
+  await expect(page.getByTestId('methodology-spousal')).toHaveCount(0);
+
+  // The deceased's record, with "had not filed" distinguishable from a date.
+  await expect(page.getByTestId('deceased-filed')).toContainText('June 2022');
+
+  // Both actions live, having been disabled dead ends until now.
+  await expect(page.getByRole('button', { name: /export pdf/i })).toBeEnabled();
+  await expect(page.getByRole('button', { name: /copy link/i })).toBeEnabled();
+});
+
+test('blocks the widowed dates SSA would not pay, instead of failing the analysis', async ({
+  page,
+}) => {
+  // Own record before 62 crashed the engine outright and surfaced as the
+  // generic "Analysis failed" banner. Survivor before 60 was worse: the
+  // engine priced it, and the app printed an age nobody can claim at.
+  await page.goto(
+    '/?ay=1964&am=6&ag=f&ab=1200&ale=90&m=w&dy=1960&dm=3&ddy=2024&ddm=8&dk=p&dp=3000&df=1&dfy=2022&dfm=6&coy=2024&com=1',
+  );
+
+  await expect(page.getByText(/cannot file on your own record before age 62/i)).toBeVisible();
+  // A field error, not a failed analysis.
+  await expect(page.getByTestId('analysis-error')).toHaveCount(0);
+});

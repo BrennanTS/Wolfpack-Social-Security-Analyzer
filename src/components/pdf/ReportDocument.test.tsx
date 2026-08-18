@@ -5,7 +5,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { pdf } from '@react-pdf/renderer';
 import { analyzeHousehold, type Household } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
-import { MethodologyAppendix, ReportDocument } from './ReportDocument';
+import { buildMethodPairs, MethodologyAppendix, ReportDocument } from './ReportDocument';
+import { WidowedSection } from './WidowedSection';
 
 /**
  * Durable smoke coverage for the whole PDF pipeline (Task 20's five-module
@@ -108,29 +109,83 @@ describe('ReportDocument renders', () => {
     expect(pageCount).toBeGreaterThan(singlePageCount);
   });
 
-  it('refuses a widowed household rather than printing the single-claimant report', async () => {
+  /**
+   * The rendered element tree's text. `readBlobAsText` sees only the
+   * compressed PDF stream, so a `toContain` against it silently passes for
+   * any string at all — the same walk `HouseholdSection.test.tsx` uses.
+   */
+  function collectText(node: unknown): string[] {
+    if (node === null || node === undefined || typeof node === 'boolean') return [];
+    if (typeof node === 'string' || typeof node === 'number') return [String(node)];
+    if (Array.isArray(node)) return node.flatMap(collectText);
+    const element = node as { props?: { children?: unknown } };
+    if (typeof element === 'object' && 'props' in element) {
+      return collectText(element.props?.children);
+    }
+    return [];
+  }
+
+  const widowedHousehold: Household = {
+    status: 'widowed',
+    people: [sarah],
+    deceased: {
+      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      record: { kind: 'pia', piaMonthly: 3000, filed: null },
+    },
+    alreadyClaimed: { survivorSince: null, ownSince: null },
+  };
+
+  it('prints the widowed report, not the single-claimant one', async () => {
     // `analysis.status === 'married'` is a BOOLEAN test in both this module's
     // call sites (the document's `isMarried`, and `MethodologyAppendix`'s
     // `hasSpouse`), so a widowed analysis used to print a report that never
     // mentions the survivor benefit — the larger half of most widows' income
     // — and carried the single-claimant disclosure note saying so was
-    // correct. There is no widowed report until Phase 3B-ii; failing loudly
-    // is the only honest behaviour until there is.
-    const household: Household = {
-      status: 'widowed',
-      people: [sarah],
-      deceased: {
-        birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
-        record: { kind: 'pia', piaMonthly: 3000, filed: null },
-      },
-      alreadyClaimed: { survivorSince: null, ownSince: null },
-    };
-    const analysis = await analyzeHousehold(household, assumptions, asOf);
+    // correct. This used to assert a throw, which was honest while there was
+    // no widowed report. Now there is one.
+    const analysis = await analyzeHousehold(widowedHousehold, assumptions, asOf);
 
-    // Both entry points, called as plain functions: `MethodologyAppendix` is
+    // Called as a plain function, like `HouseholdSection.test.tsx` does: an
+    // unrendered `<WidowedSection />` element has no children to walk, so a
+    // walk over `ReportDocument`'s own tree comes back empty and every
+    // `toContain` against it would pass for any string at all.
+    const page = collectText(WidowedSection({ analysis, footerText: 'f' })).join(' ');
+    // Both dates named, and the money column labelled for what it is.
+    expect(page).toContain('Survivor benefit at');
+    expect(page).toContain('Own record at');
+    expect(page).toContain('Lifetime total');
+    expect(page).not.toContain('Combined PV');
+    expect(page).toContain('The deceased spouse’s record');
+
+    // Never the single-claimant disclosure, which says survivor benefits are
+    // not modeled — on a report built around one.
+    const appendix = collectText(MethodologyAppendix({ analysis })).join(' ');
+    expect(appendix).not.toContain('neither is modeled for a single claimant');
+    expect(appendix).toContain('Both benefits are modeled');
+
+    // Both entry points render without throwing: `MethodologyAppendix` is
     // exported and rendered on its own by HouseholdSection.test.tsx, so a
-    // guard only on `ReportDocument` would leave it reachable.
-    expect(() => ReportDocument({ analysis })).toThrow(/widowed/i);
-    expect(() => MethodologyAppendix({ analysis })).toThrow(/widowed/i);
+    // widowed household reaching it directly must work too. Its two
+    // claiming-reduction cards are built from `claimingOptions`, which
+    // `analyzeWidowed` empties — a `!` there threw on the first export.
+    expect(() => ReportDocument({ analysis })).not.toThrow();
+    expect(() => MethodologyAppendix({ analysis })).not.toThrow();
+  });
+
+  it('replaces the own-record method cards a widow(er) has no use for', async () => {
+    const analysis = await analyzeHousehold(widowedHousehold, assumptions, asOf);
+    const titles = buildMethodPairs(analysis).flat().map((item) => item.title);
+
+    expect(titles).toContain('Two Independent Dates');
+    expect(titles).toContain('Survivor Full Retirement Age');
+    // The two they replace quote an age-62 and an age-70 percentage of PIA,
+    // which for a widow(er) come from an empty array — `!` on that lookup
+    // threw on the first widowed export.
+    expect(titles).not.toContain('Early Claiming Reduction');
+    expect(titles).not.toContain('Delayed Retirement Credits');
+    // And the spousal card, which for a widow(er) named a benefit nobody in
+    // this household can receive.
+    expect(titles).toContain('Survivor Benefit');
+    expect(titles).not.toContain('Spousal Benefit');
   });
 });

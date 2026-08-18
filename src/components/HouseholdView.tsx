@@ -11,6 +11,7 @@ import {
 import type { ScenarioSet } from '../lib/scenario';
 import { HouseholdPanel } from './HouseholdPanel';
 import { PersonPanel } from './PersonPanel';
+import { WidowedPanel } from './WidowedPanel';
 
 interface HouseholdViewProps {
   analysis: HouseholdAnalysis;
@@ -90,6 +91,19 @@ export function HouseholdView({
         onClaimingPrefsChange?.(personId, next),
       filingAgeOptions: analysis.filingAgeOptions[personIndex],
     };
+  }
+
+  // One person, but not one benefit — their own record and a survivor benefit
+  // on someone else's, claimed on two independent dates. No tab strip: there
+  // is one claimant, and the survivor benefit is not a second person.
+  if (shape === 'widowed') {
+    return (
+      <WidowedPanel
+        analysis={analysis}
+        dollarsMode={dollarsMode}
+        onDollarsModeChange={onDollarsModeChange}
+      />
+    );
   }
 
   if (shape === 'oneClaimant') {
