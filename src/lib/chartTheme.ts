@@ -59,6 +59,13 @@ export function seriesColor(personIndex: number, type: BandType): string {
   }
 }
 
+/**
+ * Recharts joins a tooltip row's name and value with " : " by default — a
+ * space before the colon, which reads as a typo. Every chart passes this so
+ * the six of them cannot drift apart.
+ */
+export const CHART_TOOLTIP_SEPARATOR = ': ';
+
 /** Dark, rounded tooltip shared by every chart. */
 export const CHART_TOOLTIP_STYLE = {
   background: 'rgba(20, 20, 20, 0.94)',

@@ -28,6 +28,7 @@ import {
   CHART_AXIS_LINE,
   CHART_MUTED,
   CHART_RED,
+  CHART_TOOLTIP_SEPARATOR,
   CHART_TOOLTIP_STYLE,
   seriesColor,
 } from '../lib/chartTheme';
@@ -135,7 +136,9 @@ export function IncomeTooltip({
       <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{heading}</p>
       {paying.map((item) => (
         <p key={String(item.dataKey)} style={{ margin: '2px 0', color: item.color }}>
-          {item.name}: {formatCurrencyPerYear(item.value as number)}
+          {item.name}
+          {CHART_TOOLTIP_SEPARATOR}
+          {formatCurrencyPerYear(item.value as number)}
         </p>
       ))}
     </div>

@@ -15,6 +15,7 @@ import {
   CHART_AXIS_LINE,
   CHART_MUTED,
   CHART_RED,
+  CHART_TOOLTIP_SEPARATOR,
   CHART_TOOLTIP_STYLE,
   CLAIM_AGE_COLORS,
 } from '../lib/chartTheme';
@@ -86,6 +87,7 @@ export function BenefitChart({
             />
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
+              separator={CHART_TOOLTIP_SEPARATOR}
               formatter={(value, name) => {
                 const num = typeof value === 'number' ? value : 0;
                 const age = String(name).replace('age', '');
