@@ -5,7 +5,7 @@ import type { ReactElement } from 'react';
 import { render, screen } from '@testing-library/react';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ReferenceLine } from 'recharts';
-import { CombinedIncomeChart } from './CombinedIncomeChart';
+import { CombinedIncomeChart, IncomeTooltip } from './CombinedIncomeChart';
 import { analyzeHousehold, buildMonthlyIncomeSeries } from '../lib/household';
 import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { MonthlyIncomePoint } from '../lib/household';
@@ -556,5 +556,37 @@ describe('CombinedIncomeChart', () => {
       const sarahLine = lines.find((rl) => labelText(rl) === 'Sarah files')!;
       expect(labelY(danLine, 8)).toBe(labelY(sarahLine, 8));
     });
+  });
+});
+
+/** Render `IncomeTooltip` with a payload and read back the rows it shows. */
+function tooltipRows(
+  payload: { dataKey: string; name: string; value: number; color: string }[],
+): string[] {
+  const { container } = render(
+    <IncomeTooltip active payload={payload as never} label={2036 * 12} />,
+  );
+  return [...container.querySelectorAll('p')].slice(1).map((p) => p.textContent ?? '');
+}
+
+describe('the tooltip', () => {
+  it('omits a band that is present in the stack but not yet paying', () => {
+    // A survivor or spousal band sits in the series at $0 before it starts —
+    // the stack needs the point — but a "$0/yr" row is noise beside the bands
+    // actually paying, and there can be three of them at once.
+    const rows = tooltipRows([
+      { dataKey: 'a:personal', name: 'Client — own benefit', value: 66960, color: '#b8965a' },
+      { dataKey: 'b:personal', name: 'Spouse — own benefit', value: 21732, color: '#9d78b0' },
+      { dataKey: 'b:survivor', name: 'Spouse — survivor', value: 0, color: '#6f8ba3' },
+    ]);
+    expect(rows).toEqual([
+      'Client — own benefit: $66,960/yr',
+      'Spouse — own benefit: $21,732/yr',
+    ]);
+  });
+
+  it('renders nothing at all when no band is paying', () => {
+    expect(tooltipRows([{ dataKey: 'a:personal', name: 'Client', value: 0, color: '#b8965a' }]))
+      .toEqual([]);
   });
 });

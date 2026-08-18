@@ -1,4 +1,13 @@
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  type TooltipContentProps,
+} from 'recharts';
 import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { DollarsMode } from '../lib/dollarsMode';
 import {
@@ -93,6 +102,46 @@ interface CombinedIncomeChartProps {
  * it returns — and that only works on a component that is safe to call
  * outside a render pass.
  */
+/**
+ * The chart's tooltip, rendered by hand rather than by Recharts' default.
+ *
+ * Two reasons. A band that has not started yet is present in the series at
+ * $0 — the stack needs the point — but a row reading "$0/yr" is noise beside
+ * the bands actually paying, and there can be three of them. Recharts offers
+ * no way to drop an item from its own rendering, so the payload is filtered
+ * here.
+ *
+ * The other reason is the unit. The label is a single month ("Feb 2042") but
+ * every value is the band's ANNUAL rate at that month, never what was paid in
+ * it — `buildMonthlyIncomeSeries` does not prorate. `formatCurrencyPerYear`
+ * makes that explicit rather than leaving a reader to infer it from a label
+ * that does not match.
+ */
+export function IncomeTooltip({
+  active,
+  payload,
+  label,
+}: Partial<TooltipContentProps<number, string>>) {
+  if (!active || !payload?.length) return null;
+
+  const paying = payload.filter((item) => typeof item.value === 'number' && item.value > 0);
+  if (paying.length === 0) return null;
+
+  const monthIndex = typeof label === 'number' ? label : Number(label);
+  const heading = Number.isFinite(monthIndex) ? monthDateAt(monthIndex).toString() : '';
+
+  return (
+    <div style={{ ...CHART_TOOLTIP_STYLE, padding: '8px 12px' }}>
+      <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{heading}</p>
+      {paying.map((item) => (
+        <p key={String(item.dataKey)} style={{ margin: '2px 0', color: item.color }}>
+          {item.name}: {formatCurrencyPerYear(item.value as number)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export function CombinedIncomeChart({
   monthlySeries,
   people,
@@ -321,27 +370,7 @@ export function CombinedIncomeChart({
               tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
               width={48}
             />
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_STYLE}
-              // Recharts defaults to " : " — a space before the colon.
-              separator=": "
-              // The label is a single month ("Feb 2042"), but every value is
-              // still the band's ANNUAL rate at that month, not what was paid
-              // in it — `buildMonthlyIncomeSeries` never prorates. Under the
-              // old calendar-year chart "Year 2042" beside that year's sum
-              // was coherent on its own; a bare month beside an annual figure
-              // is not, so `formatCurrencyPerYear` makes the unit explicit
-              // rather than leaving the reader to infer it from a label that
-              // no longer matches.
-              formatter={(value, name) => [
-                formatCurrencyPerYear(typeof value === 'number' ? value : 0),
-                name,
-              ]}
-              labelFormatter={(label) => {
-                const monthIndex = typeof label === 'number' ? label : Number(label);
-                return Number.isFinite(monthIndex) ? monthDateAt(monthIndex).toString() : '';
-              }}
-            />
+            <Tooltip content={<IncomeTooltip />} />
             {series.map((s) => (
               <Area
                 key={s.key}
