@@ -12,6 +12,8 @@ import {
   type PersonFormFields,
 } from '../lib/formState';
 import { personLabel } from '../lib/format';
+import { DEFAULT_PLAN_TO_AGE } from '../lib/formBounds';
+import { readPlanToAges, writePlanToAge } from '../lib/planToAgeStore';
 import { downloadPdfReport } from '../lib/printReport';
 import {
   buildClaimingRows,
@@ -53,8 +55,17 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [initialForm] = useState(() => {
     if (typeof window === 'undefined') return BLANK_FORM;
     const params = new URLSearchParams(window.location.search);
-    if ([...params.keys()].length === 0) return BLANK_FORM;
-    return fromShareParams(params);
+    // A shared link wins outright — storage is not consulted at all. Two
+    // people opening one link must see one analysis, and the plan-to age now
+    // drives the recommendation. See `planToAgeStore`.
+    if ([...params.keys()].length > 0) return fromShareParams(params);
+
+    const remembered = readPlanToAges();
+    return {
+      ...BLANK_FORM,
+      personA: { ...BLANK_FORM.personA, lifeExpectancy: remembered.a ?? DEFAULT_PLAN_TO_AGE },
+      personB: { ...BLANK_FORM.personB, lifeExpectancy: remembered.b ?? DEFAULT_PLAN_TO_AGE },
+    };
   });
 
   const [personA, setPersonA] = useState<PersonFormFields>(initialForm.personA);
@@ -202,7 +213,13 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     {
       label: personLabel(personA.name, 0),
       value: personA.lifeExpectancy,
-      onChange: (v: number) => setPersonA({ ...personA, lifeExpectancy: v }),
+      // Written here rather than in an effect over the value: this fires only
+      // when the adviser MOVES the slider (or adopts the SSA suggestion),
+      // never when a link merely showed them someone else's number.
+      onChange: (v: number) => {
+        writePlanToAge('a', v);
+        setPersonA({ ...personA, lifeExpectancy: v });
+      },
       ssaSuggested: suggestedLifeExpectancyFor(personA),
       gender: personA.gender,
     },
@@ -211,7 +228,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           {
             label: personLabel(personB.name, 1),
             value: personB.lifeExpectancy,
-            onChange: (v: number) => setPersonB({ ...personB, lifeExpectancy: v }),
+            onChange: (v: number) => {
+              writePlanToAge('b', v);
+              setPersonB({ ...personB, lifeExpectancy: v });
+            },
             ssaSuggested: suggestedLifeExpectancyFor(personB),
             gender: personB.gender,
           },

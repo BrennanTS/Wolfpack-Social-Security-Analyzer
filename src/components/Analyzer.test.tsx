@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Analyzer } from './Analyzer';
 import { ABOUT_CARDS } from '../lib/about';
@@ -150,6 +150,102 @@ describe('Analyzer', () => {
         'aria-pressed',
         'true',
       );
+    });
+  });
+
+  /**
+   * The plan-to age now drives the recommendation, so where it comes from on
+   * a fresh load is a correctness question rather than a convenience one.
+   */
+  describe('remembering the plan-to age', () => {
+    const KEY = 'wolfpack.planToAge.v1';
+
+    function memoryStorage(seed?: unknown): Storage {
+      const map = new Map<string, string>();
+      if (seed !== undefined) map.set(KEY, JSON.stringify(seed));
+      return {
+        get length() {
+          return map.size;
+        },
+        clear: () => map.clear(),
+        getItem: (k: string) => map.get(k) ?? null,
+        key: (i: number) => [...map.keys()][i] ?? null,
+        removeItem: (k: string) => map.delete(k),
+        setItem: (k: string, v: string) => void map.set(k, v),
+      } as Storage;
+    }
+
+    /** jsdom here has no `localStorage`, so one is supplied per test. */
+    function useStorage(seed?: unknown): Storage {
+      const store = memoryStorage(seed);
+      Object.defineProperty(window, 'localStorage', {
+        value: store,
+        configurable: true,
+        writable: true,
+      });
+      return store;
+    }
+
+    const planToLabel = () => screen.getByText(/plan to age/i).textContent ?? '';
+
+    it('starts a fresh form at the remembered age', () => {
+      useStorage({ a: 88 });
+      window.history.pushState({}, '', '/');
+      renderAnalyzer();
+      expect(planToLabel()).toContain('88');
+    });
+
+    it('starts at the default when nothing has been remembered', () => {
+      useStorage();
+      window.history.pushState({}, '', '/');
+      renderAnalyzer();
+      expect(planToLabel()).toContain('95');
+    });
+
+    it('lets a shared link win over the remembered age', async () => {
+      // The rule this feature exists under. Two people opening one link must
+      // see one analysis, and the plan-to age drives the recommendation — a
+      // remembered value overriding a link would show the sender and the
+      // recipient different filing ages for the same household.
+      useStorage({ a: 88 });
+      window.history.pushState({}, '', '/?ay=1962&am=4&ag=m&ab=2400&ale=79&m=0');
+      renderAnalyzer();
+      expect(planToLabel()).toContain('79');
+      expect(planToLabel()).not.toContain('88');
+    });
+
+    it('does not record an age that a link merely showed', () => {
+      // Writing happens in the slider's change handler, not in an effect over
+      // the value. An effect would quietly adopt a colleague's assumption the
+      // moment their link was opened.
+      const store = useStorage();
+      window.history.pushState({}, '', '/?ay=1962&am=4&ag=m&ab=2400&ale=79&m=0');
+      renderAnalyzer();
+      expect(store.getItem(KEY)).toBeNull();
+    });
+
+    it('records the age the adviser actually sets', async () => {
+      const store = useStorage();
+      window.history.pushState({}, '', '/');
+      renderAnalyzer();
+
+      const slider = screen.getByLabelText(/plan to age/i);
+      fireEvent.change(slider, { target: { value: '81' } });
+
+      expect(JSON.parse(store.getItem(KEY)!)).toEqual({ a: 81 });
+    });
+
+    it('survives a DOM with no storage at all', () => {
+      // An uncaught throw here would happen inside the state initializer,
+      // taking the app down before first paint.
+      Object.defineProperty(window, 'localStorage', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+      window.history.pushState({}, '', '/');
+      expect(() => renderAnalyzer()).not.toThrow();
+      expect(planToLabel()).toContain('95');
     });
   });
 
