@@ -17,12 +17,21 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { incomeCliff } from '../../src/lib/incomeCliff';
 import type { DollarsMode } from '../../src/lib/dollarsMode';
-import { householdAt } from './households';
-import { analyze, stubLifeTableFetch, summarize, type Finding } from './harness';
+import { householdAt, widowedHouseholdAt } from './households';
+import { analyze, stubLifeTableFetch, summarize, sweepCorpus, type Finding } from './harness';
 import { pdfSurface, screenSurface, type Line } from './surfaces';
 
 const COUNT = Number(process.env.SWEEP_COUNT ?? 2000);
+/**
+ * The widowed corpus runs at a quarter of the main one. It is a separate
+ * generator with its own index space (see `households.ts`), and its surfaces
+ * carry a fifth of the sentences, so the same coverage costs far fewer runs.
+ */
+const WIDOWED_COUNT = Number(process.env.SWEEP_WIDOWED_COUNT ?? Math.ceil(COUNT / 4));
 const MODES: DollarsMode[] = ['real', 'nominal'];
+
+/** Both corpora. Every copy invariant below runs over all of them. */
+const corpus = () => sweepCorpus(COUNT, WIDOWED_COUNT);
 
 beforeAll(() => vi.stubGlobal('fetch', stubLifeTableFetch()));
 afterAll(() => vi.unstubAllGlobals());
@@ -109,11 +118,10 @@ function duplicatesIn(lines: Line[]): string[] {
 }
 
 describe('rendered copy', () => {
-  it(`carries no sentinel or empty substitution across ${COUNT} households`, async () => {
+  it(`carries no sentinel or empty substitution across ${COUNT} + ${WIDOWED_COUNT} households`, async () => {
     const findings: Finding[] = [];
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis = await analyze(household);
 
       for (const mode of MODES) {
@@ -136,11 +144,10 @@ describe('rendered copy', () => {
     expect(findings).toEqual([]);
   });
 
-  it(`repeats no sentence within one surface across ${COUNT} households`, async () => {
+  it(`repeats no sentence within one surface across ${COUNT} + ${WIDOWED_COUNT} households`, async () => {
     const findings: Finding[] = [];
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis = await analyze(household);
 
       for (const mode of MODES) {
@@ -183,19 +190,38 @@ const SHARED: [screen: string, pdf: string][] = [
   ['SurvivorClaimNote.survivorClaimNote', 'pdf/HouseholdSection.survivorClaimNote'],
 ];
 
+/**
+ * The widowed pair. Every sentence on that page is computed per household —
+ * there are no shared constants to compare against themselves — so all five
+ * are here.
+ *
+ * `piaEstimateNote` is the one worth naming: it is null unless the deceased's
+ * PIA was recovered from a check amount, so most households compare absent to
+ * absent. The generator reaches both (see `households.sweep.ts`).
+ */
+const WIDOWED_SHARED: [screen: string, pdf: string][] = [
+  ['WidowedPanel.recommendation', 'pdf/WidowedSection.recommendation'],
+  ['WidowedPanel.recommendationDetail', 'pdf/WidowedSection.recommendationDetail'],
+  ['WidowedPanel.widowedLifetimeCaption', 'pdf/WidowedSection.widowedLifetimeCaption'],
+  ['CombinedIncomeChart.widowedIncomeCaption', 'pdf/WidowedSection.widowedIncomeCaption'],
+  ['WidowedPanel.piaEstimateNote', 'pdf/WidowedSection.piaEstimateNote'],
+];
+
 describe('screen and print agree', () => {
-  it(`state the same sentences in real dollars across ${COUNT} households`, async () => {
+  it(`state the same sentences in real dollars across ${COUNT} + ${WIDOWED_COUNT} households`, async () => {
     const findings: Finding[] = [];
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
-      if (household.status !== 'married') continue; // the PDF household page is married-only
+    for (const { index, household, label } of corpus()) {
+      // Single claimants have no shared household page at all; married and
+      // widowed each have their own pair list.
+      if (household.status === 'single') continue;
       const analysis = await analyze(household);
+      const pairs = household.status === 'widowed' ? WIDOWED_SHARED : SHARED;
 
       const screen = new Map(screenSurface(analysis, 'real').map((l) => [l.source, l.text]));
       const pdf = new Map(pdfSurface(analysis).map((l) => [l.source, l.text]));
 
-      for (const [screenKey, pdfKey] of SHARED) {
+      for (const [screenKey, pdfKey] of pairs) {
         const a = screen.get(screenKey);
         const b = pdf.get(pdfKey);
         // Absent on both is agreement — the section renders on neither.
@@ -218,7 +244,7 @@ describe('screen and print agree', () => {
     expect(findings).toEqual([]);
   });
 
-  it(`names no calculation engine on the analysis surface across ${COUNT} households`, async () => {
+  it(`names no calculation engine on the analysis surface across ${COUNT} + ${WIDOWED_COUNT} households`, async () => {
     // One assertion holding a twenty-site cleanup in place. The engine is
     // named once, in the About panel, and linked twice from Resources — both
     // outside the analysis surface these two builders cover. A parenthetical
@@ -226,8 +252,7 @@ describe('screen and print agree', () => {
     // each of the twenty sites individually would not catch a twenty-first.
     const findings: Finding[] = [];
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis = await analyze(household);
 
       for (const mode of MODES) {
@@ -311,5 +336,59 @@ describe('branch reachability', () => {
     // safe. This assertion is the same tripwire at sweep scale: it pins the
     // DEFECT, so it fails — and says so — the moment the row is fixed.
     expect([...strategyKeys].sort()).toEqual(['fra', 'latest', 'optimal']);
+  });
+
+  it(`reports which widowed branches ${WIDOWED_COUNT} households reach`, async () => {
+    // Its own test rather than a widening of the one above: that assertion
+    // pins the `earliest` row as UNREACHABLE, which is a deliberate tripwire,
+    // and folding a second corpus into it would change what the pin means.
+    const strategyKeys = new Set<string>();
+    const branches = new Set<string>();
+
+    for (let index = 0; index < WIDOWED_COUNT; index++) {
+      const { household } = widowedHouseholdAt(index);
+      const analysis = await analyze(household);
+
+      for (const c of analysis.comparisons) strategyKeys.add(c.key);
+
+      const mark = (name: string, value: unknown) => branches.add(`${name}:${value}`);
+      mark('piaEstimated', analysis.piaEstimated);
+      mark('deceased', analysis.deceased === null ? 'null' : 'present');
+      if (analysis.deceased) {
+        mark('deceased.filed', analysis.deceased.filed === null ? 'never' : 'dated');
+      }
+      // The two fields only a widowed row carries. `lifetimeTotal` is the
+      // discriminator both surfaces branch on before naming the money column,
+      // and `survivorClaimDate` is the second of the two dates — without it
+      // `survivorFirst` and `ownFirst` differ only by their label.
+      for (const c of analysis.comparisons) {
+        mark('row.lifetimeTotal', c.lifetimeTotal === null ? 'null' : 'set');
+        mark('row.survivorClaimDate', c.survivorClaimDate === null ? 'null' : 'set');
+      }
+      mark('filingAgeOptions', analysis.filingAgeOptions.every((o) => o.length === 0) ? 'empty' : 'offered');
+      for (const band of analysis.periods) mark('band.type', band.type);
+      mark('periods', analysis.periods.length === 0 ? 'none' : 'some');
+    }
+
+    console.log(
+      `Widowed reachability over ${WIDOWED_COUNT} households:\n` +
+        `  strategy row keys reached: ${[...strategyKeys].sort().join(', ')}\n` +
+        [...branches].sort().map((b) => `  ${b}`).join('\n'),
+    );
+
+    // Every widowed row must carry both widowed-only fields, on every
+    // household. A null `lifetimeTotal` would send the display layer down the
+    // "this is a present value" branch, which for these rows it is not.
+    expect([...branches]).toContain('row.lifetimeTotal:set');
+    expect([...branches]).not.toContain('row.lifetimeTotal:null');
+    expect([...branches]).not.toContain('row.survivorClaimDate:null');
+    // The scenario picker must never be offered one of these households.
+    expect([...branches]).toEqual(expect.arrayContaining(['filingAgeOptions:empty']));
+    expect([...branches]).not.toContain('filingAgeOptions:offered');
+    // And both estimate branches are reached, so `piaEstimateNote` is
+    // exercised in each direction rather than being dead one way.
+    expect([...branches]).toEqual(
+      expect.arrayContaining(['piaEstimated:true', 'piaEstimated:false']),
+    );
   });
 });

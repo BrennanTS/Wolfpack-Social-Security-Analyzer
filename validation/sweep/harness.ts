@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyzeHousehold, type Household, type HouseholdAnalysis } from '../../src/lib/household';
-import { SWEEP_AS_OF } from './households';
+import { householdAt, widowedHouseholdAt, SWEEP_AS_OF, type SweepHousehold } from './households';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
@@ -23,6 +23,22 @@ export const SWEEP_ASSUMPTIONS = { annualCola: 2.5, discountRate: 0.025 };
 
 export function analyze(household: Household): Promise<HouseholdAnalysis> {
   return analyzeHousehold(household, SWEEP_ASSUMPTIONS, SWEEP_AS_OF);
+}
+
+/**
+ * Both corpora as one list — married and single from `householdAt`, widowed
+ * from its own generator.
+ *
+ * Lives here rather than in each sweep because the widowed surfaces went
+ * un-modelled for an entire phase while `npm run sweep` reported success, and
+ * a per-sweep opt-in is how that happens again. A sweep that wants only the
+ * main corpus passes `widowedCount: 0` and says why.
+ */
+export function sweepCorpus(count: number, widowedCount: number): SweepHousehold[] {
+  const all: SweepHousehold[] = [];
+  for (let i = 0; i < count; i++) all.push(householdAt(i));
+  for (let i = 0; i < widowedCount; i++) all.push(widowedHouseholdAt(i));
+  return all;
 }
 
 /**
@@ -141,6 +157,11 @@ export function canonicalize(analysis: HouseholdAnalysis): Json {
         spousalTopUp: analysis.spousalTopUp,
         survivorGap: analysis.survivorGap,
         survivorClaim: analysis.survivorClaim,
+        // Widowed-only, and both order-independent facts about the household.
+        // `lifetimeTotal` and `survivorClaimDate` already ride along inside
+        // `strategy`'s spread; these two had no carrier at all.
+        piaEstimated: analysis.piaEstimated,
+        deceased: analysis.deceased,
         finalIndexByPersonId: rekey(analysis.finalIndexByPersonId, names),
       }),
     ),

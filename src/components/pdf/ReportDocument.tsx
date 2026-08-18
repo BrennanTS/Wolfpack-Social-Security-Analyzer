@@ -10,7 +10,7 @@ import {
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalSummary,
 } from '../methodologyCopy';
-import { WIDOWED_MODELING_NOTE } from '../widowedCopy';
+import { WIDOWED_MODELING_NOTE, WIDOWED_SURVIVOR_CARD } from '../widowedCopy';
 import { HouseholdSection } from './HouseholdSection';
 import { PersonSection } from './PersonSection';
 import { WidowedSection } from './WidowedSection';
@@ -180,7 +180,7 @@ export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, Meth
         body: spousal
           ? spousalSummary(spousal, spousal.lowerEarnerLabel === null ? null : 'the lower earner')
           : isWidowed
-            ? WIDOWED_MODELING_NOTE
+            ? WIDOWED_SURVIVOR_CARD
             : SINGLE_CLAIMANT_BENEFIT_NOTE,
       },
       {

@@ -14,10 +14,25 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { buildMonthlyIncomeSeries, type HouseholdAnalysis } from '../../src/lib/household';
 import { toNominal, toNominalAmount } from '../../src/lib/dollarsMode';
 import { incomeCliff } from '../../src/lib/incomeCliff';
-import { householdAt, SWEEP_AS_OF } from './households';
-import { analyze, stubLifeTableFetch, summarize, SWEEP_ASSUMPTIONS, type Finding } from './harness';
+import { SWEEP_AS_OF } from './households';
+import {
+  analyze,
+  stubLifeTableFetch,
+  summarize,
+  sweepCorpus,
+  SWEEP_ASSUMPTIONS,
+  type Finding,
+} from './harness';
 
 const COUNT = Number(process.env.SWEEP_COUNT ?? 1500);
+const WIDOWED_COUNT = Number(process.env.SWEEP_WIDOWED_COUNT ?? Math.ceil(COUNT / 4));
+
+/**
+ * Both corpora. Every check below is about bands, timelines and roll-ups,
+ * which a widowed household has exactly as much as a married one — its bands
+ * are its own record and the survivor increment above it.
+ */
+const corpus = () => sweepCorpus(COUNT, WIDOWED_COUNT);
 
 /** Cent-level tolerance. Every figure here is rounded to cents at some point. */
 const EPS = 0.02;
@@ -32,8 +47,7 @@ describe('the timeline agrees with itself', () => {
   it(`totals equal their own parts across ${COUNT} households`, async () => {
     const findings: Finding[] = [];
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis = await analyze(household);
 
       for (const point of analysis.combinedTimeline) {
@@ -63,8 +77,7 @@ describe('the timeline agrees with itself', () => {
   it(`the monthly series matches the bands that are live each month (${COUNT} households)`, async () => {
     const findings: Finding[] = [];
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis = await analyze(household);
       const people = analysis.people.map((p) => p.person);
       const series = buildMonthlyIncomeSeries(analysis.periods, people);
@@ -94,8 +107,7 @@ describe('the timeline agrees with itself', () => {
   it(`the income cliff reads the timeline it claims to read (${COUNT} households)`, async () => {
     const findings: Finding[] = [];
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis = await analyze(household);
       const cliff = incomeCliff(analysis);
       if (!cliff) continue;
@@ -141,8 +153,7 @@ describe('the strategy table agrees with itself', () => {
   it(`ranks, deltas and the optimal flag are consistent (${COUNT} households)`, async () => {
     const findings: Finding[] = [];
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis = await analyze(household);
       const { comparisons, optimal } = analysis;
 
@@ -188,8 +199,7 @@ describe('the dollars toggle is a pure transform', () => {
     const { annualCola } = SWEEP_ASSUMPTIONS;
     const asOfYear = SWEEP_AS_OF.getFullYear();
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis: HouseholdAnalysis = await analyze(household);
       const real = analysis.combinedTimeline;
       const nominal = toNominal(real, annualCola, asOfYear);
@@ -239,8 +249,7 @@ describe('the dollars toggle is a pure transform', () => {
     const { annualCola } = SWEEP_ASSUMPTIONS;
     const asOfYear = SWEEP_AS_OF.getFullYear();
 
-    for (let index = 0; index < COUNT; index++) {
-      const { household, label } = householdAt(index);
+    for (const { index, household, label } of corpus()) {
       const analysis = await analyze(household);
       const nominal = toNominal(analysis.combinedTimeline, annualCola, asOfYear);
 

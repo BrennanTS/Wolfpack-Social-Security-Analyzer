@@ -36,6 +36,13 @@ import {
   survivorGapNote,
   survivorIncomeCaption,
 } from '../../src/components/methodologyCopy';
+import {
+  piaEstimateNote,
+  WIDOWED_MODELING_NOTE,
+  WIDOWED_SURVIVOR_CARD,
+  widowedIncomeCaption,
+  widowedLifetimeCaption,
+} from '../../src/components/widowedCopy';
 import { incomeCliff } from '../../src/lib/incomeCliff';
 import { toNominalAmount, type DollarsMode } from '../../src/lib/dollarsMode';
 import type { HouseholdAnalysis } from '../../src/lib/household';
@@ -54,11 +61,75 @@ const push = (lines: Line[], source: string, text: string | null | undefined) =>
 };
 
 /**
+ * A widow(er)'s single page. `WidowedPanel` — no tabs, no spousal block, and
+ * none of the married household's captions: those speak of two people, a
+ * spousal segment and a first death, none of which this household has.
+ */
+function widowedScreenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): Line[] {
+  const lines: Line[] = [];
+  const person = analysis.people[0];
+
+  push(lines, 'WidowedPanel.recommendation', analysis.recommendation);
+  push(lines, 'WidowedPanel.recommendationDetail', analysis.recommendationDetail);
+  push(
+    lines,
+    'WidowedPanel.widowedLifetimeCaption',
+    widowedLifetimeCaption(person.person.lifeExpectancy),
+  );
+  push(lines, 'CombinedIncomeChart.widowedIncomeCaption', widowedIncomeCaption(mode));
+  if (analysis.deceased !== null) {
+    push(
+      lines,
+      'WidowedPanel.piaEstimateNote',
+      piaEstimateNote(analysis.deceased, analysis.piaEstimated === true),
+    );
+  }
+
+  return lines;
+}
+
+/** The widow(er)'s printed page, plus the appendix `ReportDocument` puts on it. */
+function widowedPdfSurface(analysis: HouseholdAnalysis): Line[] {
+  const lines: Line[] = [];
+  const person = analysis.people[0];
+
+  push(lines, 'pdf/WidowedSection.recommendation', analysis.recommendation);
+  push(lines, 'pdf/WidowedSection.recommendationDetail', analysis.recommendationDetail);
+  push(
+    lines,
+    'pdf/WidowedSection.widowedLifetimeCaption',
+    widowedLifetimeCaption(person.person.lifeExpectancy),
+  );
+  // Print has no dollars toggle; it is always real.
+  push(lines, 'pdf/WidowedSection.widowedIncomeCaption', widowedIncomeCaption('real'));
+  if (analysis.deceased !== null) {
+    push(
+      lines,
+      'pdf/WidowedSection.piaEstimateNote',
+      piaEstimateNote(analysis.deceased, analysis.piaEstimated === true),
+    );
+  }
+  // The appendix attaches to this same physical page, so its two widowed
+  // slots share a reader with everything above. Both are modelled precisely
+  // because they held the identical constant at first, and the sweep found it.
+  push(lines, 'pdf/MethodologyAppendix.disclosure', WIDOWED_MODELING_NOTE);
+  push(lines, 'pdf/MethodologyAppendix.survivorBenefitCard', WIDOWED_SURVIVOR_CARD);
+
+  return lines;
+}
+
+/**
  * The Household tab as one reader sees it, plus the "How This Works" panel
  * below it — `Analyzer.tsx` renders both as siblings on one scrolling page,
  * so they share a reader.
+ *
+ * Dispatches on status rather than assuming married/single, so every sweep
+ * that calls this covers a widowed household by feeding it one — the
+ * alternative was each sweep remembering to branch, which is the failure mode
+ * `householdDisplayShape` exists to prevent in the app itself.
  */
 export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): Line[] {
+  if (analysis.status === 'widowed') return widowedScreenSurface(analysis, mode);
   const lines: Line[] = [];
 
   push(
@@ -102,6 +173,7 @@ export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
  * surface here.
  */
 export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
+  if (analysis.status === 'widowed') return widowedPdfSurface(analysis);
   const lines: Line[] = [];
   const spousal = analysis.spousalTopUp;
   const married = analysis.status === 'married';

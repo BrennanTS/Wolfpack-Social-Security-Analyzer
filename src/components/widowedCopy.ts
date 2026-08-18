@@ -112,3 +112,23 @@ export const WIDOWED_MODELING_NOTE =
   'Both benefits are modeled: this person’s own retirement benefit and a survivor benefit ' +
   'on the deceased spouse’s record. Deemed filing does not apply to survivor benefits, so ' +
   'the two dates are chosen independently, and SSA pays the larger of the two each month.';
+
+/**
+ * The methodology grid's survivor card.
+ *
+ * A DIFFERENT sentence from `WIDOWED_MODELING_NOTE`, which is what the
+ * disclosure block on the same physical page carries. Both slots held that
+ * constant at first, and the sweep found it on its first widowed run — the
+ * same verbatim-duplicate-in-consecutive-blocks shape this project has
+ * shipped before. The married report has the same two slots and puts
+ * `spousalSummary` in one and `coupleModelingNote` in the other; these are
+ * the widowed equivalents.
+ *
+ * States the survivor benefit's own rules, which the disclosure does not: its
+ * age floor, its separate reduction schedule, and the cap that applies when
+ * the deceased had already filed.
+ */
+export const WIDOWED_SURVIVOR_CARD =
+  'A survivor benefit is payable from age 60, reduced for each month claimed before the ' +
+  'survivor full retirement age, which follows a different schedule from the retirement ' +
+  'one. Where the deceased had already filed, it is capped at what they were receiving.';
