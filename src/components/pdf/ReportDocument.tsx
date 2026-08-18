@@ -32,19 +32,21 @@ export function PageFooter({ text }: { text: string }) {
 }
 
 /**
- * Lightweight cover treatment for the first page only — document title,
- * brand name, and report date, styled with the same theme tokens as the
- * rest of the report. Every page's `PageFooter` already repeats brand +
- * date, so this isn't duplicated on subsequent pages; it exists so a
- * printed/downloaded report reads as a finished document rather than
- * opening on a bare section heading.
+ * Lightweight cover treatment for the first page only — document title and
+ * report date, styled with the same theme tokens as the rest of the report.
+ * It exists so a printed/downloaded report reads as a finished document
+ * rather than opening on a bare section heading.
+ *
+ * No brand line: `PageFooter` already prints "Wolfpack | Planning Team" on
+ * every page including this one, so a second copy 700pt above it was the
+ * same name twice on one sheet. The rule that kept this header off pages 2+
+ * is the same rule, applied one level in.
  */
 function ReportHeader({ dateLabel }: { dateLabel: string }) {
   return (
     <View style={styles.docHeader}>
       <View>
         <Text style={styles.docTitle}>Social Security Claiming Analysis</Text>
-        <Text style={styles.docBrand}>{BRAND_NAME}</Text>
       </View>
       <Text style={styles.docDate}>{dateLabel}</Text>
     </View>

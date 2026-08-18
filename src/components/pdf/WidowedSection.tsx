@@ -132,7 +132,7 @@ export function WidowedSection({ analysis, footerText, appendix, leadingHeader }
       </Text>
 
       <Text style={styles.sectionTitle}>Income Over Time</Text>
-      <View style={styles.chartBox}>
+      <View style={styles.chartBox} wrap={false}>
         <CombinedIncomeBars monthlySeries={monthlySeries} people={[person.person]} />
       </View>
       <Text style={styles.sectionDesc}>

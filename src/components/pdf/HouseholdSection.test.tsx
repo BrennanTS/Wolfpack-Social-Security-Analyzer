@@ -688,4 +688,56 @@ describe('CombinedIncomeBars — the printed combined-income decomposition', () 
     // this also pins that a real, surviving series is still printed.
     expect(text).toContain(benefitSeriesLabel('Avery', 'personal'));
   });
+  /** Every `<Rect>` the component emits, with the props the chart's geometry
+   *  depends on. `collectText` only walks children, so it cannot see these. */
+  function rects(node: unknown): { x: number; width: number; fill: string }[] {
+    if (node === null || node === undefined || typeof node === 'boolean') return [];
+    if (Array.isArray(node)) return node.flatMap(rects);
+    if (typeof node !== 'object') return [];
+    const el = node as ReactElement<Record<string, unknown>> & { type?: unknown };
+    const props = (el.props ?? {}) as Record<string, unknown>;
+    const self =
+      typeof props.width === 'number' && typeof props.fill === 'string'
+        ? [{ x: props.x as number, width: props.width, fill: props.fill }]
+        : [];
+    return [...self, ...rects(props.children)];
+  }
+
+  /** Twelve months of one flat band, then twelve of a different flat pair. */
+  const twoSteps: MonthlyIncomePoint[] = [
+    ...Array.from({ length: 12 }, (_, m) => ({
+      monthIndex: 2030 * 12 + m,
+      year: 2030,
+      bySeries: { 'a:personal': 12000, 'b:spousal': 0 },
+      byPersonId: { a: 12000, b: 0 },
+      total: 12000,
+    })),
+    ...Array.from({ length: 12 }, (_, m) => ({
+      monthIndex: 2031 * 12 + m,
+      year: 2031,
+      bySeries: { 'a:personal': 12000, 'b:spousal': 6000 },
+      byPersonId: { a: 12000, b: 6000 },
+      total: 18000,
+    })),
+  ];
+
+  it('draws one rectangle per flat run, not one per month', () => {
+    // A rect per month gave each series ~0.5pt columns, and the rasterizer
+    // left a hairline seam at every shared edge — the printed chart read as
+    // pinstripes. Two series over two steps is four rectangles, not 48.
+    expect(rects(CombinedIncomeBars({ monthlySeries: twoSteps, people }))).toHaveLength(4);
+  });
+
+  it('still spans the whole plot, so merging cannot silently drop months', () => {
+    // The runs must tile the axis exactly: same total width as the
+    // month-per-rect version, and the second run starting where the first
+    // ends. A merge that lost a run would shorten the chart with nothing
+    // else failing.
+    const drawn = rects(CombinedIncomeBars({ monthlySeries: twoSteps, people }));
+    const personal = drawn.filter((r) => r.fill === drawn[0].fill);
+    expect(personal).toHaveLength(2);
+    expect(personal[0].x + personal[0].width).toBeCloseTo(personal[1].x, 6);
+    const spanned = personal.reduce((sum, r) => sum + r.width, 0);
+    expect(spanned).toBeCloseTo(personal[1].x + personal[1].width - personal[0].x, 6);
+  });
 });

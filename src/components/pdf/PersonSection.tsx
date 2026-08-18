@@ -246,7 +246,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         {person.lifeExpectancy}).
       </Text>
       <View style={styles.chartSection}>
-        <View style={styles.chartBox}>
+        <View style={styles.chartBox} wrap={false}>
           <PdfChart
             options={claimingOptions}
             lifeExpectancy={person.lifeExpectancy}
@@ -293,7 +293,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         Cumulative benefits by claiming age (rows) and living age (columns). Gold row = optimal
         age {optimalAge}.
       </Text>
-      <View style={styles.chartBox}>
+      <View style={styles.chartBox} wrap={false}>
         <PdfHeatmap
           options={claimingOptions}
           lifeExpectancy={person.lifeExpectancy}
@@ -306,7 +306,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
       <Text style={styles.sectionDesc}>
         Lifetime income shortfall compared to claiming at age {optimalAge}.
       </Text>
-      <View style={styles.chartBox}>
+      <View style={styles.chartBox} wrap={false}>
         <PdfOpportunityCost options={claimingOptions} optimalAge={optimalAge} />
       </View>
 
@@ -314,7 +314,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
       <Text style={styles.sectionDesc}>
         Monthly check at each claiming age. Gold marker = optimal age {optimalAge}.
       </Text>
-      <View style={styles.chartBox}>
+      <View style={styles.chartBox} wrap={false}>
         <PdfMonthlyRamp options={claimingOptions} optimalAge={optimalAge} />
       </View>
 

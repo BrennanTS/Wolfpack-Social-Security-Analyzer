@@ -10,7 +10,15 @@ import {
   getLivingAgeTicks,
   heatmapColorPdf,
 } from '../../lib/chartData';
-import { styles, BORDER, CONTENT_W, GOLD, INK, MUTED, RED, SUBTLE } from './theme';
+import { styles, BORDER, CHART_INNER_W, GOLD, INK, MUTED, RED, SUBTLE } from './theme';
+
+/**
+ * Axis labels in this file are built as a SINGLE template string, never as
+ * `${'$'}{expr}k` across three JSX children. react-pdf lays out each child of
+ * an SVG `Text` at the element's own x, so a multi-child label prints its
+ * parts stacked on one point — which is how every y-axis tick here rendered
+ * as an unreadable overlap.
+ */
 
 const TICK = { fontSize: 5.5, fill: MUTED };
 
@@ -28,7 +36,7 @@ export function PdfChart({
   const data = generateCumulativeChartData(options, lifeExpectancy, annualCola);
   const lineAges = [62, 67, 70].filter((a) => options.some((o) => o.age === a));
   const labelAges = Array.from({ length: 9 }, (_, i) => 62 + i);
-  const W = CONTENT_W - 16;
+  const W = CHART_INNER_W;
   const H = 110;
   const padL = 36;
   const padR = 10;
@@ -69,7 +77,7 @@ export function PdfChart({
         ))}
         {[0, 0.25, 0.5, 0.75, 1].map((t) => (
           <Text key={`y-${t}`} x={padL - 4} y={yScale(maxVal * t) + 2} style={TICK} textAnchor="end">
-            ${Math.round((maxVal * t) / 1000)}k
+            {`$${Math.round((maxVal * t) / 1000)}k`}
           </Text>
         ))}
         {labelAges.map((age) => (
@@ -124,7 +132,8 @@ export function PdfHeatmap({
   const maxVal = Math.max(...values);
 
   const labelW = 22;
-  const W = CONTENT_W;
+  // Also drawn inside a `chartBox` — see CHART_INNER_W.
+  const W = CHART_INNER_W;
   const plotW = W - labelW - 4;
   const colW = plotW / livingAges.length;
   const rowH = 9;
@@ -217,7 +226,7 @@ export function PdfOpportunityCost({ options, optimalAge }: { options: ClaimingO
 
 export function PdfMonthlyRamp({ options, optimalAge }: { options: ClaimingOption[]; optimalAge: number }) {
   const data = generateMonthlyRampData(options, optimalAge);
-  const W = CONTENT_W - 16;
+  const W = CHART_INNER_W;
   const H = 88;
   const padL = 32;
   const padR = 8;
@@ -245,10 +254,10 @@ export function PdfMonthlyRamp({ options, optimalAge }: { options: ClaimingOptio
           </Text>
         ))}
         <Text x={padL - 3} y={yScale(maxM) + 2} style={TICK} textAnchor="end">
-          ${Math.round(maxM / 1000)}k
+          {`$${Math.round(maxM / 1000)}k`}
         </Text>
         <Text x={padL - 3} y={yScale(minM) + 2} style={TICK} textAnchor="end">
-          ${Math.round(minM / 1000)}k
+          {`$${Math.round(minM / 1000)}k`}
         </Text>
         <Path d={path} stroke={INK} strokeWidth={1.5} fill="none" />
         {data.map((d) => (

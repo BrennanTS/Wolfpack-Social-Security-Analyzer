@@ -31,7 +31,7 @@ import {
   SURVIVOR_INCOME_COLUMN_HEADER,
 } from '../methodologyCopy';
 import { scenarioEyebrow } from '../../lib/scenario';
-import { BORDER, CONTENT_W, MUTED, styles } from './theme';
+import { BORDER, CHART_INNER_W, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
 
 interface Props {
@@ -151,7 +151,8 @@ export function CombinedIncomeBars({
   monthlySeries: MonthlyIncomePoint[];
   people: Person[];
 }) {
-  const W = CONTENT_W;
+  // Inside the `chartBox` frame, not the full page width — see CHART_INNER_W.
+  const W = CHART_INNER_W;
   const H = 100;
   const padL = 34;
   const padR = 6;
@@ -182,23 +183,41 @@ export function CombinedIncomeBars({
   });
   const yearLabelStep = Math.max(1, Math.ceil(years.length / 8));
 
+  // Contiguous months whose every series amount is unchanged collapse into
+  // ONE rectangle each.
+  //
+  // Drawing a rect per month gave each series a barely-half-point column, and
+  // the PDF rasterizer left a hairline seam at every one of the ~400 shared
+  // edges — the printed chart read as vertical pinstripes rather than solid
+  // colour. Merging is exact rather than cosmetic: a benefit band pays a flat
+  // amount for its whole span, so every month inside a run carries the same
+  // height, and the runs are the steps the chart exists to show. A typical
+  // household drops from ~400 rects per series to about four.
+  const runs: { start: number; end: number; key: string; point: MonthlyIncomePoint }[] = [];
+  monthlySeries.forEach((point, i) => {
+    const key = series.map((s) => point.bySeries[s.key] ?? 0).join('|');
+    const last = runs[runs.length - 1];
+    if (last !== undefined && last.key === key) last.end = i;
+    else runs.push({ start: i, end: i, key, point });
+  });
+
   return (
     <View>
       <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
         <Line x1={padL} y1={padT + plotH} x2={W - padR} y2={padT + plotH} stroke={BORDER} strokeWidth={0.5} />
-        {monthlySeries.map((point, i) => {
+        {runs.map((run) => {
           let yTop = padT + plotH;
           return series.map((s) => {
-            const amount = point.bySeries[s.key] ?? 0;
+            const amount = run.point.bySeries[s.key] ?? 0;
             const h = (amount / maxTotal) * plotH;
             const y = yTop - h;
             yTop = y;
             return (
               <Rect
-                key={`${point.monthIndex}-${s.key}`}
-                x={padL + i * barW}
+                key={`${run.start}-${s.key}`}
+                x={padL + run.start * barW}
                 y={y}
-                width={barW}
+                width={(run.end - run.start + 1) * barW}
                 height={h}
                 fill={s.color}
               />
@@ -218,8 +237,12 @@ export function CombinedIncomeBars({
             </Text>
           ) : null,
         )}
+        {/* ONE child, built as a single string. react-pdf lays out each child
+            of an SVG `Text` at the element's own x, so the three-child form
+            (`$`, the number, `k`) printed all three stacked on the same
+            point — the "$50k" that rendered as an overlapped "$50 k". */}
         <Text x={padL - 4} y={padT + 3} style={{ fontSize: 5.5, fill: MUTED }} textAnchor="end">
-          ${Math.round(maxTotal / 1000)}k
+          {`$${Math.round(maxTotal / 1000)}k`}
         </Text>
       </Svg>
       <View style={styles.chartLegend}>
@@ -327,7 +350,7 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       </Text>
       {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
       {floorNote && <Text style={styles.sectionDesc}>{floorNote}</Text>}
-      <View style={styles.chartBox}>
+      <View style={styles.chartBox} wrap={false}>
         <CombinedIncomeBars
           monthlySeries={buildMonthlyIncomeSeries(analysis.periods, people)}
           people={people}

@@ -17,12 +17,33 @@ export const RED = '#9a4a44';
 
 /** Letter page content width: 612pt − left/right padding */
 export const CONTENT_W = 516;
+/**
+ * Drawable width INSIDE a `chartBox` — the content width less that box's 1pt
+ * border and 8pt padding on each side.
+ *
+ * An `<Svg width={CONTENT_W}>` in a `chartBox` overflows its own frame by
+ * 18pt, which is how the combined-income chart came to be drawn on top of
+ * the rounded rectangle that was meant to contain it. Named rather than
+ * spelled `CONTENT_W - 18` at each call site so the two numbers cannot drift
+ * apart from `chartBox` itself.
+ */
+export const CHART_INNER_W = CONTENT_W - 18;
 export const PAD_H = 48;
 export const PAD_TOP = 36;
 export const PAD_BOTTOM = 40;
 
-/** Table column widths (must sum to CONTENT_W) */
-export const COL = { age: 44, monthly: 108, pia: 56, life: 118, diff: 190 };
+/**
+ * Person benefit-table column widths (must sum to CONTENT_W).
+ *
+ * `age` carries the age AND its badges. At 44pt it fit one short badge; the
+ * three-badge row ("62" + TOGETHER + ALONE) printed them overlapping the age
+ * itself. Widened to hold the worst real case — TOGETHER beside ALONE, which
+ * is what a person whose household and solo answers agree gets — with the
+ * width taken from `diff`, the roomiest column. SHOWN never joins them: it
+ * only renders when the shown age differs from the optimum, which is exactly
+ * when TOGETHER is on some other row.
+ */
+export const COL = { age: 80, monthly: 108, pia: 56, life: 118, diff: 154 };
 
 export const styles = StyleSheet.create({
   page: {
