@@ -260,7 +260,16 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           <button
             type="button"
             className="btn-resources"
-            onClick={() => setAboutOpen(true)}
+            onClick={() => {
+              // Both drawers render `.resources-panel.is-open` at the same
+              // fixed position and z-index, and the header sits above the
+              // backdrop, so both buttons stay live while either is open.
+              // Left independent, opening the second paints it over the first
+              // and closing it reveals a drawer that looks like it refused to
+              // close. One is open, or neither.
+              setResourcesOpen(false);
+              setAboutOpen(true);
+            }}
             aria-haspopup="dialog"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -276,7 +285,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           <button
             type="button"
             className="btn-resources"
-            onClick={() => setResourcesOpen(true)}
+            onClick={() => {
+              setAboutOpen(false);
+              setResourcesOpen(true);
+            }}
             aria-haspopup="dialog"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -469,7 +481,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 <h3>This household&rsquo;s spousal benefit</h3>
                 <div className="method-grid">
                   <div>
-                    <strong>Spousal benefits</strong>
+                    {/* No card label here. "Spousal benefits" earned its place
+                        when this was a five-card grid; as the only card under a
+                        heading that already says "spousal benefit", it says the
+                        same word twice in two lines. */}
                     <p data-testid="methodology-spousal">{spousalMethodologyCopy(analysis)}</p>
                   </div>
                 </div>

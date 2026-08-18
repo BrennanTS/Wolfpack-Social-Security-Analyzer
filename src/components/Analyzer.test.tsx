@@ -185,6 +185,27 @@ describe('Analyzer', () => {
       expect(screen.queryByRole('heading', { name: 'About' })).not.toBeInTheDocument();
     });
 
+    // Both drawers render `.resources-panel.is-open` at the same fixed
+    // position and z-index, and the header sits above the backdrop, so both
+    // toggles stay clickable while either drawer is open. Held independently,
+    // the second drawer paints exactly over the first and closing it reveals
+    // the first still sitting there — reading as a drawer that ignored the
+    // close. Only one may be open at a time, in both directions.
+    it('opens one drawer at a time, whichever was open first', async () => {
+      renderAnalyzer();
+
+      await userEvent.click(screen.getByRole('button', { name: /^resources$/i }));
+      expect(screen.getByRole('heading', { name: 'Resources' })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /^about$/i }));
+      expect(screen.getByRole('heading', { name: 'About' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Resources' })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /^resources$/i }));
+      expect(screen.getByRole('heading', { name: 'Resources' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'About' })).not.toBeInTheDocument();
+    });
+
     it(
       'no longer renders the static reference cards on the main surface once an analysis exists',
       async () => {
@@ -206,8 +227,16 @@ describe('Analyzer', () => {
         }
         // And the one card that's supposed to stay actually did — an
         // implementation that deleted the spousal card too would otherwise
-        // satisfy the absence checks above just as well.
-        expect(screen.getByText('Spousal benefits')).toBeInTheDocument();
+        // satisfy the absence checks above just as well. Pinned by its heading
+        // and its live copy rather than by a "Spousal benefits" label: the
+        // label was removed as a stutter under a heading that already says it,
+        // so the card's own sentence is what proves it is still on screen.
+        expect(screen.getByRole('heading', { name: /spousal benefit/i })).toBeInTheDocument();
+        expect(screen.getByTestId('methodology-spousal').textContent).toMatch(/spousal/i);
+        // And the label stays gone. It read as a card title when there were
+        // five cards; under a heading that already says "spousal benefit" it
+        // is the same phrase twice in two lines.
+        expect(screen.queryByText('Spousal benefits')).not.toBeInTheDocument();
       },
       15000,
     );
