@@ -10,6 +10,7 @@ import {
   filingAgeMonths,
   resetScenarios,
   selectScenario,
+  toggleScenarioHidden,
   type FilingAgeChoice,
   type ScenarioSet,
 } from './scenario';
@@ -285,5 +286,55 @@ describe('a single claimant', () => {
     // does not have.
     expect(chosen.recommendationDetail).toContain('expected present value');
     expect(chosen.recommendationDetail).not.toContain('combined expected present value');
+  });
+});
+
+describe('hidden rows', () => {
+  it('leave the rendered table but stay in the analysis', async () => {
+    const result = await run(married, toggleScenarioHidden(resetScenarios(), 'latest'));
+    // `comparisons` is what both surfaces render.
+    expect(result.comparisons.map((c) => c.key)).not.toContain('latest');
+    // `allComparisons` is what the editor renders, with real figures on it.
+    const hiddenRow = result.allComparisons.find((c) => c.key === 'latest');
+    expect(hiddenRow?.hidden).toBe(true);
+    expect(hiddenRow?.expectedNpv).toBeGreaterThan(0);
+  });
+
+  it('carry a real survivor income, not a dash, so un-hiding is not a blind click', async () => {
+    const shown = await run(married);
+    const hidden = await run(married, toggleScenarioHidden(resetScenarios(), 'latest'));
+    const before = shown.comparisons.find((c) => c.key === 'latest')?.survivorIncome;
+    const after = hidden.allComparisons.find((c) => c.key === 'latest')?.survivorIncome;
+    expect(after).toBe(before);
+    expect(after).not.toBeNull();
+  });
+
+  it('never mark a row in `comparisons` as hidden', async () => {
+    const result = await run(married, toggleScenarioHidden(resetScenarios(), 'latest'));
+    expect(result.comparisons.every((c) => !c.hidden)).toBe(true);
+  });
+
+  it('leave the two lists identical when nothing is hidden', async () => {
+    const result = await run(married);
+    expect(result.comparisons).toEqual(result.allComparisons);
+  });
+
+  it('do not move any figure the analysis is built on', async () => {
+    const shown = await run(married);
+    const hidden = await run(married, toggleScenarioHidden(resetScenarios(), 'latest'));
+    expect(hidden.selected.expectedNpv).toBe(shown.selected.expectedNpv);
+    expect(hidden.periods).toEqual(shown.periods);
+    expect(hidden.recommendationDetail).toBe(shown.recommendationDetail);
+  });
+
+  it('fall back to the optimum if a hand-built set hides the selected row', async () => {
+    // `toggleScenarioHidden` prevents this, but an old share link or a
+    // hand-built set need not. Building the report on an invisible strategy
+    // is the failure to avoid.
+    const rows = resetScenarios().rows.map((r) => (r.id === 'fra' ? { ...r, hidden: true } : r));
+    const result = await run(married, { rows, selectedId: 'fra' });
+    expect(result.scenarioIsBest).toBe(true);
+    expect(result.selected.hidden).toBe(false);
+    expect(result.comparisons.some((c) => c.isSelected)).toBe(true);
   });
 });

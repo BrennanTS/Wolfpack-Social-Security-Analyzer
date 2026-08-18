@@ -13,7 +13,7 @@ import {
 } from '../lib/formState';
 import { personLabel } from '../lib/format';
 import { downloadPdfReport } from '../lib/printReport';
-import type { FilingAgeChoice, ScenarioSet } from '../lib/scenario';
+import type { ScenarioSet } from '../lib/scenario';
 import { fromShareParams } from '../lib/shareLink';
 import {
   widowedErrors,
@@ -22,7 +22,6 @@ import {
 } from '../lib/widowedForm';
 import { AboutPanel } from './AboutPanel';
 import { AssumptionsPanel } from './AssumptionsPanel';
-import { ScenarioPanel } from './ScenarioPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
 import { PersonFields } from './PersonFields';
@@ -87,10 +86,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(true);
-  // Collapsed by default: the four built-in scenarios cover most meetings,
-  // and the section is only opened when the adviser wants to model something
-  // other than them.
-  const [showScenarios, setShowScenarios] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -211,24 +206,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
         ]
       : []),
   ];
-
-  const scenarioPersonNames =
-    maritalStatus === 'married'
-      ? [personLabel(personA.name, 0), personLabel(personB.name, 1)]
-      : [personLabel(personA.name, 0)];
-
-  // What each scenario row RESOLVED to in the last analysis, keyed by row id.
-  // Built from `analysis.comparisons` rather than from the rows themselves:
-  // the four built-ins store no ages at all (see `Scenario`), and a custom
-  // row's stored ages may have been clamped. A row the analysis dropped as
-  // unattainable is simply absent here, and the panel prints an em dash.
-  const resolvedScenarioAges: Record<string, FilingAgeChoice[]> = {};
-  for (const row of analysis?.comparisons ?? []) {
-    resolvedScenarioAges[row.key] = row.filingAges.map((f) => ({
-      years: f.years,
-      months: f.months,
-    }));
-  }
 
   function handleMaritalChange(status: 'single' | 'married' | 'widowed') {
     setMaritalStatus(status);
@@ -423,17 +400,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
               />
             )}
 
-            <ScenarioPanel
-              scenarios={scenarios}
-              onChange={setScenarios}
-              expanded={showScenarios}
-              onToggle={() => setShowScenarios(!showScenarios)}
-              personNames={scenarioPersonNames}
-              options={analysis?.filingAgeOptions ?? null}
-              resolvedAges={resolvedScenarioAges}
-              isMarried={maritalStatus === 'married'}
-            />
-
             <AssumptionsPanel
               lifeExpectancies={lifeExpectancies}
               annualCola={annualCola}
@@ -454,8 +420,18 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       </SettingsDrawer>
 
       <main className="main">
-        <section className="output-panel">
-          {analyzing ? (
+        {/* `analyzing && !analysis` rather than `analyzing`: once there IS an
+            analysis on screen, a re-run keeps it there rather than replacing
+            the whole output with a spinner. A married re-analysis takes about
+            35ms, so the spinner was a flash rather than information — and
+            unmounting the output on every change reset any state living
+            inside it. That is not cosmetic: the scenario editor's own
+            open/closed state lives in the comparison table, so editing an age
+            dropped the table straight back out of edit mode. The first
+            analysis of a session still gets the full empty state, because
+            then there is genuinely nothing to look at. */}
+        <section className={`output-panel${analyzing ? ' output-panel-busy' : ''}`}>
+          {analyzing && !analysis ? (
             <div className="empty-state" data-testid="analysis-loading">
               <div className="empty-state-icon" aria-hidden="true">
                 <span />
@@ -504,6 +480,8 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 annualCola={annualCola}
                 dollarsMode={dollarsMode}
                 onDollarsModeChange={setDollarsMode}
+                scenarios={scenarios}
+                onScenariosChange={setScenarios}
               />
 
               <div className="methodology">

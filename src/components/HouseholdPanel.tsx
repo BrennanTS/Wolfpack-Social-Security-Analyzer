@@ -4,7 +4,7 @@ import { computeBreakEvens } from '../lib/benefitMath';
 import { toNominal, toNominalAmount, toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
 import { personLabel } from '../lib/format';
 import { firstDeath } from '../lib/incomeCliff';
-import { scenarioEyebrow } from '../lib/scenario';
+import { scenarioEyebrow, type ScenarioSet } from '../lib/scenario';
 import { StrategyComparisonTable } from './StrategyComparisonTable';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
 import { IncomeCliffCallout } from './IncomeCliffCallout';
@@ -16,6 +16,12 @@ interface HouseholdPanelProps {
   annualCola: number;
   dollarsMode: DollarsMode;
   onDollarsModeChange: (mode: DollarsMode) => void;
+  /**
+   * The scenario list behind the comparison table. Optional so the tests
+   * written before scenarios existed render a plain, non-editable table.
+   */
+  scenarios?: ScenarioSet;
+  onScenariosChange?: (scenarios: ScenarioSet) => void;
 }
 
 /**
@@ -103,6 +109,8 @@ export function HouseholdPanel({
   annualCola,
   dollarsMode,
   onDollarsModeChange,
+  scenarios,
+  onScenariosChange,
 }: HouseholdPanelProps) {
   const people = analysis.people.map((p) => p.person);
   const [personA] = analysis.people;
@@ -133,6 +141,22 @@ export function HouseholdPanel({
             asOfYear,
           )
         : analysis.comparisons,
+    [analysis, annualCola, dollarsMode, asOfYear],
+  );
+  // The same dollars transform over the unfiltered set, so a hidden row shows
+  // its real survivor income in the editor rather than a figure in the other
+  // mode from every row beside it.
+  const displayAllComparisons = useMemo(
+    () =>
+      dollarsMode === 'nominal'
+        ? nominalComparisons(
+            analysis.allComparisons,
+            analysis.people,
+            analysis.finalIndexByPersonId,
+            annualCola,
+            asOfYear,
+          )
+        : analysis.allComparisons,
     [analysis, annualCola, dollarsMode, asOfYear],
   );
   const displayAnalysis: HouseholdAnalysis = useMemo(
@@ -166,9 +190,13 @@ export function HouseholdPanel({
 
       <StrategyComparisonTable
         comparisons={displayComparisons}
+        allComparisons={displayAllComparisons}
         people={people}
         survivorGap={analysis.survivorGap}
         dollarsMode={dollarsMode}
+        scenarios={scenarios}
+        onScenariosChange={onScenariosChange}
+        filingAgeOptions={analysis.filingAgeOptions}
       />
 
       <CombinedIncomeChart

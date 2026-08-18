@@ -170,6 +170,12 @@ export interface HouseholdStrategy {
    */
   isSelected: boolean;
   /**
+   * Kept out of both rendered tables at the adviser's request. Always false
+   * in `HouseholdAnalysis.comparisons`, which is already filtered — this flag
+   * only means anything on `allComparisons`, where the editor reads it.
+   */
+  hidden: boolean;
+  /**
    * Annual household income in the first full year after the first death,
    * under THIS strategy. Null for a single claimant, and for the edge cases
    * `withSurvivorIncome` documents.
@@ -232,7 +238,18 @@ export interface HouseholdAnalysis {
    * single-record filing-age set at all — see `analyzeWidowed`.
    */
   filingAgeOptions: FilingAgeChoice[][];
+  /**
+   * The rows both surfaces render — VISIBLE rows only. Every existing reader
+   * (the caption helpers, the survivor-income column gate, the PDF table)
+   * gets the right set by default rather than having to remember to filter.
+   */
   comparisons: HouseholdStrategy[];
+  /**
+   * Every row including the hidden ones, in the same order. Only the scenario
+   * EDITOR reads this: a hidden row still has to show its ages there, or
+   * un-hiding it would be a blind click.
+   */
+  allComparisons: HouseholdStrategy[];
   combinedTimeline: CombinedTimelinePoint[];
   /**
    * The top-up accruing to the *lower earner*, claimed on the higher earner's
@@ -468,7 +485,12 @@ function buildComparisons(
   enginePeople: Person[],
   status: Household['status'],
   toEngineAges: (ages: FilingAgeChoice[]) => FilingAgeChoice[],
-): { optimal: HouseholdStrategy; selected: HouseholdStrategy; comparisons: HouseholdStrategy[] } {
+): {
+  optimal: HouseholdStrategy;
+  selected: HouseholdStrategy;
+  comparisons: HouseholdStrategy[];
+  allComparisons: HouseholdStrategy[];
+} {
   const isMarried = status === 'married';
   const optimalKey = agesKey(agesOf(optimalStrategy));
 
@@ -477,6 +499,7 @@ function buildComparisons(
     label: string;
     strategy: RankedStrategy;
     derived: boolean;
+    hidden: boolean;
   }
 
   const entries: Entry[] = [];
@@ -507,7 +530,13 @@ function buildComparisons(
       }
       seenDerived.set(key, row.id);
     }
-    entries.push({ id: row.id, label: scenarioLabel(row, isMarried), strategy, derived });
+    entries.push({
+      id: row.id,
+      label: scenarioLabel(row, isMarried),
+      strategy,
+      derived,
+      hidden: row.hidden === true,
+    });
   }
 
   if (entries.length === 0) {
@@ -520,11 +549,13 @@ function buildComparisons(
   // the optimum's ages sits beside it rather than competing for the badge.
   const optimalEntryId = entries.find((e) => agesKey(agesOf(e.strategy)) === optimalKey)?.id;
 
-  // The selected row may have been dropped as unattainable, or the id may
-  // simply be stale. Falling back to the optimum keeps `selected` meaningful,
-  // and `scenarioIsBest` then reports the truth of what is shown.
-  if (!entries.some((e) => e.id === selectedId)) {
-    selectedId = optimalEntryId ?? entries[0].id;
+  // The selected row may have been dropped as unattainable, or the id may be
+  // stale, or it may be hidden — `selectScenario`/`toggleScenarioHidden` keep
+  // those two apart, but a hand-built set or an old share link need not.
+  // Falling back to the optimum keeps `selected` meaningful and visible, and
+  // `scenarioIsBest` then reports the truth of what is shown.
+  if (!entries.some((e) => e.id === selectedId && !e.hidden)) {
+    selectedId = optimalEntryId ?? entries.find((e) => !e.hidden)?.id ?? entries[0].id;
   }
 
   const rows: HouseholdStrategy[] = entries.map((entry) => ({
@@ -538,6 +569,7 @@ function buildComparisons(
       Math.round((entry.strategy.expectedNpv - optimalStrategy.expectedNpv) * 100) / 100,
     isOptimal: entry.id === optimalEntryId,
     isSelected: entry.id === selectedId,
+    hidden: entry.hidden,
     // Filled in by `withSurvivorIncome` once bands exist to compute it from —
     // `buildComparisons` runs before this household's `householdPeriods` call.
     survivorIncome: null,
@@ -573,7 +605,12 @@ function buildComparisons(
   if (optimal === undefined || selected === undefined) {
     throw new Error('Comparison rows lost the optimal or selected strategy');
   }
-  return { optimal, selected, comparisons: ordered };
+  return {
+    optimal,
+    selected,
+    comparisons: ordered.filter((r) => !r.hidden),
+    allComparisons: ordered,
+  };
 }
 
 /**
@@ -1224,6 +1261,9 @@ async function analyzeWidowed(
     // therefore always the optimum here, which is what this branch did
     // before scenarios existed.
     isSelected: isOptimal,
+    // Nothing hides a widowed row: the scenario editor does not render for a
+    // household whose rows the engine derives rather than the adviser.
+    hidden: false,
     survivorIncome: null,
   });
 
@@ -1263,6 +1303,7 @@ async function analyzeWidowed(
     scenarioIsBest: true,
     filingAgeOptions: [[]],
     comparisons,
+    allComparisons: comparisons,
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap: null,
@@ -1328,7 +1369,7 @@ export async function analyzeHousehold(
       throw new Error('No eligible couple filing strategies');
     }
 
-    const { optimal, selected, comparisons } = buildComparisons(
+    const { optimal, selected, allComparisons } = buildComparisons(
       ranked,
       ranked[0],
       scenarios,
@@ -1406,8 +1447,11 @@ export async function analyzeHousehold(
       engineLabels,
     );
 
+    // Hidden rows go through `withSurvivorIncome` too, so the editor shows a
+    // row's real survivor income before it is un-hidden rather than a dash
+    // that appears to be a property of the row.
     const comparisonsWithSurvivor = withSurvivorIncome(
-      comparisons,
+      allComparisons,
       enginePeople,
       [recipient0, recipient1],
       engineLabels,
@@ -1439,7 +1483,8 @@ export async function analyzeHousehold(
       selected: selectedRow,
       scenarioIsBest: selectedRow.isOptimal,
       filingAgeOptions: reorder(filingAgeOptionsFrom(ranked)),
-      comparisons: displayRows,
+      comparisons: displayRows.filter((c) => !c.hidden),
+      allComparisons: displayRows,
       combinedTimeline: buildCombinedTimeline(bands, people),
       periods: bands,
       survivorGap,
@@ -1488,7 +1533,7 @@ export async function analyzeHousehold(
     throw new Error('No eligible filing ages for this person');
   }
 
-  const { optimal, selected, comparisons } = buildComparisons(
+  const { optimal, selected, allComparisons } = buildComparisons(
     recipientRanked,
     recipientRanked[0],
     scenarios,
@@ -1512,7 +1557,7 @@ export async function analyzeHousehold(
   // `householdPeriods` again, so this is just the null-filling branch, called
   // here rather than duplicated so both branches use the same rule.
   const comparisonsWithSurvivor = withSurvivorIncome(
-    comparisons,
+    allComparisons,
     household.people,
     [recipient],
     [personLabel(person.name, 0)],
@@ -1535,7 +1580,8 @@ export async function analyzeHousehold(
     selected: selectedRow,
     scenarioIsBest: selectedRow.isOptimal,
     filingAgeOptions: filingAgeOptionsFrom(recipientRanked),
-    comparisons: comparisonsWithSurvivor,
+    comparisons: comparisonsWithSurvivor.filter((c) => !c.hidden),
+    allComparisons: comparisonsWithSurvivor,
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap,

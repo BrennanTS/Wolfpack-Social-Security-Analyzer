@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   addScenario,
   BEST_ROW_ID,
+  firstMonthInYear,
+  toggleScenarioHidden,
   BEST_SCENARIO,
   clampToAttainable,
   DEFAULT_SCENARIO_SET,
@@ -273,5 +275,78 @@ describe('selectedRow', () => {
   it('falls back to the first row rather than throwing on a stale id', () => {
     const set: ScenarioSet = { ...resetScenarios(), selectedId: 'gone' };
     expect(selectedRow(set).id).toBe(BEST_ROW_ID);
+  });
+});
+
+describe('firstMonthInYear', () => {
+  it('lands on 0 wherever the year is fully available', () => {
+    expect(firstMonthInYear([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])).toBe(0);
+  });
+
+  it('lands on the person’s own floor in a part-lived year', () => {
+    // Someone already 69 years 1 month cannot file at 69 years 0 months.
+    expect(firstMonthInYear([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])).toBe(1);
+    expect(firstMonthInYear([0])).toBe(0);
+  });
+
+  it('does not depend on the order the months arrive in', () => {
+    expect(firstMonthInYear([7, 3, 11, 5])).toBe(3);
+  });
+
+  it('returns 0 rather than undefined for an empty year', () => {
+    // A NaN age would reach the engine.
+    expect(firstMonthInYear([])).toBe(0);
+  });
+});
+
+describe('toggleScenarioHidden', () => {
+  it('hides and shows a row', () => {
+    let set = toggleScenarioHidden(resetScenarios(), 'latest');
+    expect(set.rows.find((r) => r.id === 'latest')?.hidden).toBe(true);
+    set = toggleScenarioHidden(set, 'latest');
+    expect(set.rows.find((r) => r.id === 'latest')?.hidden).toBe(false);
+  });
+
+  it('refuses to hide Optimal — the benchmark every delta is measured against', () => {
+    const set = toggleScenarioHidden(resetScenarios(), BEST_ROW_ID);
+    expect(set.rows.find((r) => r.id === BEST_ROW_ID)?.hidden).not.toBe(true);
+  });
+
+  it('moves the selection off a row it hides', () => {
+    // Otherwise the report is built on a strategy that appears nowhere on it.
+    let set = addScenario(resetScenarios(), [at(65)]);
+    const id = set.selectedId;
+    set = toggleScenarioHidden(set, id);
+    expect(set.selectedId).toBe(BEST_ROW_ID);
+    expect(set.rows.find((r) => r.id === id)?.hidden).toBe(true);
+  });
+
+  it('leaves the selection alone when a different row is hidden', () => {
+    let set = addScenario(resetScenarios(), [at(65)]);
+    const kept = set.selectedId;
+    set = toggleScenarioHidden(set, 'latest');
+    expect(set.selectedId).toBe(kept);
+  });
+
+  it('ignores an id the set does not hold', () => {
+    const set = resetScenarios();
+    expect(toggleScenarioHidden(set, 'nope')).toBe(set);
+  });
+});
+
+describe('selecting a hidden row', () => {
+  it('reveals it, since the report has to show what it is built on', () => {
+    let set = addScenario(resetScenarios(), [at(65)]);
+    const id = set.selectedId;
+    set = toggleScenarioHidden(set, id);
+    set = selectScenario(set, id);
+    expect(set.selectedId).toBe(id);
+    expect(set.rows.find((r) => r.id === id)?.hidden).toBe(false);
+  });
+});
+
+describe('isDefaultScenarioSet with hidden rows', () => {
+  it('is false once a row is hidden, so Reset stays offered', () => {
+    expect(isDefaultScenarioSet(toggleScenarioHidden(resetScenarios(), 'latest'))).toBe(false);
   });
 });

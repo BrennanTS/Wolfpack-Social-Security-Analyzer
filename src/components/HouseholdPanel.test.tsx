@@ -54,6 +54,7 @@ function buildAnalysis(): HouseholdAnalysis {
     people: [personA],
     optimal,
     comparisons: [optimal],
+    allComparisons: [optimal],
     combinedTimeline: [
       { year: 2032, bySeries: { 'a:personal': 35_712 }, byPersonId: { a: 35_712 }, total: 35_712 },
     ],

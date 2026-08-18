@@ -84,6 +84,8 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
       { years: 70, months: 0 },
     ]),
     comparisons: [earliest, optimal],
+    // No hidden rows in these fixtures, so the two lists agree.
+    allComparisons: [earliest, optimal],
     combinedTimeline: [
       {
         year: 2032,

@@ -357,18 +357,10 @@ test('offers to convert a yearly benefit figure', async ({ page }) => {
   await expect(nudge).toHaveCount(0);
 });
 
-test('drives the whole report from a scenario added in the sidebar', async ({ page }) => {
+test('drives the whole report from a scenario edited in the comparison table', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, married);
 
-  // Collapsed by default — the four built-ins cover most meetings.
-  const toggle = page.getByRole('button', { name: /Claiming scenarios/ });
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await toggle.click();
-  await expect(page.getByTestId('scenario-table')).toBeVisible();
-
-  // Baseline: the optimizer's own answer.
-  await expect(page.getByTestId('recommendation-title')).toBeVisible();
   const eyebrow = page.locator('.rec-label').first();
   await expect(eyebrow).toHaveText(/Recommended Strategy/);
   const optimalPv = await page
@@ -377,23 +369,35 @@ test('drives the whole report from a scenario added in the sidebar', async ({ pa
     .nth(3)
     .textContent();
 
-  // Add a row, then move one person to 65.
+  // View mode carries no controls.
+  await expect(page.getByTestId('scenario-edit-toggle')).toHaveText('Edit');
+  await expect(page.getByTestId('scenario-add')).toHaveCount(0);
+
+  await page.getByTestId('scenario-edit-toggle').click();
   await page.getByTestId('scenario-add').click();
-  await expect(page.getByTestId('scenario-row-s1')).toBeVisible();
+  await expect(page.getByTestId('strategy-row-s1')).toBeVisible();
   await page.getByTestId('scenario-years-s1-0').selectOption('65');
 
-  // The whole surface follows it: the card stops calling it a recommendation,
-  // the new row appears in the comparison table carrying the Shown badge, and
-  // the optimum keeps its own figure.
+  // The whole surface follows the edited row, and the optimum keeps its own
+  // figure — the money columns are still on screen while editing.
   await expect(eyebrow).toHaveText(/Selected Scenario/);
   await expect(page.getByTestId('strategy-row-s1')).toContainText('Shown');
-  await expect(page.getByTestId('strategy-row-s1').locator('td').nth(1)).toHaveText('65');
-  await expect(page.getByTestId('strategy-row-optimal').locator('td').nth(3)).toHaveText(
+  await expect(page.getByTestId('strategy-row-optimal').locator('td').nth(4)).toHaveText(
     optimalPv ?? '',
   );
 
-  // Reset puts it back, row and all.
+  // Hiding a row takes it off the table; Optimal has no eye to hide it with.
+  await expect(page.getByTestId('scenario-eye-optimal')).toHaveCount(0);
+  await page.getByTestId('scenario-eye-latest').click();
+  await expect(page.getByTestId('hidden-count')).toHaveText('1 hidden');
+  await page.getByTestId('scenario-edit-toggle').click();
+  await expect(page.getByTestId('strategy-row-latest')).toHaveCount(0);
+
+  // Reset restores the hidden row and the recommendation together.
+  await page.getByTestId('scenario-edit-toggle').click();
   await page.getByTestId('scenario-reset').click();
+  await page.getByTestId('scenario-edit-toggle').click();
+  await expect(page.getByTestId('strategy-row-latest')).toBeVisible();
   await expect(page.getByTestId('strategy-row-s1')).toHaveCount(0);
   await expect(eyebrow).toHaveText(/Recommended Strategy/);
 });

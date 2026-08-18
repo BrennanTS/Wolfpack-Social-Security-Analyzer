@@ -2381,144 +2381,33 @@ tbody tr:hover {
   }
 }
 
-/* --- Scenario panel (sidebar) --------------------------------------------
-   Mirrors `.assumptions-panel`: same `.advanced-toggle` header, same body
-   spacing, so the two sidebar sections read as siblings. */
-.scenario-panel {
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.scenario-body {
+/* --- Scenario editing, inside the comparison table -----------------------
+   Option A: the table itself becomes editable, so Combined PV and "vs. best"
+   stay on screen and keep updating while an age is dragged. */
+.strategy-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-.scenario-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-  table-layout: fixed;
-}
-
-.scenario-table th {
-  padding: 4px 4px;
-  text-align: left;
-  font-size: 0.625rem;
+.strategy-toolbar-title {
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-subtle);
-}
-
-.scenario-table td {
-  padding: 7px 4px;
-  border-top: 1px solid var(--border);
-  color: var(--text);
-  vertical-align: top;
-}
-
-/* Fixed rails either side, so the middle column takes whatever the drawer
-   has left and the radios and remove buttons line up down the list. */
-.scenario-pick,
-.scenario-table th:first-child,
-.scenario-actions-cell,
-.scenario-table th:last-child {
-  width: 22px;
-}
-
-.scenario-row-selected td {
-  background: var(--fill-secondary);
-}
-
-.scenario-label {
-  display: block;
-  font-weight: 500;
-}
-
-.scenario-name {
-  display: block;
-  width: 100%;
-  padding: 3px 6px;
-  font-size: 0.8125rem;
-}
-
-.scenario-ages {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: 3px;
-}
-
-.scenario-age {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
   color: var(--text-muted);
+  margin-right: auto;
 }
 
-/* One width for every person label so the controls line up down the column
-   even though each scenario stacks them rather than sharing a table column. */
-.scenario-age-who {
-  flex: 0 0 auto;
-  width: 42px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-subtle);
-}
-
-.scenario-age select {
-  min-height: 28px;
-  padding: 2px 4px;
+.strategy-toolbar-note {
   font-size: 0.75rem;
-}
-
-.scenario-age select:first-of-type {
-  flex: 0 0 auto;
-  width: 48px;
-}
-
-.scenario-age select:last-of-type {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.scenario-age-unreachable {
   color: var(--text-subtle);
 }
 
-.scenario-remove {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-subtle);
-  font-size: 1rem;
-  line-height: 1;
-  transition: background 0.25s var(--ease), color 0.25s var(--ease);
-}
-
-.scenario-remove:hover {
-  background: var(--fill);
-  color: var(--red);
-}
-
-.scenario-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.scenario-add,
-.scenario-reset {
-  padding: 6px 12px;
-  min-height: 32px;
+.strategy-tool {
+  padding: 5px 12px;
+  min-height: 30px;
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   background: transparent;
@@ -2526,22 +2415,114 @@ tbody tr:hover {
   font-family: var(--font);
   font-size: 0.8125rem;
   font-weight: 500;
+  white-space: nowrap;
   transition: background 0.25s var(--ease), color 0.25s var(--ease);
 }
 
-.scenario-add:hover:not(:disabled),
-.scenario-reset:hover:not(:disabled) {
+.strategy-tool:hover:not(:disabled) {
   background: var(--fill);
   color: var(--text);
 }
 
-.scenario-add:disabled,
-.scenario-reset:disabled {
+.strategy-tool:disabled {
   opacity: 0.45;
 }
 
+.strategy-tool-done,
+.strategy-tool-done:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--cream);
+}
+
+/* Both control columns are fixed and narrow so the money columns keep the
+   width they have in view mode — the table must not reflow when Edit is
+   pressed, or the figures appear to move with the click. */
+.strategy-editing .cell-eye,
+.strategy-editing .cell-remove {
+  width: 28px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.row-eye,
+.row-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-subtle);
+  font-size: 0.875rem;
+  line-height: 1;
+  transition: background 0.25s var(--ease), color 0.25s var(--ease);
+}
+
+.row-eye[aria-pressed='true'] {
+  color: var(--text);
+}
+
+.row-eye:hover {
+  background: var(--fill);
+  color: var(--text);
+}
+
+.row-remove {
+  font-size: 1rem;
+}
+
+.row-remove:hover {
+  background: var(--fill);
+  color: var(--red);
+}
+
+/* Hidden rows stay legible while editing — they are about to be brought
+   back, and a row you cannot read is a row you cannot decide about. The
+   marker is the eye, not the contrast. */
+.row-hidden td {
+  color: var(--text-subtle);
+}
+
+.row-use {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-subtle);
+  font-family: var(--font);
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.row-use:hover {
+  background: var(--fill);
+  color: var(--text);
+}
+
+.scenario-name {
+  width: 100%;
+  max-width: 170px;
+  padding: 3px 6px;
+  font-size: 0.8125rem;
+}
+
+.strategy-editing select {
+  min-height: 28px;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+}
+
+.strategy-editing select + select {
+  margin-left: 4px;
+}
+
 /* Visible to a screen reader, out of the layout for everyone else — used for
-   the two action columns whose headers would otherwise be empty cells. */
+   the control columns whose headers would otherwise be empty cells. */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -2552,4 +2533,12 @@ tbody tr:hover {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* A re-analysis over an output that is already on screen. Deliberately quiet:
+   the run takes about 35ms, so anything louder reads as a fault rather than
+   as work in progress. */
+.output-panel-busy {
+  opacity: 0.72;
+  transition: opacity 0.15s var(--ease);
 }

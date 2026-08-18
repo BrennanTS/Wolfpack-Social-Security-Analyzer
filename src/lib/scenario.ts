@@ -69,6 +69,18 @@ export interface ScenarioRow {
    */
   label: string;
   scenario: Scenario;
+  /**
+   * Kept in the list but off both surfaces — the screen table and the PDF
+   * alike. One control for both, deliberately: an adviser who hides a row
+   * for a meeting and then exports would otherwise find it back in the
+   * report, and a per-surface pair of toggles is two states per row to keep
+   * straight.
+   *
+   * Hidden rows are still ANALYSED — they carry ages, they appear in the
+   * editor, and un-hiding one costs nothing. What they lose is only their
+   * place in the rendered table.
+   */
+  hidden?: boolean;
 }
 
 /**
@@ -105,7 +117,7 @@ export const DEFAULT_SCENARIO_SET: ScenarioSet = {
 
 /** Back to the four built-in rows, with Best selected. */
 export function resetScenarios(): ScenarioSet {
-  return { rows: [...DEFAULT_SCENARIO_ROWS], selectedId: BEST_ROW_ID };
+  return { rows: DEFAULT_SCENARIO_ROWS.map((row) => ({ ...row })), selectedId: BEST_ROW_ID };
 }
 
 /**
@@ -119,8 +131,32 @@ export function isDefaultScenarioSet(set: ScenarioSet): boolean {
     (row, i) =>
       row.id === DEFAULT_SCENARIO_ROWS[i].id &&
       row.label === DEFAULT_SCENARIO_ROWS[i].label &&
-      row.scenario.kind === DEFAULT_SCENARIO_ROWS[i].scenario.kind,
+      row.scenario.kind === DEFAULT_SCENARIO_ROWS[i].scenario.kind &&
+      row.hidden !== true,
   );
+}
+
+/**
+ * Shows or hides a row on both surfaces.
+ *
+ * Optimal is never hideable, for the same reason it is never removable: the
+ * "vs. best" column measures every other row against it, and a benchmark the
+ * reader cannot see is worse than no benchmark.
+ *
+ * Hiding the row the analysis is BUILT on moves the selection to Optimal.
+ * The alternative — a report whose every figure comes from a strategy that
+ * appears nowhere on it — is exactly the shape of defect this project keeps
+ * having to fix.
+ */
+export function toggleScenarioHidden(set: ScenarioSet, id: string): ScenarioSet {
+  if (id === BEST_ROW_ID) return set;
+  const target = set.rows.find((row) => row.id === id);
+  if (target === undefined) return set;
+  const nextHidden = target.hidden !== true;
+  return {
+    rows: set.rows.map((row) => (row.id === id ? { ...row, hidden: nextHidden } : row)),
+    selectedId: nextHidden && set.selectedId === id ? BEST_ROW_ID : set.selectedId,
+  };
 }
 
 /**
@@ -141,6 +177,7 @@ export function addScenario(set: ScenarioSet, ages: FilingAgeChoice[]): Scenario
   const row: ScenarioRow = {
     id,
     label: `Scenario ${highest + 1}`,
+    hidden: false,
     scenario: { kind: 'custom', ages: ages.map((a) => ({ years: a.years, months: a.months })) },
   };
   return { rows: [...set.rows, row], selectedId: id };
@@ -164,7 +201,6 @@ export function updateScenarioAges(
       row.id === id
         ? {
             ...row,
-            label: row.scenario.kind === 'custom' ? row.label : row.label,
             scenario: {
               kind: 'custom',
               ages: ages.map((a) => ({ years: a.years, months: a.months })),
@@ -196,9 +232,19 @@ export function removeScenario(set: ScenarioSet, id: string): ScenarioSet {
   return { rows, selectedId: set.selectedId === id ? BEST_ROW_ID : set.selectedId };
 }
 
-/** Selects a row, ignoring an id the set does not contain. */
+/**
+ * Selects a row, ignoring an id the set does not contain.
+ *
+ * Selecting a HIDDEN row reveals it. The selected row is the one every figure
+ * on both surfaces is computed from, so it has to be one the reader can see —
+ * this is the same rule `toggleScenarioHidden` enforces from the other side.
+ */
 export function selectScenario(set: ScenarioSet, id: string): ScenarioSet {
-  return set.rows.some((row) => row.id === id) ? { ...set, selectedId: id } : set;
+  if (!set.rows.some((row) => row.id === id)) return set;
+  return {
+    rows: set.rows.map((row) => (row.id === id && row.hidden ? { ...row, hidden: false } : row)),
+    selectedId: id,
+  };
 }
 
 /**
@@ -281,6 +327,23 @@ export function clampToAttainable(
     }
   }
   return best;
+}
+
+/**
+ * The month to land on when the adviser changes only the YEAR.
+ *
+ * The earliest month still available in that year — 0 wherever the person can
+ * still reach it, their own floor where they cannot. Carrying the previous
+ * month across instead (the first version of this) turned "put them both at
+ * 69" into "69 years, 1 month" for whichever spouse happened to be sitting at
+ * 62 years 1 month, which is not an age anybody asked for.
+ *
+ * `months` is assumed non-empty — every year offered by the picker comes from
+ * the attainable set, so it has at least one month in it — but an empty array
+ * returns 0 rather than `undefined`, since a `NaN` age would reach the engine.
+ */
+export function firstMonthInYear(months: readonly number[]): number {
+  return months.length === 0 ? 0 : Math.min(...months);
 }
 
 /**

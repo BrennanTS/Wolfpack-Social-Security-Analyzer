@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
 import { personLabel } from '../lib/format';
+import type { ScenarioSet } from '../lib/scenario';
 import { HouseholdPanel } from './HouseholdPanel';
 import { PersonPanel } from './PersonPanel';
 
@@ -17,6 +18,9 @@ interface HouseholdViewProps {
    */
   dollarsMode?: DollarsMode;
   onDollarsModeChange?: (mode: DollarsMode) => void;
+  /** Threaded to the comparison table, which is where scenarios are edited. */
+  scenarios?: ScenarioSet;
+  onScenariosChange?: (scenarios: ScenarioSet) => void;
 }
 
 interface TabDef {
@@ -40,6 +44,8 @@ export function HouseholdView({
   annualCola,
   dollarsMode = 'real',
   onDollarsModeChange = () => {},
+  scenarios,
+  onScenariosChange,
 }: HouseholdViewProps) {
   // Exhaustive rather than `=== 'married'`: a boolean test routed a widowed
   // household into the one-claimant branch below with no compile error and no
@@ -118,6 +124,8 @@ export function HouseholdView({
             annualCola={annualCola}
             dollarsMode={dollarsMode}
             onDollarsModeChange={onDollarsModeChange}
+            scenarios={scenarios}
+            onScenariosChange={onScenariosChange}
           />
         ) : (
           <PersonPanel
