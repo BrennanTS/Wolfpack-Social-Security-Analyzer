@@ -81,6 +81,7 @@ function buildAnalysis(): HouseholdAnalysis {
     // `undefined` the type says cannot exist.
     survivorClaim: null,
     survivorGap: null,
+  survivorFloor: null,
     finalIndexByPersonId: { a: 24_653 },
     piaEstimated: null,
     deceased: null,

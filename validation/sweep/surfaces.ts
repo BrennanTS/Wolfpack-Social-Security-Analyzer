@@ -33,6 +33,7 @@ import {
   spousalMethodologyCopy,
   spousalSummary,
   survivorClaimNote,
+  survivorFloorNote,
   survivorGapNote,
   survivorIncomeCaption,
 } from '../../src/components/methodologyCopy';
@@ -174,6 +175,11 @@ export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
     combinedIncomeCaption(analysis.survivorGap, mode),
   );
   push(lines, 'CombinedIncomeChart.survivorGapNote', survivorGapNote(analysis.survivorGap));
+  push(
+    lines,
+    'CombinedIncomeChart.survivorFloorNote',
+    survivorFloorNote(analysis.survivorFloor),
+  );
 
   push(lines, 'Analyzer.spousalMethodologyCopy', spousalMethodologyCopy(analysis));
 
@@ -223,6 +229,11 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
       combinedIncomeCaption(analysis.survivorGap, 'real'),
     );
     push(lines, 'pdf/HouseholdSection.survivorGapNote', survivorGapNote(analysis.survivorGap));
+    push(
+      lines,
+      'pdf/HouseholdSection.survivorFloorNote',
+      survivorFloorNote(analysis.survivorFloor),
+    );
 
     const cliff = incomeCliff(analysis);
     if (cliff) {

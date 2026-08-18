@@ -205,6 +205,7 @@ export function HouseholdPanel({
         monthlySeries={displayMonthlySeries}
         people={people}
         survivorGap={analysis.survivorGap}
+        survivorFloor={analysis.survivorFloor}
         finalIndexByPersonId={analysis.finalIndexByPersonId}
         dollarsMode={dollarsMode}
         onDollarsModeChange={onDollarsModeChange}

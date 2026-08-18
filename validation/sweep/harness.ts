@@ -156,6 +156,7 @@ export function canonicalize(analysis: HouseholdAnalysis): Json {
           ),
         spousalTopUp: analysis.spousalTopUp,
         survivorGap: analysis.survivorGap,
+        survivorFloor: analysis.survivorFloor,
         survivorClaim: analysis.survivorClaim,
         // Widowed-only, and both order-independent facts about the household.
         // `lifetimeTotal` and `survivorClaimDate` already ride along inside

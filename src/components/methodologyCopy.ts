@@ -10,7 +10,7 @@
  * `Analyzer.tsx` so it can be unit-tested without mounting the page (and so
  * the component file keeps exporting only components).
  */
-import type { BandType, SurvivorGap } from '../lib/benefitPeriods';
+import type { BandType, SurvivorFloor, SurvivorGap } from '../lib/benefitPeriods';
 import { formatPercent } from '../lib/cpiHistory';
 import type { DollarsMode } from '../lib/dollarsMode';
 import {
@@ -57,6 +57,36 @@ const BAND_TYPE_LABEL: Record<BandType, string> = {
  */
 export function benefitSeriesLabel(personName: string, type: BandType): string {
   return `${personName} — ${BAND_TYPE_LABEL[type]}`;
+}
+
+/**
+ * The explanation for a survivor block that stands taller than the band the
+ * deceased was being paid — see `SurvivorFloor`.
+ *
+ * Written because the shape reads as a defect. It was reported as one from
+ * the live app: a client filing at 62 years 1 month on a $3,962 PIA left a
+ * survivor drawing $3,268/mo against the $2,789/mo he had been receiving, and
+ * every figure was right. Nothing on either surface named the rule, so the
+ * only available reading was that the chart had over-counted.
+ *
+ * Quotes both amounts rather than only the rule: an adviser checking the
+ * chart against the number they doubted needs to see that number in the
+ * sentence, and "82.5% of PIA" alone leaves them to do the multiplication.
+ *
+ * Null when nothing needs explaining, so callers render nothing.
+ */
+export function survivorFloorNote(floor: SurvivorFloor | null | undefined): string | null {
+  // Undefined as well as null — see `survivorGapNote` for why.
+  if (!floor) return null;
+  return (
+    `${floor.survivorLabel} is shown receiving ` +
+    `${formatCurrencyPrecise(floor.survivorMonthly)}/mo after that death, more than the ` +
+    `${formatCurrencyPrecise(floor.deceasedMonthly)}/mo ${floor.deceasedLabel} was being ` +
+    `paid. That is SSA\u2019s widow(er)\u2019s limit: because ${floor.deceasedLabel} filed before ` +
+    `full retirement age, the survivor benefit is the greater of that reduced amount and ` +
+    `82.5% of ${floor.deceasedLabel}\u2019s full retirement age benefit \u2014 the survivor does not ` +
+    `inherit the whole of an early-filing reduction.`
+  );
 }
 
 /**

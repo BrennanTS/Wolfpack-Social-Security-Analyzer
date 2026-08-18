@@ -389,6 +389,51 @@ describe('householdPeriods — finalIndexByPersonId', () => {
   });
 });
 
+describe('householdPeriods — the widow(er)’s limit', () => {
+  // The household reported from the live app. The client files at 62y1m on a
+  // $3,962 PIA — a 29.6% reduction to $2,789 — and dies at 79. His widow is
+  // then paid $3,268/mo, MORE than he ever received, because SSA floors a
+  // survivor benefit at 82.5% of the worker's PIA when the worker filed
+  // early. The chart draws the survivor block standing above his own band,
+  // which reads as an over-count until something on screen names the rule.
+  const client = person('a', 1978, 12, 3962, 'male', 79);
+  const spouse = person('b', 1974, 2, 2000, 'female', 95);
+
+  const run = (clientFilingAge: MonthDuration) =>
+    householdPeriods(
+      [client, spouse],
+      [recipientFor(client), recipientFor(spouse)],
+      [clientFilingAge, age(62, 1)],
+      ['Client', 'Spouse'],
+    );
+
+  it('reports the floor when the survivor comes out ahead of the deceased', () => {
+    const { survivorFloor, bands } = run(age(62, 1));
+    // Guard: no survivor band means the assertions below pass on nothing.
+    expect(bands.filter((b) => b.type === 'survivor')).toHaveLength(1);
+    expect(survivorFloor).not.toBeNull();
+    expect(survivorFloor!.survivorLabel).toBe('Spouse');
+    expect(survivorFloor!.deceasedLabel).toBe('Client');
+    // 82.5% of the $3,962 PIA — the floor — against the reduced benefit it
+    // beats. Pinning both proves the note quotes the pair a reader can check.
+    expect(survivorFloor!.deceasedMonthly).toBeCloseTo(2789, 0);
+    // Within a dollar of 82.5% of PIA — the engine floors the figure, so an
+    // exact equality would pin its rounding rather than the rule.
+    expect(Math.abs(survivorFloor!.survivorMonthly - 3962 * 0.825)).toBeLessThan(1);
+    expect(survivorFloor!.survivorMonthly).toBeGreaterThan(survivorFloor!.deceasedMonthly);
+  });
+
+  it('stays silent when the deceased filed late enough to beat the floor', () => {
+    // At 70 the client's own benefit is well above 82.5% of PIA, so the
+    // survivor inherits that instead and there is nothing counter-intuitive
+    // left to explain. A note that fired here would be noise on the
+    // households that need it least.
+    const { survivorFloor, bands } = run(age(70));
+    expect(bands.filter((b) => b.type === 'survivor')).toHaveLength(1);
+    expect(survivorFloor).toBeNull();
+  });
+});
+
 describe('monthsInYear', () => {
   it('counts only the months the band actually covers', () => {
     // Sep 2030 (2030*12 + 8) through Mar 2032 (2032*12 + 2).

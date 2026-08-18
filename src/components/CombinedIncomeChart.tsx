@@ -8,7 +8,7 @@ import {
   ReferenceLine,
   type TooltipContentProps,
 } from 'recharts';
-import type { SurvivorGap } from '../lib/benefitPeriods';
+import type { SurvivorFloor, SurvivorGap } from '../lib/benefitPeriods';
 import type { DollarsMode } from '../lib/dollarsMode';
 import {
   monthDateAt,
@@ -22,6 +22,7 @@ import {
   benefitSeriesLabel,
   COMBINED_INCOME_SUBTITLE,
   combinedIncomeCaption,
+  survivorFloorNote,
   survivorGapNote,
 } from './methodologyCopy';
 import {
@@ -55,6 +56,12 @@ interface CombinedIncomeChartProps {
    * below says so. Optional so the single-claimant call site need not pass it.
    */
   survivorGap?: SurvivorGap | null;
+  /**
+   * Why the survivor block can stand taller than the deceased's own band.
+   * Optional for the same reason `survivorGap` is — no single-claimant or
+   * widowed call site has one.
+   */
+  survivorFloor?: SurvivorFloor | null;
   /**
    * Each person's inclusive final month index, for the first-death marker —
    * read through `firstDeath`, the same function the income-cliff callout and
@@ -158,6 +165,7 @@ export function CombinedIncomeChart({
   monthlySeries,
   people,
   survivorGap,
+  survivorFloor,
   finalIndexByPersonId = {},
   dollarsMode = 'real',
   onDollarsModeChange,
@@ -165,6 +173,10 @@ export function CombinedIncomeChart({
 }: CombinedIncomeChartProps) {
   const gap = survivorGap ?? null;
   const gapNote = survivorGapNote(gap);
+  // Why the survivor block can stand taller than the band beneath it. A
+  // separate paragraph rather than a fourth sentence in the caption: it is
+  // true of a minority of households, and the caption is read by all of them.
+  const floorNote = survivorFloorNote(survivorFloor);
 
   const series = visibleBenefitSeries(monthlySeries, people).map((s) => ({
     ...s,
@@ -356,6 +368,11 @@ export function CombinedIncomeChart({
         {gapNote && (
           <p className="chart-caveat" data-testid="survivor-gap-note">
             {gapNote}
+          </p>
+        )}
+        {floorNote && (
+          <p className="chart-caveat" data-testid="survivor-floor-note">
+            {floorNote}
           </p>
         )}
         <div className="chart-legend-row" aria-hidden="true">

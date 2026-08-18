@@ -116,6 +116,7 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     // here since none of these tests assert on the chart's rendered bars.
     periods: [],
     survivorGap: null,
+  survivorFloor: null,
     survivorClaim: null,
     finalIndexByPersonId: { a: 24_653, ...(status === 'married' ? { b: 24_700 } : {}) },
     recommendation: status === 'married'

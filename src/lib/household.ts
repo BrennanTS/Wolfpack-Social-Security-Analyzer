@@ -9,6 +9,7 @@ import {
   type BandType,
   type BenefitBand,
   type SurvivorGap,
+  type SurvivorFloor,
 } from './benefitPeriods';
 import { deceasedPia, type Deceased } from './deceased';
 import { formatCurrency, personLabel } from './format';
@@ -301,6 +302,12 @@ export interface HouseholdAnalysis {
    * would actually experience. Null when there is nothing to disclose.
    */
   survivorGap: SurvivorGap | null;
+  /**
+   * Set when the survivor is paid more than the deceased's own benefit was —
+   * SSA's widow(er)'s limit. Null when there is nothing to explain. See
+   * `SurvivorFloor`.
+   */
+  survivorFloor: SurvivorFloor | null;
   /**
    * The best month the survivor could claim their OWN widow(er) benefit,
    * holding the recommendation's filing ages fixed — see `survivorClaim.ts`.
@@ -1347,6 +1354,10 @@ async function analyzeWidowed(
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap: null,
+    // Widowed households render their own stages (`widowedStages`), which
+    // never split a survivor benefit against a living spouse's band — there
+    // is no "more than they were getting" comparison on that surface.
+    survivorFloor: null,
     survivorClaim: null,
     finalIndexByPersonId,
     recommendation:
@@ -1504,7 +1515,7 @@ export async function analyzeHousehold(
     ];
     const engineLabels = reorder(displayLabels);
 
-    const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
+    const { bands, survivorGap, survivorFloor, finalIndexByPersonId } = householdPeriods(
       enginePeople,
       [recipient0, recipient1],
       selected.filingAges.map((f) => f.monthDuration),
@@ -1568,6 +1579,7 @@ export async function analyzeHousehold(
       combinedTimeline: buildCombinedTimeline(bands, people),
       periods: bands,
       survivorGap,
+      survivorFloor,
       survivorClaim,
       finalIndexByPersonId,
       spousalTopUp: spousalFiguresFrom(
@@ -1639,7 +1651,7 @@ export async function analyzeHousehold(
     ),
   ];
 
-  const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
+  const { bands, survivorGap, survivorFloor, finalIndexByPersonId } = householdPeriods(
     household.people,
     [recipient],
     [selected.filingAges[0].monthDuration],
@@ -1679,6 +1691,7 @@ export async function analyzeHousehold(
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap,
+    survivorFloor,
     survivorClaim: null,
     finalIndexByPersonId,
     recommendation: `Claim at age ${selected.filingAges[0].label}`,

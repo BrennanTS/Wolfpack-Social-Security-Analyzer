@@ -211,6 +211,7 @@ const SHARED: [screen: string, pdf: string][] = [
   ['StrategyComparisonTable.survivorIncomeCaption', 'pdf/HouseholdSection.survivorIncomeCaption'],
   ['CombinedIncomeChart.combinedIncomeCaption', 'pdf/HouseholdSection.combinedIncomeCaption'],
   ['CombinedIncomeChart.survivorGapNote', 'pdf/HouseholdSection.survivorGapNote'],
+  ['CombinedIncomeChart.survivorFloorNote', 'pdf/HouseholdSection.survivorFloorNote'],
   ['IncomeCliffCallout.incomeCliffSentence', 'pdf/HouseholdSection.incomeCliffSentence'],
   ['SurvivorClaimNote.survivorClaimNote', 'pdf/HouseholdSection.survivorClaimNote'],
 ];
@@ -332,6 +333,7 @@ describe('branch reachability', () => {
 
       const mark = (name: string, value: unknown) => branches.add(`${name}:${value}`);
       mark('survivorGap', analysis.survivorGap ? 'set' : 'null');
+      mark('survivorFloor', analysis.survivorFloor ? 'set' : 'null');
       mark('spousalTopUp', analysis.spousalTopUp ? 'present' : 'absent');
       if (analysis.spousalTopUp) {
         const s = analysis.spousalTopUp;

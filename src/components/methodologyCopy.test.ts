@@ -12,6 +12,7 @@ import {
   spousalMethodologyCopy,
   spousalSummary,
   survivorClaimNote,
+  survivorFloorNote,
   survivorGapNote,
   survivorIncomeCaption,
 } from './methodologyCopy';
@@ -1395,5 +1396,37 @@ describe('survivorClaimNote', () => {
       baselineHasSurvivorBand: true,
     })!;
     expect(note).toMatch(/age 60\b/);
+  });
+});
+
+describe('survivorFloorNote', () => {
+  const floor = {
+    survivorLabel: 'Spouse',
+    deceasedLabel: 'Client',
+    deceasedMonthly: 2789,
+    survivorMonthly: 3268.65,
+  };
+
+  it('renders nothing when there is nothing to explain', () => {
+    expect(survivorFloorNote(null)).toBeNull();
+    expect(survivorFloorNote(undefined)).toBeNull();
+  });
+
+  it('quotes both amounts, so the figure being doubted is in the sentence', () => {
+    // An adviser reading it is checking the chart against a number they think
+    // is too high. Naming only the rule leaves them to do the multiplication.
+    const note = survivorFloorNote(floor)!;
+    expect(note).toContain('$3,268.65');
+    expect(note).toContain('$2,789.00');
+  });
+
+  it('names the rule and which direction it runs', () => {
+    const note = survivorFloorNote(floor)!;
+    expect(note).toMatch(/widow\(er\)’s limit/);
+    expect(note).toContain('82.5%');
+    // The reason the survivor comes out ahead: they do not inherit the whole
+    // of an early-filing reduction. Without this the sentence states a rule
+    // without saying why it produces the shape on screen.
+    expect(note).toContain('filed before full retirement age');
   });
 });

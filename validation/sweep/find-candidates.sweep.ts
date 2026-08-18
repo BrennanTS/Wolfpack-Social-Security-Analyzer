@@ -30,6 +30,7 @@ const PREDICATES: Record<string, (a: Awaited<ReturnType<typeof analyze>>) => boo
   'survivor-no-band': (a) => !!a.survivorClaim && !a.survivorClaim.baselineHasSurvivorBand,
   'survivor-claim': (a) => !!a.survivorClaim,
   'survivor-gap': (a) => !!a.survivorGap,
+  'survivor-floor': (a) => !!a.survivorFloor,
   // An exact PIA tie — the shape behind the order-independence saga.
   'pia-tie': (a) => !!a.spousalTopUp && a.spousalTopUp.lowerEarnerLabel === null,
   // A spousal entitlement that never actually begins.

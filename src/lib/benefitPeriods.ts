@@ -67,9 +67,35 @@ export interface SurvivorGap {
   survivorUnder60: boolean;
 }
 
+/**
+ * Set when the survivor is paid MORE than the deceased's own benefit was.
+ *
+ * Counter-intuitive enough that it reads as a defect: the chart's survivor
+ * block rises above the deceased's own band, and nothing on screen says why.
+ * It is SSA's widow(er)'s limit (RIB-LIM). A worker who filed before their
+ * full retirement age takes a permanent reduction, but their survivor does
+ * not inherit the whole of it — the survivor benefit is the GREATER of what
+ * the worker was actually receiving and 82.5% of their PIA
+ * (`benefit-calculator.ts:484-497`). Filing very early puts the reduced
+ * benefit below that floor, and the floor wins.
+ *
+ * Detected from the AMOUNTS the engine produced, never by re-deriving the
+ * rule — this module exists so that benefit arithmetic stays in the engine.
+ * The trigger is exactly the thing a reader can see and disbelieve.
+ */
+export interface SurvivorFloor {
+  survivorLabel: string;
+  deceasedLabel: string;
+  /** The deceased's own monthly benefit in their final month. */
+  deceasedMonthly: number;
+  /** What the survivor is paid in total instead — own benefit plus top-up. */
+  survivorMonthly: number;
+}
+
 export interface HouseholdPeriods {
   bands: BenefitBand[];
   survivorGap: SurvivorGap | null;
+  survivorFloor: SurvivorFloor | null;
   /**
    * Each person's inclusive final month index — the month they reach their
    * plan-to age. NOT derivable from the bands: a person who dies before
@@ -227,6 +253,45 @@ function ssaAge60Index(recipient: Recipient): number {
 }
 
 /**
+ * Whether the survivor ends up ahead of the deceased — see `SurvivorFloor`.
+ *
+ * Reads the engine's own bands BEFORE `splitDualEntitlement` rewrites them,
+ * for the same reason `detectSurvivorGap` does: the split is a display
+ * decision and must not be able to manufacture — or suppress — a disclosure.
+ * At that point a survivor band still carries the survivor's WHOLE monthly
+ * amount, which is the figure to compare.
+ *
+ * Only ever one survivor band per household here (the engine pays in one
+ * direction), so the first is the one; `labels` is positional with `people`.
+ */
+function detectSurvivorFloor(
+  bands: BenefitBand[],
+  people: Person[],
+  labels: string[],
+): SurvivorFloor | null {
+  const survivor = bands.find((b) => b.type === 'survivor');
+  if (survivor === undefined) return null;
+  const survivorIndex = people.findIndex((p) => p.id === survivor.personId);
+  const deceasedIndex = people.findIndex((p) => p.id !== survivor.personId);
+  if (survivorIndex < 0 || deceasedIndex < 0) return null;
+  const deceased = latestPersonalBand(bands, people[deceasedIndex].id);
+  // No personal band means the deceased never filed, so there is no "what
+  // they were getting" to be surprised by. The engine's other survivor rule
+  // applies then, and it does not produce the shape this note explains.
+  if (deceased === undefined) return null;
+  // A cent of tolerance: these are floats carrying engine cents, and a note
+  // that fires on a rounding crumb would print beside two figures the reader
+  // sees as equal.
+  if (survivor.monthlyAmount <= deceased.monthlyAmount + 0.01) return null;
+  return {
+    survivorLabel: labels[survivorIndex],
+    deceasedLabel: labels[deceasedIndex],
+    deceasedMonthly: deceased.monthlyAmount,
+    survivorMonthly: survivor.monthlyAmount,
+  };
+}
+
+/**
  * The engine pays survivor benefits in one direction only — the higher-PIA
  * earner "will never have spousal or survivor benefits" (`strategy-calc.ts:104`).
  * When the *dependent* dies first, no survivor band is emitted for anyone, and
@@ -326,12 +391,19 @@ export function householdPeriods(
     labels,
   );
 
+  const survivorFloor = detectSurvivorFloor(normalized, people, labels);
+
   const finalIndexByPersonId: Record<string, number> = {};
   people.forEach((p, i) => {
     finalIndexByPersonId[p.id] = monthIndexOf(finalDates[i]);
   });
 
-  return { bands: splitDualEntitlement(normalized), survivorGap, finalIndexByPersonId };
+  return {
+    bands: splitDualEntitlement(normalized),
+    survivorGap,
+    survivorFloor,
+    finalIndexByPersonId,
+  };
 }
 
 /** Payment months this band contributes to a given calendar year. */

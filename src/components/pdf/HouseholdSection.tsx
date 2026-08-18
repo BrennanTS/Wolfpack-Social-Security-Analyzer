@@ -23,6 +23,7 @@ import {
   nominalFirstDeathNote,
   spousalSummary,
   survivorClaimNote,
+  survivorFloorNote,
   survivorGapNote,
   survivorIncomeCaption,
   HOUSEHOLD_VALUE_COLUMN_HEADER,
@@ -244,6 +245,7 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
   const people = analysis.people.map((p) => p.person);
   const spousal = analysis.spousalTopUp;
   const gapNote = survivorGapNote(analysis.survivorGap);
+  const floorNote = survivorFloorNote(analysis.survivorFloor);
   const cliff = incomeCliff(analysis);
   // `'real'` explicit, not the function's default: print always renders real
   // dollars and has no toggle. Passing it explicitly (rather than relying on
@@ -324,6 +326,7 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
         {combinedIncomeCaption(analysis.survivorGap, 'real')}
       </Text>
       {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
+      {floorNote && <Text style={styles.sectionDesc}>{floorNote}</Text>}
       <View style={styles.chartBox}>
         <CombinedIncomeBars
           monthlySeries={buildMonthlyIncomeSeries(analysis.periods, people)}
