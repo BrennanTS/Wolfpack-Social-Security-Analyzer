@@ -13,7 +13,7 @@ import { toNominalAmount } from '../../lib/dollarsMode';
 import { incomeCliff } from '../../lib/incomeCliff';
 import { seriesColor } from '../../lib/chartTheme';
 import { formatPercent } from '../../lib/cpiHistory';
-import { formatCurrency, personLabel } from '../../lib/format';
+import { formatCurrency, formatThousandsTick, personLabel } from '../../lib/format';
 import {
   benefitSeriesLabel,
   COMBINED_INCOME_SUBTITLE,
@@ -242,7 +242,7 @@ export function CombinedIncomeBars({
             (`$`, the number, `k`) printed all three stacked on the same
             point — the "$50k" that rendered as an overlapped "$50 k". */}
         <Text x={padL - 4} y={padT + 3} style={{ fontSize: 5.5, fill: MUTED }} textAnchor="end">
-          {`$${Math.round(maxTotal / 1000)}k`}
+          {formatThousandsTick(maxTotal)}
         </Text>
       </Svg>
       <View style={styles.chartLegend}>

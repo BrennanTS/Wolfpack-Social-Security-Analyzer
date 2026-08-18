@@ -3,6 +3,7 @@ import {
   formatAgeDisplay,
   formatCurrency,
   formatCurrencyPerYear,
+  formatThousandsTick,
   formatCurrencyPrecise,
   fraLabel,
   personLabel,
@@ -82,5 +83,24 @@ describe('personLabel', () => {
   it('treats blank and whitespace-only names as absent', () => {
     expect(personLabel('', 0)).toBe('Client');
     expect(personLabel('   ', 1)).toBe('Spouse');
+  });
+});
+
+describe('formatThousandsTick', () => {
+  it('drops the unit at the baseline', () => {
+    // "$0k" is a unit on a quantity that has none, and the baseline is the
+    // one tick on every axis a reader checks first.
+    expect(formatThousandsTick(0)).toBe('$0');
+  });
+
+  it('rounds to the nearest thousand', () => {
+    expect(formatThousandsTick(731_400)).toBe('$731k');
+    expect(formatThousandsTick(731_600)).toBe('$732k');
+  });
+
+  it('says $0 for anything that rounds to zero, not "$0k"', () => {
+    // A tick at $400 rounds to zero thousands. It must take the baseline
+    // wording too, or the axis prints "$0k" for a nonzero value.
+    expect(formatThousandsTick(400)).toBe('$0');
   });
 });

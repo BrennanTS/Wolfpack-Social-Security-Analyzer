@@ -32,6 +32,23 @@ export function formatCurrencyPerYear(amount: number): string {
 }
 
 /**
+ * A chart axis tick in thousands — "$731k", and "$0" at the baseline.
+ *
+ * The baseline is the reason this exists. Every tick ran through a
+ * hand-built `$` + value/1000 + `k`, which prints the zero tick as "$0k" —
+ * a unit on a quantity that has none, and the one tick on every axis a
+ * reader checks first. Rounds rather than truncates, so a $731,400 top tick
+ * reads $731k rather than a value the plot is visibly above.
+ *
+ * For axis labels only. A figure in the body text gets `formatCurrency`,
+ * which does not lose the last three digits.
+ */
+export function formatThousandsTick(amount: number): string {
+  const thousands = Math.round(amount / 1000);
+  return thousands === 0 ? '$0' : `$${thousands}k`;
+}
+
+/**
  * "62 years, 1 month" — the single source of truth for a years-and-months
  * age label.
  *

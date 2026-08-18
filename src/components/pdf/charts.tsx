@@ -1,7 +1,7 @@
 import { Text, View, Svg, Line, Path, Rect } from '@react-pdf/renderer';
 import type { ClaimingOption } from '../../lib/benefitMath';
 import { generateCumulativeChartData } from '../../lib/benefitMath';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatThousandsTick } from '../../lib/format';
 import {
   generateHeatmapData,
   generateOpportunityCostData,
@@ -13,7 +13,8 @@ import {
 import { styles, BORDER, CHART_INNER_W, GOLD, INK, MUTED, RED, SUBTLE } from './theme';
 
 /**
- * Axis labels in this file are built as a SINGLE template string, never as
+ * Axis labels in this file go through `formatThousandsTick`, which returns
+ * ONE string. Never build one as
  * `${'$'}{expr}k` across three JSX children. react-pdf lays out each child of
  * an SVG `Text` at the element's own x, so a multi-child label prints its
  * parts stacked on one point — which is how every y-axis tick here rendered
@@ -77,7 +78,7 @@ export function PdfChart({
         ))}
         {[0, 0.25, 0.5, 0.75, 1].map((t) => (
           <Text key={`y-${t}`} x={padL - 4} y={yScale(maxVal * t) + 2} style={TICK} textAnchor="end">
-            {`$${Math.round((maxVal * t) / 1000)}k`}
+            {formatThousandsTick(maxVal * t)}
           </Text>
         ))}
         {labelAges.map((age) => (
@@ -254,10 +255,10 @@ export function PdfMonthlyRamp({ options, optimalAge }: { options: ClaimingOptio
           </Text>
         ))}
         <Text x={padL - 3} y={yScale(maxM) + 2} style={TICK} textAnchor="end">
-          {`$${Math.round(maxM / 1000)}k`}
+          {formatThousandsTick(maxM)}
         </Text>
         <Text x={padL - 3} y={yScale(minM) + 2} style={TICK} textAnchor="end">
-          {`$${Math.round(minM / 1000)}k`}
+          {formatThousandsTick(minM)}
         </Text>
         <Path d={path} stroke={INK} strokeWidth={1.5} fill="none" />
         {data.map((d) => (
