@@ -400,16 +400,29 @@ test('drives the whole report from a scenario edited in the comparison table', a
 
   // Hiding a row takes it off the table; Optimal has no eye to hide it with.
   await expect(page.getByTestId('scenario-eye-optimal')).toHaveCount(0);
-  await page.getByTestId('scenario-eye-latest').click();
+
+  // Whichever built-in row this household actually reaches, rather than a
+  // named one: `latest` folds into `optimal` for any household whose optimum
+  // IS 70/70, which is common now that the optimizer runs to a plan-to age.
+  // Naming it made this test depend on the recommendation rather than on the
+  // eye.
+  const hideable = page
+    .locator('[data-testid^="scenario-eye-"]')
+    .and(page.locator(':not([data-testid="scenario-eye-s1"])'));
+  await expect(hideable.first()).toBeVisible();
+  const hiddenKey = await hideable
+    .first()
+    .evaluate((el) => el.getAttribute('data-testid')!.replace('scenario-eye-', ''));
+  await hideable.first().click();
   await expect(page.getByTestId('hidden-count')).toHaveText('1 hidden');
   await page.getByTestId('scenario-edit-toggle').click();
-  await expect(page.getByTestId('strategy-row-latest')).toHaveCount(0);
+  await expect(page.getByTestId(`strategy-row-${hiddenKey}`)).toHaveCount(0);
 
   // Reset restores the hidden row and the recommendation together.
   await page.getByTestId('scenario-edit-toggle').click();
   await page.getByTestId('scenario-reset').click();
   await page.getByTestId('scenario-edit-toggle').click();
-  await expect(page.getByTestId('strategy-row-latest')).toBeVisible();
+  await expect(page.getByTestId(`strategy-row-${hiddenKey}`)).toBeVisible();
   await expect(page.getByTestId('strategy-row-s1')).toHaveCount(0);
   await expect(eyebrow).toHaveText(/Recommended Strategy/);
 });

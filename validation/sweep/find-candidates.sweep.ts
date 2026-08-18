@@ -35,6 +35,17 @@ const PREDICATES: Record<string, (a: Awaited<ReturnType<typeof analyze>>) => boo
   // A spousal entitlement that never actually begins.
   'spousal-never-starts': (a) => !!a.spousalTopUp && a.spousalTopUp.startsAtSpouseAge === null,
   'survivor-under-60': (a) => !!a.survivorGap && a.survivorGap.survivorUnder60,
+  // A gap whose survivor has ALREADY filed, so both disclosed figures are
+  // contemporaneous — the branch `survivorGapNote` quotes two live amounts in.
+  'survivor-gap-filed': (a) =>
+    !!a.survivorGap && !a.survivorGap.survivorUnder60 && a.survivorGap.survivorOwnMonthly !== null,
+  // A spousal entitlement that DOES begin but pays nothing — the amount is
+  // fully absorbed by the lower earner's own delayed credits, and the start
+  // date is still a real date the report must keep.
+  'spousal-absorbed': (a) =>
+    !!a.spousalTopUp &&
+    a.spousalTopUp.startsAtSpouseAge !== null &&
+    a.spousalTopUp.atRecommendedFilingAge === 0,
 };
 
 describe.skipIf(!WANTED)('candidate search', () => {

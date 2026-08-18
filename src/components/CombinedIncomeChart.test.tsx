@@ -546,10 +546,29 @@ describe('CombinedIncomeChart', () => {
     // different rows just because rows are cheap — an unstaggered household
     // (the common case) should keep every label at the same, familiar
     // height rather than descending a step for no reason.
-    it('does not stagger markers that are already far apart', () => {
+    it('does not stagger markers that are already far apart', async () => {
+      // Its OWN household, not the shared `dan`/`sarah` fixture. Once the
+      // optimizer began honouring the plan-to age, that pair's two filing
+      // ages moved close enough together to stagger — so this test, which
+      // exists to prove the unstaggered case, was asserting the staggered
+      // one. A short-lived lower earner files at the floor while the higher
+      // earner delays, which is about as far apart as the two can be.
+      const shortLived = { ...sarah, lifeExpectancy: 72 };
+      const result = await analyzeHousehold(
+        { status: 'married', people: [dan, shortLived] },
+        assumptions,
+        asOf,
+      );
+
+      // Guard, so this cannot quietly become the staggered case again: the
+      // two filings must be years apart for the assertion below to mean
+      // anything at all.
+      const [danAge, sarahAge] = result.optimal.filingAges.map((f) => f.decimalYears);
+      expect(Math.abs(danAge - sarahAge)).toBeGreaterThan(5);
+
       const tree = CombinedIncomeChart({
-        monthlySeries: monthlySeriesWithSurvivor,
-        people: [dan, sarah],
+        monthlySeries: buildMonthlyIncomeSeries(result.periods, [dan, shortLived]),
+        people: [dan, shortLived],
       });
       const lines = collectReferenceLines(tree);
       const danLine = lines.find((rl) => labelText(rl) === 'Dan files')!;

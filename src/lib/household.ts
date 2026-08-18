@@ -1409,10 +1409,15 @@ export async function analyzeHousehold(
     const enginePeople = reorder(household.people);
     const [recipient0, recipient1] = enginePeople.map(createRecipientFor);
 
-    const ranked = await rankedCoupleStrategies(
+    // Plan-to ages in ENGINE slot order, like everything else in this block:
+    // the optimizer weights each recipient by their OWN horizon, and pairing
+    // person A's age with person B's recipient would silently swap which of
+    // them the household's inputs say outlives the other.
+    const ranked = rankedCoupleStrategies(
       recipient0,
       recipient1,
       assumptions.discountRate,
+      [enginePeople[0].lifeExpectancy, enginePeople[1].lifeExpectancy],
       asOf,
     );
     if (ranked.length === 0) {
@@ -1575,9 +1580,10 @@ export async function analyzeHousehold(
 
   const [person] = household.people;
   const recipient = createRecipientFor(person);
-  const recipientRanked = await rankedSingleStrategies(
+  const recipientRanked = rankedSingleStrategies(
     recipient,
     assumptions.discountRate,
+    person.lifeExpectancy,
     asOf,
   );
   if (recipientRanked.length === 0) {

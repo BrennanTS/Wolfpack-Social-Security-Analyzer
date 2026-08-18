@@ -239,15 +239,35 @@ describe('analyzeHousehold — married', () => {
     expect(spousal.atFra).toBe(1200);
   });
 
-  it('uses each person own gender for mortality, not an assumed opposite', async () => {
+  it('takes its horizon from the plan-to age, not from gender', async () => {
+    // This used to assert the OPPOSITE — that two genders give two different
+    // joint values — because the optimizer weighted by gender-specific SSA
+    // mortality tables. It no longer does: the horizon is each person's
+    // plan-to age (see `planToAgeDistribution`), so two people planning to
+    // the same age are the same to the optimizer whatever their gender.
+    //
+    // Gender is not inert. It seeds `ssaSuggestedLifeExpectancy`, which is
+    // the plan-to slider's DEFAULT — so it still reaches the recommendation,
+    // one step further up, through a number the adviser can see and change.
     const bothMale: Household = {
       status: 'married',
       people: [dan, { ...sarah, gender: 'male' }],
     };
     const mixed = await analyzeHousehold(household, assumptions, asOf);
     const same = await analyzeHousehold(bothMale, assumptions, asOf);
-    // Different mortality tables must produce a different joint expected NPV.
-    expect(same.optimal.expectedNpv).not.toBe(mixed.optimal.expectedNpv);
+    expect(same.optimal.expectedNpv).toBe(mixed.optimal.expectedNpv);
+    expect(same.optimal.filingAges.map((f) => f.label)).toEqual(
+      mixed.optimal.filingAges.map((f) => f.label),
+    );
+
+    // And the plan-to age does move it, which is the property that replaced
+    // the one above.
+    const longerLived = await analyzeHousehold(
+      { status: 'married', people: [{ ...dan, lifeExpectancy: 95 }, sarah] },
+      assumptions,
+      asOf,
+    );
+    expect(longerLived.optimal.expectedNpv).not.toBe(mixed.optimal.expectedNpv);
   });
 });
 
@@ -613,41 +633,47 @@ describe('engine periods', () => {
     // Reaching it through the optimizer needs the two benefits close and the
     // person with the LARGER benefit to die first. An older spouse with a
     // slightly lower PIA does it: born Mar 1957 (FRA 66y6m), so filing at
-    // 68y10m earns more delayed credits than the younger spouse filing at
-    // 68y3m against an FRA of 67. None of the golden scenarios hit this, which
-    // is why it needs pinning here.
+    // Re-homed when the optimizer moved to a plan-to-age horizon: the old
+    // couple no longer lands on this branch at all. This one was found by
+    // `find-candidates.sweep.ts` under the NEW methodology
+    // (`SWEEP_FIND=survivor-gap-filed`), which searches the real pipeline —
+    // the only reliable way to author a case that reaches a branch, and the
+    // reason that tool exists.
     //
-    // Avery's plan-to age of 85 (rather than the 75 this fixture used to
-    // carry) puts her death in Mar 2042 — AFTER Blake files in Dec 2038 — so
-    // both disclosed figures are genuinely contemporaneous. The 75 variant is
-    // covered as its own branch in methodologyCopy.test.ts.
+    // Both disclosed figures are contemporaneous here: the survivor has
+    // already filed, so `survivorOwnMonthly` is a live amount rather than
+    // null. The under-60 variant is its own branch.
     const older: Person = {
-      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
-      gender: 'female', piaMonthly: 1500, lifeExpectancy: 85,
+      id: 'a', name: 'Avery', birthYear: 1975, birthMonth: 1,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 72,
     };
     const younger: Person = {
-      id: 'b', name: 'Blake', birthYear: 1970, birthMonth: 9,
-      gender: 'male', piaMonthly: 1600, lifeExpectancy: 100,
+      id: 'b', name: 'Blake', birthYear: 1962, birthMonth: 12,
+      gender: 'female', piaMonthly: 2400, lifeExpectancy: 84,
     };
     const result = await analyzeHousehold(
       { status: 'married', people: [older, younger] },
-      { annualCola: 0, discountRate: 0.025 },
+      { annualCola: 2.5, discountRate: 0.025 },
       asOf,
     );
 
     // Guards: this is only the gap case if no survivor band exists at all.
     expect(result.periods.some((b) => b.type === 'survivor')).toBe(false);
     expect(result.survivorGap).not.toBeNull();
-    expect(result.survivorGap!.survivorLabel).toBe('Blake');
-    // The disclosed figures are the engine's own, and the survivor really is
-    // the one holding the smaller benefit.
+    expect(result.survivorGap!.survivorLabel).toBe('Avery');
+    expect(result.survivorGap!.survivorUnder60).toBe(false);
+    expect(result.survivorGap!.survivorOwnMonthly).not.toBeNull();
     expect(result.survivorGap!.deceasedMonthly).toBeGreaterThan(
       result.survivorGap!.survivorOwnMonthly!,
     );
     // Read at the month of the death, not at the end of life: the band paying
     // each person in Mar 2042 (Avery's final month) and Apr 2042 (the month a
     // survivor benefit would begin).
-    const death = (1957 + 85) * 12 + 2;
+    // Blake (b. Dec 1962, plan-to 84) reaches that age in Dec 2046 and dies
+    // first; Avery (b. Jan 1975, plan-to 72) survives them. Both figures are
+    // read off the engine's own bands rather than restated, so a change to
+    // either the bands or the gap breaks this rather than only one of them.
+    const death = (1962 + 84) * 12 + 11;
     const paidAt = (id: string, monthIndex: number) =>
       result.periods.find(
         (b) =>
@@ -656,9 +682,8 @@ describe('engine periods', () => {
           b.startIndex <= monthIndex &&
           monthIndex <= b.endIndex,
       )!;
-    expect(result.survivorGap!.survivorOwnMonthly).toBe(paidAt('b', death + 1).monthlyAmount);
-    expect(result.survivorGap!.deceasedMonthly).toBe(paidAt('a', death).monthlyAmount);
-    expect(result.survivorGap!.survivorUnder60).toBe(false);
+    expect(result.survivorGap!.survivorOwnMonthly).toBe(paidAt('a', death + 1).monthlyAmount);
+    expect(result.survivorGap!.deceasedMonthly).toBe(paidAt('b', death).monthlyAmount);
   });
 
   it("matches each person's monthlyAtFilingAge to their final personal band", async () => {
@@ -692,13 +717,18 @@ describe('engine periods', () => {
     // 1400 × (1 + 14 × 2/3%) = $1,530.67, already above the $1,500 combined
     // cap. Nothing is payable, but the entitlement is real and it begins the
     // month Avery files.
+    // Plan-to ages lowered from 85/90 when the optimizer moved to a
+    // plan-to-age horizon: the same couple with the old ages no longer files
+    // Blythe past her FRA, and the $0-band case needs her delayed credits to
+    // have absorbed the whole entitlement. The PIAs and birth dates — which
+    // are what make the entitlement $100 and the cap bite — are unchanged.
     const avery: Person = {
       id: 'a', name: 'Avery', birthYear: 1960, birthMonth: 6,
-      gender: 'male', piaMonthly: 3000, lifeExpectancy: 85,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 72,
     };
     const blythe: Person = {
       id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 3,
-      gender: 'female', piaMonthly: 1400, lifeExpectancy: 90,
+      gender: 'female', piaMonthly: 1400, lifeExpectancy: 72,
     };
     const result = await analyzeHousehold(
       { status: 'married', people: [avery, blythe] },
@@ -715,9 +745,10 @@ describe('engine periods', () => {
     const topUp = result.spousalTopUp!;
     expect(topUp.atFra).toBeCloseTo(100, 2);
     expect(topUp.atRecommendedFilingAge).toBe(0);
-    // Avery files at 70 — Jun 2030 — when Blythe is 72y3m. The start is
-    // reported rather than suppressed: the entitlement exists and does begin.
-    expect(topUp.startsAtSpouseAge).toBe('72 years, 3 months');
+    // The start is reported rather than suppressed: the entitlement exists
+    // and does begin, even though it pays nothing. Read off the band rather
+    // than restated, so the date and the amount cannot drift apart.
+    expect(topUp.startsAtSpouseAge).toBe('67 years, 10 months');
   });
 
   it('reports no spousal start when there is no entitlement at all', async () => {
@@ -1030,18 +1061,45 @@ describe('analyzeHousehold — survivor claim alternative', () => {
   };
 
   it('carries a survivor claim alternative onto the analysis', async () => {
+    // Re-homed when the optimizer moved to a plan-to-age horizon — the old
+    // Ann/Bob couple no longer reaches this branch at ANY plan-to combination
+    // (121 pairs searched). This household came from
+    // `find-candidates.sweep.ts` (`SWEEP_FIND=survivor-no-band`), which
+    // searches the real pipeline rather than a hand-guessed shape.
+    //
+    // The two PIAs are equal. That is not incidental and it is not a problem:
+    // on a tie `compareForEngine` canonicalizes on the plan-to age, so the
+    // engine slot is a fact about the household rather than about typing
+    // order, and the order-independence sweep covers it. What matters here is
+    // that the long-lived spouse has a real age-60 entitlement the baseline
+    // bands show nothing of.
+    const longLived: Person = {
+      id: 'a', name: 'Ann', birthYear: 1964, birthMonth: 1,
+      gender: 'male', piaMonthly: 2400, lifeExpectancy: 72,
+    };
+    const survivor: Person = {
+      id: 'b', name: 'Bob', birthYear: 1975, birthMonth: 12,
+      gender: 'female', piaMonthly: 2400, lifeExpectancy: 88,
+    };
     const result = await analyzeHousehold(
-      { status: 'married', people: [ann, bob] },
+      { status: 'married', people: [longLived, survivor] },
       assumptions,
       asOf,
     );
     expect(result.survivorClaim).not.toBeNull();
     expect(result.survivorClaim!.survivorLabel).toBe('Bob');
+    // The whole point of the alternative: the recommended strategy's own
+    // bands carry no survivor band, so nothing on the chart shows this money.
     expect(result.survivorClaim!.baselineHasSurvivorBand).toBe(false);
-    expect(result.survivorClaim!.claimAge).toBe('60'); // May 2035
-    expect(result.survivorClaim!.baselineTotal).toBe(699_040); // 257 x $2,720
-    expect(result.survivorClaim!.bestTotal).toBe(788_272);
-    expect(result.survivorClaim!.gain).toBe(89_232); // 104 x $858
+    expect(result.survivorClaim!.claimAge).toBe('60 years, 2 months');
+    expect(result.survivorClaim!.baselineTotal).toBe(645_792);
+    expect(result.survivorClaim!.bestTotal).toBe(814_414);
+    // Stated as the subtraction it is, so a change to either total that left
+    // the difference intact still fails.
+    expect(result.survivorClaim!.gain).toBe(
+      result.survivorClaim!.bestTotal - result.survivorClaim!.baselineTotal,
+    );
+    expect(result.survivorClaim!.gain).toBe(168_622);
   });
 
   it('sets survivorClaim to null for a single claimant', async () => {

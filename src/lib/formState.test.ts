@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PLAN_TO_AGE } from './formBounds';
 import type { Household } from './household';
 import type { Person } from './personAnalysis';
 import {
@@ -218,18 +219,22 @@ describe('per-person life expectancy', () => {
     monthlyBenefit: 1200, lifeExpectancy: null,
   };
 
-  it('gives each person their own suggested value when neither is set', () => {
+  it('falls back to the fixed default, never to the other person\u2019s value', () => {
     const household = toHousehold({
       ...BLANK_FORM,
       personA: { ...male, lifeExpectancy: 85 },
       personB: female,
       maritalStatus: 'married' as const,
     });
-    // Asserts the invariant directly: person B's fallback is B's own SSA
-    // suggestion, not A's explicit 85 leaking across. Both sides read the
-    // same wall clock via suggestedLifeExpectancyFor, so this stays
-    // time-proof without hard-coding an absolute age (see the plan's note).
-    expect(asMarried(household)[1].lifeExpectancy).toBe(suggestedLifeExpectancyFor(female));
+    // The fallback used to be B's own SSA period-table suggestion. It is now
+    // `DEFAULT_PLAN_TO_AGE`, because the optimizer takes its horizon from
+    // this number and a table-derived figure should not drive a
+    // recommendation the adviser never chose.
+    //
+    // The invariant this has always guarded is unchanged and is the reason
+    // the test survives the rewrite: A's explicit 85 must not leak into B.
+    expect(asMarried(household)[1].lifeExpectancy).toBe(DEFAULT_PLAN_TO_AGE);
+    expect(asMarried(household)[1].lifeExpectancy).not.toBe(85);
   });
 
   it('uses an explicit value for person B rather than the fallback', () => {
@@ -280,17 +285,45 @@ describe('reseedLifeExpectancy', () => {
     expect(reseedLifeExpectancy(person, next)).toEqual(next);
   });
 
-  it('re-seeds when the birth year changes', () => {
-    const next = { ...person, birthYear: 1958, lifeExpectancy: 95 };
-    const result = reseedLifeExpectancy(person, next);
-    expect(result.lifeExpectancy).toBe(suggestedLifeExpectancyFor(next));
-    expect(result.lifeExpectancy).not.toBe(95);
+  it('leaves an identity edit alone rather than re-seeding the horizon', () => {
+    // This used to re-seed the plan-to age from the SSA period table whenever
+    // birth year, birth month or gender changed. Now that the optimizer runs
+    // on that horizon, re-seeding would move the RECOMMENDATION from a table
+    // the adviser never chose — silently, on an unrelated correction.
+    expect(reseedLifeExpectancy(person, { ...person, birthYear: 1955 }).lifeExpectancy).toBe(95);
+    expect(reseedLifeExpectancy(person, { ...person, birthMonth: 1 }).lifeExpectancy).toBe(95);
+    expect(reseedLifeExpectancy(person, { ...person, gender: 'male' }).lifeExpectancy).toBe(95);
   });
 
-  it('re-seeds when gender changes', () => {
-    const next = { ...person, gender: 'male' as const, lifeExpectancy: 95 };
-    const result = reseedLifeExpectancy(person, next);
-    expect(result.lifeExpectancy).toBe(suggestedLifeExpectancyFor(next));
+  it('still leaves the SSA suggestion available, as a figure to choose', () => {
+    // `suggestedLifeExpectancyFor` is not dead — the assumptions panel prints
+    // it beside the slider with a button to adopt it. What changed is that
+    // nothing applies it on the adviser's behalf.
+    expect(suggestedLifeExpectancyFor(person)).not.toBeNull();
+    expect(suggestedLifeExpectancyFor({ ...person, gender: 'male' })).not.toBe(
+      suggestedLifeExpectancyFor(person),
+    );
+  });
+});
+
+describe('reseedLifeExpectancy', () => {
+  // Both born 1960 — see the note above on why absolute ages are not asserted.
+  const person: PersonFormFields = {
+    name: 'Sarah', birthYear: 1960, birthMonth: 6, gender: 'female',
+    monthlyBenefit: 2100, lifeExpectancy: 95,
+  };
+
+  it('survives an unrelated field edit — the bug this guards against', () => {
+    // An adviser drags the slider to 95, then fixes an unrelated field (here,
+    // a benefit correction). Before this fix, the re-seed ran on every
+    // change and silently snapped 95 back to the SSA suggestion.
+    const next = { ...person, monthlyBenefit: 2150 };
+    expect(reseedLifeExpectancy(person, next)).toEqual(next);
+  });
+
+  it('survives a name correction too', () => {
+    const next = { ...person, name: 'Sarah Smith' };
+    expect(reseedLifeExpectancy(person, next)).toEqual(next);
   });
 
   it('leaves the value untouched when identity changes but is now incomplete', () => {

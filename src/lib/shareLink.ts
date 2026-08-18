@@ -1,6 +1,7 @@
 import type { DollarsMode } from './dollarsMode';
 import {
   COLA_BOUNDS,
+  DEFAULT_PLAN_TO_AGE,
   isBenefitInRange,
   isDiscountRateInBounds,
   isInBounds,
@@ -284,10 +285,20 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
   if (personA.lifeExpectancy === null) {
     personA.lifeExpectancy = readLifeExpectancy(params, 'le');
   }
+  // A link that carries no plan-to age gets the default, not null. This is
+  // the one field where "dropped, not clamped" cannot mean "left blank so the
+  // form visibly asks for it" — the slider always shows a number, and since
+  // the optimizer takes its horizon from this one, null would mean no
+  // analysis at all. Same treatment `annualCola` and `discountRate` get.
+  const withDefaultHorizon = (p: PersonFormFields): PersonFormFields =>
+    p.lifeExpectancy === null ? { ...p, lifeExpectancy: DEFAULT_PLAN_TO_AGE } : p;
 
   return {
-    personA,
-    personB: maritalStatus === 'married' ? readPerson(params, 'b') : BLANK_FORM.personB,
+    personA: withDefaultHorizon(personA),
+    personB:
+      maritalStatus === 'married'
+        ? withDefaultHorizon(readPerson(params, 'b'))
+        : BLANK_FORM.personB,
     maritalStatus,
     ...(maritalStatus === 'widowed'
       ? readWidowed(params)

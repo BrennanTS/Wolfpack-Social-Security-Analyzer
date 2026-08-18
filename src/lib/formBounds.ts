@@ -22,6 +22,25 @@ export const MAX_BENEFIT = 5000;
 export const LIFE_EXPECTANCY_BOUNDS = { min: 75, max: 100 } as const;
 
 /**
+ * The plan-to age a household starts on.
+ *
+ * A flat 95, NOT the SSA period-table suggestion this used to seed. Since the
+ * optimizer began taking its horizon from this number
+ * (`planToAgeDistribution`), it is the single input that most moves the
+ * recommendation — and seeding it from a mortality table put a
+ * gender-and-age-derived figure in the driving seat without the adviser ever
+ * choosing it. A conservative fixed default is the honest starting point: it
+ * is visible, it is the same for everyone, and it is one click from the SSA
+ * suggestion, which the assumptions panel still offers beside it.
+ *
+ * 95 rather than a table age is also the planning-conservative direction. An
+ * adviser who plans to 95 and is wrong has recommended delaying slightly too
+ * long; one who plans to 82 and is wrong has recommended claiming early and
+ * cannot undo it.
+ */
+export const DEFAULT_PLAN_TO_AGE = 95;
+
+/**
  * UNITS — these two differ, and getting it wrong is silent.
  *
  * `annualCola` is stored as a percent (2.5 means 2.5%), and its slider binds

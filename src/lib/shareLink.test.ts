@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PLAN_TO_AGE, LIFE_EXPECTANCY_BOUNDS } from './formBounds';
 import { BLANK_FORM, type AnalyzerFormState } from './formState';
 import { buildShareUrl, fromShareParams, toShareParams } from './shareLink';
 import {
@@ -20,7 +21,11 @@ const married: AnalyzerFormState = {
   },
   personB: {
     name: 'Sarah', birthYear: 1964, birthMonth: 2, gender: 'female',
-    monthlyBenefit: 2100, lifeExpectancy: null,
+    // Was null. A person with no plan-to age set now carries the default
+    // rather than nothing, so a round trip returns the default rather than
+    // the null this fixture used to assert — the field never travels as
+    // absent-and-meaningful any more.
+    monthlyBenefit: 2100, lifeExpectancy: DEFAULT_PLAN_TO_AGE,
   },
   maritalStatus: 'married',
   annualCola: 2.5,
@@ -103,13 +108,19 @@ describe('invalid parameters are dropped, never clamped', () => {
 
   it('drops non-numeric junk', () => {
     expect(parse('ab=abc').personA.monthlyBenefit).toBe('');
-    expect(parse('le=soon').personA.lifeExpectancy).toBeNull();
+    // Not null: this is the one field with no blank state — the slider
+    // always shows a number and the optimizer takes its horizon from it — so
+    // an unusable value gets the same default an untouched form has, which
+    // is still a refusal to clamp 'soon' into something plausible.
+    expect(parse('le=soon').personA.lifeExpectancy).toBe(DEFAULT_PLAN_TO_AGE);
   });
 
   it('drops assumptions outside their slider bounds', () => {
     expect(parse('cola=99').annualCola).toBe(BLANK_FORM.annualCola);
     expect(parse('dr=99').discountRate).toBe(BLANK_FORM.discountRate);
-    expect(parse('le=200').personA.lifeExpectancy).toBeNull();
+    expect(parse('le=200').personA.lifeExpectancy).toBe(DEFAULT_PLAN_TO_AGE);
+    // The point of "never clamped": 200 does not become the 100 maximum.
+    expect(parse('le=200').personA.lifeExpectancy).not.toBe(LIFE_EXPECTANCY_BOUNDS.max);
   });
 
   // Unlike the numeric fields above, there is no bounds check to fail here —
@@ -220,13 +231,15 @@ describe('per-person life expectancy params', () => {
     const back = fromShareParams(
       new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&by=1962&bm=3&bg=f&bb=1200&m=1&ale=200&ble=92'),
     );
-    expect(back.personA.lifeExpectancy).toBeNull();
+    expect(back.personA.lifeExpectancy).toBe(DEFAULT_PLAN_TO_AGE);
+    // The invariant this has always guarded: one person's bad value must not
+    // reach the other, and B's own 92 survives untouched.
     expect(back.personB.lifeExpectancy).toBe(92);
   });
 
   it('drops non-numeric junk', () => {
     const back = fromShareParams(new URLSearchParams('ay=1960&am=6&ag=m&ab=2500&m=0&ale=eighty'));
-    expect(back.personA.lifeExpectancy).toBeNull();
+    expect(back.personA.lifeExpectancy).toBe(DEFAULT_PLAN_TO_AGE);
   });
 });
 

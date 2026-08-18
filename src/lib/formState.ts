@@ -1,6 +1,6 @@
 import { CPI_DEFAULT_COLA } from './cpiHistory';
 import type { DollarsMode } from './dollarsMode';
-import { isBenefitInRange } from './formBounds';
+import { DEFAULT_PLAN_TO_AGE, isBenefitInRange } from './formBounds';
 import { analyzeHousehold, type Household, type HouseholdAnalysis } from './household';
 import { getCurrentAge, type Gender, type Person } from './personAnalysis';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
@@ -24,8 +24,13 @@ export interface PersonFormFields {
   gender: Gender | null;
   monthlyBenefit: number | '';
   /**
-   * Plan-to age. Null means "use the SSA suggestion for this person", which
-   * is what person B received unconditionally before this field existed.
+   * Plan-to age, and since the optimizer began taking its horizon from it
+   * (`planToAgeDistribution`), the input that most moves the recommendation.
+   *
+   * Null means "not yet set", which now falls back to `DEFAULT_PLAN_TO_AGE`
+   * rather than to the SSA period-table suggestion for this person's age and
+   * gender. The suggestion is still offered beside the slider — it is a
+   * secondary reference, not the driver.
    */
   lifeExpectancy: number | null;
 }
@@ -71,7 +76,10 @@ const BLANK_PERSON: PersonFormFields = {
   birthMonth: '',
   gender: null,
   monthlyBenefit: '',
-  lifeExpectancy: null,
+  // Set, not null. `reseedLifeExpectancy` no longer fills this in from the
+  // SSA table on the first identity edit, so leaving it null would leave
+  // `isFormComplete` permanently false — the form would never analyse at all.
+  lifeExpectancy: DEFAULT_PLAN_TO_AGE,
 };
 
 export const BLANK_FORM: AnalyzerFormState = {
@@ -146,25 +154,25 @@ export function suggestedLifeExpectancyFor(fields: PersonFormFields): number | n
 }
 
 /**
- * Decides whether an edit to a person's fields should re-seed their
- * suggested life expectancy. Re-seeding must happen only when the identity
- * inputs (birth year, birth month, gender) actually changed — never on an
- * unrelated edit (name, benefit). Without this guard, correcting a benefit
- * amount silently snapped an adviser-set life expectancy back to the SSA
- * suggestion, moving every lifetime total with nothing on screen saying so.
- * Applies to both people identically.
+ * Carries a person's edits through untouched.
+ *
+ * This used to re-seed the plan-to age from the SSA period table whenever the
+ * identity inputs changed, so correcting a birth year moved the horizon — and
+ * now that the optimizer runs on that horizon, it would move the
+ * recommendation too, from a table the adviser never chose. The plan-to age
+ * is theirs to set: it starts at `DEFAULT_PLAN_TO_AGE` and changes only when
+ * they change it, or when they press the SSA-suggestion button beside the
+ * slider.
+ *
+ * Kept as a named function rather than deleted at the call sites: `Analyzer`
+ * routes both people's edits through it, and a future rule about what an
+ * identity change should do belongs here rather than in two components.
  */
 export function reseedLifeExpectancy(
-  prev: PersonFormFields,
+  _prev: PersonFormFields,
   next: PersonFormFields,
 ): PersonFormFields {
-  const identityChanged =
-    prev.birthYear !== next.birthYear ||
-    prev.birthMonth !== next.birthMonth ||
-    prev.gender !== next.gender;
-  if (!identityChanged) return next;
-  const suggested = suggestedLifeExpectancyFor(next);
-  return suggested === null ? next : { ...next, lifeExpectancy: suggested };
+  return next;
 }
 
 function toPerson(fields: PersonFormFields, id: 'a' | 'b'): Person {
@@ -175,9 +183,11 @@ function toPerson(fields: PersonFormFields, id: 'a' | 'b'): Person {
     birthMonth: fields.birthMonth as number,
     gender: fields.gender as Gender,
     piaMonthly: fields.monthlyBenefit as number,
-    // Falling back to the SSA suggestion reproduces exactly what person B
-    // received before this field existed, so no existing analysis moves.
-    lifeExpectancy: fields.lifeExpectancy ?? (suggestedLifeExpectancyFor(fields) as number),
+    // `DEFAULT_PLAN_TO_AGE`, not the SSA suggestion — see the field's own
+    // note. A household reaching the engine with no plan-to age set gets the
+    // same horizon as one the adviser left alone, rather than a different one
+    // derived from their gender.
+    lifeExpectancy: fields.lifeExpectancy ?? DEFAULT_PLAN_TO_AGE,
   };
 }
 

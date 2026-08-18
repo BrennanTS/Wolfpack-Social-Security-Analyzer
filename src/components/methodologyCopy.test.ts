@@ -1080,31 +1080,36 @@ describe('the survivor-gap note over real households', () => {
       .reduce((latest, x) => (x.startIndex > latest.startIndex ? x : latest));
 
   it('quotes contemporaneous figures when the survivor has already filed', async () => {
-    // Avery (b. Mar 1957, PIA $1,500, plan-to 85) is the engine's dependent
-    // and dies Mar 2042. Blake (b. Sep 1970, PIA $1,600, plan-to 100) is the
-    // earner, has filed by then, and holds the smaller benefit.
+    // Re-homed when the optimizer moved to a plan-to-age horizon; the old
+    // couple stopped reaching this branch. Found by
+    // `find-candidates.sweep.ts` (`SWEEP_FIND=survivor-gap-filed`), which
+    // searches the real pipeline. Avery is the SURVIVOR here — the shorter
+    // plan-to age belongs to the person who nonetheless outlives the other,
+    // because Blake is eleven years older.
     const avery: Person = {
-      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
-      gender: 'female', piaMonthly: 1500, lifeExpectancy: 85,
+      id: 'a', name: 'Avery', birthYear: 1975, birthMonth: 1,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 72,
     };
     const blake: Person = {
-      id: 'b', name: 'Blake', birthYear: 1970, birthMonth: 9,
-      gender: 'male', piaMonthly: 1600, lifeExpectancy: 100,
+      id: 'b', name: 'Blake', birthYear: 1962, birthMonth: 12,
+      gender: 'female', piaMonthly: 2400, lifeExpectancy: 84,
     };
     const analysis = await run(avery, blake);
-    const death = (1957 + 85) * 12 + 2; // Mar 2042, inclusive.
+    const death = (1962 + 84) * 12 + 11; // Dec 2046, inclusive — Blake's.
 
     expect(analysis.survivorGap).not.toBeNull();
     const gap = analysis.survivorGap!;
-    expect(gap.survivorLabel).toBe('Blake');
+    expect(gap.survivorLabel).toBe('Avery');
     expect(gap.survivorUnder60).toBe(false);
-    // Both figures are what each person is actually paid at that death.
-    expect(gap.deceasedMonthly).toBe(paidAt(analysis, 'a', death)!.monthlyAmount);
-    expect(gap.survivorOwnMonthly).toBe(paidAt(analysis, 'b', death + 1)!.monthlyAmount);
+    // Both figures are what each person is actually paid at that death —
+    // read off the bands rather than restated, so the note and the chart
+    // cannot drift apart.
+    expect(gap.deceasedMonthly).toBe(paidAt(analysis, 'b', death)!.monthlyAmount);
+    expect(gap.survivorOwnMonthly).toBe(paidAt(analysis, 'a', death + 1)!.monthlyAmount);
 
     const note = survivorGapNote(gap)!;
-    expect(note).toContain('$1,780.00/mo'); // Avery's, at the death
-    expect(note).toContain('$1,760.00/mo'); // Blake's own, that same month
+    expect(note).toContain('$2,608.00/mo'); // Blake's, at the death
+    expect(note).toContain('$2,112.00/mo'); // Avery's own, that same month
     expect(note).toContain('lower than SSA would pay');
   });
 

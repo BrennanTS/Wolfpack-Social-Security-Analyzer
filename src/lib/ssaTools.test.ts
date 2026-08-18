@@ -1,28 +1,20 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDeathProbabilityDistribution } from '$lib/life-tables';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { MonthDuration } from '$lib/month-time';
 import {
   createPiaRecipient,
   findStrategyByAges,
   fraFromBirthYear,
   isSsaClaimAgeEligible,
+  lifetimeNpvToAge,
   monthDateFrom,
   nearestWholeClaimAge,
   rankedCoupleStrategies,
   rankedSingleStrategies,
   ssaMonthlyBenefitAtAge,
 } from './ssaTools';
-
-// Spy on the vendored mortality entry point while still executing the real
-// life tables, so the determinism tests below can assert which reference year
-// the survival curve is conditioned on. Behaviour is unchanged for every other
-// test in this file — the spy just delegates.
-vi.mock('$lib/life-tables', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('$lib/life-tables')>();
-  return { ...actual, getDeathProbabilityDistribution: vi.fn(actual.getDeathProbabilityDistribution) };
-});
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
@@ -160,9 +152,9 @@ describe('ranked strategies', () => {
 
   const asOf = new Date(2026, 0, 15);
 
-  it('returns single strategies sorted best-first', async () => {
+  it('returns single strategies sorted best-first', () => {
     const r = createPiaRecipient(1962, 6, 2500, 'female');
-    const ranked = await rankedSingleStrategies(r, 0.025, asOf);
+    const ranked = rankedSingleStrategies(r, 0.025, 85, asOf);
     expect(ranked.length).toBeGreaterThan(1);
     expect(ranked[0].filingAges).toHaveLength(1);
     for (let i = 1; i < ranked.length; i++) {
@@ -170,18 +162,18 @@ describe('ranked strategies', () => {
     }
   });
 
-  it('returns couple strategies with one filing age per person, sorted best-first', async () => {
+  it('returns couple strategies with one filing age per person, sorted best-first', () => {
     const a = createPiaRecipient(1962, 6, 3200, 'male');
     const b = createPiaRecipient(1964, 2, 2100, 'female');
-    const ranked = await rankedCoupleStrategies(a, b, 0.025, asOf);
+    const ranked = rankedCoupleStrategies(a, b, 0.025, [85, 88], asOf);
     expect(ranked[0].filingAges).toHaveLength(2);
     expect(ranked[0].expectedNpv).toBeGreaterThanOrEqual(ranked[1].expectedNpv);
   });
 
-  it('finds an exact whole-year combination and returns null when absent', async () => {
+  it('finds an exact whole-year combination and returns null when absent', () => {
     const a = createPiaRecipient(1962, 6, 3200, 'male');
     const b = createPiaRecipient(1964, 2, 2100, 'female');
-    const ranked = await rankedCoupleStrategies(a, b, 0.025, asOf);
+    const ranked = rankedCoupleStrategies(a, b, 0.025, [85, 88], asOf);
 
     const both70 = findStrategyByAges(ranked, [
       { years: 70, months: 0 },
@@ -200,49 +192,93 @@ describe('ranked strategies', () => {
     ).toBeNull();
   });
 
-  // Regression: the mortality distribution used to be requested with no
-  // reference year, so `getDeathProbabilityDistribution` fell back to its
-  // `new Date().getFullYear()` default. Every expected NPV was then weighted
-  // by a survival curve conditioned on the wall clock while the optimizer ran
-  // from `asOf` — meaning results silently changed every 1 January and the
-  // one fixture pinned to a past year was never actually evaluated in it.
-  describe('asOf determinism', () => {
-    const distSpy = vi.mocked(getDeathProbabilityDistribution);
+  /**
+   * The mortality assumption is now the plan-to age, not an SSA survival
+   * curve — see `planToAgeDistribution`. What replaced the old
+   * `asOf`-determinism guards is the property their absence hid for the life
+   * of the project: that the slider reaches the recommendation at all.
+   *
+   * Until this change `rankedSingleStrategies` weighted by
+   * `getDeathProbabilityDistribution`, which never reads the plan-to age, so
+   * a claimant planning to 70 and one planning to 100 got the same filing age
+   * and the same present value to the cent.
+   */
+  describe('the plan-to age reaches the recommendation', () => {
+    const r = () => createPiaRecipient(1978, 12, 3962, 'male');
 
-    beforeEach(() => {
-      distSpy.mockClear();
+    it('moves the recommended filing age', () => {
+      const short = rankedSingleStrategies(r(), 0.025, 70, asOf)[0];
+      const long = rankedSingleStrategies(r(), 0.025, 95, asOf)[0];
+      expect(short.filingAges[0].label).not.toBe(long.filingAges[0].label);
+      // And in the direction anyone would expect: a longer horizon rewards
+      // delaying.
+      expect(long.filingAges[0].decimalYears).toBeGreaterThan(short.filingAges[0].decimalYears);
     });
 
-    it('conditions the single survival curve on asOf, not the wall clock', async () => {
-      const r = createPiaRecipient(1962, 6, 2500, 'female');
-      await rankedSingleStrategies(r, 0.025, new Date(2024, 0, 15));
-      expect(distSpy).toHaveBeenCalledWith(r, 2024);
-    });
-
-    it('conditions both couple survival curves on asOf', async () => {
-      const a = createPiaRecipient(1962, 6, 3200, 'male');
-      const b = createPiaRecipient(1964, 2, 2100, 'female');
-      await rankedCoupleStrategies(a, b, 0.025, new Date(2024, 0, 15));
-      expect(distSpy).toHaveBeenCalledWith(a, 2024);
-      expect(distSpy).toHaveBeenCalledWith(b, 2024);
-    });
-
-    it('produces identical rankings for a fixed asOf no matter what year it is run in', async () => {
-      const build = () => createPiaRecipient(1962, 6, 2500, 'female');
-      const pinned = new Date(2026, 0, 15);
-
-      const baseline = await rankedSingleStrategies(build(), 0.025, pinned);
-
-      // Fake only Date, so the async life-table fetch still resolves.
-      vi.useFakeTimers({ toFake: ['Date'] });
-      try {
-        vi.setSystemTime(new Date(2031, 5, 1));
-        const later = await rankedSingleStrategies(build(), 0.025, pinned);
-        expect(later.map((s) => s.expectedNpv)).toEqual(baseline.map((s) => s.expectedNpv));
-        expect(later[0].filingAges[0].label).toBe(baseline[0].filingAges[0].label);
-      } finally {
-        vi.useRealTimers();
+    it('moves the value, monotonically', () => {
+      const values = [70, 80, 90, 100].map(
+        (age) => rankedSingleStrategies(r(), 0.025, age, asOf)[0].expectedNpv,
+      );
+      for (let i = 1; i < values.length; i++) {
+        expect(values[i]).toBeGreaterThan(values[i - 1]);
       }
+    });
+
+    it('wires each spouse to their OWN horizon, slot by slot', () => {
+      // One horizon at a time, holding the other fixed. Swapping the pair is
+      // NOT a test of this: for a high-earner/low-earner couple the answer is
+      // 70 / 62y1m whichever of them lives longer — he delays either way,
+      // because delaying raises the survivor benefit she inherits, and she
+      // claims early either way, because she inherits it. That looked like a
+      // finding and was not.
+      const a = () => createPiaRecipient(1962, 4, 2400, 'male');
+      const b = () => createPiaRecipient(1964, 9, 1200, 'female');
+      const ages = (planTo: [number, number]) =>
+        rankedCoupleStrategies(a(), b(), 0.025, planTo, asOf)[0].filingAges.map((f) => f.label);
+
+      // Slot 0's horizon reaches slot 0.
+      expect(ages([70, 85])).not.toEqual(ages([95, 85]));
+      // Slot 1's reaches slot 1.
+      expect(ages([85, 70])).not.toEqual(ages([85, 95]));
+    });
+
+    it('prices to the plan-to age, verified against an independent sum', () => {
+      // The strongest available check that the point mass means what it says,
+      // and the one that made re-recording every golden fixture safe.
+      //
+      // At a 0% discount rate the optimizer's figure is a plain sum of
+      // benefits, so it can be compared with `lifetimeNpvToAge` — which walks
+      // the same stream by a different route. They differ by EXACTLY six
+      // months of benefit at every filing age, which is the documented seam
+      // (`planToAgeDistribution`): the engine buckets a death age to
+      // `{years: N, months: 6}` and `lifetimeNpvToAge` stops at
+      // `{years: N, months: 0}`. Anything other than exactly six months would
+      // mean the horizon is not the one this app thinks it is.
+      const r = createPiaRecipient(1965, 4, 3000, 'male');
+      const ranked = rankedSingleStrategies(r, 0, 85, asOf);
+
+      for (const age of [64, 67, 70]) {
+        const filingAge = MonthDuration.initFromYearsMonths({ years: age, months: 0 });
+        const row = ranked.find(
+          (x) => x.filingAges[0].years === age && x.filingAges[0].months === 0,
+        )!;
+        const toEightyFive = lifetimeNpvToAge(r, filingAge, 85, 0, asOf);
+        // Six months of benefit, derived independently as half the difference
+        // one extra whole year makes.
+        const oneMoreYear = lifetimeNpvToAge(r, filingAge, 86, 0, asOf) - toEightyFive;
+        expect(row.expectedNpv - toEightyFive).toBeCloseTo(oneMoreYear / 2, 2);
+      }
+    });
+
+    it('does not depend on the wall clock', () => {
+      // The old guard's real subject: results must be a function of `asOf`.
+      // The survival curve that used to leak `new Date()` is gone, so this
+      // now just pins that nothing else does.
+      const first = rankedSingleStrategies(r(), 0.025, 85, new Date(2024, 0, 15))[0];
+      const second = rankedSingleStrategies(r(), 0.025, 85, new Date(2024, 0, 15))[0];
+      expect(first).toEqual(second);
+      const later = rankedSingleStrategies(r(), 0.025, 85, new Date(2027, 0, 15))[0];
+      expect(later.expectedNpv).not.toBe(first.expectedNpv);
     });
   });
 });

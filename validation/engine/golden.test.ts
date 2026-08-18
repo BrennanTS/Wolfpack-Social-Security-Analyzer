@@ -357,24 +357,29 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     }
 
     if (scenario.expected.invariants.includes('genderSensitiveMortality')) {
-      // Differential probe for the "spouse gender hardcoded as the opposite
-      // of the worker's" defect: benefit tables, %PIA, and $0 spousal
-      // top-ups are all gender-independent by construction, so they can't
-      // discriminate fixed-vs-buggy behavior. expectedNpv is the one output
-      // here that's mortality-driven — but it's an optimizer output over
-      // empirical SSA/CDC life tables, not a published closed-form factor,
-      // so it can't be hand-derived and pinned as a magic number without
-      // violating this file's never-copy-engine-output rule. Instead this
-      // asserts the PROPERTY the defect breaks: flipping one person's
-      // gender (nothing else) must change the joint expectedNpv, because a
-      // different person is now scored against a different cohort life
-      // table. If genders stopped reaching the mortality tables at all
-      // (the bug), both runs would use the same table and produce an
-      // identical expectedNpv.
+      // This was a differential probe for the "spouse gender hardcoded as
+      // the opposite of the worker's" defect: flipping one person's gender
+      // had to CHANGE the joint value, because a different person was then
+      // scored against a different cohort life table.
+      //
+      // The app's optimizer no longer reads a life table at all — its horizon
+      // is each person's plan-to age (`planToAgeDistribution`). So the
+      // property inverted: flipping a gender must now leave the answer
+      // untouched, and anything else would mean a mortality assumption had
+      // crept back in through a door nobody intended.
+      //
+      // The defect the old assertion guarded has not gone unwatched. Gender
+      // still has to reach the right PERSON — it seeds each one's suggested
+      // plan-to age — and the vendored engine's own gender-sensitive
+      // behaviour is pinned in `vendored-optimizer.test.ts`, whose recorded
+      // ages differ between the same-sex and mixed scenarios precisely
+      // because that engine does read the tables.
       expect(result.optimal.expectedNpv).toBeGreaterThan(0);
       const flipped = await runWithGenderFlipped(scenario, 1);
-      expect(flipped.optimal.expectedNpv).toBeGreaterThan(0);
-      expect(flipped.optimal.expectedNpv).not.toBe(result.optimal.expectedNpv);
+      expect(flipped.optimal.expectedNpv).toBe(result.optimal.expectedNpv);
+      expect(flipped.optimal.filingAges.map((f) => f.label)).toEqual(
+        result.optimal.filingAges.map((f) => f.label),
+      );
     }
   });
 
