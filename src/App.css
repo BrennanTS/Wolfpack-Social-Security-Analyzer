@@ -1641,9 +1641,6 @@ tbody tr:hover {
   background: var(--fill) !important;
 }
 
-.badge-shown {
-  background: var(--text-muted);
-}
 
 .badge {
   display: inline-block;

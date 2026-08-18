@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { formatCurrency, personLabel } from '../lib/format';
@@ -96,6 +96,18 @@ export function StrategyComparisonTable({
   filingAgeOptions,
 }: StrategyComparisonTableProps) {
   const [editing, setEditing] = useState(false);
+  /**
+   * The row order to hold while editing, captured on entering edit mode.
+   *
+   * The table is sorted by filing age, which is right for reading it and
+   * wrong for editing it: changing a scenario's age moves its row out from
+   * under the control you are still holding. Freezing the order until Done
+   * keeps the row where you left it; the sort re-applies the moment editing
+   * ends, so the table a reader sees is always in age order.
+   *
+   * Null means "not editing, or not captured yet".
+   */
+  const [editOrder, setEditOrder] = useState<string[] | null>(null);
 
   const canEdit =
     scenarios !== undefined &&
@@ -106,7 +118,37 @@ export function StrategyComparisonTable({
 
   // Edit mode shows every row, hidden ones included; view mode shows only
   // what `household.ts` already filtered.
-  const rows = editing ? (allComparisons ?? comparisons) : comparisons;
+  const rawRows = editing ? (allComparisons ?? comparisons) : comparisons;
+
+  // Captured when editing starts, and extended as rows are added so a second
+  // added row cannot swap places with the first. Rows the analysis dropped
+  // simply stop matching, which needs no cleanup.
+  useEffect(() => {
+    if (!editing) {
+      setEditOrder(null);
+      return;
+    }
+    const keys = rawRows.map((r) => r.key);
+    setEditOrder((prev) => {
+      if (prev === null) return keys;
+      const added = keys.filter((k) => !prev.includes(k));
+      return added.length === 0 ? prev : [...prev, ...added];
+    });
+    // `rawRows` is rebuilt on every render; keying the effect on its contents
+    // rather than its identity is what stops this looping.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, rawRows.map((r) => r.key).join(',')]);
+
+  const rows =
+    editing && editOrder !== null
+      ? [...rawRows].sort((a, b) => {
+          const ia = editOrder.indexOf(a.key);
+          const ib = editOrder.indexOf(b.key);
+          // A key not yet in the captured order sorts last, in its own
+          // arrival order, until the effect above adopts it.
+          return (ia === -1 ? Number.MAX_SAFE_INTEGER : ia) - (ib === -1 ? Number.MAX_SAFE_INTEGER : ib);
+        })
+      : rawRows;
   const showSurvivorIncome = showSurvivorIncomeColumn(rows, people.length);
   const hiddenCount = (allComparisons ?? comparisons).filter((c) => c.hidden).length;
 
@@ -203,14 +245,10 @@ export function StrategyComparisonTable({
                     s.label
                   )}
                   {s.isOptimal && <span className="badge">Best</span>}
-                  {/* Only when it is NOT also the optimal row, which already
-                      carries a badge — under the default scenario every row
-                      would otherwise print "Best Shown" side by side. */}
-                  {s.isSelected && !s.isOptimal && (
-                    <span className="badge badge-shown" data-testid="badge-shown">
-                      Shown
-                    </span>
-                  )}
+                  {/* No badge for the selected row. `row-selected`'s rule and
+                      tint already mark it, the card above it names the same
+                      strategy in words, and a second badge beside "Best" was
+                      two labels competing over one row. */}
                   {editing && !s.isSelected && !s.hidden && (
                     <button
                       type="button"

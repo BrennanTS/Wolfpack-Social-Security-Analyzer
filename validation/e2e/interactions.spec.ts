@@ -381,10 +381,22 @@ test('drives the whole report from a scenario edited in the comparison table', a
   // The whole surface follows the edited row, and the optimum keeps its own
   // figure — the money columns are still on screen while editing.
   await expect(eyebrow).toHaveText(/Selected Scenario/);
-  await expect(page.getByTestId('strategy-row-s1')).toContainText('Shown');
+  await expect(page.getByTestId('strategy-row-s1')).toHaveClass(/row-selected/);
   await expect(page.getByTestId('strategy-row-optimal').locator('td').nth(4)).toHaveText(
     optimalPv ?? '',
   );
+
+  // The edited row must not move out from under the control still being held:
+  // the table sorts by filing age, and 65 puts this row above "Both claim at
+  // FRA" — but not until editing ends.
+  const rowKeys = () =>
+    page.locator('[data-testid^="strategy-row-"]').evaluateAll((els) =>
+      els.map((e) => e.getAttribute('data-testid')),
+    );
+  const whileEditing = await rowKeys();
+  expect(whileEditing[whileEditing.length - 1]).toBe('strategy-row-s1');
+  await page.getByTestId('scenario-years-s1-1').selectOption('64');
+  expect((await rowKeys())[whileEditing.length - 1]).toBe('strategy-row-s1');
 
   // Hiding a row takes it off the table; Optimal has no eye to hide it with.
   await expect(page.getByTestId('scenario-eye-optimal')).toHaveCount(0);

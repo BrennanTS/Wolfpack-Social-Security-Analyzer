@@ -382,6 +382,69 @@ describe('StrategyComparisonTable — editing', () => {
     expect(onChange).toHaveBeenCalledWith(resetScenarios());
   });
 
+  it('does not badge the shown row — the rule and tint already mark it', async () => {
+    renderEditable();
+    // Only "Best", on the optimal row. A second badge beside it was two
+    // labels competing over one row.
+    expect(screen.getAllByText('Best')).toHaveLength(1);
+    expect(screen.queryByText('Shown')).not.toBeInTheDocument();
+    expect(screen.getByTestId('strategy-row-optimal').className).toContain('row-selected');
+  });
+
+  it('holds the row order while editing, and re-sorts on Done', async () => {
+    // The table sorts by filing age, which is right for reading and wrong for
+    // editing: a row that moves out from under the control you are holding is
+    // the complaint this exists to fix.
+    const late: HouseholdStrategy = {
+      ...comparisons[0],
+      key: 's1',
+      label: 'Scenario 1',
+      filingAges: [age(70), age(70)],
+      isSelected: true,
+      hidden: false,
+    };
+    const early: HouseholdStrategy = { ...late, filingAges: [age(62), age(62)] };
+    const set = addScenario(resetScenarios(), [
+      { years: 70, months: 0 },
+      { years: 70, months: 0 },
+    ]);
+
+    const rowOrder = () =>
+      screen.getAllByTestId(/^strategy-row-/).map((r) => r.getAttribute('data-testid'));
+
+    // Enters edit mode with s1 last, then its ages move to the earliest.
+    const { rerender } = render(
+      <StrategyComparisonTable
+        comparisons={[...editableRows(), late].filter((r) => !r.hidden)}
+        allComparisons={[...editableRows(), late]}
+        people={people}
+        scenarios={set}
+        onScenariosChange={vi.fn()}
+        filingAgeOptions={[optionsFor(62, 0), optionsFor(62, 0)]}
+      />,
+    );
+    await userEvent.click(screen.getByTestId('scenario-edit-toggle'));
+    expect(rowOrder().at(-1)).toBe('strategy-row-s1');
+
+    // The analysis comes back with s1 re-sorted to the front; the table must
+    // not move it while editing.
+    rerender(
+      <StrategyComparisonTable
+        comparisons={[early, ...editableRows()]}
+        allComparisons={[early, ...editableRows()]}
+        people={people}
+        scenarios={set}
+        onScenariosChange={vi.fn()}
+        filingAgeOptions={[optionsFor(62, 0), optionsFor(62, 0)]}
+      />,
+    );
+    expect(rowOrder().at(-1)).toBe('strategy-row-s1');
+
+    // Done releases it, and the reader sees age order again.
+    await userEvent.click(screen.getByTestId('scenario-edit-toggle'));
+    expect(rowOrder()[0]).toBe('strategy-row-s1');
+  });
+
   it('returns to view mode, dropping every control', async () => {
     const rows = editableRows([{}, {}, { hidden: true }]);
     renderEditable({ allComparisons: rows });
