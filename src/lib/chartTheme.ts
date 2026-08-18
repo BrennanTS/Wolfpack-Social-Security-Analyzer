@@ -22,9 +22,25 @@ export const CHART_RED = '#9a4a44';
 export const CHART_SAGE = '#7d9b76';
 /** Slate — a survivor band, drawn once the earner they depended on has died. */
 export const CHART_SLATE = '#6f8ba3';
+/**
+ * Plum — the SECOND person's own record.
+ *
+ * Chosen against two surfaces at once, which is what the previous value got
+ * wrong. `CHART_INK` (#3a3a3a) reads well on the cream chart — 10.7:1 — but
+ * the shared tooltip is near-black, where it scored 1.6:1 and the spouse's
+ * own-benefit line was effectively unreadable; dark mode had the same
+ * problem on the canvas itself. Anything light enough for the tooltip drops
+ * below 3:1 on cream, so the usable band is narrow: this sits at 5.0:1 on
+ * the tooltip, 4.8:1 on the dark canvas and 3.4:1 on cream.
+ *
+ * Hue is picked for separation, not taste — clear of gold (36°), sage (108°)
+ * and slate (205°) so no two series read alike, and clear of `CHART_RED`,
+ * which marks life expectancy.
+ */
+export const CHART_PLUM = '#9d78b0';
 
 /** A person's own record, indexed by their position in the household. */
-const OWN_BENEFIT_COLORS = [CHART_GOLD, CHART_INK, CHART_GREY_MID];
+const OWN_BENEFIT_COLORS = [CHART_GOLD, CHART_PLUM, CHART_GREY_MID];
 
 /**
  * A person's own record keeps their identity colour; benefits drawn on the

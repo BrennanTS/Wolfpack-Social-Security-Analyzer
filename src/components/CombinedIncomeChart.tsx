@@ -323,6 +323,8 @@ export function CombinedIncomeChart({
             />
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
+              // Recharts defaults to " : " — a space before the colon.
+              separator=": "
               // The label is a single month ("Feb 2042"), but every value is
               // still the band's ANNUAL rate at that month, not what was paid
               // in it — `buildMonthlyIncomeSeries` never prorates. Under the
