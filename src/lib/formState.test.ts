@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { Household } from './household';
+import type { Person } from './personAnalysis';
 import {
   BLANK_FORM,
   isBenefitInRange,
@@ -36,6 +38,20 @@ const single: AnalyzerFormState = {
   maritalStatus: 'single',
 };
 
+/**
+ * Narrows a `Household` to the married arm, failing loudly if it is not one.
+ *
+ * `Household.people` is `[Person]` for single and widowed and `[Person, Person]`
+ * for married, so `h.people[1]` is `Person | undefined` on the union — and
+ * `expect(h.status).toBe('married')` does not narrow it for the type checker.
+ * A non-null assertion would have silenced that without checking anything;
+ * this asserts the thing the following lines depend on.
+ */
+function asMarried(h: Household): [Person, Person] {
+  if (h.status !== 'married') throw new Error(`expected a married household, got ${h.status}`);
+  return h.people;
+}
+
 describe('isFormComplete', () => {
   it('accepts a complete single form', () => {
     expect(isFormComplete(single)).toBe(true);
@@ -53,7 +69,7 @@ describe('isFormComplete', () => {
   });
 
   it('rejects married until every spouse field is supplied', () => {
-    const married = { ...single, maritalStatus: 'married', personB: BLANK_FORM.personB };
+    const married = { ...single, maritalStatus: 'married' as const, personB: BLANK_FORM.personB };
     expect(isFormComplete(married)).toBe(false);
 
     expect(
@@ -69,7 +85,7 @@ describe('isFormComplete', () => {
   it('accepts a spouse with a zero benefit, which means no work record', () => {
     const married = {
       ...single,
-      maritalStatus: 'married',
+      maritalStatus: 'married' as const,
       personB: { ...completeB, monthlyBenefit: 0 },
     };
     expect(isFormComplete(married)).toBe(true);
@@ -86,7 +102,7 @@ describe('isFormComplete', () => {
   // exercised below. A $0 A in a *single* household is covered there instead
   // (nothing to analyze with no spouse to draw a benefit from).
   it('agrees with the field-level guardrails the UI declares', () => {
-    const marriedEarningSpouse = { ...single, maritalStatus: 'married', personB: completeB };
+    const marriedEarningSpouse = { ...single, maritalStatus: 'married' as const, personB: completeB };
     const withBenefitA = (monthlyBenefit: number) =>
       isFormComplete({ ...marriedEarningSpouse, personA: { ...completeA, monthlyBenefit } });
 
@@ -101,7 +117,7 @@ describe('isFormComplete', () => {
   it('applies the same range to a spouse', () => {
     const withBenefitB = (monthlyBenefit: number) =>
       isFormComplete({
-        ...single, maritalStatus: 'married', personB: { ...completeB, monthlyBenefit },
+        ...single, maritalStatus: 'married' as const, personB: { ...completeB, monthlyBenefit },
       });
 
     expect(withBenefitB(0)).toBe(true);
@@ -133,33 +149,33 @@ describe('at least one person must have a positive benefit', () => {
 
   it('accepts a married household where person A has no work record', () => {
     expect(
-      isFormComplete({ ...base, maritalStatus: 'married', personA: noRecord, personB: earner }),
+      isFormComplete({ ...base, maritalStatus: 'married' as const, personA: noRecord, personB: earner }),
     ).toBe(true);
   });
 
   it('accepts a married household where person B has no work record', () => {
     expect(
-      isFormComplete({ ...base, maritalStatus: 'married', personA: earner, personB: noRecord }),
+      isFormComplete({ ...base, maritalStatus: 'married' as const, personA: earner, personB: noRecord }),
     ).toBe(true);
   });
 
   it('rejects a household where neither person earns', () => {
     expect(
       isFormComplete({
-        ...base, maritalStatus: 'married',
+        ...base, maritalStatus: 'married' as const,
         personA: noRecord, personB: { ...noRecord, birthYear: 1966 },
       }),
     ).toBe(false);
   });
 
   it('rejects a single claimant with no benefit — nothing to analyze', () => {
-    expect(isFormComplete({ ...base, maritalStatus: 'single', personA: noRecord })).toBe(false);
+    expect(isFormComplete({ ...base, maritalStatus: 'single' as const, personA: noRecord })).toBe(false);
   });
 
   it('accepts a genuine low-earner PIA the old $500 floor rejected', () => {
     expect(
       isFormComplete({
-        ...base, maritalStatus: 'single',
+        ...base, maritalStatus: 'single' as const,
         personA: { ...earner, monthlyBenefit: 250 },
       }),
     ).toBe(true);
@@ -176,17 +192,16 @@ describe('toHousehold', () => {
   });
 
   it('builds a married household preserving order and ids', () => {
-    const h = toHousehold({ ...single, maritalStatus: 'married', personB: completeB });
-    expect(h.status).toBe('married');
-    expect(h.people.map((p) => p.id)).toEqual(['a', 'b']);
-    expect(h.people[1].gender).toBe('female');
-    expect(h.people[1].piaMonthly).toBe(2100);
+    const people = asMarried(toHousehold({ ...single, maritalStatus: 'married' as const, personB: completeB }));
+    expect(people.map((p) => p.id)).toEqual(['a', 'b']);
+    expect(people[1].gender).toBe('female');
+    expect(people[1].piaMonthly).toBe(2100);
   });
 
   it('never invents spouse data from the primary person', () => {
-    const h = toHousehold({ ...single, maritalStatus: 'married', personB: completeB });
-    expect(h.people[1].birthYear).toBe(1964);
-    expect(h.people[1].birthYear).not.toBe(h.people[0].birthYear);
+    const people = asMarried(toHousehold({ ...single, maritalStatus: 'married' as const, personB: completeB }));
+    expect(people[1].birthYear).toBe(1964);
+    expect(people[1].birthYear).not.toBe(people[0].birthYear);
   });
 });
 
@@ -208,13 +223,13 @@ describe('per-person life expectancy', () => {
       ...BLANK_FORM,
       personA: { ...male, lifeExpectancy: 85 },
       personB: female,
-      maritalStatus: 'married',
+      maritalStatus: 'married' as const,
     });
     // Asserts the invariant directly: person B's fallback is B's own SSA
     // suggestion, not A's explicit 85 leaking across. Both sides read the
     // same wall clock via suggestedLifeExpectancyFor, so this stays
     // time-proof without hard-coding an absolute age (see the plan's note).
-    expect(household.people[1].lifeExpectancy).toBe(suggestedLifeExpectancyFor(female));
+    expect(asMarried(household)[1].lifeExpectancy).toBe(suggestedLifeExpectancyFor(female));
   });
 
   it('uses an explicit value for person B rather than the fallback', () => {
@@ -222,10 +237,10 @@ describe('per-person life expectancy', () => {
       ...BLANK_FORM,
       personA: { ...male, lifeExpectancy: 85 },
       personB: { ...female, lifeExpectancy: 92 },
-      maritalStatus: 'married',
+      maritalStatus: 'married' as const,
     });
-    expect(household.people[1].lifeExpectancy).toBe(92);
-    expect(household.people[0].lifeExpectancy).toBe(85);
+    expect(asMarried(household)[1].lifeExpectancy).toBe(92);
+    expect(asMarried(household)[0].lifeExpectancy).toBe(85);
   });
 
   it('requires person A life expectancy but not person B', () => {
@@ -233,7 +248,7 @@ describe('per-person life expectancy', () => {
       ...BLANK_FORM,
       personA: { ...male, lifeExpectancy: 85 },
       personB: female,
-      maritalStatus: 'married',
+      maritalStatus: 'married' as const,
     };
     expect(isFormComplete(base)).toBe(true);
     expect(isFormComplete({ ...base, personA: { ...male, lifeExpectancy: null } })).toBe(false);
@@ -296,7 +311,7 @@ describe('widowed form state', () => {
   };
   const form: AnalyzerFormState = {
     ...BLANK_FORM,
-    maritalStatus: 'widowed',
+    maritalStatus: 'widowed' as const,
     personA: survivor,
     deceased,
   };
@@ -349,16 +364,16 @@ describe('widowed form state', () => {
     expect(isFormComplete({ ...form, personA: noRecord }, asOf)).toBe(true);
     // Scoped to widowed: the same $0 claimant with no deceased record behind
     // her has nothing to analyze.
-    expect(isFormComplete({ ...BLANK_FORM, maritalStatus: 'single', personA: noRecord }, asOf))
+    expect(isFormComplete({ ...BLANK_FORM, maritalStatus: 'single' as const, personA: noRecord }, asOf))
       .toBe(false);
   });
 
   it('still builds single and married households', () => {
     // The three-way change must not disturb the two existing statuses.
-    expect(toHousehold({ ...BLANK_FORM, maritalStatus: 'single', personA: survivor }).status)
+    expect(toHousehold({ ...BLANK_FORM, maritalStatus: 'single' as const, personA: survivor }).status)
       .toBe('single');
     const married = toHousehold({
-      ...BLANK_FORM, maritalStatus: 'married', personA: survivor, personB: survivor,
+      ...BLANK_FORM, maritalStatus: 'married' as const, personA: survivor, personB: survivor,
     });
     expect(married.status).toBe('married');
     expect(married.people).toHaveLength(2);

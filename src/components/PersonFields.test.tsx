@@ -2,10 +2,14 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { PersonFields } from './PersonFields';
+import type { PersonFormFields } from '../lib/formState';
 
-const blank = {
-  name: '', birthYear: '' as const, birthMonth: '' as const,
-  gender: null, monthlyBenefit: '' as const,
+// Typed rather than inferred, so a field added to `PersonFormFields` fails
+// here instead of at runtime. `null` life expectancy means "use the SSA
+// suggestion", which is what a blank form carries.
+const blank: PersonFormFields = {
+  name: '', birthYear: '', birthMonth: '',
+  gender: null, monthlyBenefit: '', lifeExpectancy: null,
 };
 
 describe('PersonFields', () => {
@@ -86,9 +90,9 @@ describe('PersonFields', () => {
 });
 
 describe('yearly-entry nudge', () => {
-  const blank = {
-    name: '', birthYear: '' as const, birthMonth: '' as const,
-    gender: null, monthlyBenefit: '' as const,
+  const blank: PersonFormFields = {
+    name: '', birthYear: '', birthMonth: '',
+    gender: null, monthlyBenefit: '', lifeExpectancy: null,
   };
 
   it('says the benefit is monthly, in the label', () => {

@@ -125,9 +125,17 @@ export function households(count: number, from = 0): SweepHousehold[] {
 /**
  * Swaps entry order. `id` is the slot, so it stays behind; `name` is the
  * human, so it travels. After a swap, Beta occupies slot 'a'.
+ *
+ * Only a married household has an order to swap. Guarding on `!== 'married'`
+ * rather than `=== 'single'` is not defensive tidiness: the narrower guard
+ * left `widowed` in the union, its one-element `people` destructured `b` as
+ * `undefined`, and this returned `{ status: 'married', people: [undefined,
+ * a] }` — a household with a hole in it, handed straight to
+ * `analyzeHousehold`. The type checker found it the moment this file was put
+ * under one; it had been there since the widowed generator was added.
  */
 export function swapped(household: Household): Household {
-  if (household.status === 'single') return household;
+  if (household.status !== 'married') return household;
   const [a, b] = household.people;
   return { status: 'married', people: [{ ...b, id: 'a' }, { ...a, id: 'b' }] };
 }

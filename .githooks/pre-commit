@@ -5,6 +5,13 @@
 #   git commit --no-verify     skips everything
 set -e
 
+# Covers src, the vite config AND the test/validation project — see
+# tsconfig.test.json. Test files were in no tsconfig at all until now, which
+# is how three hand-built fixtures reached `main` missing required fields and
+# failed at runtime instead of at the keyboard.
+echo "[pre-commit] tsc (types, including tests)"
+npm run typecheck
+
 echo "[pre-commit] oxlint"
 npm run lint
 

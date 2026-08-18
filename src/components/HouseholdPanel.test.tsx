@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { HouseholdPanel } from './HouseholdPanel';
 import type { HouseholdAnalysis } from '../lib/household';
 import type { PersonAnalysis } from '../lib/personAnalysis';
@@ -45,14 +45,22 @@ function buildAnalysis(): HouseholdAnalysis {
     label: 'Claim at 70',
     filingAges: [age(70)],
     expectedNpv: 535_680,
+    lifetimeTotal: null,
+    survivorClaimDate: null,
     deltaVsOptimal: 0,
     isOptimal: true,
+    isSelected: true,
+    hidden: false,
+    survivorIncome: null,
   };
 
   return {
     status: 'single',
     people: [personA],
     optimal,
+    selected: optimal,
+    scenarioIsBest: true,
+    filingAgeOptions: [[{ years: 70, months: 0 }]],
     comparisons: [optimal],
     allComparisons: [optimal],
     combinedTimeline: [
@@ -69,6 +77,10 @@ function buildAnalysis(): HouseholdAnalysis {
     // fixture actually carrying the modelled absence rather than an
     // `undefined` the type says cannot exist.
     survivorClaim: null,
+    survivorGap: null,
+    finalIndexByPersonId: { a: 24_653 },
+    piaEstimated: null,
+    deceased: null,
     recommendation: 'Claim at age 70',
     recommendationDetail: 'ssa.tools recommends filing at age 70.',
     assumptions: { annualCola: 0, discountRate: 3 },
@@ -80,13 +92,13 @@ describe('HouseholdPanel', () => {
   it('recomputes break-even ages live from the annualCola prop, not the stale analysis.people[0].breakEvens', () => {
     const analysis = buildAnalysis();
 
-    const zeroCola = render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+    const zeroCola = render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
     const zeroAges = Array.from(
       zeroCola.container.querySelectorAll('.be-age-value'),
     ).map((el) => el.textContent);
     zeroCola.unmount();
 
-    const highCola = render(<HouseholdPanel analysis={analysis} annualCola={8} />);
+    const highCola = render(<HouseholdPanel analysis={analysis} annualCola={8} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
     const highAges = Array.from(
       highCola.container.querySelectorAll('.be-age-value'),
     ).map((el) => el.textContent);
@@ -108,7 +120,7 @@ describe('HouseholdPanel', () => {
   // person ("you live past break-even"). Without attribution a reader takes
   // it for a couple-level result, which it is not.
   it('attributes the break-even section to the person it is actually computed for', () => {
-    const { getByTestId } = render(<HouseholdPanel analysis={buildAnalysis()} annualCola={0} />);
+    const { getByTestId } = render(<HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
     const attribution = getByTestId('break-even-attribution');
     expect(attribution.textContent).toContain('Break-even for Dan');
     expect(attribution.textContent).toContain('age 85');
@@ -129,13 +141,13 @@ describe('HouseholdPanel', () => {
         survivorUnder60: false,
       },
     } as HouseholdAnalysis;
-    const { getByTestId } = render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+    const { getByTestId } = render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
     expect(getByTestId('survivor-gap-note').textContent).toContain('no step-up is shown for Dan');
   });
 
   it('renders no survivor-gap note when the analysis has none', () => {
     const { queryByTestId } = render(
-      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} />,
+      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />,
     );
     expect(queryByTestId('survivor-gap-note')).toBeNull();
   });
@@ -173,7 +185,7 @@ describe('HouseholdPanel', () => {
       },
     } as HouseholdAnalysis;
 
-    render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+    render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
 
     // The callout really is on screen (guards against this passing
     // vacuously because `incomeCliff` returned null).
@@ -213,7 +225,7 @@ describe('HouseholdPanel', () => {
       },
     } as HouseholdAnalysis;
 
-    render(<HouseholdPanel analysis={analysis} annualCola={0} />);
+    render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
 
     // The callout really is on screen (guards against this passing
     // vacuously because `incomeCliff` returned null).
@@ -226,7 +238,7 @@ describe('HouseholdPanel', () => {
 
   it('renders no survivor-claim note when the analysis has none', () => {
     const { queryByTestId } = render(
-      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} />,
+      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />,
     );
     expect(queryByTestId('survivor-claim-note')).toBeNull();
   });
@@ -302,7 +314,7 @@ describe('HouseholdPanel', () => {
         },
       ],
     } as HouseholdAnalysis;
-    const { getByTestId } = render(<HouseholdPanel analysis={unnamed} annualCola={0} />);
+    const { getByTestId } = render(<HouseholdPanel analysis={unnamed} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
     expect(getByTestId('break-even-attribution').textContent).toContain('Break-even for Client');
   });
 
@@ -332,7 +344,7 @@ describe('HouseholdPanel', () => {
     // 2.5 is the CPI default the app actually ships — the value the old
     // `annualCola === 0` guard could never catch.
     const { container, queryByTestId, queryByText } = render(
-      <HouseholdPanel analysis={zeroPia} annualCola={2.5} />,
+      <HouseholdPanel analysis={zeroPia} annualCola={2.5} dollarsMode="real" onDollarsModeChange={vi.fn()} />,
     );
     expect(queryByText('Break-Even Analysis')).toBeNull();
     expect(queryByTestId('break-even-attribution')).toBeNull();

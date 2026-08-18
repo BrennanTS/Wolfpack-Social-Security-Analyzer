@@ -64,6 +64,8 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     // them.
     lifetimeTotal: status === 'widowed' ? 1_243_000 : null,
     survivorClaimDate: status === 'widowed' ? { monthIndex: 24_377, age: '67' } : null,
+    hidden: false,
+    survivorIncome: null,
   };
   const earliest = {
     key: 'earliest' as const,
@@ -75,6 +77,8 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     isSelected: false,
     lifetimeTotal: status === 'widowed' ? 1_018_000 : null,
     survivorClaimDate: status === 'widowed' ? { monthIndex: 24_305, age: '61' } : null,
+    hidden: false,
+    survivorIncome: null,
   };
 
   return {
@@ -108,6 +112,9 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     // `periods` (`buildMonthlyIncomeSeries`, not `combinedTimeline`) — empty
     // here since none of these tests assert on the chart's rendered bars.
     periods: [],
+    survivorGap: null,
+    survivorClaim: null,
+    finalIndexByPersonId: { a: 24_653, ...(status === 'married' ? { b: 24_700 } : {}) },
     recommendation: status === 'married'
       ? 'Dan files at 70 · Sarah files at 64'
       : 'Claim at age 70',
