@@ -7,6 +7,9 @@ import { analyzeHousehold, type Household } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
 import { buildMethodPairs, MethodologyAppendix, ReportDocument } from './ReportDocument';
 import { WidowedSection } from './WidowedSection';
+import { HouseholdSection } from './HouseholdSection';
+import { PersonSection } from './PersonSection';
+import { unprintableInPdf } from '../../lib/pdfSafeText';
 
 /**
  * Durable smoke coverage for the whole PDF pipeline (Task 20's five-module
@@ -134,6 +137,49 @@ describe('ReportDocument renders', () => {
     },
     alreadyClaimed: { survivorSince: null, ownSince: null },
   };
+
+  /**
+   * Every character the report prints has to be one the standard-14 fonts
+   * carry — see `unprintableInPdf`. This is asserted over the assembled
+   * sections rather than a curated list of strings, because the arrow that
+   * motivated it lived in a component nobody thought to check.
+   *
+   * Married and widowed both: they share almost no copy, and the widowed
+   * surfaces were written last and reviewed least.
+   */
+  it('prints no character the standard-14 fonts cannot render', async () => {
+    const married = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+    const widowed = await analyzeHousehold(widowedHousehold, assumptions, asOf);
+
+    const surfaces = [
+      collectText(HouseholdSection({ analysis: married, footerText: 'f' })),
+      // `index` is a 0 | 1 slot, not an arbitrary number — a married
+      // household has exactly two people.
+      ...married.people.map((rep, i) =>
+        collectText(
+          PersonSection({
+            analysis: rep,
+            index: i === 0 ? 0 : 1,
+            annualCola: assumptions.annualCola,
+            footerText: 'f',
+          }),
+        ),
+      ),
+      collectText(MethodologyAppendix({ analysis: married })),
+      collectText(WidowedSection({ analysis: widowed, footerText: 'f' })),
+      collectText(MethodologyAppendix({ analysis: widowed })),
+    ];
+
+    // Guard: an empty walk would make the assertion below vacuous, which is
+    // exactly the failure mode this file's own comments warn about.
+    const text = surfaces.flat().join(' ');
+    expect(text.length).toBeGreaterThan(2000);
+    expect(unprintableInPdf(text)).toEqual([]);
+  });
 
   it('prints the widowed report, not the single-claimant one', async () => {
     // `analysis.status === 'married'` is a BOOLEAN test in both this module's

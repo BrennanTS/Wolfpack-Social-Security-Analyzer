@@ -271,8 +271,14 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
                   key={`${be.earlierAge}-${be.laterAge}`}
                   style={[styles.beCard, isLast ? styles.beCardLast : {}]}
                 >
+                  {/* "vs." rather than the screen's arrow: react-pdf's built-in
+                      Helvetica has no U+2192 glyph, and printed it as a stray
+                      apostrophe that also swallowed the space after it —
+                      "Age 62 ' Age67". Every character this report prints has
+                      to be one the standard-14 fonts carry; see
+                      `pdfSafeText.ts`. */}
                   <Text style={styles.bePair}>
-                    Age {be.earlierAge} → Age {be.laterAge}
+                    Age {be.earlierAge} vs. Age {be.laterAge}
                   </Text>
                   <Text style={styles.beAge}>{be.breakEvenAge}</Text>
                   <Text style={styles.beLabel}>Break-even age</Text>

@@ -117,7 +117,8 @@ export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, Meth
     [
       {
         title: 'Full Retirement Age (FRA)',
-        body: `Birth year ${rep.person.birthYear} → FRA ${fraLabel(rep.fra)} per SSA schedule.`,
+        // No arrow — see the note in `PersonSection`'s break-even cards.
+        body: `FRA ${fraLabel(rep.fra)} for birth year ${rep.person.birthYear}, per SSA schedule.`,
       },
       isWidowed || age62 === undefined
         ? {

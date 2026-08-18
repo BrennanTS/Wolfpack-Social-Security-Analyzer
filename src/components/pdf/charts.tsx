@@ -254,11 +254,17 @@ export function PdfMonthlyRamp({ options, optimalAge }: { options: ClaimingOptio
             {age}
           </Text>
         ))}
+        {/* Whole dollars, NOT `formatThousandsTick`. These two ticks are the
+            endpoints of a MONTHLY check, and this chart's whole span is a
+            couple of thousand dollars wide — rounding to thousands printed
+            "$3k" and "$5k" for $2,773 and $4,912, so the axis said the ramp
+            covered a range it does not, at both ends. Thousands are the
+            right unit for a lifetime total; they are the wrong unit here. */}
         <Text x={padL - 3} y={yScale(maxM) + 2} style={TICK} textAnchor="end">
-          {formatThousandsTick(maxM)}
+          {formatCurrency(maxM)}
         </Text>
         <Text x={padL - 3} y={yScale(minM) + 2} style={TICK} textAnchor="end">
-          {formatThousandsTick(minM)}
+          {formatCurrency(minM)}
         </Text>
         <Path d={path} stroke={INK} strokeWidth={1.5} fill="none" />
         {data.map((d) => (
