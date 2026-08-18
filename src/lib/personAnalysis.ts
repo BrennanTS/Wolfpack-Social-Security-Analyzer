@@ -42,8 +42,17 @@ export interface PersonAnalysis {
   fra: FraResult;
   currentAge: { years: number; months: number };
   claimingOptions: ClaimingOption[];
-  recommendedFilingAge: FilingAgeDisplay;
-  recommendedMonthly: number;
+  /**
+   * The filing age this person's analysis is built on — the household's
+   * SELECTED scenario, which is the optimizer's pick only while the scenario
+   * is `best`. Named for what it is rather than `recommendedFilingAge`, which
+   * it was called until scenarios existed: a field called "recommended"
+   * holding an age the adviser typed in is precisely how a true number ends
+   * up under an untrue label.
+   */
+  filingAge: FilingAgeDisplay;
+  /** The monthly benefit at `filingAge`. */
+  monthlyAtFilingAge: number;
   breakEvens: BreakEvenPair[];
   ssaSuggestedLifeExpectancy: number;
 }
@@ -70,7 +79,7 @@ export function getCurrentAge(
 
 export function analyzePerson(
   person: Person,
-  recommendedFilingAge: FilingAgeDisplay,
+  filingAge: FilingAgeDisplay,
   annualCola: number,
   asOf: Date = new Date(),
 ): PersonAnalysis {
@@ -107,10 +116,10 @@ export function analyzePerson(
     fra: getFullRetirementAge(person.birthYear),
     currentAge,
     claimingOptions,
-    recommendedFilingAge,
-    recommendedMonthly: ssaMonthlyBenefitAtFilingAge(
+    filingAge,
+    monthlyAtFilingAge: ssaMonthlyBenefitAtFilingAge(
       recipient,
-      recommendedFilingAge.monthDuration,
+      filingAge.monthDuration,
     ).benefit,
     breakEvens: computeBreakEvens(claimingOptions, annualCola),
     ssaSuggestedLifeExpectancy: getSuggestedLifeExpectancy(currentAge.years, person.gender),

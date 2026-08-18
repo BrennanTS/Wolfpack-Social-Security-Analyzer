@@ -130,6 +130,17 @@ export const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: GOLD,
   },
+  /**
+   * The row the report is actually built on, when that is NOT the optimum.
+   * Marked with an ink rule rather than the gold one so the two are
+   * distinguishable in a black-and-white print, where two identical rules
+   * would say the same thing about two different rows.
+   */
+  tableRowSelected: {
+    backgroundColor: SURFACE,
+    borderLeftWidth: 2,
+    borderLeftColor: INK,
+  },
   th: {
     fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
@@ -144,6 +155,15 @@ export const styles = StyleSheet.create({
     fontSize: 5.5,
     color: SURFACE,
     backgroundColor: GOLD,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 2,
+    marginLeft: 4,
+  },
+  badgeShown: {
+    fontSize: 5.5,
+    color: SURFACE,
+    backgroundColor: INK,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 2,

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { BLANK_FORM, type AnalyzerFormState } from './formState';
 import { buildShareUrl, fromShareParams, toShareParams } from './shareLink';
+import {
+  addScenario,
+  DEFAULT_SCENARIO_SET,
+  isDefaultScenarioSet,
+  resetScenarios,
+  selectedRow,
+  selectScenario,
+  type ScenarioSet,
+} from './scenario';
 import { BLANK_ALREADY_CLAIMED, BLANK_DECEASED } from './widowedForm';
 
 const married: AnalyzerFormState = {
@@ -354,5 +363,76 @@ describe('legacy share links', () => {
   it('leaves the status unchosen when m is absent or unrecognised', () => {
     expect(fromShareParams(new URLSearchParams('')).maritalStatus).toBeNull();
     expect(fromShareParams(new URLSearchParams('m=x')).maritalStatus).toBeNull();
+  });
+});
+
+describe('scenario share links', () => {
+  const withScenarios = (set: ScenarioSet) => ({ ...BLANK_FORM, scenarios: set });
+
+  it('writes nothing while the optimizer’s own answer is shown', () => {
+    // The commonest link by far, and the one that must stay a re-resolved
+    // answer rather than a remembered pair of ages.
+    expect(toShareParams(withScenarios(DEFAULT_SCENARIO_SET)).get('sc')).toBeNull();
+  });
+
+  it('writes nothing when a DERIVED row is shown', () => {
+    // "Both claim at FRA" is a different pair for every household, so pinning
+    // this household's ages would misrepresent it to a recipient whose inputs
+    // differ. The recipient's own FRA row already says the same thing.
+    const set = selectScenario(resetScenarios(), 'fra');
+    expect(toShareParams(withScenarios(set)).get('sc')).toBeNull();
+  });
+
+  it('writes the shown scenario’s ages, person A first', () => {
+    const set = addScenario(resetScenarios(), [
+      { years: 65, months: 0 },
+      { years: 66, months: 3 },
+    ]);
+    expect(toShareParams(withScenarios(set)).get('sc')).toBe('65-0.66-3');
+  });
+
+  it('round-trips through a URL into a selected custom row', () => {
+    const set = addScenario(resetScenarios(), [
+      { years: 65, months: 0 },
+      { years: 66, months: 3 },
+    ]);
+    const back = fromShareParams(toShareParams(withScenarios(set)));
+    expect(selectedRow(back.scenarios).scenario).toEqual({
+      kind: 'custom',
+      ages: [
+        { years: 65, months: 0 },
+        { years: 66, months: 3 },
+      ],
+    });
+  });
+
+  it('gives the recipient their own built-in rows alongside it', () => {
+    // A link is a view of one analysis. Replacing the recipient's comparison
+    // list would be editing their workspace to show them a number.
+    const back = fromShareParams(new URLSearchParams('sc=65-0.66-3'));
+    expect(back.scenarios.rows.map((r) => r.id)).toEqual([
+      'optimal',
+      'earliest',
+      'fra',
+      'latest',
+      's1',
+    ]);
+  });
+
+  it('drops a malformed value rather than guessing at it', () => {
+    for (const raw of ['', 'abc', '65', '65-', '-0', '65-0.', '65-12', '20-0', '65.0', '65-0.66-3.67-0']) {
+      const back = fromShareParams(new URLSearchParams(`sc=${encodeURIComponent(raw)}`));
+      expect(isDefaultScenarioSet(back.scenarios), `sc=${raw}`).toBe(true);
+    }
+  });
+
+  it('leaves an out-of-reach but well-formed age to the analysis to clamp', () => {
+    // Not dropped: `analyzeHousehold` clamps it and the sidebar shows the
+    // clamped value, so a stale link behaves exactly like a stale form.
+    const back = fromShareParams(new URLSearchParams('sc=62-0'));
+    expect(selectedRow(back.scenarios).scenario).toEqual({
+      kind: 'custom',
+      ages: [{ years: 62, months: 0 }],
+    });
   });
 });

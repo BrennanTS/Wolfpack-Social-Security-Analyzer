@@ -6,7 +6,7 @@ import type { HouseholdAnalysis } from '../lib/household';
 import type { PersonAnalysis } from '../lib/personAnalysis';
 
 // `claimingOptions` covers every whole-year age 62-70 so a rounded
-// `recommendedFilingAge` always lands on a real row — mirrors the fixture in
+// `filingAge` always lands on a real row — mirrors the fixture in
 // PersonPanel.test.tsx.
 function buildPersonAnalysis(id: 'a' | 'b', name: string): PersonAnalysis {
   return {
@@ -33,10 +33,10 @@ function buildPersonAnalysis(id: 'a' | 'b', name: string): PersonAnalysis {
       isEligible: age <= 63,
       monthsFromFra: 0,
     })),
-    recommendedFilingAge: {
+    filingAge: {
       years: 70, months: 0, label: '70', decimalYears: 70, monthDuration: null as never,
     },
-    recommendedMonthly: 2976,
+    monthlyAtFilingAge: 2976,
     breakEvens: [],
     ssaSuggestedLifeExpectancy: 82,
   } as unknown as PersonAnalysis;
@@ -58,6 +58,7 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     expectedNpv: 1_243_000,
     deltaVsOptimal: 0,
     isOptimal: true,
+    isSelected: true,
   };
   const earliest = {
     key: 'earliest' as const,
@@ -66,12 +67,22 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     expectedNpv: 1_018_000,
     deltaVsOptimal: -225_000,
     isOptimal: false,
+    isSelected: false,
   };
 
   return {
     status,
     people,
     optimal,
+    selected: optimal,
+    scenarioIsBest: true,
+    // Two attainable ages per person, which is all the picker needs to render
+    // a year select with something in it. Deliberately not the engine's full
+    // ~97-entry set: these tests are about the tab strip.
+    filingAgeOptions: people.map(() => [
+      { years: 64, months: 0 },
+      { years: 70, months: 0 },
+    ]),
     comparisons: [earliest, optimal],
     combinedTimeline: [
       {

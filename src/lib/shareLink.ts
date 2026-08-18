@@ -9,6 +9,14 @@ import {
 import { BLANK_FORM, type AnalyzerFormState, type PersonFormFields } from './formState';
 import type { Gender } from './personAnalysis';
 import {
+  addScenario,
+  DEFAULT_SCENARIO_SET,
+  resetScenarios,
+  selectedRow,
+  type FilingAgeChoice,
+  type ScenarioSet,
+} from './scenario';
+import {
   BLANK_ALREADY_CLAIMED,
   BLANK_DECEASED,
   type AlreadyClaimedFormFields,
@@ -83,6 +91,56 @@ function readLifeExpectancy(params: URLSearchParams, key: string): number | null
  */
 function readDollarsMode(params: URLSearchParams): DollarsMode {
   return params.get('dollars') === 'nominal' ? 'nominal' : BLANK_FORM.dollarsMode;
+}
+
+/**
+ * The filing ages the link's analysis is built on, as `62-1` or `65-0.67-6` —
+ * one `years-months` pair per person, joined by a period, person A first.
+ *
+ * Only the SELECTED scenario travels, not the adviser's whole list. A link is
+ * a view of one analysis, and the recipient's own comparison rows are theirs;
+ * a link that replaced them would be editing the recipient's workspace to
+ * show them a number. The recipient sees the four built-ins plus one row
+ * carrying the sender's ages, already selected — enough to reproduce every
+ * figure the sender was looking at.
+ *
+ * Absent means the optimizer's own answer, which is by far the commonest
+ * link. It is deliberately NOT written as an explicit "best" token: a link
+ * that pinned ages would keep showing them after the recipient edited a birth
+ * year, whereas `best` has to stay a re-resolved answer rather than a
+ * remembered one (see `Scenario`).
+ *
+ * Dropped, not clamped, like every other field here — but the drop only has
+ * to catch syntax. A syntactically valid age this household cannot attain
+ * (62 for someone already 66) survives into `analyzeHousehold`, which clamps
+ * it to the nearest attainable age and shows the clamped value in the
+ * scenario table. That is the same handling a scenario gets when the reader
+ * edits inputs under it, so a stale link and a stale form behave identically
+ * rather than one silently dropping to the optimum.
+ */
+function readScenarios(params: URLSearchParams): ScenarioSet {
+  const raw = params.get('sc');
+  if (raw === null || raw.trim() === '') return DEFAULT_SCENARIO_SET;
+  const ages: FilingAgeChoice[] = [];
+  for (const part of raw.split('.')) {
+    const match = /^(\d{1,3})-(\d{1,2})$/.exec(part);
+    if (match === null) return DEFAULT_SCENARIO_SET;
+    const years = Number(match[1]);
+    const months = Number(match[2]);
+    // Bounds are generous on purpose: this only has to reject nonsense, not
+    // decide attainability, which the engine's own ranked set settles.
+    if (years < 50 || years > 100 || months > 11) return DEFAULT_SCENARIO_SET;
+    ages.push({ years, months });
+  }
+  if (ages.length === 0 || ages.length > 2) return DEFAULT_SCENARIO_SET;
+  return addScenario(resetScenarios(), ages);
+}
+
+function writeScenarios(params: URLSearchParams, scenarios: ScenarioSet): void {
+  const row = selectedRow(scenarios);
+  if (row === undefined || row.scenario.kind !== 'custom') return;
+  if (row.scenario.ages.length === 0) return;
+  params.set('sc', row.scenario.ages.map((a) => `${a.years}-${a.months}`).join('.'));
 }
 
 function readPerson(params: URLSearchParams, prefix: 'a' | 'b'): PersonFormFields {
@@ -178,6 +236,7 @@ export function toShareParams(form: AnalyzerFormState): URLSearchParams {
   // slider; the form stores a fraction. Convert on both sides.
   params.set('dr', String(form.discountRate * 100));
   params.set('dollars', form.dollarsMode);
+  writeScenarios(params, form.scenarios);
   return params;
 }
 
@@ -239,6 +298,7 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
         ? discountFraction
         : BLANK_FORM.discountRate,
     dollarsMode: readDollarsMode(params),
+    scenarios: readScenarios(params),
   };
 }
 

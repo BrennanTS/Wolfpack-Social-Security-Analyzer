@@ -77,11 +77,11 @@ describe('analyzePerson', () => {
     // otherwise this could pass by coincidentally recomputing an optimum
     // that happens to match whatever age was passed in.
     const early = analyzePerson(dan, at62, 2.5, asOf);
-    expect(early.recommendedFilingAge.years).toBe(62);
-    expect(early.recommendedMonthly).toBeCloseTo(1680, 0); // 2400 * 0.70
+    expect(early.filingAge.years).toBe(62);
+    expect(early.monthlyAtFilingAge).toBeCloseTo(1680, 0); // 2400 * 0.70
 
     const late = analyzePerson(dan, at70, 2.5, asOf);
-    expect(late.recommendedFilingAge.years).toBe(70);
-    expect(late.recommendedMonthly).toBeCloseTo(2976, 0); // 2400 * 1.24
+    expect(late.filingAge.years).toBe(70);
+    expect(late.monthlyAtFilingAge).toBeCloseTo(2976, 0); // 2400 * 1.24
   });
 });

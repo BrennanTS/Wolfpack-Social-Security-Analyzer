@@ -13,6 +13,7 @@ import {
 } from '../lib/formState';
 import { personLabel } from '../lib/format';
 import { downloadPdfReport } from '../lib/printReport';
+import type { FilingAgeChoice, ScenarioSet } from '../lib/scenario';
 import { fromShareParams } from '../lib/shareLink';
 import {
   widowedErrors,
@@ -21,6 +22,7 @@ import {
 } from '../lib/widowedForm';
 import { AboutPanel } from './AboutPanel';
 import { AssumptionsPanel } from './AssumptionsPanel';
+import { ScenarioPanel } from './ScenarioPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
 import { PersonFields } from './PersonFields';
@@ -61,6 +63,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [annualCola, setAnnualCola] = useState(initialForm.annualCola);
   const [discountRate, setDiscountRate] = useState(initialForm.discountRate);
   const [dollarsMode, setDollarsMode] = useState<DollarsMode>(initialForm.dollarsMode);
+  const [scenarios, setScenarios] = useState<ScenarioSet>(initialForm.scenarios);
 
   // Strip the query string separately, because this is a side effect and
   // StrictMode double-invokes state initializers. replaceState is idempotent,
@@ -84,6 +87,10 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [showAssumptions, setShowAssumptions] = useState(true);
+  // Collapsed by default: the four built-in scenarios cover most meetings,
+  // and the section is only opened when the adviser wants to model something
+  // other than them.
+  const [showScenarios, setShowScenarios] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -97,6 +104,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       annualCola,
       discountRate,
       dollarsMode,
+      scenarios,
     }),
     [
       personA,
@@ -107,6 +115,7 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
       annualCola,
       discountRate,
       dollarsMode,
+      scenarios,
     ],
   );
 
@@ -160,8 +169,12 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
     return () => {
       cancelled = true;
     };
+    // `scenarios` IS in this list, unlike `annualCola` and `dollarsMode`
+    // above: it changes which filing ages the engine is asked about, so the
+    // whole analysis genuinely has to re-run. A full married re-analysis is
+    // ~35ms, so no debounce is needed for a dropdown change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personA, personB, maritalStatus, deceased, alreadyClaimed, discountRate, asOf]);
+  }, [personA, personB, maritalStatus, deceased, alreadyClaimed, discountRate, scenarios, asOf]);
 
   // Re-seeds the suggested life expectancy only when the identity inputs
   // (date of birth, gender) actually changed — not on every edit to a
@@ -198,6 +211,24 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
         ]
       : []),
   ];
+
+  const scenarioPersonNames =
+    maritalStatus === 'married'
+      ? [personLabel(personA.name, 0), personLabel(personB.name, 1)]
+      : [personLabel(personA.name, 0)];
+
+  // What each scenario row RESOLVED to in the last analysis, keyed by row id.
+  // Built from `analysis.comparisons` rather than from the rows themselves:
+  // the four built-ins store no ages at all (see `Scenario`), and a custom
+  // row's stored ages may have been clamped. A row the analysis dropped as
+  // unattainable is simply absent here, and the panel prints an em dash.
+  const resolvedScenarioAges: Record<string, FilingAgeChoice[]> = {};
+  for (const row of analysis?.comparisons ?? []) {
+    resolvedScenarioAges[row.key] = row.filingAges.map((f) => ({
+      years: f.years,
+      months: f.months,
+    }));
+  }
 
   function handleMaritalChange(status: 'single' | 'married' | 'widowed') {
     setMaritalStatus(status);
@@ -391,6 +422,17 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
                 onAlreadyClaimedChange={setAlreadyClaimed}
               />
             )}
+
+            <ScenarioPanel
+              scenarios={scenarios}
+              onChange={setScenarios}
+              expanded={showScenarios}
+              onToggle={() => setShowScenarios(!showScenarios)}
+              personNames={scenarioPersonNames}
+              options={analysis?.filingAgeOptions ?? null}
+              resolvedAges={resolvedScenarioAges}
+              isMarried={maritalStatus === 'married'}
+            />
 
             <AssumptionsPanel
               lifeExpectancies={lifeExpectancies}

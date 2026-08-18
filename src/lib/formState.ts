@@ -4,6 +4,7 @@ import { isBenefitInRange } from './formBounds';
 import { analyzeHousehold, type Household, type HouseholdAnalysis } from './household';
 import { getCurrentAge, type Gender, type Person } from './personAnalysis';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
+import { DEFAULT_SCENARIO_SET, type ScenarioSet } from './scenario';
 import { DEFAULT_DISCOUNT_RATE } from './ssaTools';
 import {
   BLANK_ALREADY_CLAIMED,
@@ -53,6 +54,15 @@ export interface AnalyzerFormState {
    * power, so the flattering view is the one the reader has to ask for.
    */
   dollarsMode: DollarsMode;
+  /**
+   * The adviser's comparison scenarios and which one the analysis is built
+   * on. Lives in form state rather than beside it in `Analyzer` so it travels
+   * through the share link and through `analyzeIfComplete` by the same route
+   * every other engine input does — unlike `dollarsMode` and `annualCola`,
+   * this one genuinely changes what the engine is asked, so a re-analysis
+   * must follow a change to it.
+   */
+  scenarios: ScenarioSet;
 }
 
 const BLANK_PERSON: PersonFormFields = {
@@ -73,6 +83,7 @@ export const BLANK_FORM: AnalyzerFormState = {
   annualCola: CPI_DEFAULT_COLA,
   discountRate: DEFAULT_DISCOUNT_RATE,
   dollarsMode: 'real',
+  scenarios: DEFAULT_SCENARIO_SET,
 };
 
 export { isBenefitInRange, MAX_BENEFIT, MIN_BENEFIT } from './formBounds';
@@ -195,5 +206,6 @@ export async function analyzeIfComplete(
     toHousehold(form),
     { annualCola: form.annualCola, discountRate: form.discountRate },
     asOf,
+    form.scenarios,
   );
 }

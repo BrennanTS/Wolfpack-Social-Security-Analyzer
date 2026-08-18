@@ -258,8 +258,8 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
     expect(expectedAges, 'full-mode scenarios must record their filing ages').not.toBeNull();
     const result = await run(scenario);
     const actual = result.people.map((p) => ({
-      years: p.recommendedFilingAge.years,
-      months: p.recommendedFilingAge.months,
+      years: p.filingAge.years,
+      months: p.filingAge.months,
     }));
     expect(actual).toEqual(expectedAges);
   });
@@ -308,7 +308,7 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
 
     scenario.expected.optimalAgeRangeByPerson.forEach(([minOptimal, maxOptimal], i) => {
       const person = result.people[i];
-      const optimalAge = nearestWholeClaimAge(person.recommendedFilingAge.decimalYears);
+      const optimalAge = nearestWholeClaimAge(person.filingAge.decimalYears);
       expect(optimalAge).toBeGreaterThanOrEqual(minOptimal);
       expect(optimalAge).toBeLessThanOrEqual(maxOptimal);
     });
@@ -337,7 +337,7 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
       const lowerIndex =
         result.people[0].person.piaMonthly >= result.people[1].person.piaMonthly ? 1 : 0;
       const filedEarly =
-        result.people[lowerIndex].recommendedFilingAge.decimalYears <
+        result.people[lowerIndex].filingAge.decimalYears <
         result.people[lowerIndex].fra.years + result.people[lowerIndex].fra.months / 12;
       // The precondition (lower earner files before their own FRA) is part
       // of what this fixture claims, not an optional branch — if the
@@ -510,8 +510,8 @@ describe.each(widowedScenarios)('golden scenario (widowed): $id', (scenario) => 
     const expectedAges = scenario.expected.recommendedFilingAgeByPerson;
     expect(expectedAges, 'widowed scenarios must also record recommendedFilingAgeByPerson').not.toBeNull();
     expect({
-      years: result.people[0].recommendedFilingAge.years,
-      months: result.people[0].recommendedFilingAge.months,
+      years: result.people[0].filingAge.years,
+      months: result.people[0].filingAge.months,
     }).toEqual(expectedAges![0]);
   });
 
@@ -519,7 +519,7 @@ describe.each(widowedScenarios)('golden scenario (widowed): $id', (scenario) => 
     const result = await run(scenario);
 
     const [minOptimal, maxOptimal] = scenario.expected.optimalAgeRangeByPerson[0];
-    const optimalAge = nearestWholeClaimAge(result.people[0].recommendedFilingAge.decimalYears);
+    const optimalAge = nearestWholeClaimAge(result.people[0].filingAge.decimalYears);
     expect(optimalAge).toBeGreaterThanOrEqual(minOptimal);
     expect(optimalAge).toBeLessThanOrEqual(maxOptimal);
 

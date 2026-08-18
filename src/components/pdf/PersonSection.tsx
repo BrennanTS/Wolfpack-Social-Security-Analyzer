@@ -9,6 +9,7 @@ import {
   yearsMonthsLabel,
 } from '../../lib/format';
 import type { PersonAnalysis } from '../../lib/personAnalysis';
+import { scenarioEyebrow } from '../../lib/scenario';
 import { nearestWholeClaimAge } from '../../lib/ssaTools';
 import { PdfChart, PdfHeatmap, PdfMonthlyRamp, PdfOpportunityCost } from './charts';
 import { COL, MONTHS, styles } from './theme';
@@ -18,6 +19,13 @@ interface Props {
   analysis: PersonAnalysis;
   index: 0 | 1;
   annualCola: number;
+  /**
+   * Whether this person's `filingAge` is the optimizer's own pick. Threaded
+   * down from `ReportDocument` rather than read off `PersonAnalysis`, which
+   * carries the filing age but not the reason for it. Defaults to true — what
+   * every call site meant before scenarios existed.
+   */
+  isBest?: boolean;
   footerText: string;
   appendix?: ReactNode;
   leadingHeader?: ReactNode;
@@ -74,11 +82,11 @@ function BenefitTable({
  * of two per-person pages for a married household — so it stays
  * self-contained rather than assuming a household header already ran.
  */
-export function PersonSection({ analysis, index, annualCola, footerText, appendix, leadingHeader }: Props) {
-  const { person, fra, currentAge, claimingOptions, recommendedFilingAge, recommendedMonthly, ssaSuggestedLifeExpectancy } =
+export function PersonSection({ analysis, index, annualCola, isBest = true, footerText, appendix, leadingHeader }: Props) {
+  const { person, fra, currentAge, claimingOptions, filingAge, monthlyAtFilingAge, ssaSuggestedLifeExpectancy } =
     analysis;
   const name = personLabel(person.name, index);
-  const optimalAge = nearestWholeClaimAge(recommendedFilingAge.decimalYears);
+  const optimalAge = nearestWholeClaimAge(filingAge.decimalYears);
   const optimal = claimingOptions.find((o) => o.age === optimalAge) ?? claimingOptions[0];
   const dob = `${MONTHS[person.birthMonth - 1]} ${person.birthYear}`;
   const breakEvens = computeBreakEvens(claimingOptions, annualCola);
@@ -105,16 +113,16 @@ export function PersonSection({ analysis, index, annualCola, footerText, appendi
       </View>
 
       <View style={styles.recBox}>
-        <Text style={styles.recEyebrow}>Recommended Strategy</Text>
-        <Text style={styles.recHeadline}>File at age {recommendedFilingAge.label}</Text>
+        <Text style={styles.recEyebrow}>{scenarioEyebrow(isBest)}</Text>
+        <Text style={styles.recHeadline}>File at age {filingAge.label}</Text>
         <Text style={styles.recBody}>
-          {name} filing at age {recommendedFilingAge.label} yields {formatCurrency(recommendedMonthly)}
+          {name} filing at age {filingAge.label} yields {formatCurrency(monthlyAtFilingAge)}
           /month, {optimal.percentOfPia}% of PIA.
         </Text>
         <View style={styles.recMetrics}>
           <View style={styles.recMetricBlock}>
-            <Text style={styles.recMetricValue}>{formatCurrency(recommendedMonthly)}</Text>
-            <Text style={styles.recMetricLabel}>Monthly at age {recommendedFilingAge.label}</Text>
+            <Text style={styles.recMetricValue}>{formatCurrency(monthlyAtFilingAge)}</Text>
+            <Text style={styles.recMetricLabel}>Monthly at age {filingAge.label}</Text>
           </View>
           <View style={styles.recMetricBlock}>
             <Text style={styles.recMetricValue}>{formatCurrency(optimal.lifetimeBenefits)}</Text>

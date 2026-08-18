@@ -240,6 +240,7 @@ export function ReportDocument({ analysis }: { analysis: HouseholdAnalysis }) {
           analysis={p}
           index={i as 0 | 1}
           annualCola={analysis.assumptions.annualCola}
+          isBest={analysis.scenarioIsBest}
           footerText={footerText}
           appendix={isMarried ? undefined : appendix}
           leadingHeader={!isMarried && i === 0 ? leadingHeader : undefined}

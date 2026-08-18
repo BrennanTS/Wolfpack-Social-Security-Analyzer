@@ -233,7 +233,7 @@ function build(spec) {
           'This is an engine-recorded value, not a hand-derived one: the optimizer ' +
           'weights expected NPV by empirical SSA/CDC life tables, so there is no ' +
           'published rule to derive it from. Run analyzeHousehold() for this scenario ' +
-          "with its pinned asOf, record each person's recommendedFilingAge as " +
+          "with its pinned asOf, record each person's filingAge as " +
           '{years, months} in scenarios.json, and re-run fixtures:gen. Never adjust an ' +
           'existing recorded value to make the golden suite pass — a moved filing age ' +
           'is the regression that field exists to catch.',

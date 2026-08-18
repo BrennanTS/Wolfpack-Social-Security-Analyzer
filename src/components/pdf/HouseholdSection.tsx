@@ -26,6 +26,7 @@ import {
   survivorIncomeCaption,
   SURVIVOR_INCOME_COLUMN_HEADER,
 } from '../methodologyCopy';
+import { scenarioEyebrow } from '../../lib/scenario';
 import { BORDER, CONTENT_W, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
 
@@ -78,10 +79,18 @@ export function StrategyTable({
         )}
       </View>
       {comparisons.map((s) => (
-        <View key={s.key} style={[styles.tableRow, s.isOptimal ? styles.tableRowOptimal : {}]}>
+        <View
+          key={s.key}
+          style={[
+            styles.tableRow,
+            s.isOptimal ? styles.tableRowOptimal : {},
+            s.isSelected && !s.isOptimal ? styles.tableRowSelected : {},
+          ]}
+        >
           <View style={[styles.tdAge, { width: HCOL.label }]}>
             <Text style={styles.tdBold}>{s.label}</Text>
             {s.isOptimal && <Text style={styles.badge}>BEST</Text>}
+            {s.isSelected && !s.isOptimal && <Text style={styles.badgeShown}>SHOWN</Text>}
           </View>
           {s.filingAges.map((filingAge, i) => (
             <Text key={people[i].id} style={[styles.td, { width: HCOL.person }]}>
@@ -244,7 +253,9 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Household</Text>
 
       <View style={styles.recBox}>
-        <Text style={styles.recEyebrow}>Household — Recommended Strategy</Text>
+        <Text style={styles.recEyebrow}>
+          Household — {scenarioEyebrow(analysis.scenarioIsBest)}
+        </Text>
         <Text style={styles.recHeadline}>{analysis.recommendation}</Text>
         <Text style={styles.recBody}>{analysis.recommendationDetail}</Text>
         {spousal && (

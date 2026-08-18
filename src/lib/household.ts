@@ -25,6 +25,15 @@ import {
   type RankedStrategy,
 } from './ssaTools';
 import {
+  clampToAttainable,
+  DEFAULT_SCENARIO_SET,
+  filingAgeMonths,
+  scenarioLabel,
+  type FilingAgeChoice,
+  type Scenario,
+  type ScenarioSet,
+} from './scenario';
+import {
   bestWidowedOutcome,
   widowedBands,
   widowedOutcomeFor,
@@ -95,11 +104,21 @@ export function householdDisplayShape(status: Household['status']): 'oneClaimant
   }
 }
 
-/** Rows a single or married household can show. */
-type CoupleStrategyKey = 'earliest' | 'fra' | 'optimal' | 'latest';
-/** Rows a widowed household can show. `optimal` is shared with the above. */
+/** Rows a widowed household can show. `optimal` is shared with the couple set. */
 type WidowedStrategyKey = 'survivorFirst' | 'ownFirst' | 'bothEarliest' | 'optimal';
-export type StrategyKey = CoupleStrategyKey | WidowedStrategyKey;
+
+/**
+ * A comparison row's identity.
+ *
+ * A plain string for a single or married household, because the rows are the
+ * adviser's own scenario list and the ids come from `ScenarioRow.id` — the
+ * four built-ins keep the literals `optimal`, `earliest`, `fra` and `latest`
+ * they have always had, so every existing selector and assertion still finds
+ * them, and added rows are `s1`, `s2`, and so on. A widowed household's rows
+ * are still derived by the engine rather than chosen, so those keys stay a
+ * closed set.
+ */
+export type StrategyKey = string | WidowedStrategyKey;
 
 export interface HouseholdStrategy {
   key: StrategyKey;
@@ -141,6 +160,16 @@ export interface HouseholdStrategy {
   deltaVsOptimal: number;
   isOptimal: boolean;
   /**
+   * Whether THIS row is the one the rest of the analysis is built on.
+   *
+   * Distinct from `isOptimal`, and equal to it only while the scenario is
+   * `best`. Exactly one row of a `comparisons` array carries it, and that row
+   * is the one whose filing ages produced `periods`, `combinedTimeline`,
+   * `spousalTopUp`, `survivorClaim`, `incomeCliff` and every figure either
+   * surface prints outside the table itself.
+   */
+  isSelected: boolean;
+  /**
    * Annual household income in the first full year after the first death,
    * under THIS strategy. Null for a single claimant, and for the edge cases
    * `withSurvivorIncome` documents.
@@ -168,7 +197,41 @@ export interface CombinedTimelinePoint {
 export interface HouseholdAnalysis {
   status: Household['status'];
   people: PersonAnalysis[];
+  /**
+   * The optimizer's own answer, always — never the reader's scenario. Kept
+   * beside `selected` so the cost of deviating is a subtraction rather than a
+   * second analysis, and so a display layer can always name what it is
+   * being compared against.
+   */
   optimal: HouseholdStrategy;
+  /**
+   * The strategy every other figure in this object was computed from.
+   * Identical to `optimal` while the scenario is `best`, which is the default
+   * and was the only possibility before scenarios existed.
+   *
+   * Read this — not `optimal` — for anything describing what is on screen.
+   * `people[i].filingAge`, `periods`, `combinedTimeline`, `spousalTopUp`,
+   * `survivorClaim` and `recommendation` all derive from it.
+   */
+  selected: HouseholdStrategy;
+  /**
+   * Whether `selected` is the optimizer's own pick. Not `selected.isOptimal`
+   * re-spelled: a custom scenario that happens to name the optimal ages
+   * resolves to the optimal row and is `true` here, which is the honest
+   * answer — the reader is looking at the optimum, however they got there.
+   */
+  scenarioIsBest: boolean;
+  /**
+   * Every filing age this household could actually choose, per person, in
+   * DISPLAY order and ascending. Taken from the engine's own ranked set
+   * rather than derived as "62 through 70": the floor is the person's
+   * current age (the optimizer returns nothing earlier), and for most people
+   * the true earliest retirement filing age is 62 years 1 month, not 62.
+   *
+   * Empty per person for a widowed household, which does not choose from a
+   * single-record filing-age set at all — see `analyzeWidowed`.
+   */
+  filingAgeOptions: FilingAgeChoice[][];
   comparisons: HouseholdStrategy[];
   combinedTimeline: CombinedTimelinePoint[];
   /**
@@ -253,15 +316,9 @@ export interface HouseholdAnalysis {
   piaEstimated: boolean | null;
 }
 
-const LABELS: Record<CoupleStrategyKey, { single: string; married: string }> = {
-  earliest: { single: 'Claim at 62', married: 'Both claim earliest (62)' },
-  fra: { single: 'Claim at FRA', married: 'Both claim at FRA' },
-  optimal: { single: 'Optimal', married: 'Optimal' },
-  latest: { single: 'Claim at 70', married: 'Both delay to 70' },
-};
-
 /**
- * Widowed rows get their own labels rather than a third arm on `LABELS`: the
+ * Widowed rows get their own labels rather than a third arm on the derived
+ * scenario labels in `scenario.ts`: the
  * two statuses name different decisions, and forcing every couple key to carry
  * a widowed label it can never use would invite one being written.
  *
@@ -293,72 +350,200 @@ function widowedLabel(key: WidowedStrategyKey, outcome: WidowedOutcome): string 
 }
 
 /**
- * Builds the comparison rows from the already-ranked strategy list.
+ * Every filing age the engine will actually accept for each person, ascending.
  *
- * Rows whose filing ages are unattainable given `asOf` are omitted — the
- * optimizer only returns ages at or after each person's current age. When the
- * optimum coincides with a named row, that row is marked optimal rather than
- * duplicated.
+ * Read off `ranked` rather than derived from 62..70: the optimizer's own set
+ * already encodes both the floor (a person past 62 cannot file at 62) and the
+ * fact that retirement filing usually starts at 62 years 1 month. Building
+ * the picker's options from any other source is how it comes to offer an age
+ * that resolves to something else.
+ *
+ * Slot-indexed, so the returned arrays are in whatever order `ranked` is in —
+ * ENGINE order for a couple. Callers map to display order themselves.
+ */
+function filingAgeOptionsFrom(ranked: RankedStrategy[]): FilingAgeChoice[][] {
+  if (ranked.length === 0) return [];
+  const perSlot: Map<number, FilingAgeChoice>[] = ranked[0].filingAges.map(() => new Map());
+  for (const strategy of ranked) {
+    strategy.filingAges.forEach((age, slot) => {
+      const key = age.years * 12 + age.months;
+      if (!perSlot[slot].has(key)) perSlot[slot].set(key, { years: age.years, months: age.months });
+    });
+  }
+  return perSlot.map((options) =>
+    [...options.values()].sort((a, b) => filingAgeMonths(a) - filingAgeMonths(b)),
+  );
+}
+
+const agesOf = (strategy: RankedStrategy): FilingAgeChoice[] =>
+  strategy.filingAges.map((f) => ({ years: f.years, months: f.months }));
+
+const agesKey = (ages: readonly FilingAgeChoice[]) => ages.map(filingAgeMonths).join(',');
+
+/**
+ * One scenario's filing ages, or null when this household cannot reach them.
+ *
+ * The derived kinds are looked up exactly, and a miss means the row is
+ * genuinely unattainable — a household where one person is already 64 has no
+ * "both claim at 62" — so it is dropped from the table rather than shown with
+ * substituted figures. Custom ages are CLAMPED instead of dropped, because a
+ * row the adviser typed going quietly missing is worse than one that shifts
+ * to the nearest reachable age and says so in the picker.
+ *
+ * `ages` on a custom scenario arrives in display order; `toEngineAges` is the
+ * caller's own display→engine mapping, passed in rather than re-derived here
+ * so this function never has to know which household ordering it is inside.
+ */
+function resolveScenario(
+  ranked: RankedStrategy[],
+  optimalStrategy: RankedStrategy,
+  enginePeople: Person[],
+  scenario: Scenario,
+  toEngineAges: (ages: FilingAgeChoice[]) => FilingAgeChoice[],
+): RankedStrategy | null {
+  switch (scenario.kind) {
+    case 'best':
+      return optimalStrategy;
+    case 'earliest':
+      return findStrategyByAges(
+        ranked,
+        enginePeople.map(() => ({ years: 62, months: 0 })),
+      );
+    case 'latest':
+      return findStrategyByAges(
+        ranked,
+        enginePeople.map(() => ({ years: 70, months: 0 })),
+      );
+    case 'fra':
+      return findStrategyByAges(
+        ranked,
+        enginePeople.map((p) => {
+          const fra = getFullRetirementAge(p.birthYear);
+          return { years: fra.years, months: fra.months };
+        }),
+      );
+    case 'custom': {
+      if (scenario.ages.length !== enginePeople.length) return null;
+      const options = filingAgeOptionsFrom(ranked);
+      if (options.length !== scenario.ages.length) return null;
+      const wanted = toEngineAges(scenario.ages);
+      const clamped: FilingAgeChoice[] = [];
+      for (let slot = 0; slot < wanted.length; slot++) {
+        const choice = clampToAttainable(options[slot], wanted[slot]);
+        if (choice === null) return null;
+        clamped.push(choice);
+      }
+      return findStrategyByAges(ranked, clamped);
+    }
+  }
+}
+
+/**
+ * Turns the adviser's scenario list into comparison rows.
+ *
+ * One row per scenario, in filing-age order rather than list order: the table
+ * reads earliest to latest on both surfaces, and that ordering is a function
+ * of the strategies rather than of which person was typed into the form
+ * first. (The sidebar keeps the adviser's own order — that is the editing
+ * surface, and it does not have to agree.)
+ *
+ * Two rules on which rows survive:
+ *
+ *  - A DERIVED row whose ages another row already carries is folded away.
+ *    "Both claim at FRA" and "Optimal" naming the same pair is noise, and
+ *    printing it twice is what this fold has always prevented.
+ *  - A CUSTOM row is never folded, even against an identical one. It exists
+ *    because the adviser added it, it carries their own name for it, and it
+ *    is visible and deletable in the sidebar. Silently dropping a row someone
+ *    typed is a worse failure than showing two rows that agree.
+ *
+ * A folded row that happened to be selected hands its selection to the row it
+ * folded into, so the analysis stays built on the ages the adviser chose
+ * rather than falling back to the optimum with nothing saying so.
  */
 function buildComparisons(
   ranked: RankedStrategy[],
   optimalStrategy: RankedStrategy,
-  people: Person[],
+  scenarios: ScenarioSet,
+  enginePeople: Person[],
   status: Household['status'],
-): { optimal: HouseholdStrategy; comparisons: HouseholdStrategy[] } {
-  const namedAges: { key: CoupleStrategyKey; ages: { years: number; months: number }[] }[] = [
-    { key: 'earliest', ages: people.map(() => ({ years: 62, months: 0 })) },
-    {
-      key: 'fra',
-      ages: people.map((p) => {
-        const fra = getFullRetirementAge(p.birthYear);
-        return { years: fra.years, months: fra.months };
-      }),
-    },
-    { key: 'latest', ages: people.map(() => ({ years: 70, months: 0 })) },
-  ];
+  toEngineAges: (ages: FilingAgeChoice[]) => FilingAgeChoice[],
+): { optimal: HouseholdStrategy; selected: HouseholdStrategy; comparisons: HouseholdStrategy[] } {
+  const isMarried = status === 'married';
+  const optimalKey = agesKey(agesOf(optimalStrategy));
 
-  const isOptimalAges = (ages: { years: number; months: number }[]) =>
-    optimalStrategy.filingAges.every(
-      (f, i) => f.years === ages[i].years && f.months === ages[i].months,
+  interface Entry {
+    id: string;
+    label: string;
+    strategy: RankedStrategy;
+    derived: boolean;
+  }
+
+  const entries: Entry[] = [];
+  const seenDerived = new Map<string, string>(); // ages → id of the row that won
+  let selectedId = scenarios.selectedId;
+
+  for (const row of scenarios.rows) {
+    const strategy = resolveScenario(
+      ranked,
+      optimalStrategy,
+      enginePeople,
+      row.scenario,
+      toEngineAges,
     );
+    if (strategy === null) {
+      // Unattainable named row, or a scenario shaped for a different
+      // household. If it was the selected one, the selection falls back to
+      // the optimum below.
+      continue;
+    }
+    const derived = row.scenario.kind !== 'custom';
+    const key = agesKey(agesOf(strategy));
+    if (derived) {
+      const winner = seenDerived.get(key);
+      if (winner !== undefined) {
+        if (selectedId === row.id) selectedId = winner;
+        continue;
+      }
+      seenDerived.set(key, row.id);
+    }
+    entries.push({ id: row.id, label: scenarioLabel(row, isMarried), strategy, derived });
+  }
 
-  const key = status === 'married' ? 'married' : 'single';
+  if (entries.length === 0) {
+    throw new Error('No scenario in this list is attainable for this household');
+  }
 
-  const optimal: HouseholdStrategy = {
-    key: 'optimal',
-    label: LABELS.optimal[key],
-    filingAges: optimalStrategy.filingAges,
-    expectedNpv: optimalStrategy.expectedNpv,
+  // Exactly one row wears the Best badge and anchors every delta. The FIRST
+  // row matching the optimum's ages takes it, which is the built-in Optimal
+  // row whenever it is present — a custom row the adviser happened to set to
+  // the optimum's ages sits beside it rather than competing for the badge.
+  const optimalEntryId = entries.find((e) => agesKey(agesOf(e.strategy)) === optimalKey)?.id;
+
+  // The selected row may have been dropped as unattainable, or the id may
+  // simply be stale. Falling back to the optimum keeps `selected` meaningful,
+  // and `scenarioIsBest` then reports the truth of what is shown.
+  if (!entries.some((e) => e.id === selectedId)) {
+    selectedId = optimalEntryId ?? entries[0].id;
+  }
+
+  const rows: HouseholdStrategy[] = entries.map((entry) => ({
+    key: entry.id,
+    label: entry.label,
+    filingAges: entry.strategy.filingAges,
+    expectedNpv: entry.strategy.expectedNpv,
     lifetimeTotal: null,
     survivorClaimDate: null,
-    deltaVsOptimal: 0,
-    isOptimal: true,
+    deltaVsOptimal:
+      Math.round((entry.strategy.expectedNpv - optimalStrategy.expectedNpv) * 100) / 100,
+    isOptimal: entry.id === optimalEntryId,
+    isSelected: entry.id === selectedId,
     // Filled in by `withSurvivorIncome` once bands exist to compute it from —
     // `buildComparisons` runs before this household's `householdPeriods` call.
     survivorIncome: null,
-  };
+  }));
 
-  const rows: HouseholdStrategy[] = [];
-  for (const named of namedAges) {
-    if (isOptimalAges(named.ages)) continue; // Folded into the optimal row.
-    const match = findStrategyByAges(ranked, named.ages);
-    if (!match) continue; // Unattainable given asOf.
-    rows.push({
-      key: named.key,
-      label: LABELS[named.key][key],
-      filingAges: match.filingAges,
-      expectedNpv: match.expectedNpv,
-      lifetimeTotal: null,
-      survivorClaimDate: null,
-      deltaVsOptimal: Math.round((match.expectedNpv - optimal.expectedNpv) * 100) / 100,
-      isOptimal: false,
-      survivorIncome: null,
-    });
-  }
-
-  // Present ascending by filing age so the table reads earliest to latest,
-  // with the optimal row in its natural position.
+  // Present ascending by filing age so the table reads earliest to latest.
   //
   // Sorted on a SYMMETRIC key — the earliest filing age in the row, then the
   // latest — rather than on `filingAges[0]`, one particular person's slot.
@@ -366,18 +551,29 @@ function buildComparisons(
   // came back `fra, latest, optimal` entered one way and `optimal, fra,
   // latest` entered the other, moving the row that carries the "Best" badge.
   // Both keys are order-independent by construction (min and max over the
-  // same set), so the row order is now a function of the strategies, not of
-  // which person was typed first.
-  const rowKey = (s: HouseholdStrategy) => {
+  // same set). The list index breaks a tie between two rows with identical
+  // ages, so a custom row and the built-in it duplicates keep a stable
+  // relative order rather than depending on the sort's stability.
+  const rowKey = (s: HouseholdStrategy, index: number) => {
     const ages = s.filingAges.map((f) => f.decimalYears);
-    return { first: Math.min(...ages), last: Math.max(...ages) };
+    return { first: Math.min(...ages), last: Math.max(...ages), index };
   };
-  const ordered = [...rows, optimal].sort((a, b) => {
-    const ka = rowKey(a);
-    const kb = rowKey(b);
-    return ka.first - kb.first || ka.last - kb.last;
-  });
-  return { optimal, comparisons: ordered };
+  const ordered = rows
+    .map((row, index) => ({ row, sort: rowKey(row, index) }))
+    .sort(
+      (a, b) =>
+        a.sort.first - b.sort.first ||
+        a.sort.last - b.sort.last ||
+        a.sort.index - b.sort.index,
+    )
+    .map((e) => e.row);
+
+  const optimal = ordered.find((r) => r.isOptimal);
+  const selected = ordered.find((r) => r.isSelected);
+  if (optimal === undefined || selected === undefined) {
+    throw new Error('Comparison rows lost the optimal or selected strategy');
+  }
+  return { optimal, selected, comparisons: ordered };
 }
 
 /**
@@ -389,12 +585,18 @@ function buildComparisons(
  * `incomeCliff` returns null for: the first death falling outside a row's own
  * modeled timeline.
  *
- * `optimalBands` is the married branch's own `householdPeriods` call, already
+ * `selectedBands` is the married branch's own `householdPeriods` call, already
  * in scope by the time this runs (needed there regardless, for
- * `combinedTimeline`/`spousalTopUp`/`periods`) — reused for the optimal row
- * rather than recomputed, since the optimal row's filing ages are exactly the
+ * `combinedTimeline`/`spousalTopUp`/`periods`) — reused for the SELECTED row
+ * rather than recomputed, since the selected row's filing ages are exactly the
  * ones that produced it. Every other row still gets its own fresh call, since
- * only the optimal row's bands are already in scope.
+ * only the selected row's bands are already in scope.
+ *
+ * Keyed on `isSelected`, not `isOptimal`. The two coincide only while the
+ * scenario is `best`; under any other scenario `selectedBands` belongs to the
+ * chosen ages, and handing them to the optimal row would have printed the
+ * scenario's survivor income on the optimum's line — a real figure attributed
+ * to the wrong strategy, in the one column an adviser reads to compare them.
  *
  * The death year is computed once, via `firstDeath` — the same arithmetic
  * `incomeCliff` uses, reused rather than re-derived. The death months are
@@ -408,7 +610,7 @@ function withSurvivorIncome(
   labels: string[],
   finalIndexByPersonId: Record<string, number>,
   peopleAnalysis: PersonAnalysis[],
-  optimalBands: BenefitBand[],
+  selectedBands: BenefitBand[],
 ): HouseholdStrategy[] {
   if (rawPeople.length !== 2) return comparisons.map((c) => ({ ...c, survivorIncome: null }));
 
@@ -416,8 +618,8 @@ function withSurvivorIncome(
   if (death === null) return comparisons.map((c) => ({ ...c, survivorIncome: null }));
 
   return comparisons.map((c) => {
-    const bands = c.isOptimal
-      ? optimalBands
+    const bands = c.isSelected
+      ? selectedBands
       : householdPeriods(
           rawPeople,
           recipients,
@@ -891,6 +1093,49 @@ function coupleRecommendationDetail(
 }
 
 /**
+ * The sentence under the card when the reader has chosen the filing ages
+ * themselves rather than taking the optimizer's.
+ *
+ * One function for both surfaces and both statuses, for the same reason
+ * `coupleRecommendationDetail` above is one function: this sentence states a
+ * dollar shortfall against a named alternative, and a second hand-maintained
+ * copy is how the two surfaces come to quote different figures for the same
+ * household.
+ *
+ * The exact-tie branch is not defensive padding. A couple's optimizer returns
+ * expected present values rounded to the cent, and distinct filing-age pairs
+ * do land on the same value; without the branch the app prints "$0 less than
+ * the best available", which reads as an error rather than as the (true and
+ * useful) statement that this scenario costs nothing.
+ */
+function selectedScenarioDetail(
+  labels: readonly string[],
+  ages: readonly string[],
+  optimalAges: readonly string[],
+  selectedNpv: number,
+  optimalNpv: number,
+): string {
+  const value = labels.length > 1 ? 'combined expected present value' : 'expected present value';
+  const filings = labels.map((l, i) => `${l} at age ${ages[i]}`).join(' and ');
+  const bestFilings = labels.map((l, i) => `${l} at age ${optimalAges[i]}`).join(' and ');
+  const shortfall = Math.round((optimalNpv - selectedNpv) * 100) / 100;
+
+  if (shortfall <= 0) {
+    return (
+      `Every figure here is computed with ${filings}. It is worth ` +
+      `${formatCurrency(selectedNpv)} in ${value} — the same as the optimizer's own ` +
+      `choice, ${bestFilings}, so this scenario costs nothing.`
+    );
+  }
+
+  return (
+    `Every figure here is computed with ${filings}, not the optimizer's choice. It is ` +
+    `worth ${formatCurrency(selectedNpv)} in ${value}, ${formatCurrency(shortfall)} less ` +
+    `than the best available — ${bestFilings}, at ${formatCurrency(optimalNpv)}.`
+  );
+}
+
+/**
  * A widow(er): one living claimant, two independent dates.
  *
  * Does not call the engine's strategy optimizer at all.
@@ -937,7 +1182,7 @@ async function analyzeWidowed(
   );
 
   // `analyzePerson` computes `claimingOptions`, `breakEvens` and
-  // `recommendedMonthly` from this person's OWN record alone. For a widow those
+  // `monthlyAtFilingAge` from this person's OWN record alone. For a widow those
   // are not merely incomplete, they are misleading: her own benefit may be
   // smaller than the survivor benefit in every month she is alive, so a table
   // of "what you'd get claiming at 62 through 70" describes income she would
@@ -957,7 +1202,7 @@ async function analyzeWidowed(
     asOf,
   );
   const people = [
-    { ...own, claimingOptions: [], breakEvens: [], recommendedMonthly: steadyMonthly },
+    { ...own, claimingOptions: [], breakEvens: [], monthlyAtFilingAge: steadyMonthly },
   ];
 
   const toStrategy = (
@@ -973,6 +1218,12 @@ async function analyzeWidowed(
     survivorClaimDate: { monthIndex: outcome.survivorClaimIndex, age: outcome.survivorClaimAge },
     deltaVsOptimal: roundCents(outcome.lifetimeTotal - best.lifetimeTotal),
     isOptimal,
+    // A widowed household chooses two dates, not one filing age, so the
+    // scenario picker has nothing to offer it and `analyzeWidowed` ignores
+    // the scenario entirely — see `filingAgeOptions`. The selected row is
+    // therefore always the optimum here, which is what this branch did
+    // before scenarios existed.
+    isSelected: isOptimal,
     survivorIncome: null,
   });
 
@@ -1008,6 +1259,9 @@ async function analyzeWidowed(
     status: 'widowed',
     people,
     optimal,
+    selected: optimal,
+    scenarioIsBest: true,
+    filingAgeOptions: [[]],
     comparisons,
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
@@ -1035,10 +1289,18 @@ function monthDurationBetween(person: Person, monthIndex: number): MonthDuration
   return recipient.birthdate.ageAtSsaDate(monthDateAt(monthIndex));
 }
 
+/**
+ * `scenarios` is the adviser's list of comparison rows and which one the
+ * ENTIRE analysis is built on. Defaulting it to the built-in four with
+ * Optimal selected is what keeps every existing caller — the golden fixtures,
+ * the sweep, every test written before scenarios existed — producing exactly
+ * what it produced before.
+ */
 export async function analyzeHousehold(
   household: Household,
   assumptions: Assumptions,
   asOf: Date = new Date(),
+  scenarios: ScenarioSet = DEFAULT_SCENARIO_SET,
 ): Promise<HouseholdAnalysis> {
   if (household.status === 'married') {
     const [personA, personB] = household.people;
@@ -1066,11 +1328,24 @@ export async function analyzeHousehold(
       throw new Error('No eligible couple filing strategies');
     }
 
-    const { optimal, comparisons } = buildComparisons(ranked, ranked[0], enginePeople, 'married');
+    const { optimal, selected, comparisons } = buildComparisons(
+      ranked,
+      ranked[0],
+      scenarios,
+      enginePeople,
+      'married',
+      // Custom ages arrive in display order; everything below this line runs
+      // in engine order. `reorder` is its own inverse for a two-element
+      // permutation, so this is the same mapping used everywhere else here.
+      (ages) => reorder(ages),
+    );
 
     // Display order from here on for anything a reader sees attached to a
     // person: filing-age columns, the recommendation sentence, `people`.
-    const displayFilingAges = reorder(optimal.filingAges);
+    // Read off `selected`, not `optimal` — under a chosen scenario these are
+    // different pairs, and this is the one the reader is looking at.
+    const displayFilingAges = reorder(selected.filingAges);
+    const displayOptimalAges = reorder(optimal.filingAges);
     const people = household.people.map((person, i) =>
       analyzePerson(person, displayFilingAges[i], assumptions.annualCola, asOf),
     );
@@ -1111,7 +1386,7 @@ export async function analyzeHousehold(
     const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
       enginePeople,
       [recipient0, recipient1],
-      optimal.filingAges.map((f) => f.monthDuration),
+      selected.filingAges.map((f) => f.monthDuration),
       engineLabels,
     );
 
@@ -1124,7 +1399,7 @@ export async function analyzeHousehold(
     const survivorClaim = survivorClaimAlternative(
       enginePeople,
       [recipient0, recipient1],
-      optimal.filingAges.map((f) => f.monthDuration),
+      selected.filingAges.map((f) => f.monthDuration),
       bands,
       finalIndexByPersonId,
       survivorGap,
@@ -1146,15 +1421,24 @@ export async function analyzeHousehold(
       ...c,
       filingAges: reorder(c.filingAges),
     }));
-    const optimalWithSurvivor = displayRows.find((c) => c.isOptimal) ?? {
-      ...optimal,
-      filingAges: displayFilingAges,
-    };
+    // `buildComparisons` builds exactly one row with each flag, so neither
+    // lookup can miss. Throwing rather than falling back to a synthesized row
+    // keeps that guarantee checkable: the fallback this replaces silently
+    // paired the optimum's label with the SELECTED strategy's filing ages the
+    // moment the two diverged.
+    const optimalRow = displayRows.find((c) => c.isOptimal);
+    const selectedRow = displayRows.find((c) => c.isSelected);
+    if (optimalRow === undefined || selectedRow === undefined) {
+      throw new Error('Comparison rows lost the optimal or selected strategy');
+    }
 
     return {
       status: 'married',
       people,
-      optimal: optimalWithSurvivor,
+      optimal: optimalRow,
+      selected: selectedRow,
+      scenarioIsBest: selectedRow.isOptimal,
+      filingAgeOptions: reorder(filingAgeOptionsFrom(ranked)),
       comparisons: displayRows,
       combinedTimeline: buildCombinedTimeline(bands, people),
       periods: bands,
@@ -1171,12 +1455,18 @@ export async function analyzeHousehold(
       recommendation:
         `${displayLabels[0]} files at ${displayFilingAges[0].label} · ` +
         `${displayLabels[1]} files at ${displayFilingAges[1].label}`,
-      recommendationDetail: coupleRecommendationDetail(
-        isPiaTie,
-        optimal.expectedNpv,
-        displayLabels,
-        [displayFilingAges[0].label, displayFilingAges[1].label],
-      ),
+      recommendationDetail: selectedRow.isOptimal
+        ? coupleRecommendationDetail(isPiaTie, optimal.expectedNpv, displayLabels, [
+            displayFilingAges[0].label,
+            displayFilingAges[1].label,
+          ])
+        : selectedScenarioDetail(
+            displayLabels,
+            [displayFilingAges[0].label, displayFilingAges[1].label],
+            [displayOptimalAges[0].label, displayOptimalAges[1].label],
+            selected.expectedNpv,
+            optimal.expectedNpv,
+          ),
       assumptions,
       asOf,
       piaEstimated: null,
@@ -1198,19 +1488,22 @@ export async function analyzeHousehold(
     throw new Error('No eligible filing ages for this person');
   }
 
-  const { optimal, comparisons } = buildComparisons(
+  const { optimal, selected, comparisons } = buildComparisons(
     recipientRanked,
     recipientRanked[0],
+    scenarios,
     household.people,
     'single',
+    // One person: display order and engine order are the same order.
+    (ages) => ages,
   );
 
-  const people = [analyzePerson(person, optimal.filingAges[0], assumptions.annualCola, asOf)];
+  const people = [analyzePerson(person, selected.filingAges[0], assumptions.annualCola, asOf)];
 
   const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
     household.people,
     [recipient],
-    [optimal.filingAges[0].monthDuration],
+    [selected.filingAges[0].monthDuration],
     [personLabel(person.name, 0)],
   );
 
@@ -1227,23 +1520,39 @@ export async function analyzeHousehold(
     people,
     bands,
   );
-  const optimalWithSurvivor = comparisonsWithSurvivor.find((c) => c.isOptimal) ?? optimal;
+  // See the married branch: exactly one row carries each flag, and a silent
+  // fallback here would attach the wrong label to real figures.
+  const optimalRow = comparisonsWithSurvivor.find((c) => c.isOptimal);
+  const selectedRow = comparisonsWithSurvivor.find((c) => c.isSelected);
+  if (optimalRow === undefined || selectedRow === undefined) {
+    throw new Error('Comparison rows lost the optimal or selected strategy');
+  }
 
   return {
     status: 'single',
     people,
-    optimal: optimalWithSurvivor,
+    optimal: optimalRow,
+    selected: selectedRow,
+    scenarioIsBest: selectedRow.isOptimal,
+    filingAgeOptions: filingAgeOptionsFrom(recipientRanked),
     comparisons: comparisonsWithSurvivor,
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap,
     survivorClaim: null,
     finalIndexByPersonId,
-    recommendation: `Claim at age ${optimal.filingAges[0].label}`,
-    recommendationDetail:
-      `The optimizer recommends filing at age ${optimal.filingAges[0].label} ` +
-      `(${formatCurrency(people[0].recommendedMonthly)}/month) for the highest expected ` +
-      `present value, ${formatCurrency(optimal.expectedNpv)}.`,
+    recommendation: `Claim at age ${selected.filingAges[0].label}`,
+    recommendationDetail: selectedRow.isOptimal
+      ? `The optimizer recommends filing at age ${optimal.filingAges[0].label} ` +
+        `(${formatCurrency(people[0].monthlyAtFilingAge)}/month) for the highest expected ` +
+        `present value, ${formatCurrency(optimal.expectedNpv)}.`
+      : selectedScenarioDetail(
+          [personLabel(person.name, 0)],
+          [selected.filingAges[0].label],
+          [optimal.filingAges[0].label],
+          selected.expectedNpv,
+          optimal.expectedNpv,
+        ),
     assumptions,
     asOf,
     piaEstimated: null,

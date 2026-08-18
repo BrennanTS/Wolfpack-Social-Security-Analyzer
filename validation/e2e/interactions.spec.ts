@@ -356,3 +356,44 @@ test('offers to convert a yearly benefit figure', async ({ page }) => {
   await expect(page.locator('#a-benefit')).toHaveValue('3000');
   await expect(nudge).toHaveCount(0);
 });
+
+test('drives the whole report from a scenario added in the sidebar', async ({ page }) => {
+  await page.goto('/');
+  await fillScenarioForm(page, married);
+
+  // Collapsed by default — the four built-ins cover most meetings.
+  const toggle = page.getByRole('button', { name: /Claiming scenarios/ });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(page.getByTestId('scenario-table')).toBeVisible();
+
+  // Baseline: the optimizer's own answer.
+  await expect(page.getByTestId('recommendation-title')).toBeVisible();
+  const eyebrow = page.locator('.rec-label').first();
+  await expect(eyebrow).toHaveText(/Recommended Strategy/);
+  const optimalPv = await page
+    .getByTestId('strategy-row-optimal')
+    .locator('td')
+    .nth(3)
+    .textContent();
+
+  // Add a row, then move one person to 65.
+  await page.getByTestId('scenario-add').click();
+  await expect(page.getByTestId('scenario-row-s1')).toBeVisible();
+  await page.getByTestId('scenario-years-s1-0').selectOption('65');
+
+  // The whole surface follows it: the card stops calling it a recommendation,
+  // the new row appears in the comparison table carrying the Shown badge, and
+  // the optimum keeps its own figure.
+  await expect(eyebrow).toHaveText(/Selected Scenario/);
+  await expect(page.getByTestId('strategy-row-s1')).toContainText('Shown');
+  await expect(page.getByTestId('strategy-row-s1').locator('td').nth(1)).toHaveText('65');
+  await expect(page.getByTestId('strategy-row-optimal').locator('td').nth(3)).toHaveText(
+    optimalPv ?? '',
+  );
+
+  // Reset puts it back, row and all.
+  await page.getByTestId('scenario-reset').click();
+  await expect(page.getByTestId('strategy-row-s1')).toHaveCount(0);
+  await expect(eyebrow).toHaveText(/Recommended Strategy/);
+});

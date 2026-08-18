@@ -6,9 +6,9 @@ import type { PersonAnalysis } from '../lib/personAnalysis';
 // Minimal hand-built analysis — components take data as props and never
 // call the engine, so no mocking or fixture loading is needed here.
 // `claimingOptions` covers every whole-year age 62-70 (not just a sparse
-// subset) so a rounded, non-whole-year `recommendedFilingAge` always has a
+// subset) so a rounded, non-whole-year `filingAge` always has a
 // real row to land on, matching what `analyzePerson` actually produces.
-function buildAnalysis(recommendedFilingAge: PersonAnalysis['recommendedFilingAge']): PersonAnalysis {
+function buildAnalysis(filingAge: PersonAnalysis['filingAge']): PersonAnalysis {
   return {
     person: { id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
               gender: 'male', piaMonthly: 2400, lifeExpectancy: 85 },
@@ -33,8 +33,8 @@ function buildAnalysis(recommendedFilingAge: PersonAnalysis['recommendedFilingAg
       isEligible: age <= 63,
       monthsFromFra: 0,
     })),
-    recommendedFilingAge,
-    recommendedMonthly: 2976,
+    filingAge,
+    monthlyAtFilingAge: 2976,
     breakEvens: [],
     ssaSuggestedLifeExpectancy: 82,
   } as unknown as PersonAnalysis;
@@ -157,7 +157,7 @@ describe('PersonPanel', () => {
     const zeroPia = {
       ...wholeYearAnalysis,
       person: { ...wholeYearAnalysis.person, piaMonthly: 0 },
-      recommendedMonthly: 0,
+      monthlyAtFilingAge: 0,
       claimingOptions: wholeYearAnalysis.claimingOptions.map((o) => ({
         ...o,
         monthlyBenefit: 0,

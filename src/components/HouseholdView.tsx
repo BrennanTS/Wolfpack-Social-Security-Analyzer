@@ -61,7 +61,14 @@ export function HouseholdView({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   if (shape === 'oneClaimant') {
-    return <PersonPanel analysis={analysis.people[0]} index={0} annualCola={annualCola} />;
+    return (
+      <PersonPanel
+        analysis={analysis.people[0]}
+        index={0}
+        annualCola={annualCola}
+        isBest={analysis.scenarioIsBest}
+      />
+    );
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
@@ -117,6 +124,7 @@ export function HouseholdView({
             analysis={analysis.people[active - 1]}
             index={(active - 1) as 0 | 1}
             annualCola={annualCola}
+            isBest={analysis.scenarioIsBest}
           />
         )}
       </div>

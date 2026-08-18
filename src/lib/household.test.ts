@@ -133,8 +133,8 @@ describe('analyzeHousehold — married', () => {
 
   it('assigns each person the filing age from the joint optimum', async () => {
     const result = await analyzeHousehold(household, assumptions, asOf);
-    expect(result.people[0].recommendedFilingAge).toEqual(result.optimal.filingAges[0]);
-    expect(result.people[1].recommendedFilingAge).toEqual(result.optimal.filingAges[1]);
+    expect(result.people[0].filingAge).toEqual(result.optimal.filingAges[0]);
+    expect(result.people[1].filingAge).toEqual(result.optimal.filingAges[1]);
   });
 
   it('reports a spousal top-up for a spouse with no record', async () => {
@@ -156,7 +156,7 @@ describe('analyzeHousehold — married', () => {
     // $1,200 entitlement is paid unreduced.
     expect(result.spousalTopUp!.atRecommendedFilingAge).toBe(1200);
     expect(result.spousalTopUp!.startsAtSpouseAge).toBe('67');
-    expect(result.people[0].recommendedFilingAge.label).toBe('68 years, 10 months');
+    expect(result.people[0].filingAge.label).toBe('68 years, 10 months');
     expect(result.spousalTopUp!.lowerEarnerLabel).toBe('Sarah');
   });
 
@@ -570,7 +570,7 @@ describe('engine periods', () => {
   it('sums every band into the year totals, spousal included', async () => {
     // A spouse with no record of her own receives nothing but the spousal
     // top-up, so her timeline row is exactly the spousal band. The old
-    // recommendedMonthly-driven timeline showed her as $0 forever.
+    // monthlyAtFilingAge-driven timeline showed her as $0 forever.
     const noRecord: Person = { ...sarah, piaMonthly: 0 };
     const result = await analyzeHousehold(
       { status: 'married', people: [dan, noRecord] },
@@ -661,12 +661,12 @@ describe('engine periods', () => {
     expect(result.survivorGap!.survivorUnder60).toBe(false);
   });
 
-  it("matches each person's recommendedMonthly to their final personal band", async () => {
-    // `analyzePerson` still computes `recommendedMonthly` independently of the
+  it("matches each person's monthlyAtFilingAge to their final personal band", async () => {
+    // `analyzePerson` still computes `monthlyAtFilingAge` independently of the
     // periods. The two must not drift: the amount a person is paid on their
     // own record after any delayed-credit January bump is their last personal
     // band. (They are not the whole story — the bands also carry spousal and
-    // survivor amounts, which `recommendedMonthly` has never included.)
+    // survivor amounts, which `monthlyAtFilingAge` has never included.)
     const result = await analyzeHousehold(
       { status: 'married', people: [dan, sarah] },
       assumptions,
@@ -676,7 +676,7 @@ describe('engine periods', () => {
       const last = result.periods
         .filter((b) => b.personId === p.person.id && b.type === 'personal')
         .reduce((latest, b) => (b.startIndex > latest.startIndex ? b : latest));
-      expect(last.monthlyAmount).toBeCloseTo(p.recommendedMonthly, 2);
+      expect(last.monthlyAmount).toBeCloseTo(p.monthlyAtFilingAge, 2);
     }
   });
 
@@ -1611,7 +1611,7 @@ describe('analyzeHousehold — widowed', () => {
       .filter((b) => b.startIndex <= steadyMonth && steadyMonth <= b.endIndex)
       .reduce((t, b) => t + b.monthlyAmount, 0);
     expect(banded).toBeGreaterThan(0);
-    expect(people[0].recommendedMonthly).toBeCloseTo(banded, 2);
+    expect(people[0].monthlyAtFilingAge).toBeCloseTo(banded, 2);
   });
 
   it('does not report her own-record benefit as the recommended monthly', async () => {
@@ -1626,9 +1626,9 @@ describe('analyzeHousehold — widowed', () => {
         household.people[0].piaMonthly,
         household.people[0].gender,
       ),
-      people[0].recommendedFilingAge.monthDuration,
+      people[0].filingAge.monthDuration,
     ).benefit;
-    expect(people[0].recommendedMonthly).toBeGreaterThan(ownRecordOnly);
+    expect(people[0].monthlyAtFilingAge).toBeGreaterThan(ownRecordOnly);
   });
 
   it('reports the LATER of the two dates when it is her own filing', async () => {
@@ -1673,11 +1673,11 @@ describe('analyzeHousehold — widowed', () => {
         .filter((b) => b.startIndex <= month && month <= b.endIndex)
         .reduce((t, b) => t + b.monthlyAmount, 0);
 
-    expect(people[0].recommendedMonthly).toBeCloseTo(bandedAt(ownFilingIndex), 2);
+    expect(people[0].monthlyAtFilingAge).toBeCloseTo(bandedAt(ownFilingIndex), 2);
     // And is NOT the earlier month's income — the survivor benefit alone,
     // which she receives for the eight years before she files.
     expect(bandedAt(survivorClaimIndex)).toBeGreaterThan(0);
-    expect(people[0].recommendedMonthly).not.toBeCloseTo(bandedAt(survivorClaimIndex), 2);
+    expect(people[0].monthlyAtFilingAge).not.toBeCloseTo(bandedAt(survivorClaimIndex), 2);
   });
 
   it('carries whether the deceased PIA was estimated', async () => {

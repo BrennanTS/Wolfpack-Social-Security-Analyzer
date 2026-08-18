@@ -81,11 +81,21 @@ export function StrategyComparisonTable({
             <tr
               key={s.key}
               data-testid={`strategy-row-${s.key}`}
-              className={s.isOptimal ? 'row-optimal' : ''}
+              className={[s.isOptimal ? 'row-optimal' : '', s.isSelected ? 'row-selected' : '']
+                .filter(Boolean)
+                .join(' ')}
             >
               <td>
                 {s.label}
                 {s.isOptimal && <span className="badge">Best</span>}
+                {/* Only when it is NOT also the optimal row, which already
+                    carries a badge — under the default scenario every row
+                    would otherwise print "Best Shown" side by side. */}
+                {s.isSelected && !s.isOptimal && (
+                  <span className="badge badge-shown" data-testid="badge-shown">
+                    Shown
+                  </span>
+                )}
               </td>
               {s.filingAges.map((filingAge, i) => (
                 <td key={people[i].id} data-testid={`cell-age-${people[i].id}`}>

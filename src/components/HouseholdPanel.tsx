@@ -4,6 +4,7 @@ import { computeBreakEvens } from '../lib/benefitMath';
 import { toNominal, toNominalAmount, toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
 import { personLabel } from '../lib/format';
 import { firstDeath } from '../lib/incomeCliff';
+import { scenarioEyebrow } from '../lib/scenario';
 import { StrategyComparisonTable } from './StrategyComparisonTable';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
 import { IncomeCliffCallout } from './IncomeCliffCallout';
@@ -158,7 +159,7 @@ export function HouseholdPanel({
   return (
     <div className="results">
       <div className="recommendation-card">
-        <span className="rec-label">Household — Recommended Strategy</span>
+        <span className="rec-label">Household — {scenarioEyebrow(analysis.scenarioIsBest)}</span>
         <h2 data-testid="recommendation-title">{analysis.recommendation}</h2>
         <p>{analysis.recommendationDetail}</p>
       </div>

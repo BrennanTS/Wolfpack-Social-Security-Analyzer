@@ -24,10 +24,10 @@ function buildPersonAnalysis(id: 'a' | 'b', name: string): PersonAnalysis {
       { age: 70, monthlyBenefit: 2976, percentOfPia: 124, lifetimeBenefits: 535_680,
         yearsOfPayments: 15, isEligible: true, monthsFromFra: 36 },
     ],
-    recommendedFilingAge: {
+    filingAge: {
       years: 70, months: 0, label: '70', decimalYears: 70, monthDuration: null as never,
     },
-    recommendedMonthly: 2976,
+    monthlyAtFilingAge: 2976,
     // Deliberately stale relative to whatever `annualCola` a test passes in —
     // the whole point of the fix under test is that HouseholdPanel must NOT
     // read this field for its break-even section.
