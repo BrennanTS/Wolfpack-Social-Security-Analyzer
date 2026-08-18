@@ -15,6 +15,8 @@ import {
   CHART_AXIS_LINE,
   CHART_MUTED,
   CHART_RED,
+  CHART_TOOLTIP_ITEM_STYLE,
+  CHART_TOOLTIP_LABEL_STYLE,
   CHART_TOOLTIP_SEPARATOR,
   CHART_TOOLTIP_STYLE,
   CLAIM_AGE_COLORS,
@@ -88,6 +90,8 @@ export function BenefitChart({
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
               separator={CHART_TOOLTIP_SEPARATOR}
+              itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+              labelStyle={CHART_TOOLTIP_LABEL_STYLE}
               formatter={(value, name) => {
                 const num = typeof value === 'number' ? value : 0;
                 const age = String(name).replace('age', '');

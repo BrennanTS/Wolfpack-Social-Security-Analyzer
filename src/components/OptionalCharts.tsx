@@ -27,6 +27,8 @@ import {
   CHART_INK as INK,
   CHART_MUTED as MUTED,
   CHART_RED,
+  CHART_TOOLTIP_ITEM_STYLE,
+  CHART_TOOLTIP_LABEL_STYLE,
   CHART_TOOLTIP_SEPARATOR,
   CHART_TOOLTIP_STYLE as TOOLTIP_STYLE,
 } from '../lib/chartTheme';
@@ -66,6 +68,8 @@ export function MonthlyBenefitBarChart({ options, optimalAge }: MonthlyBenefitBa
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
           separator={CHART_TOOLTIP_SEPARATOR}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
           formatter={(value) => {
             const num = typeof value === 'number' ? value : 0;
             return [formatCurrency(num), 'Monthly benefit'];
@@ -122,6 +126,8 @@ export function LifetimeBarChart({ options, optimalAge }: LifetimeBarChartProps)
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
           separator={CHART_TOOLTIP_SEPARATOR}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
           formatter={(value) => {
             const num = typeof value === 'number' ? value : 0;
             return [formatCurrency(num), 'Lifetime total'];
@@ -190,6 +196,8 @@ export function ColaProjectionChart({
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
           separator={CHART_TOOLTIP_SEPARATOR}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
           formatter={(value) => {
             const num = typeof value === 'number' ? value : 0;
             return [formatCurrency(num), 'Monthly with COLA'];
@@ -328,6 +336,8 @@ export function OpportunityCostChart({ options, optimalAge }: OpportunityCostCha
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
           separator={CHART_TOOLTIP_SEPARATOR}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
           formatter={(value, _name, item) => {
             const row = item.payload as (typeof data)[number];
             if (row.isOptimal) return ['—', 'Optimal strategy'];
@@ -383,6 +393,8 @@ export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps)
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
           separator={CHART_TOOLTIP_SEPARATOR}
+          itemStyle={CHART_TOOLTIP_ITEM_STYLE}
+          labelStyle={CHART_TOOLTIP_LABEL_STYLE}
           formatter={(value, _name, item) => {
             const row = item.payload as (typeof data)[number];
             const num = typeof value === 'number' ? value : 0;

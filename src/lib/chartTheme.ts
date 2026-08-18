@@ -66,6 +66,27 @@ export function seriesColor(personIndex: number, type: BandType): string {
  */
 export const CHART_TOOLTIP_SEPARATOR = ': ';
 
+/**
+ * Recharts paints each tooltip row in its SERIES colour. On this app's
+ * near-black tooltip that made most rows unreadable: `CHART_INK` scores
+ * 1.6:1 against it, `CHART_RED` 3.0:1, and the claim-age ramp falls to 2.0:1
+ * by age 69 — the figure the reader opened the tooltip for.
+ *
+ * Every Recharts tooltip therefore paints its own text instead. Nothing is
+ * lost: those charts name the series in the row ("Claim at 67"), so the
+ * colour was decoration. `CombinedIncomeChart` is the exception and keeps
+ * its colours — it stacks four series where the colour IS the key, and all
+ * four clear 4.9:1 against this background.
+ */
+export const CHART_TOOLTIP_ITEM_STYLE = { color: '#f7f5f0' } as const;
+
+/** The tooltip's heading — the hovered category. Same reasoning. */
+export const CHART_TOOLTIP_LABEL_STYLE = {
+  color: '#f7f5f0',
+  fontWeight: 600,
+  marginBottom: 4,
+} as const;
+
 /** Dark, rounded tooltip shared by every chart. */
 export const CHART_TOOLTIP_STYLE = {
   background: 'rgba(20, 20, 20, 0.94)',
