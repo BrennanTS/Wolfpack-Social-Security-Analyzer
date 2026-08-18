@@ -92,13 +92,45 @@ describe('WidowedPanel', () => {
     expect(title).toHaveTextContent(/own record at age 62 years, 1 month/i);
   });
 
-  it('splits the monthly figure into its two halves and their sum', () => {
-    // The split comes off the engine's own bands. A locally derived one could
-    // disagree with the total printed beside it.
+  it('states each stage at what it actually pays', () => {
+    // Own record from 62y1m, then both benefits from 67. The second figure is
+    // the TOTAL, not the survivor increment: 2,475, not 1,630.
     renderPanel();
-    expect(screen.getByTestId('widowed-own-monthly')).toHaveTextContent('$845.00');
-    expect(screen.getByTestId('widowed-survivor-monthly')).toHaveTextContent('$1,630.00');
-    expect(screen.getByTestId('widowed-total-monthly')).toHaveTextContent('$2,475.00');
+    expect(screen.getByTestId('widowed-stage-0')).toHaveTextContent('$845.00');
+    expect(screen.getByTestId('widowed-stage-1')).toHaveTextContent('$2,475.00');
+    expect(screen.queryByTestId('widowed-stage-2')).not.toBeInTheDocument();
+  });
+
+  it('never reports a benefit that pays alone as an increment of zero', () => {
+    // The reported defect. Own PIA 3,000 against a deceased 2,000: his own
+    // record is the larger, so the engine ENDS the survivor band the month
+    // his own starts and the two never overlap. The old three-figure split
+    // computed both at one steady month and printed "Survivor increment,
+    // from 60: $0.00" — over a survivor benefit that was his entire income
+    // for the ten years from 60 to 70.
+    renderPanel({
+      periods: [
+        { personId: 'a', type: 'survivor', startIndex: 24_324, endIndex: 24_443, monthlyAmount: 1430 },
+        { personId: 'a', type: 'personal', startIndex: 24_444, endIndex: 24_589, monthlyAmount: 3720 },
+      ],
+    } as Partial<HouseholdAnalysis>);
+
+    expect(screen.getByTestId('widowed-stage-0')).toHaveTextContent('$1,430.00');
+    expect(screen.getByTestId('widowed-stage-1')).toHaveTextContent('$3,720.00');
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+  });
+
+  it('names what is paying at each stage, and calls two benefits a total', () => {
+    renderPanel();
+    expect(screen.getByText(/Own record, from 62 years, 1 month/)).toBeInTheDocument();
+    // "Both benefits", never "Survivor increment" — the figure beside it is
+    // what the household receives, not the difference.
+    expect(screen.getByText(/Both benefits, from 67/)).toBeInTheDocument();
+    // Scoped to the stat labels: the chart's caption legitimately uses the
+    // word when the two benefits DO stack, and that sentence is about the
+    // chart's bands rather than about this figure.
+    const stats = screen.getByTestId('widowed-stage-0').closest('.widowed-stats')!;
+    expect(within(stats as HTMLElement).queryByText(/increment/i)).not.toBeInTheDocument();
   });
 
   it('carries a survivor-claim column, which the other tables have no room for', () => {
@@ -184,6 +216,20 @@ describe('WidowedPanel', () => {
     const note = screen.getByTestId('pia-estimate-note');
     expect(note).toHaveTextContent(/estimate/i);
     expect(note).toHaveTextContent('2022 dollars');
+  });
+
+  it('stops claiming an increment when the two benefits never overlap', () => {
+    // With no personal band beneath it, "the increment above the personal
+    // band beneath it" describes a stacking that does not happen.
+    renderPanel({
+      periods: [
+        { personId: 'a', type: 'survivor', startIndex: 24_324, endIndex: 24_443, monthlyAmount: 1430 },
+        { personId: 'a', type: 'personal', startIndex: 24_444, endIndex: 24_589, monthlyAmount: 3720 },
+      ],
+    } as Partial<HouseholdAnalysis>);
+    const caption = screen.getByTestId('combined-income-caveat');
+    expect(caption).toHaveTextContent(/never run together here/i);
+    expect(caption).not.toHaveTextContent(/increment above the personal band/i);
   });
 
   it('captions the chart for one person with no spousal benefit', () => {

@@ -59,17 +59,30 @@ export function widowedLifetimeCaption(planToAge: number): string {
   );
 }
 
-/** The chart's caption. Its own, not the couple version — a widow has no spousal segment. */
-export function widowedIncomeCaption(mode: DollarsMode = 'real'): string {
+/**
+ * The chart's caption. Its own, not the couple version — a widow(er) has no
+ * spousal segment.
+ *
+ * `overlaps` is load-bearing, not decoration. The increment sentence describes
+ * a survivor segment stacked ON a personal band; when this person's own
+ * benefit is the larger the engine ends the survivor band the month their own
+ * starts, the two never share a month, and there is no band beneath to be an
+ * increment of. Same conditional-caption problem `combinedIncomeCaption`
+ * already handles for a survivor gap.
+ */
+export function widowedIncomeCaption(mode: DollarsMode = 'real', overlaps = true): string {
   const dollarsClause =
     mode === 'nominal'
       ? 'Amounts are in future (nominal) dollars — the engine’s own today’s-dollars figures, ' +
         'compounded forward using the assumed COLA — not today’s purchasing power.'
       : 'Amounts are in today’s dollars, before any cost-of-living adjustment.';
-  return (
-    'The survivor segment is the increment above the personal band beneath it, not a second ' +
-    `cheque: the two benefits are one payment, and SSA pays the larger. ${dollarsClause}`
-  );
+  const shape = overlaps
+    ? 'The survivor segment is the increment above the personal band beneath it, not a second ' +
+      'cheque: the two benefits are one payment, and SSA pays the larger.'
+    : 'The two benefits never run together here — SSA pays the larger, and this person’s own ' +
+      'record is worth more than the survivor benefit, so the survivor benefit stops the month ' +
+      'their own begins.';
+  return `${shape} ${dollarsClause}`;
 }
 
 /**

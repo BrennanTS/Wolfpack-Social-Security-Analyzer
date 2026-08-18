@@ -14,9 +14,16 @@ import {
   widowedIncomeCaption,
   widowedLifetimeCaption,
 } from '../widowedCopy';
+import { widowedBenefitsOverlap, widowedStages } from '../../lib/widowedStages';
 import { CombinedIncomeBars } from './HouseholdSection';
 import { MONTHS, styles } from './theme';
 import { PageFooter } from './ReportDocument';
+
+/** Shared with `WidowedPanel` in spirit; see its own note on why a stage is not an increment. */
+function stageLabel(types: readonly string[]): string {
+  if (types.length > 1) return 'Both benefits';
+  return types[0] === 'survivor' ? 'Survivor benefit' : 'Own record';
+}
 
 interface Props {
   analysis: HouseholdAnalysis;
@@ -41,24 +48,15 @@ const WCOL = { label: 168, survivor: 92, own: 92, lifetime: 90, delta: 94 };
 export function WidowedSection({ analysis, footerText, appendix, leadingHeader }: Props) {
   const [person] = analysis.people;
   const label = personLabel(person.person.name, 0);
-  const { deceased, optimal } = analysis;
+  const { deceased } = analysis;
   const monthlySeries = buildMonthlyIncomeSeries(analysis.periods, [person.person]);
 
-  // Same split as the screen panel, read off the engine's own bands rather
-  // than recomputed — see `WidowedPanel`.
-  const steadyMonth = Math.max(
-    optimal.survivorClaimDate?.monthIndex ?? 0,
-    ...analysis.periods.filter((b) => b.type === 'personal').map((b) => b.startIndex),
-  );
-  const active = analysis.periods.filter(
-    (b) => b.startIndex <= steadyMonth && steadyMonth <= b.endIndex,
-  );
-  const sumOf = (type: 'personal' | 'survivor') =>
-    active.filter((b) => b.type === type).reduce((total, b) => total + b.monthlyAmount, 0);
+  // The same stages the screen shows, from the same function — see
+  // `widowedStages` for why this is not a three-figure component split.
+  const stages = widowedStages(analysis.periods, person.person);
 
   const estimateNote =
     deceased === null ? null : piaEstimateNote(deceased, analysis.piaEstimated === true);
-  const survivorAge = optimal.survivorClaimDate?.age ?? '—';
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -84,22 +82,14 @@ export function WidowedSection({ analysis, footerText, appendix, leadingHeader }
         <Text style={styles.recHeadline}>{analysis.recommendation}</Text>
         <Text style={styles.recBody}>{analysis.recommendationDetail}</Text>
         <View style={styles.recMetrics}>
-          <View style={styles.recMetricBlock}>
-            <Text style={styles.recMetricValue}>{formatCurrencyPrecise(sumOf('personal'))}</Text>
-            <Text style={styles.recMetricLabel}>
-              Own record, from {optimal.filingAges[0].label}
-            </Text>
-          </View>
-          <View style={styles.recMetricBlock}>
-            <Text style={styles.recMetricValue}>{formatCurrencyPrecise(sumOf('survivor'))}</Text>
-            <Text style={styles.recMetricLabel}>Survivor increment, from {survivorAge}</Text>
-          </View>
-          <View style={styles.recMetricBlock}>
-            <Text style={styles.recMetricValue}>
-              {formatCurrencyPrecise(person.monthlyAtFilingAge)}
-            </Text>
-            <Text style={styles.recMetricLabel}>Together, per month</Text>
-          </View>
+          {stages.map((stage) => (
+            <View key={stage.startIndex} style={styles.recMetricBlock}>
+              <Text style={styles.recMetricValue}>{formatCurrencyPrecise(stage.monthly)}</Text>
+              <Text style={styles.recMetricLabel}>
+                {stageLabel(stage.types)}, from {stage.ageLabel}
+              </Text>
+            </View>
+          ))}
         </View>
       </View>
 
@@ -145,7 +135,9 @@ export function WidowedSection({ analysis, footerText, appendix, leadingHeader }
       <View style={styles.chartBox}>
         <CombinedIncomeBars monthlySeries={monthlySeries} people={[person.person]} />
       </View>
-      <Text style={styles.sectionDesc}>{widowedIncomeCaption('real')}</Text>
+      <Text style={styles.sectionDesc}>
+        {widowedIncomeCaption('real', widowedBenefitsOverlap(analysis.periods))}
+      </Text>
 
       {deceased !== null && (
         <>

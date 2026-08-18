@@ -43,6 +43,7 @@ import {
   widowedIncomeCaption,
   widowedLifetimeCaption,
 } from '../../src/components/widowedCopy';
+import { widowedBenefitsOverlap } from '../../src/lib/widowedStages';
 import { incomeCliff } from '../../src/lib/incomeCliff';
 import { toNominalAmount, type DollarsMode } from '../../src/lib/dollarsMode';
 import type { HouseholdAnalysis } from '../../src/lib/household';
@@ -76,7 +77,11 @@ function widowedScreenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
     'WidowedPanel.widowedLifetimeCaption',
     widowedLifetimeCaption(person.person.lifeExpectancy),
   );
-  push(lines, 'CombinedIncomeChart.widowedIncomeCaption', widowedIncomeCaption(mode));
+  push(
+    lines,
+    'CombinedIncomeChart.widowedIncomeCaption',
+    widowedIncomeCaption(mode, widowedBenefitsOverlap(analysis.periods)),
+  );
   if (analysis.deceased !== null) {
     push(
       lines,
@@ -101,7 +106,11 @@ function widowedPdfSurface(analysis: HouseholdAnalysis): Line[] {
     widowedLifetimeCaption(person.person.lifeExpectancy),
   );
   // Print has no dollars toggle; it is always real.
-  push(lines, 'pdf/WidowedSection.widowedIncomeCaption', widowedIncomeCaption('real'));
+  push(
+    lines,
+    'pdf/WidowedSection.widowedIncomeCaption',
+    widowedIncomeCaption('real', widowedBenefitsOverlap(analysis.periods)),
+  );
   if (analysis.deceased !== null) {
     push(
       lines,

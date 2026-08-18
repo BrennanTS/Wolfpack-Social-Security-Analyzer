@@ -3,6 +3,7 @@ import { toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
 import { formatCurrency, formatCurrencyPrecise, personLabel } from '../lib/format';
 import { buildMonthlyIncomeSeries, type HouseholdAnalysis } from '../lib/household';
 import { scenarioEyebrow } from '../lib/scenario';
+import { widowedBenefitsOverlap, widowedStages } from '../lib/widowedStages';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
 import {
   monthYear,
@@ -13,6 +14,16 @@ import {
   widowedIncomeCaption,
   widowedLifetimeCaption,
 } from './widowedCopy';
+
+/**
+ * What a stage is paying, named by the benefits live in it. Two live benefits
+ * is a total, not an increment — the figure beside this label is what the
+ * household actually receives that month.
+ */
+function stageLabel(types: readonly string[]): string {
+  if (types.length > 1) return 'Both benefits';
+  return types[0] === 'survivor' ? 'Survivor benefit' : 'Own record';
+}
 
 interface WidowedPanelProps {
   analysis: HouseholdAnalysis;
@@ -48,7 +59,7 @@ export function WidowedPanel({
 }: WidowedPanelProps) {
   const [person] = analysis.people;
   const label = personLabel(person.person.name, 0);
-  const { deceased, optimal } = analysis;
+  const { deceased } = analysis;
 
   const displayMonthlySeries = useMemo(() => {
     const monthly = buildMonthlyIncomeSeries(analysis.periods, [person.person]);
@@ -57,23 +68,14 @@ export function WidowedPanel({
       : monthly;
   }, [analysis, person, dollarsMode]);
 
-  // The two bands at the steady state — own record, and the survivor
-  // increment above it. Read off the engine's own periods rather than
-  // recomputed: `monthlyAtFilingAge` is their sum, so a locally derived split
-  // could disagree with the total printed beside it.
-  const steadyMonth = Math.max(
-    optimal.survivorClaimDate?.monthIndex ?? 0,
-    ...analysis.periods.filter((b) => b.type === 'personal').map((b) => b.startIndex),
-  );
-  const active = analysis.periods.filter(
-    (b) => b.startIndex <= steadyMonth && steadyMonth <= b.endIndex,
-  );
-  const ownMonthly = active
-    .filter((b) => b.type === 'personal')
-    .reduce((sum, b) => sum + b.monthlyAmount, 0);
-  const survivorMonthly = active
-    .filter((b) => b.type === 'survivor')
-    .reduce((sum, b) => sum + b.monthlyAmount, 0);
+  // The stages this person will actually live through, straight from the
+  // engine's bands. NOT a split of the recommendation's two dates into "own +
+  // survivor increment = together": that assumed the two benefits stack, and
+  // when this person's own record is the larger the engine ends the survivor
+  // band the month their own starts. For one household that split printed
+  // "Survivor increment, from 60: $0.00" over a survivor benefit of $1,430
+  // that was their entire income for ten years. See `widowedStages`.
+  const stages = widowedStages(analysis.periods, person.person);
 
   const estimateNote = deceased === null ? null : piaEstimateNote(deceased, analysis.piaEstimated === true);
 
@@ -90,33 +92,22 @@ export function WidowedPanel({
             placement — above 880px `.recommendation-card` lays out as
             label/title/body in one column and `stats` in the other, and an
             element with no `grid-area` auto-places outside the card
-            entirely. `widowed-stats` only marks the third figure as the sum
-            of the first two. */}
+            entirely. */}
         <div className="rec-stats widowed-stats">
-          <div>
-            <span className="stat-value" data-testid="widowed-own-monthly">
-              {formatCurrencyPrecise(ownMonthly)}
-            </span>
-            <span className="stat-label">
-              Own record, from {optimal.filingAges[0].label}
-            </span>
-          </div>
-          <div>
-            <span className="stat-value" data-testid="widowed-survivor-monthly">
-              {formatCurrencyPrecise(survivorMonthly)}
-            </span>
-            <span className="stat-label">
-              Survivor increment, from {optimal.survivorClaimDate?.age ?? '—'}
-            </span>
-          </div>
-          <div className="widowed-stat-total">
-            <span className="stat-value" data-testid="widowed-total-monthly">
-              {formatCurrencyPrecise(person.monthlyAtFilingAge)}
-            </span>
-            <span className="stat-label">Together, per month</span>
-          </div>
+          {stages.map((stage, i) => (
+            <div
+              key={stage.startIndex}
+              className={i === stages.length - 1 ? 'widowed-stat-final' : undefined}
+            >
+              <span className="stat-value" data-testid={`widowed-stage-${i}`}>
+                {formatCurrencyPrecise(stage.monthly)}
+              </span>
+              <span className="stat-label">
+                {stageLabel(stage.types)}, from {stage.ageLabel}
+              </span>
+            </div>
+          ))}
         </div>
-
       </div>
 
       <div className="table-section">
@@ -170,7 +161,7 @@ export function WidowedPanel({
         people={[person.person]}
         dollarsMode={dollarsMode}
         onDollarsModeChange={onDollarsModeChange}
-        caption={widowedIncomeCaption(dollarsMode)}
+        caption={widowedIncomeCaption(dollarsMode, widowedBenefitsOverlap(analysis.periods))}
       />
 
       {deceased !== null && (
