@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReactElement } from 'react';
-import type { SurvivorGap } from '../../lib/benefitPeriods';
+import type { SurvivorFloor, SurvivorGap } from '../../lib/benefitPeriods';
 import type { HouseholdAnalysis, MonthlyIncomePoint } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
 import { CombinedIncomeBars, HouseholdSection, StrategyTable } from './HouseholdSection';
@@ -36,7 +36,10 @@ function collectText(node: unknown): string[] {
  * `methodologyCopy.test.ts`, which is where these exact gap figures are pinned
  * against real `analyzeHousehold` output.
  */
-function analysisWith(survivorGap: SurvivorGap | null): HouseholdAnalysis {
+function analysisWith(
+  survivorGap: SurvivorGap | null,
+  survivorFloor: SurvivorFloor | null = null,
+): HouseholdAnalysis {
   const rep = {
     person: {
       id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
@@ -59,6 +62,7 @@ function analysisWith(survivorGap: SurvivorGap | null): HouseholdAnalysis {
     ],
     periods: [],
     survivorGap,
+    survivorFloor,
     spousalTopUp: {
       atFra: 0,
       atRecommendedFilingAge: 0,
@@ -71,8 +75,10 @@ function analysisWith(survivorGap: SurvivorGap | null): HouseholdAnalysis {
   } as unknown as HouseholdAnalysis;
 }
 
-const printed = (survivorGap: SurvivorGap | null) =>
-  collectText(HouseholdSection({ analysis: analysisWith(survivorGap), footerText: 'f' })).join(' ');
+const printed = (survivorGap: SurvivorGap | null, survivorFloor: SurvivorFloor | null = null) =>
+  collectText(
+    HouseholdSection({ analysis: analysisWith(survivorGap, survivorFloor), footerText: 'f' }),
+  ).join(' ');
 
 /**
  * The household page as `ReportDocument` actually composes it for a married
@@ -194,6 +200,50 @@ describe('HouseholdSection — the printed survivor-gap note', () => {
 
   it('prints nothing at all when there is no gap', () => {
     expect(printed(null)).not.toContain('no step-up is shown');
+  });
+});
+
+/**
+ * The print half of the widow(er)'s-limit note. Asserted here rather than
+ * trusted to the screen tests because this project has shipped a caption to
+ * one surface and not the other more than once — see this file's own
+ * `printedWithAppendix` block, which exists for exactly that reason.
+ */
+describe('HouseholdSection — the printed widow(er)’s-limit note', () => {
+  const floor: SurvivorFloor = {
+    survivorLabel: 'Blake',
+    deceasedLabel: 'Avery',
+    deceasedMonthly: 2789,
+    survivorMonthly: 3268,
+  };
+
+  it('prints the note, with both figures a reader can check', () => {
+    const text = printed(null, floor);
+    expect(text).toContain('Blake is shown receiving $3,268.00/mo');
+    expect(text).toContain('$2,789.00/mo Avery was being paid');
+    expect(text).toContain('82.5%');
+    expect(text).toMatch(/widow\(er\)’s limit/);
+  });
+
+  it('prints nothing at all when the survivor does not come out ahead', () => {
+    expect(printed(null, null)).not.toContain('widow(er)’s limit');
+  });
+
+  it('prints it exactly once on the page', () => {
+    // The gap note shipped twice on one page the first time it was added
+    // (see the block below), and the survivor card note did the same thing on
+    // the widowed page. Third time, counted rather than assumed.
+    const text = printed(null, floor);
+    expect(text.match(/is shown receiving/g)).toHaveLength(1);
+  });
+
+  it('prints alongside a gap note without either one displacing the other', () => {
+    const text = printed(
+      { survivorLabel: 'Blake', deceasedMonthly: 1780, survivorOwnMonthly: 1760, survivorUnder60: false },
+      floor,
+    );
+    expect(text).toContain('no step-up is shown for Blake');
+    expect(text).toContain('Blake is shown receiving $3,268.00/mo');
   });
 });
 
