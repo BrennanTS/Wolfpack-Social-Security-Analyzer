@@ -2355,7 +2355,9 @@ tbody tr:hover {
 .claim-cell {
   --t: 0;
   display: block;
-  width: clamp(40px, 5vw, 60px);
+  /* Wide enough for "$1.01m" at this size — the old percentages were four
+     characters and this is six. */
+  width: clamp(52px, 5.5vw, 66px);
   min-height: clamp(26px, 3.4vw, 36px);
   border: 0;
   border-radius: 4px;

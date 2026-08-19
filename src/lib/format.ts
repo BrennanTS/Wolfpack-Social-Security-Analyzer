@@ -32,6 +32,46 @@ export function formatCurrencyPerYear(amount: number): string {
 }
 
 /**
+ * Which unit a set of figures should all be shown in — chosen ONCE from the
+ * largest, then applied to every one of them.
+ *
+ * Per-value units are wrong for a grid. A board spanning $853,000 to
+ * $1,007,000 would print "$853k" beside "$1.01m", and the step from $999k to
+ * $1.00m looks like a change of magnitude when it is a tenth of a percent.
+ * One unit for the whole set keeps every square comparable at a glance,
+ * which is the only reason a grid of numbers exists.
+ */
+export type CompactUnit = 'ones' | 'thousands' | 'millions';
+
+export function compactUnitFor(largest: number): CompactUnit {
+  const abs = Math.abs(largest);
+  if (abs >= 1_000_000) return 'millions';
+  if (abs >= 1_000) return 'thousands';
+  return 'ones';
+}
+
+/**
+ * "$845k", "$1.01m" — a figure short enough to sit inside a grid square.
+ *
+ * Three significant figures in the millions, so squares a percent apart stay
+ * distinguishable; a bare "$1.0m" would collapse most of a household's board
+ * onto one number. Exact dollars still appear in the panel beside the grid
+ * and in every square's hover text, so nothing here is the only place a
+ * figure can be read.
+ */
+export function formatCompactCurrency(amount: number, unit: CompactUnit): string {
+  if (unit === 'millions') {
+    const millions = amount / 1_000_000;
+    const abs = Math.abs(millions);
+    return `$${millions.toFixed(abs >= 100 ? 0 : abs >= 10 ? 1 : 2)}m`;
+  }
+  if (unit === 'thousands') {
+    return `$${Math.round(amount / 1000).toLocaleString('en-US')}k`;
+  }
+  return formatCurrency(amount);
+}
+
+/**
  * A chart axis tick in thousands — "$731k", and "$0" at the baseline.
  *
  * The baseline is the reason this exists. Every tick ran through a

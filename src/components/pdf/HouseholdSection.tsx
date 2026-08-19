@@ -16,12 +16,17 @@ import {
   cellsWithin,
   gridKey,
   gridRatio,
-  percentOfBest,
   type ClaimingGrid,
 } from '../../lib/claimingGrid';
 import { heatmapColorPdf } from '../../lib/chartData';
 import { formatPercent } from '../../lib/cpiHistory';
-import { formatCurrency, formatThousandsTick, personLabel } from '../../lib/format';
+import {
+  compactUnitFor,
+  formatCompactCurrency,
+  formatCurrency,
+  formatThousandsTick,
+  personLabel,
+} from '../../lib/format';
 import {
   benefitSeriesLabel,
   COMBINED_INCOME_SUBTITLE,
@@ -301,6 +306,8 @@ export function ClaimingGridPlot({
   const byKey = new Map(grid.cells.map((c) => [gridKey(c.years[0], c.years[1]), c]));
   const best = grid.cells.reduce((a, b) => (b.value > a.value ? b : a));
 
+  const unit = compactUnitFor(grid.max);
+
   const labelW = 18;
   const axisH = 12;
   const cellW = Math.min(46, (CHART_INNER_W - labelW - 2) / yearsA.length);
@@ -371,7 +378,7 @@ export function ClaimingGridPlot({
                 style={{ fontSize: 5.5, fill: INK }}
                 textAnchor="middle"
               >
-                {percentOfBest(grid, cell.value).toFixed(1)}
+                {formatCompactCurrency(cell.value, unit)}
               </Text>
             );
           }),
@@ -540,19 +547,23 @@ export function HouseholdSection({
       {claimNote && <Text style={styles.sectionDesc}>{claimNote}</Text>}
 
       {analysis.claimingGrid && gridTarget && (
-        <>
+        /* Heading, caption and board move as ONE block. Left to flow, the
+           heading orphaned at the foot of the previous page while the grid
+           it names started the next — `wrap={false}` on the box alone only
+           keeps the box together, not the words introducing it. */
+        <View wrap={false}>
           <Text style={styles.sectionTitle}>Claiming Age Grid</Text>
           <Text style={styles.sectionDesc}>
-            Household value at every combination of whole claiming ages, as a percentage of
-            the best. Each square is the best either of them can do filing somewhere inside
-            those two years.
+            Household value at every combination of whole claiming ages, rounded. Each
+            square is the best either of them can do filing somewhere inside those two
+            years.
             {gridTarget.on
               ? ` Outlined squares are within ${gridTarget.percent}% of the best — ${
                   cellsWithin(analysis.claimingGrid, gridTarget.percent).size
                 } of ${analysis.claimingGrid.cells.length} combinations.`
               : ''}
           </Text>
-          <View style={styles.chartBox} wrap={false}>
+          <View style={styles.chartBox}>
             <ClaimingGridPlot
               grid={analysis.claimingGrid}
               names={[
@@ -562,7 +573,7 @@ export function HouseholdSection({
               target={gridTarget}
             />
           </View>
-        </>
+        </View>
       )}
 
       {appendix}

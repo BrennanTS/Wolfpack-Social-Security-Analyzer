@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   formatAgeDisplay,
   formatCurrency,
+  compactUnitFor,
+  formatCompactCurrency,
   formatCurrencyPerYear,
   formatThousandsTick,
   formatCurrencyPrecise,
@@ -102,5 +104,37 @@ describe('formatThousandsTick', () => {
     // A tick at $400 rounds to zero thousands. It must take the baseline
     // wording too, or the axis prints "$0k" for a nonzero value.
     expect(formatThousandsTick(400)).toBe('$0');
+  });
+});
+
+describe('compactUnitFor and formatCompactCurrency', () => {
+  it('picks one unit for a whole set from its largest figure', () => {
+    expect(compactUnitFor(1_007_324)).toBe('millions');
+    expect(compactUnitFor(787_434)).toBe('thousands');
+    expect(compactUnitFor(950)).toBe('ones');
+  });
+
+  it('keeps every figure in the set’s unit, even below it', () => {
+    // The point of choosing once: a board spanning 853k to 1.01m must not
+    // print "$853k" beside "$1.01m", where the step from $999k to $1.00m
+    // reads as a change of magnitude but is a tenth of a percent.
+    expect(formatCompactCurrency(852_937, 'millions')).toBe('$0.85m');
+    expect(formatCompactCurrency(1_007_324, 'millions')).toBe('$1.01m');
+  });
+
+  it('holds three significant figures in the millions', () => {
+    // "$1.0m" would collapse most of a household's board onto one number.
+    expect(formatCompactCurrency(1_290_000, 'millions')).toBe('$1.29m');
+    expect(formatCompactCurrency(12_340_000, 'millions')).toBe('$12.3m');
+    expect(formatCompactCurrency(123_400_000, 'millions')).toBe('$123m');
+  });
+
+  it('rounds to whole thousands, with a separator', () => {
+    expect(formatCompactCurrency(787_434, 'thousands')).toBe('$787k');
+    expect(formatCompactCurrency(1_007_324, 'thousands')).toBe('$1,007k');
+  });
+
+  it('falls back to exact dollars below a thousand', () => {
+    expect(formatCompactCurrency(950, 'ones')).toBe('$950');
   });
 });

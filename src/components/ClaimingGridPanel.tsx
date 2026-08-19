@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { formatCurrency, personLabel } from '../lib/format';
+import {
+  compactUnitFor,
+  formatCompactCurrency,
+  formatCurrency,
+  personLabel,
+} from '../lib/format';
 import type { HouseholdAnalysis } from '../lib/household';
 import {
   cellsWithin,
@@ -78,6 +83,9 @@ export function ClaimingGridPanel({
   const byKey = new Map(grid.cells.map((c) => [gridKey(c.years[0], c.years[1]), c]));
   const best = grid.cells.find((c) => c.value === grid.max);
   const selectedAges = analysis.selected.filingAges;
+
+  // One unit for the whole board — see `compactUnitFor`.
+  const unit = compactUnitFor(grid.max);
 
   const [yearsA, yearsB] = grid.years;
   // Rows run high-to-low so the vertical axis reads upward, the way an axis
@@ -210,7 +218,7 @@ export function ClaimingGridPanel({
                         >
                           <span className="visually-hidden">{cellLabel(cell)}</span>
                           <span aria-hidden="true">
-                            {percentOfBest(grid, cell.value).toFixed(1)}
+                            {formatCompactCurrency(cell.value, unit)}
                           </span>
                         </button>
                       </td>
@@ -255,8 +263,9 @@ export function ClaimingGridPanel({
             </dd>
           </dl>
           <p className="claim-grid-note">
-            Each square prints its share of the best. Every combination shown is one SSA
-            would pay; the grid ranks them, it does not rule any of them out.
+            Each square prints the household value at those two ages, rounded. Hover one
+            for the exact figure and its share of the best. Every combination shown is one
+            SSA would pay; the grid ranks them, it does not rule any of them out.
           </p>
         </aside>
       </div>
