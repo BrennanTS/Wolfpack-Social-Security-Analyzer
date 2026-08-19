@@ -7,8 +7,7 @@
  *   npm run record:app        # record against the local app (starts vite if needed)
  *
  * The recorded spec is written automatically when the recorder window is
- * closed. When recording against the local app, type the demo password once
- * at the start — those steps get stripped during refinement.
+ * closed.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -57,7 +56,6 @@ if (target === 'app') {
       process.exit(1);
     }
   }
-  console.log('Note: type the demo password once when the recorder opens.');
 }
 
 console.log(`Recording ${url} → ${outFile}`);

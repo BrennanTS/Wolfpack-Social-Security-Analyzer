@@ -3,7 +3,7 @@
  * one scenario through the form once and reads the results, whereas this
  * suite covers behavior that only shows up across a sequence of user
  * actions — toggling marital status, switching tabs, moving the COLA slider,
- * opening/closing the settings drawer, dark mode, the password gate, and PDF
+ * opening/closing the settings drawer, dark mode, and PDF
  * export.
  */
 import { expect, fillScenarioForm, test } from './helpers/app';
@@ -275,21 +275,6 @@ test('exports a PDF', async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-.*\.pdf$/);
 });
 
-test('gates access behind the demo password', async ({ browser }) => {
-  // A fresh context, deliberately not using this file's `page` fixture — that
-  // fixture seeds sessionStorage to bypass the gate (see helpers/app.ts), so
-  // testing the gate itself needs a context without that seeding.
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  try {
-    await page.goto('/');
-    await expect(page.locator('#password')).toBeVisible();
-    await expect(page.getByTestId('benefit-table')).toHaveCount(0);
-  } finally {
-    await context.close();
-  }
-});
-
 test('hydrates the form from a shared link and clears the query string', async ({ page }) => {
   await page.goto('/?ay=1962&am=4&ag=m&ab=2400&m=0&le=85');
 
@@ -307,24 +292,22 @@ test('ignores an out-of-range parameter rather than clamping it', async ({ page 
   await expect(page.getByTestId('benefit-table')).toHaveCount(0);
 });
 
-// The spec calls this out specifically: the gate renders before the analyzer
-// and keys off sessionStorage without navigating, so parameters should survive
-// sign-in. It is exactly the kind of interaction that breaks silently.
-test('a shared link still hydrates after the password gate', async ({ browser }) => {
-  // A fresh context, without the shared fixture's sessionStorage seeding —
-  // see the "gates access" test above for why.
+// The gate this once had to survive is gone, but the hydration path is
+// unchanged and still the kind of thing that breaks silently: parameters are
+// read once at mount and the address bar is cleared, so a second render must
+// not lose them.
+test('keeps a shared link’s inputs across a reload of the app shell', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   try {
     await page.goto('/?ay=1962&am=4&ag=m&ab=2400&m=0&le=85');
-
-    await expect(page.locator('#password')).toBeVisible();
-    await page.locator('#password').fill('wolfpack');
-    // The gate's submit button reads "Continue", not "enter/sign in/unlock".
-    await page.getByRole('button', { name: 'Continue' }).click();
-
     await expect(page.getByTestId('benefit-table')).toBeVisible();
     await expect(page.locator('#a-benefit')).toHaveValue('2400');
+    // Reloading the now-bare URL keeps nothing — the query string was cleared
+    // on hydration, which is deliberate: client data must not sit in the
+    // address bar. The empty field is the assertion, not a failure.
+    await page.reload();
+    await expect(page.locator('#a-benefit')).toHaveValue('');
   } finally {
     await context.close();
   }

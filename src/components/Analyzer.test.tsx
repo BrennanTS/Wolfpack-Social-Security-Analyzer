@@ -10,7 +10,7 @@ import { ABOUT_CARDS } from '../lib/about';
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
 
 function renderAnalyzer() {
-  return render(<Analyzer onLogout={vi.fn()} darkMode={false} onToggleDarkMode={vi.fn()} />);
+  return render(<Analyzer darkMode={false} onToggleDarkMode={vi.fn()} />);
 }
 
 function maritalGroup() {

@@ -42,12 +42,11 @@ import { CopyLinkButton } from './CopyLinkButton';
 import { spousalMethodologyCopy } from './methodologyCopy';
 
 interface AnalyzerProps {
-  onLogout: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
 }
 
-export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps) {
+export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // Parse once, before first paint. A lazy initializer rather than an effect:
   // an effect would paint the blank form first and then replace it, flickering
   // and briefly running an analysis on empty inputs. Reading `location.search`
@@ -359,9 +358,6 @@ export function Analyzer({ onLogout, darkMode, onToggleDarkMode }: AnalyzerProps
           </button>
           <CopyLinkButton form={form} disabled={!inputsComplete} />
           {exportError && <span className="export-error">{exportError}</span>}
-          <button type="button" className="btn-ghost" onClick={onLogout}>
-            Sign out
-          </button>
           <AppVersion />
         </div>
       </header>

@@ -102,5 +102,4 @@ those are time/mortality-dependent, so they are not asserted here.
 2. Ask Claude to refine the recording back into `fillSsaToolsScenario`.
 
 `npm run record:app` records against the local app instead (starts the dev
-server if needed). Type the demo password once when the recorder opens —
-those steps are stripped during refinement.
+server if needed).

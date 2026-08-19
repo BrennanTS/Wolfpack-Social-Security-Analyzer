@@ -38,9 +38,6 @@ for (const scenario of uiScenarios) {
   test(`renders golden values: ${scenario.id}`, async ({ page }) => {
     await page.goto('/');
 
-    // The auth init script must have kept the password gate closed.
-    await expect(page.locator('#password')).toHaveCount(0);
-
     await fillScenarioForm(page, scenario.inputs);
 
     if (scenario.inputs.status === 'married') {

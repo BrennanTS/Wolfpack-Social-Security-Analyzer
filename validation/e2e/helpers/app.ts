@@ -1,25 +1,7 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import type { ScenarioInputs } from '../../fixtures/scenarios';
 
-/**
- * Test fixture that bypasses the demo password gate. The gate keys off
- * sessionStorage, which Playwright's storageState does not cover, so it is
- * seeded before any page script runs.
- *
- * Tests that need to exercise the gate itself (e.g. asserting it appears for
- * a fresh visitor) must not use this fixture's `page` — instead open a fresh
- * `browser.newContext()` so the init script is never installed. See
- * interactions.spec.ts's password-gate test.
- */
-export const test = base.extend({
-  page: async ({ page }, use) => {
-    await page.addInitScript(() => {
-      sessionStorage.setItem('ssa-demo-auth', 'true');
-    });
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- Playwright fixture, not a React hook
-    await use(page);
-  },
-});
+export const test = base;
 
 export { expect };
 
