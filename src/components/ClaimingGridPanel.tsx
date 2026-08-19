@@ -38,6 +38,14 @@ interface Props {
   onScenariosChange?: (scenarios: ScenarioSet) => void;
   target?: TargetRange;
   onTargetChange?: (target: TargetRange) => void;
+  /**
+   * The square being read, as a `gridKey`. Held by the caller so it survives
+   * a trip to another tab and back — `HouseholdView` renders only the active
+   * panel, so state kept here dies the moment the adviser goes to compare
+   * what they just clicked against the Household table.
+   */
+  picked?: string | null;
+  onPickedChange?: (key: string | null) => void;
 }
 
 /**
@@ -61,6 +69,8 @@ export function ClaimingGridPanel({
   onScenariosChange,
   target: controlled,
   onTargetChange,
+  picked: controlledPick,
+  onPickedChange,
 }: Props) {
   // Uncontrolled fallback, so this component's own tests (and any caller that
   // does not care about print) still work without threading state.
@@ -72,9 +82,12 @@ export function ClaimingGridPanel({
   // makes the field fight the user. The shared state carries the parsed
   // value; this carries what is in the box.
   const [targetText, setTargetText] = useState(String(target.percent));
-  // Which square the adviser is looking AT — local to this panel, and
-  // deliberately not the same thing as the scenario the report is built on.
-  const [pickedKey, setPickedKey] = useState<string | null>(null);
+  // Which square the adviser is looking AT — deliberately not the same thing
+  // as the scenario the report is built on. Uncontrolled fallback for callers
+  // that do not hold it, the same shape as `target` above.
+  const [ownPick, setOwnPick] = useState<string | null>(null);
+  const pickedKey = controlledPick === undefined ? ownPick : controlledPick;
+  const setPickedKey = onPickedChange ?? setOwnPick;
 
   const grid = analysis.claimingGrid;
   if (grid === null) return null;

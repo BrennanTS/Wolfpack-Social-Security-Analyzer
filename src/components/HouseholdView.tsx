@@ -88,6 +88,10 @@ export function HouseholdView({
       : [];
 
   const [active, setActive] = useState(0);
+  // Held here rather than inside the grid panel: only the active tabpanel is
+  // rendered, so a pick kept in that component would not survive the adviser
+  // stepping over to the Household table to look at what they clicked.
+  const [pickedCell, setPickedCell] = useState<string | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   /** The claiming-table props for one person, or none when nothing is wired. */
@@ -176,6 +180,8 @@ export function HouseholdView({
             onScenariosChange={onScenariosChange}
             target={gridTarget}
             onTargetChange={onGridTargetChange}
+            picked={pickedCell}
+            onPickedChange={setPickedCell}
           />
         ) : active === 0 ? (
           <HouseholdPanel

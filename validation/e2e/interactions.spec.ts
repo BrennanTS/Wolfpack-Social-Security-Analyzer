@@ -575,8 +575,17 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   const [firstRow] = await page.locator('[data-testid="claiming-grid-table"] tbody tr').nth(1).locator('th').allInnerTexts();
   await page.getByTestId(`grid-cell-${firstCol}-${firstRow}`).click();
   await expect(page.getByTestId('grid-picked')).toBeVisible();
+  const pickedValue = await page.getByTestId('grid-picked-value').textContent();
+
   // Nothing has reached the comparison table — the square is only being read.
+  await page.getByRole('tab', { name: 'Household' }).click();
   await expect(page.getByTestId('strategy-row-s1')).toHaveCount(0);
+
+  // And the pick survives the trip. Only the active tabpanel is rendered, so
+  // going to compare the square against the Household table used to discard
+  // it — which is the one moment an adviser is most likely to leave.
+  await gridTab.click();
+  await expect(page.getByTestId('grid-picked-value')).toHaveText(pickedValue ?? '');
 
   // Applying is its own act, and then it does drive the whole report.
   await page.getByTestId('grid-apply').click();

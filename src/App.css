@@ -2541,19 +2541,26 @@ tbody tr:hover {
   outline-offset: 1px;
 }
 
+/* `--blue` (the app's accent, gold in both themes) with `--ink` on top.
+   The first version was `--ink` on `--surface`, and NEITHER of those is
+   redefined for dark mode — `--ink` stays #141414 and `--surface` becomes
+   #1a1a1a, so the button printed near-black text on a near-black block and
+   disappeared. A token that is not in the dark block is not theme-aware. */
 .claim-grid-apply {
   margin-top: 14px;
   width: 100%;
   padding: 8px 10px;
   font: inherit;
   font-size: 0.8125rem;
-  color: var(--surface);
-  background: var(--ink);
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--blue);
   border: 0;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.2s var(--ease);
 }
 
 .claim-grid-apply:hover {
-  background: var(--gold-dark);
+  background: var(--blue-hover);
 }
