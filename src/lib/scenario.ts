@@ -272,10 +272,16 @@ const DERIVED_LABELS: Record<
   Exclude<Scenario['kind'], 'custom'>,
   { single: string; married: string }
 > = {
-  best: { single: 'Optimal', married: 'Optimal' },
-  earliest: { single: 'Claim at 62', married: 'Both claim earliest (62)' },
-  fra: { single: 'Claim at FRA', married: 'Both claim at FRA' },
-  latest: { single: 'Claim at 70', married: 'Both delay to 70' },
+  // Named for what the household DOES, in the words a client would use for
+  // it, not for the optimizer's relationship to it. "Optimal" and "FRA" are
+  // both terms a reader has to be taught before the row means anything;
+  // every competing report in this field names its strategies in English,
+  // and the two that do it best ("Both Claim Early", "Claims Later") read as
+  // sentences about people rather than labels on a calculation.
+  best: { single: 'Best for you', married: 'Best for the two of you' },
+  earliest: { single: 'Claim as early as you can', married: 'Both claim as early as you can' },
+  fra: { single: 'Claim at your full age', married: 'Both claim at your full ages' },
+  latest: { single: 'Wait until 70', married: 'Both wait until 70' },
 };
 
 /**

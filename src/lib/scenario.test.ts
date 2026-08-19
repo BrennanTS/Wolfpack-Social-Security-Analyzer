@@ -274,13 +274,27 @@ describe('isDefaultScenarioSet', () => {
 describe('scenarioLabel', () => {
   it('words a derived row for the household it is in', () => {
     const fra = DEFAULT_SCENARIO_SET.rows.find((r) => r.id === 'fra')!;
-    expect(scenarioLabel(fra, true)).toBe('Both claim at FRA');
-    expect(scenarioLabel(fra, false)).toBe('Claim at FRA');
+    expect(scenarioLabel(fra, true)).toBe('Both claim at your full ages');
+    expect(scenarioLabel(fra, false)).toBe('Claim at your full age');
+  });
+
+  it('names strategies without a term the reader has to be taught', () => {
+    // Every derived label is read by a client before any glossary. "FRA",
+    // "optimal" and "PIA" all need explaining before the row means anything,
+    // and every competing report in this field names its strategies in
+    // English instead.
+    const labels = DEFAULT_SCENARIO_SET.rows.flatMap((row) => [
+      scenarioLabel(row, true),
+      scenarioLabel(row, false),
+    ]);
+    for (const label of labels) {
+      expect(label).not.toMatch(/\bFRA\b|\bPIA\b|optimal/i);
+    }
   });
 
   it('ignores a stored label on a derived row', () => {
     const fra = { ...DEFAULT_SCENARIO_SET.rows.find((r) => r.id === 'fra')!, label: 'Nonsense' };
-    expect(scenarioLabel(fra, true)).toBe('Both claim at FRA');
+    expect(scenarioLabel(fra, true)).toBe('Both claim at your full ages');
   });
 
   it('uses the adviser’s own name for a custom row', () => {

@@ -66,7 +66,7 @@ describe('analyzeHousehold — single', () => {
     for (const c of comparisons) {
       expect(c.filingAges).toHaveLength(1);
     }
-    expect(comparisons.map((c) => c.label)).toContain('Claim at 70');
+    expect(comparisons.map((c) => c.label)).toContain('Wait until 70');
   });
 
   it('omits spousal data for a single claimant', async () => {
@@ -128,7 +128,7 @@ describe('analyzeHousehold — married', () => {
 
   it('uses married labels', async () => {
     const { comparisons } = await analyzeHousehold(household, assumptions, asOf);
-    expect(comparisons.map((c) => c.label)).toContain('Both delay to 70');
+    expect(comparisons.map((c) => c.label)).toContain('Both wait until 70');
   });
 
   it('assigns each person the filing age from the joint optimum', async () => {
