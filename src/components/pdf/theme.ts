@@ -170,7 +170,10 @@ export const styles = StyleSheet.create({
   },
   td: { fontSize: 8.5, color: INK },
   tdBold: { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: INK },
-  tdDate: { fontSize: 6.5, color: SUBTLE, paddingHorizontal: 4, marginTop: -3 },
+  /* No negative margin and no padding of its own: the first pulled the date
+     up into the age's line box and the second indented it away from the age
+     it belongs to, so "67" and "Dec 2045" printed on top of one another. */
+  tdDate: { fontSize: 6.5, color: SUBTLE, marginTop: 1 },
   /* ─── Beta report ─── */
   thRight: { textAlign: 'right' },
   tdRight: { textAlign: 'right' },

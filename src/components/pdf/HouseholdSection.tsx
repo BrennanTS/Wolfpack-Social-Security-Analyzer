@@ -66,7 +66,16 @@ interface Props {
 // `npv` widened and `label` narrowed by the same amount when "Combined PV"
 // became "Household value": the header is four characters longer and wrapped
 // at the old width. Must still sum to CONTENT_W.
-const HCOL = { label: 118, person: 80, npv: 102, delta: 66, survivor: 70 };
+// Sized against the longest real content in each column, not by eye.
+// `label` holds "Best for the two of you" AND its BEST badge — the
+// plain-English strategy names are far longer than "Optimal" was, and the
+// badge was landing on the next column. `person` holds "67 years, 11
+// months" plus a date beneath it, which overflowed an 80pt column into the
+// Household value. Both widths came from the money columns, none of which
+// needs more than 45pt for its figure. `survivor` also has to hold its own
+// HEADER, which is longer than any figure under it and hyphenated itself
+// across two lines at 56pt. Must still sum to CONTENT_W.
+const HCOL = { label: 140, person: 88, npv: 78, delta: 60, survivor: 62 };
 
 /**
  * Exported for `HouseholdSection.test.tsx` for the same reason
