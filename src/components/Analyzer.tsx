@@ -385,10 +385,11 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
           {/* The beta report, alongside the one it may one day replace.
               Same analysis, same engine, a different document — so an
               adviser can hand a client either without the app changing
-              underneath them. */}
+              underneath them. Styled identically to it: the two are
+              alternatives, not a primary and a fallback. */}
           <button
             type="button"
-            className="btn-export btn-export-beta"
+            className="btn-export"
             data-testid="export-beta"
             onClick={handleExportBetaPdf}
             disabled={!analysis || exportingBeta}

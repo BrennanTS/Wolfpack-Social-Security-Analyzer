@@ -666,11 +666,14 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
         return `rgb(${mix(t.r, b.r)}, ${mix(t.g, b.g)}, ${mix(t.b, b.b)})`;
       };
       const pageBg = getComputedStyle(document.body).backgroundColor;
-      const el = [...document.querySelectorAll('button')].find((x) =>
+      // By test id, not by class: the two buttons carry the same classes
+      // now, being alternatives rather than a primary and a fallback.
+      const el =
         which === 'beta'
-          ? x.className.includes('btn-export-beta')
-          : x.className.includes('btn-export') && !x.className.includes('beta'),
-      )!;
+          ? document.querySelector<HTMLElement>('[data-testid="export-beta"]')!
+          : [...document.querySelectorAll<HTMLElement>('.btn-export')].find(
+              (x) => x.dataset.testid !== 'export-beta',
+            )!;
       const cs = getComputedStyle(el);
       return ratio(over(cs.color, over(cs.backgroundColor, pageBg)), over(cs.backgroundColor, pageBg));
     }, selector);

@@ -2580,21 +2580,6 @@ tbody tr:hover {
   background: var(--blue-hover);
 }
 
-/* The beta export sits beside the real one and must not compete with it:
-   same shape, outlined rather than filled, so the primary action stays
-   primary. Theme-aware tokens throughout — see `.btn-export`. */
-.btn-export-beta {
-  background: transparent;
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
-.btn-export-beta:hover:not(:disabled) {
-  background: var(--fill);
-  color: var(--text);
-  border-color: var(--border-strong);
-}
-
 /* The filing date under a filing age in the comparison table. Its own line,
    quieter than the age: the age is the decision and the date is where it
    lands. */
