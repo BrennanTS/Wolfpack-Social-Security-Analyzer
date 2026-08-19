@@ -2573,3 +2573,21 @@ tbody tr:hover {
 .claim-grid-apply:hover {
   background: var(--blue-hover);
 }
+
+/* The beta export sits beside the real one and must not compete with it:
+   same shape, outlined rather than filled, so the primary action stays
+   primary. */
+.btn-export-beta {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--border-strong);
+}
+
+.btn-export-beta:hover:not(:disabled) {
+  background: var(--fill);
+  color: var(--ink);
+}
+
+[data-theme='dark'] .btn-export-beta {
+  color: var(--text);
+}

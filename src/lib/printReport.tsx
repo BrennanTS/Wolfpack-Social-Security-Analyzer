@@ -1,9 +1,26 @@
 import type { ClaimingRow } from './claimingRows';
 import type { HouseholdAnalysis } from './household';
+import type { LongevitySensitivity } from './longevity';
 
-function reportFilename(): string {
+function reportFilename(suffix = ''): string {
   const date = new Date().toISOString().slice(0, 10);
-  return `Social-Security-Analysis-${date}.pdf`;
+  return `Social-Security-Analysis-${date}${suffix}.pdf`;
+}
+
+/** Hand a rendered blob to the browser as a download. */
+function save(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 /**
@@ -33,16 +50,36 @@ export async function downloadPdfReport(
     />,
   ).toBlob();
 
-  const url = URL.createObjectURL(blob);
-  try {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = reportFilename();
-    link.rel = 'noopener';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  save(blob, reportFilename());
+}
+
+/**
+ * The beta report. Same analysis and the same engine as
+ * `downloadPdfReport` — a different document composed from it.
+ *
+ * `sensitivity` is computed by the caller and passed in rather than derived
+ * here: it needs the household and the assumptions, which a
+ * `HouseholdAnalysis` does not carry, and it is asynchronous, which a render
+ * is not. Passing null simply omits the longevity page rather than failing
+ * the export.
+ */
+export async function downloadBetaPdfReport(
+  analysis: HouseholdAnalysis,
+  claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
+  gridTarget?: { on: boolean; percent: number },
+  sensitivity?: LongevitySensitivity | null,
+): Promise<void> {
+  const { pdf } = await import('@react-pdf/renderer');
+  const { BetaReportDocument } = await import('../components/pdf/BetaReportDocument');
+
+  const blob = await pdf(
+    <BetaReportDocument
+      analysis={analysis}
+      claimingRowsByPerson={claimingRowsByPerson}
+      gridTarget={gridTarget}
+      sensitivity={sensitivity}
+    />,
+  ).toBlob();
+
+  save(blob, reportFilename('-beta'));
 }

@@ -4,6 +4,7 @@ import type { HouseholdAnalysis } from '../lib/household';
 import { BRAND_NAME } from '../lib/brand';
 import {
   analyzeIfComplete,
+  longevityIfComplete,
   BLANK_FORM,
   isFormComplete,
   reseedLifeExpectancy,
@@ -14,7 +15,7 @@ import {
 import { personLabel } from '../lib/format';
 import { DEFAULT_PLAN_TO_AGE } from '../lib/formBounds';
 import { readPlanToAges, writePlanToAge } from '../lib/planToAgeStore';
-import { downloadPdfReport } from '../lib/printReport';
+import { downloadBetaPdfReport, downloadPdfReport } from '../lib/printReport';
 import {
   buildClaimingRows,
   prefsFor,
@@ -89,6 +90,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // Held here, not in `ClaimingGridPanel`, so the exported report prints the
   // near-best region the adviser was looking at rather than the default.
   const [gridTarget, setGridTarget] = useState<TargetRange>(DEFAULT_TARGET_RANGE);
+  const [exportingBeta, setExportingBeta] = useState(false);
 
   // Strip the query string separately, because this is a side effect and
   // StrictMode double-invokes state initializers. replaceState is idempotent,
@@ -285,6 +287,26 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     }
   }
 
+  /**
+   * The beta report. Its longevity page needs the analysis re-run at other
+   * plan-to ages, which is asynchronous and needs the form rather than the
+   * finished analysis — so it is computed here, at export, rather than on
+   * every keystroke. It costs about 50ms and nothing on screen depends on it.
+   */
+  async function handleExportBetaPdf() {
+    if (!analysis) return;
+    setExportError(null);
+    setExportingBeta(true);
+    try {
+      const sensitivity = await longevityIfComplete(form, asOf);
+      await downloadBetaPdfReport(analysis, claimingRowsByPerson, gridTarget, sensitivity);
+    } catch {
+      setExportError('Beta PDF export failed. Please try again.');
+    } finally {
+      setExportingBeta(false);
+    }
+  }
+
   return (
     <div className={`analyzer${settingsOpen ? ' settings-open' : ''}`}>
       <header className="header">
@@ -359,6 +381,19 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
               <path d="M9 1v3h3M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.2" />
             </svg>
             {exporting ? 'Generating…' : 'Export PDF'}
+          </button>
+          {/* The beta report, alongside the one it may one day replace.
+              Same analysis, same engine, a different document — so an
+              adviser can hand a client either without the app changing
+              underneath them. */}
+          <button
+            type="button"
+            className="btn-export btn-export-beta"
+            data-testid="export-beta"
+            onClick={handleExportBetaPdf}
+            disabled={!analysis || exportingBeta}
+          >
+            {exportingBeta ? 'Generating…' : 'Export PDF (beta)'}
           </button>
           <CopyLinkButton form={form} disabled={!inputsComplete} />
           {exportError && <span className="export-error">{exportError}</span>}

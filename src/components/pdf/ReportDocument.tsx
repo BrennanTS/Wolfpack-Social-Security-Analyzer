@@ -42,7 +42,7 @@ export function PageFooter({ text }: { text: string }) {
  * same name twice on one sheet. The rule that kept this header off pages 2+
  * is the same rule, applied one level in.
  */
-function ReportHeader({ dateLabel }: { dateLabel: string }) {
+export function ReportHeader({ dateLabel }: { dateLabel: string }) {
   return (
     <View style={styles.docHeader}>
       <View>
@@ -77,7 +77,7 @@ export function MethodPair({ left, right }: { left: MethodItem; right?: MethodIt
   );
 }
 
-function formatReportDate(): string {
+export function formatReportDate(): string {
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'long',

@@ -270,7 +270,8 @@ test('exports a PDF', async ({ page }) => {
   await fillScenarioForm(page, single);
 
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: /Export PDF/ }).click();
+  // Exact, not a substring: "Export PDF" is a prefix of "Export PDF (beta)".
+  await page.getByRole('button', { name: 'Export PDF', exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-.*\.pdf$/);
 });
@@ -489,7 +490,8 @@ test('renders a widowed household, and never the single-claimant view', async ({
   await expect(page.getByTestId('deceased-filed')).toContainText('June 2022');
 
   // Both actions live, having been disabled dead ends until now.
-  await expect(page.getByRole('button', { name: /export pdf/i })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Export PDF', exact: true })).toBeEnabled();
+  await expect(page.getByTestId('export-beta')).toBeEnabled();
   await expect(page.getByRole('button', { name: /copy link/i })).toBeEnabled();
 });
 
@@ -593,4 +595,24 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   const scenarioRow = page.getByTestId('strategy-row-s1');
   await expect(scenarioRow).toContainText(firstCol);
   await expect(scenarioRow).toContainText(firstRow);
+});
+
+test('exports the beta report, named apart from the report it may replace', async ({ page }) => {
+  await page.goto('/');
+  await fillScenarioForm(page, married);
+  await expect(page.getByTestId('strategy-table')).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId('export-beta').click();
+  const download = await downloadPromise;
+
+  // A distinct filename, so an adviser holding both can tell them apart —
+  // and so exporting one cannot overwrite the other in a downloads folder.
+  expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-.*-beta\.pdf$/);
+
+  // The original still works afterwards. Two exports sharing one analysis is
+  // the whole premise of shipping the beta alongside rather than instead.
+  const alsoOriginal = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export PDF', exact: true }).click();
+  expect((await alsoOriginal).suggestedFilename()).toMatch(/^Social-Security-Analysis-[\d-]+\.pdf$/);
 });

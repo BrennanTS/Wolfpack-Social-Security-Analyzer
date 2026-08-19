@@ -4,6 +4,7 @@ import { DEFAULT_PLAN_TO_AGE, isBenefitInRange } from './formBounds';
 import { analyzeHousehold, type Household, type HouseholdAnalysis } from './household';
 import { getCurrentAge, type Gender, type Person } from './personAnalysis';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
+import { longevitySensitivity, type LongevitySensitivity } from './longevity';
 import { DEFAULT_SCENARIO_SET, type ScenarioSet } from './scenario';
 import { DEFAULT_DISCOUNT_RATE } from './ssaTools';
 import {
@@ -203,6 +204,29 @@ export function toHousehold(form: AnalyzerFormState): Household {
   }
   if (form.maritalStatus !== 'married') return { status: 'single', people: [personA] };
   return { status: 'married', people: [personA, toPerson(form.personB, 'b')] };
+}
+
+/**
+ * The longevity sensitivity for the form as it stands, or null if the form
+ * is not complete.
+ *
+ * Beside `analyzeIfComplete` and gated the same way, so the two cannot
+ * disagree about whether the household is ready or about which `asOf` they
+ * used — the sensitivity re-runs the same analysis at other plan-to ages,
+ * and a different reference date would make its middle row not match the
+ * report it sits in.
+ */
+export async function longevityIfComplete(
+  form: AnalyzerFormState,
+  asOf?: Date,
+): Promise<LongevitySensitivity | null> {
+  if (!isFormComplete(form, asOf)) return null;
+  return longevitySensitivity(
+    toHousehold(form),
+    { annualCola: form.annualCola, discountRate: form.discountRate },
+    asOf ?? new Date(),
+    form.scenarios,
+  );
 }
 
 export async function analyzeIfComplete(

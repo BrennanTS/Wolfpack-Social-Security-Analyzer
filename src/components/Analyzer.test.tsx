@@ -116,7 +116,10 @@ describe('Analyzer', () => {
 
       await screen.findByTestId('widowed-strategy-table', {}, { timeout: 10000 });
 
-      expect(screen.getByRole('button', { name: /export pdf/i })).toBeEnabled();
+      // Named exactly, not by a substring: there are two export buttons now
+      // and "Export PDF" is a prefix of "Export PDF (beta)".
+      expect(screen.getByRole('button', { name: 'Export PDF' })).toBeEnabled();
+      expect(screen.getByTestId('export-beta')).toBeEnabled();
       expect(screen.getByRole('button', { name: /copy link/i })).toBeEnabled();
     });
 
