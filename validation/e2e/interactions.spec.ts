@@ -616,3 +616,92 @@ test('exports the beta report, named apart from the report it may replace', asyn
   await page.getByRole('button', { name: 'Export PDF', exact: true }).click();
   expect((await alsoOriginal).suggestedFilename()).toMatch(/^Social-Security-Analysis-[\d-]+\.pdf$/);
 });
+
+/**
+ * Both export buttons, in both themes, at rest and on hover.
+ *
+ * This repo keeps shipping the same defect: `--ink` and `--cream` are NOT
+ * redefined in the dark block — they hold their light values in both themes —
+ * so a rule pairing them renders dark-on-dark and vanishes. It has now cost
+ * the claiming grid's apply button and both of these, and it is invisible to
+ * every other test here because the markup is identical either way.
+ *
+ * Contrast is measured rather than eyeballed, and in a real browser: a
+ * backgrounded tab reports the new custom-property values while still
+ * resolving `var()` against the old ones, which makes a hand check in a
+ * hidden pane actively misleading.
+ */
+test('both export buttons stay legible in light and dark, at rest and on hover', async ({ page }) => {
+  await page.goto('/');
+  await fillScenarioForm(page, single);
+  await expect(page.getByTestId('benefit-table')).toBeVisible();
+
+  const contrast = (selector: 'primary' | 'beta') =>
+    page.evaluate((which) => {
+      const lum = (c: string) => {
+        const [R, G, B] = c
+          .match(/\d+(\.\d+)?/g)!
+          .slice(0, 3)
+          .map(Number)
+          .map((v) => {
+            v /= 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+          });
+        return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+      };
+      const ratio = (a: string, b: string) =>
+        (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+      // Composite the button's background over the page rather than testing
+      // for the string 'rgba(0, 0, 0, 0)'. A background mid-transition is
+      // partly transparent ink over ink, and reading it as opaque made the
+      // measurement race the 0.25s fade and report a ratio of 1.
+      const parse = (c: string) => {
+        const n = c.match(/[\d.]+/g)!.map(Number);
+        return { r: n[0], g: n[1], b: n[2], a: n.length > 3 ? n[3] : 1 };
+      };
+      const over = (top: string, bottom: string) => {
+        const t = parse(top);
+        const b = parse(bottom);
+        const mix = (x: number, y: number) => Math.round(x * t.a + y * (1 - t.a));
+        return `rgb(${mix(t.r, b.r)}, ${mix(t.g, b.g)}, ${mix(t.b, b.b)})`;
+      };
+      const pageBg = getComputedStyle(document.body).backgroundColor;
+      const el = [...document.querySelectorAll('button')].find((x) =>
+        which === 'beta'
+          ? x.className.includes('btn-export-beta')
+          : x.className.includes('btn-export') && !x.className.includes('beta'),
+      )!;
+      const cs = getComputedStyle(el);
+      return ratio(over(cs.color, over(cs.backgroundColor, pageBg)), over(cs.backgroundColor, pageBg));
+    }, selector);
+
+  const themeToggle = page.getByRole('button', { name: /dark|light|theme/i });
+
+  for (const theme of ['light', 'dark'] as const) {
+    if (theme === 'dark') {
+      await themeToggle.click();
+      await page.waitForTimeout(300);
+    }
+    for (const which of ['primary', 'beta'] as const) {
+      const button =
+        which === 'beta'
+          ? page.getByTestId('export-beta')
+          : page.getByRole('button', { name: 'Export PDF', exact: true });
+
+      // At rest. 4.5 is the AA floor for body text; these are uppercase
+      // small caps, so the real bar is higher, but a failure here is never
+      // marginal — the broken states measured 1.05.
+      expect(await contrast(which), `${which} at rest in ${theme}`).toBeGreaterThan(4.5);
+
+      await button.hover();
+      // Longer than the 0.25s colour transition, so the measurement is of a
+      // settled state rather than a frame of the fade.
+      await page.waitForTimeout(500);
+      expect(await contrast(which), `${which} on hover in ${theme}`).toBeGreaterThan(4.5);
+
+      // Move off, so the next measurement is a true resting state.
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(500);
+    }
+  }
+});

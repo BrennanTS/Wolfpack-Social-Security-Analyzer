@@ -211,9 +211,15 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--ink);
-  color: var(--cream);
-  border: 1px solid var(--ink);
+  /* `--text` and `--bg`, not `--ink` and `--cream`. Neither of those is
+     redefined for dark mode — both stay at their light values — so the
+     filled button was #141414 on a #0e0e0e page, a block with no visible
+     edge, and its hover state put #141414 text on that same page and lost
+     the label altogether. `--text`/`--bg` invert with the theme, so the
+     button is dark-on-light in one and light-on-dark in the other. */
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
   padding: 7px 14px;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
@@ -226,9 +232,9 @@
     border-color 0.25s var(--ease);
 }
 
-.btn-export:hover {
+.btn-export:hover:not(:disabled) {
   background: transparent;
-  color: var(--ink);
+  color: var(--text);
 }
 
 .btn-export:active {
@@ -2576,20 +2582,17 @@ tbody tr:hover {
 
 /* The beta export sits beside the real one and must not compete with it:
    same shape, outlined rather than filled, so the primary action stays
-   primary. */
+   primary. Theme-aware tokens throughout — see `.btn-export`. */
 .btn-export-beta {
   background: transparent;
-  color: var(--ink);
+  color: var(--text);
   border-color: var(--border-strong);
 }
 
 .btn-export-beta:hover:not(:disabled) {
   background: var(--fill);
-  color: var(--ink);
-}
-
-[data-theme='dark'] .btn-export-beta {
   color: var(--text);
+  border-color: var(--border-strong);
 }
 
 /* The filing date under a filing age in the comparison table. Its own line,
