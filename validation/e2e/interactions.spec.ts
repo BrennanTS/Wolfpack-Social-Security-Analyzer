@@ -553,9 +553,17 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   const atFive = Number((await count.textContent())!.match(/^(\d+)/)![1]);
   expect(atFive).toBeGreaterThan(atOne);
 
-  // Turning the highlight off retires the count with it.
+  // The near-best region has to be visible as a REGION, not just as a ring
+  // on each member: everything outside it steps back at the same time.
+  const dimmed = page.locator('.claim-grid-dimmed .claim-cell:not(.claim-cell-near)');
+  expect(await dimmed.count()).toBeGreaterThan(0);
+  await expect(dimmed.first()).toHaveCSS('opacity', '0.4');
+
+  // Turning the highlight off retires the count and the dimming with it —
+  // an excluded square is de-emphasised, never presented as unavailable.
   await page.getByTestId('target-range-toggle').uncheck();
   await expect(count).toHaveCount(0);
+  await expect(page.locator('.claim-grid-dimmed')).toHaveCount(0);
 
   // Clicking a square drives the whole report: a new scenario row appears in
   // the household comparison table, selected, and the eyebrow stops saying

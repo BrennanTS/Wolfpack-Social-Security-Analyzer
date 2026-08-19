@@ -12,7 +12,7 @@ import type { ScenarioSet } from '../lib/scenario';
 import { HouseholdPanel } from './HouseholdPanel';
 import { PersonPanel } from './PersonPanel';
 import { WidowedPanel } from './WidowedPanel';
-import { ClaimingGridPanel } from './ClaimingGridPanel';
+import { ClaimingGridPanel, type TargetRange } from './ClaimingGridPanel';
 
 interface HouseholdViewProps {
   analysis: HouseholdAnalysis;
@@ -33,6 +33,9 @@ interface HouseholdViewProps {
   claimingRowsByPerson?: Record<string, ClaimingRow[]>;
   claimingPrefs?: ClaimingPrefsByPerson;
   onClaimingPrefsChange?: (personId: string, prefs: ClaimingTablePrefs) => void;
+  /** The claiming grid's near-best region — shared so the PDF prints it. */
+  gridTarget?: TargetRange;
+  onGridTargetChange?: (target: TargetRange) => void;
 }
 
 interface TabDef {
@@ -61,6 +64,8 @@ export function HouseholdView({
   claimingRowsByPerson,
   claimingPrefs,
   onClaimingPrefsChange,
+  gridTarget,
+  onGridTargetChange,
 }: HouseholdViewProps) {
   // Exhaustive rather than `=== 'married'`: a boolean test routed a widowed
   // household into the one-claimant branch below with no compile error and no
@@ -169,6 +174,8 @@ export function HouseholdView({
             analysis={analysis}
             scenarios={scenarios}
             onScenariosChange={onScenariosChange}
+            target={gridTarget}
+            onTargetChange={onGridTargetChange}
           />
         ) : active === 0 ? (
           <HouseholdPanel

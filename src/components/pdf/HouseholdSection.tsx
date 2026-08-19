@@ -12,6 +12,14 @@ import type { Person } from '../../lib/personAnalysis';
 import { toNominalAmount } from '../../lib/dollarsMode';
 import { incomeCliff } from '../../lib/incomeCliff';
 import { seriesColor } from '../../lib/chartTheme';
+import {
+  cellsWithin,
+  gridKey,
+  gridRatio,
+  percentOfBest,
+  type ClaimingGrid,
+} from '../../lib/claimingGrid';
+import { heatmapColorPdf } from '../../lib/chartData';
 import { formatPercent } from '../../lib/cpiHistory';
 import { formatCurrency, formatThousandsTick, personLabel } from '../../lib/format';
 import {
@@ -31,7 +39,7 @@ import {
   SURVIVOR_INCOME_COLUMN_HEADER,
 } from '../methodologyCopy';
 import { scenarioEyebrow } from '../../lib/scenario';
-import { BORDER, CHART_INNER_W, MUTED, styles } from './theme';
+import { BORDER, CHART_INNER_W, GREEN, INK, MUTED, styles } from './theme';
 import { PageFooter } from './ReportDocument';
 
 interface Props {
@@ -39,6 +47,13 @@ interface Props {
   footerText: string;
   appendix?: ReactNode;
   leadingHeader?: ReactNode;
+  /**
+   * The near-best region as the adviser had it on screen. Undefined prints no
+   * grid at all — the grid arrived after this component, and every existing
+   * caller (the tests here, chiefly) must keep rendering the page they were
+   * written against.
+   */
+  gridTarget?: { on: boolean; percent: number };
 }
 
 /** Household strategy-comparison columns (must sum to CONTENT_W). */
@@ -258,13 +273,136 @@ export function CombinedIncomeBars({
 }
 
 /**
+ * The claiming-age grid, in print.
+ *
+ * Drawn as SVG rather than a `View` grid for the same reason `PdfHeatmap` is:
+ * react-pdf's box model makes a border change a cell's size, so an outlined
+ * near-best square would sit a hair out of line with its neighbours across a
+ * whole row. In SVG a stroke is drawn on the rect, not around it.
+ *
+ * The printed sheet loses the screen's hover, so every square carries its
+ * percentage and the caption names the two exact ages behind the best one.
+ * The near-best region uses the same two devices as the screen — a ring on
+ * the members and a step back for everything else, here a paler fill rather
+ * than opacity — because a ring alone reads as a faint edge on a page.
+ */
+export function ClaimingGridPlot({
+  grid,
+  names,
+  target,
+}: {
+  grid: ClaimingGrid;
+  names: [string, string];
+  target: { on: boolean; percent: number };
+}) {
+  const [yearsA, yearsB] = grid.years;
+  const rows = [...yearsB].reverse();
+  const within = target.on ? cellsWithin(grid, target.percent) : new Set<string>();
+  const byKey = new Map(grid.cells.map((c) => [gridKey(c.years[0], c.years[1]), c]));
+  const best = grid.cells.reduce((a, b) => (b.value > a.value ? b : a));
+
+  const labelW = 18;
+  const axisH = 12;
+  const cellW = Math.min(46, (CHART_INNER_W - labelW - 2) / yearsA.length);
+  const cellH = 17;
+  const W = labelW + cellW * yearsA.length + 2;
+  const H = axisH + cellH * rows.length + axisH;
+
+  return (
+    <View>
+      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        {yearsA.map((year, i) => (
+          <Text
+            key={`x-${year}`}
+            x={labelW + i * cellW + cellW / 2}
+            y={8}
+            style={{ fontSize: 6, fill: MUTED }}
+            textAnchor="middle"
+          >
+            {String(year)}
+          </Text>
+        ))}
+        {rows.map((yb, r) => (
+          <Text
+            key={`y-${yb}`}
+            x={labelW - 3}
+            y={axisH + r * cellH + cellH * 0.66}
+            style={{ fontSize: 6, fill: MUTED }}
+            textAnchor="end"
+          >
+            {String(yb)}
+          </Text>
+        ))}
+        {rows.map((yb, r) =>
+          yearsA.map((ya, c) => {
+            const cell = byKey.get(gridKey(ya, yb));
+            if (cell === undefined) return null;
+            const near = within.has(gridKey(ya, yb));
+            const isBest = cell === best;
+            // Outside the region the ramp is compressed toward its pale end,
+            // so the near-best cloud carries the ink. With the highlight off,
+            // every square gets the full ramp.
+            const t = gridRatio(grid, cell.value);
+            const shade = !target.on || near || isBest ? t : t * 0.35;
+            return (
+              <Rect
+                key={`${ya}-${yb}`}
+                x={labelW + c * cellW + 0.5}
+                y={axisH + r * cellH + 0.5}
+                width={cellW - 1}
+                height={cellH - 1}
+                rx={1.5}
+                fill={heatmapColorPdf(shade)}
+                stroke={isBest ? INK : near ? GREEN : 'none'}
+                strokeWidth={isBest ? 1.2 : near ? 1 : 0}
+              />
+            );
+          }),
+        )}
+        {rows.map((yb, r) =>
+          yearsA.map((ya, c) => {
+            const cell = byKey.get(gridKey(ya, yb));
+            if (cell === undefined) return null;
+            return (
+              <Text
+                key={`t-${ya}-${yb}`}
+                x={labelW + c * cellW + cellW / 2}
+                y={axisH + r * cellH + cellH * 0.68}
+                style={{ fontSize: 5.5, fill: INK }}
+                textAnchor="middle"
+              >
+                {percentOfBest(grid, cell.value).toFixed(1)}
+              </Text>
+            );
+          }),
+        )}
+        <Text
+          x={labelW + (cellW * yearsA.length) / 2}
+          y={H - 2}
+          style={{ fontSize: 6, fill: MUTED }}
+          textAnchor="middle"
+        >
+          {`${names[0]}'s claiming age (columns) — ${names[1]}'s down the side`}
+        </Text>
+      </Svg>
+    </View>
+  );
+}
+
+/**
  * The household page: only rendered for married households, always first in
  * the linearized print flow. Leads with the joint recommendation, then the
  * strategy comparison table — the feature the household refactor exists for
  * — the spousal top-up (clearly labeled, since `spousalTopUp` carries two
  * distinct figures), and the combined income timeline.
  */
-export function HouseholdSection({ analysis, footerText, appendix, leadingHeader }: Props) {
+export function HouseholdSection({
+  analysis,
+  footerText,
+  appendix,
+  leadingHeader,
+  gridTarget,
+}: Props) {
   const people = analysis.people.map((p) => p.person);
   const spousal = analysis.spousalTopUp;
   const gapNote = survivorGapNote(analysis.survivorGap);
@@ -400,6 +538,32 @@ export function HouseholdSection({ analysis, footerText, appendix, leadingHeader
           `analysis.survivorClaim` alone, exactly like the screen surface, so
           the two cannot disagree about when to render it. */}
       {claimNote && <Text style={styles.sectionDesc}>{claimNote}</Text>}
+
+      {analysis.claimingGrid && gridTarget && (
+        <>
+          <Text style={styles.sectionTitle}>Claiming Age Grid</Text>
+          <Text style={styles.sectionDesc}>
+            Household value at every combination of whole claiming ages, as a percentage of
+            the best. Each square is the best either of them can do filing somewhere inside
+            those two years.
+            {gridTarget.on
+              ? ` Outlined squares are within ${gridTarget.percent}% of the best — ${
+                  cellsWithin(analysis.claimingGrid, gridTarget.percent).size
+                } of ${analysis.claimingGrid.cells.length} combinations.`
+              : ''}
+          </Text>
+          <View style={styles.chartBox} wrap={false}>
+            <ClaimingGridPlot
+              grid={analysis.claimingGrid}
+              names={[
+                personLabel(people[0].name, 0),
+                personLabel(people[1].name, 1),
+              ]}
+              target={gridTarget}
+            />
+          </View>
+        </>
+      )}
 
       {appendix}
 

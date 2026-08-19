@@ -14,10 +14,25 @@ import { addScenario, filingAgeLabel, selectScenario, type ScenarioSet } from '.
 /** Default tolerance for the near-best region, in percent. */
 export const DEFAULT_TARGET_PERCENT = 1;
 
+/**
+ * The near-best region as both surfaces need it: whether it is drawn, and how
+ * wide. Lifted out of this component so the PDF prints the region the adviser
+ * was actually looking at rather than a fixed default — the same reason
+ * `claimingRowsByPerson` is built once in `Analyzer` and threaded down.
+ */
+export interface TargetRange {
+  on: boolean;
+  percent: number;
+}
+
+export const DEFAULT_TARGET_RANGE: TargetRange = { on: true, percent: DEFAULT_TARGET_PERCENT };
+
 interface Props {
   analysis: HouseholdAnalysis;
   scenarios?: ScenarioSet;
   onScenariosChange?: (scenarios: ScenarioSet) => void;
+  target?: TargetRange;
+  onTargetChange?: (target: TargetRange) => void;
 }
 
 /**
@@ -35,19 +50,29 @@ interface Props {
  * exploration surface for a live conversation, not part of the report's
  * argument, and nothing in it prints.
  */
-export function ClaimingGridPanel({ analysis, scenarios, onScenariosChange }: Props) {
-  const [targetOn, setTargetOn] = useState(true);
+export function ClaimingGridPanel({
+  analysis,
+  scenarios,
+  onScenariosChange,
+  target: controlled,
+  onTargetChange,
+}: Props) {
+  // Uncontrolled fallback, so this component's own tests (and any caller that
+  // does not care about print) still work without threading state.
+  const [uncontrolled, setUncontrolled] = useState<TargetRange>(DEFAULT_TARGET_RANGE);
+  const target = controlled ?? uncontrolled;
+  const setTarget = onTargetChange ?? setUncontrolled;
   // A string, not a number: a number input bound to a number cannot hold the
   // intermediate states of typing ("", "1."), and coercing on every keystroke
-  // makes the field fight the user. Parsed at the point of use.
-  const [targetText, setTargetText] = useState(String(DEFAULT_TARGET_PERCENT));
+  // makes the field fight the user. The shared state carries the parsed
+  // value; this carries what is in the box.
+  const [targetText, setTargetText] = useState(String(target.percent));
 
   const grid = analysis.claimingGrid;
   if (grid === null) return null;
 
-  const parsed = Number.parseFloat(targetText);
-  const target = Number.isFinite(parsed) && parsed >= 0 ? Math.min(parsed, 100) : 0;
-  const within = cellsWithin(grid, target);
+  const targetOn = target.on;
+  const within = cellsWithin(grid, target.percent);
 
   const names = analysis.people.map((p, i) => personLabel(p.person.name, i));
   const byKey = new Map(grid.cells.map((c) => [gridKey(c.years[0], c.years[1]), c]));
@@ -92,7 +117,7 @@ export function ClaimingGridPanel({ analysis, scenarios, onScenariosChange }: Pr
             type="checkbox"
             checked={targetOn}
             data-testid="target-range-toggle"
-            onChange={(e) => setTargetOn(e.target.checked)}
+            onChange={(e) => setTarget({ ...target, on: e.target.checked })}
           />
           Highlight near-best
         </label>
@@ -107,7 +132,12 @@ export function ClaimingGridPanel({ analysis, scenarios, onScenariosChange }: Pr
             disabled={!targetOn}
             aria-label="Near-best tolerance, percent of the best household value"
             data-testid="target-range-percent"
-            onChange={(e) => setTargetText(e.target.value)}
+            onChange={(e) => {
+              setTargetText(e.target.value);
+              const parsed = Number.parseFloat(e.target.value);
+              const next = Number.isFinite(parsed) && parsed >= 0 ? Math.min(parsed, 100) : 0;
+              setTarget({ ...target, percent: next });
+            }}
           />
           % of best
         </label>
@@ -126,7 +156,10 @@ export function ClaimingGridPanel({ analysis, scenarios, onScenariosChange }: Pr
             <div className="claim-grid-axis-y">
               <span>{names[1]}&rsquo;s claiming age</span>
             </div>
-            <table className="claim-grid" data-testid="claiming-grid-table">
+              <table
+              className={`claim-grid${targetOn ? ' claim-grid-dimmed' : ''}`}
+              data-testid="claiming-grid-table"
+            >
             <caption className="visually-hidden">
               Household value by {names[0]}&rsquo;s claiming age against {names[1]}&rsquo;s
             </caption>
@@ -197,7 +230,7 @@ export function ClaimingGridPanel({ analysis, scenarios, onScenariosChange }: Pr
             {targetOn && (
               <>
                 <span className="claim-grid-swatch-near" aria-hidden="true" />
-                <span>within {target}% of best</span>
+                <span>within {target.percent}% of best</span>
               </>
             )}
           </div>

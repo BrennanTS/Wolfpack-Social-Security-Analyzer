@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReactElement } from 'react';
 import type { SurvivorFloor, SurvivorGap } from '../../lib/benefitPeriods';
+import type { ClaimingGrid } from '../../lib/claimingGrid';
 import type { HouseholdAnalysis, MonthlyIncomePoint } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
 import { CombinedIncomeBars, HouseholdSection, StrategyTable } from './HouseholdSection';
@@ -739,5 +740,72 @@ describe('CombinedIncomeBars — the printed combined-income decomposition', () 
     expect(personal[0].x + personal[0].width).toBeCloseTo(personal[1].x, 6);
     const spanned = personal.reduce((sum, r) => sum + r.width, 0);
     expect(spanned).toBeCloseTo(personal[1].x + personal[1].width - personal[0].x, 6);
+  });
+});
+
+/**
+ * The printed grid. Its own block because the section only renders when BOTH
+ * an analysis carries a grid and a caller passes a target — two independent
+ * gates, and a report that silently dropped the grid would look exactly like
+ * a report that was never asked for one.
+ */
+describe('HouseholdSection — the printed claiming grid', () => {
+  const grid: ClaimingGrid = {
+    years: [
+      [62, 70],
+      [62, 70],
+    ],
+    cells: [
+      { years: [62, 62], ages: [{ years: 62, months: 1 }, { years: 62, months: 1 }], value: 900 },
+      { years: [62, 70], ages: [{ years: 62, months: 1 }, { years: 70, months: 0 }], value: 980 },
+      { years: [70, 62], ages: [{ years: 70, months: 0 }, { years: 62, months: 1 }], value: 995 },
+      { years: [70, 70], ages: [{ years: 70, months: 0 }, { years: 70, months: 0 }], value: 1000 },
+    ],
+    max: 1000,
+    min: 900,
+  };
+
+  const printedGrid = (gridTarget?: { on: boolean; percent: number }) =>
+    collectText(
+      HouseholdSection({
+        analysis: { ...analysisWith(null), claimingGrid: grid } as HouseholdAnalysis,
+        footerText: 'f',
+        gridTarget,
+      }),
+    ).join(' ');
+
+  it('prints the grid, and says how many combinations the outline covers', () => {
+    const text = printedGrid({ on: true, percent: 1 });
+    expect(text).toContain('Claiming Age Grid');
+    // 995 and 1000 are within 1%; 980 and 900 are not. The caption has to
+    // carry the count, because a printed page has no hover to explore with.
+    expect(text).toContain('within 1% of the best — 2 of 4 combinations');
+  });
+
+  it('drops the tolerance sentence when the highlight is off', () => {
+    const text = printedGrid({ on: false, percent: 1 });
+    expect(text).toContain('Claiming Age Grid');
+    expect(text).not.toContain('of the best —');
+  });
+
+  it('prints no grid at all when the caller passes no target', () => {
+    // Every caller written before the grid existed lands here.
+    expect(printedGrid(undefined)).not.toContain('Claiming Age Grid');
+  });
+
+  it('prints no grid for a household that has none', () => {
+    const text = collectText(
+      HouseholdSection({
+        analysis: analysisWith(null),
+        footerText: 'f',
+        gridTarget: { on: true, percent: 1 },
+      }),
+    ).join(' ');
+    expect(text).not.toContain('Claiming Age Grid');
+  });
+
+  it('prints the heading exactly once', () => {
+    const text = printedGrid({ on: true, percent: 1 });
+    expect(text.match(/Claiming Age Grid/g)).toHaveLength(1);
   });
 });

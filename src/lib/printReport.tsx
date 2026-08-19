@@ -13,16 +13,24 @@ function reportFilename(): string {
  * `Analyzer` — not rebuilt here. An adviser who hides a claiming age for a
  * meeting and then exports must not find it back in the report, and two
  * builders would eventually disagree about which rows a table has.
+ *
+ * `gridTarget` travels for the same reason: the printed claiming grid must
+ * outline the near-best region the adviser had dialled in, not a default.
  */
 export async function downloadPdfReport(
   analysis: HouseholdAnalysis,
   claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
+  gridTarget?: { on: boolean; percent: number },
 ): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
   const { ReportDocument } = await import('../components/pdf/ReportDocument');
 
   const blob = await pdf(
-    <ReportDocument analysis={analysis} claimingRowsByPerson={claimingRowsByPerson} />,
+    <ReportDocument
+      analysis={analysis}
+      claimingRowsByPerson={claimingRowsByPerson}
+      gridTarget={gridTarget}
+    />,
   ).toBlob();
 
   const url = URL.createObjectURL(blob);

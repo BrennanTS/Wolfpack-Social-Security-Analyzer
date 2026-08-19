@@ -33,6 +33,7 @@ import { AboutPanel } from './AboutPanel';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
+import { DEFAULT_TARGET_RANGE, type TargetRange } from './ClaimingGridPanel';
 import { PersonFields } from './PersonFields';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
@@ -85,6 +86,9 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // outside `form` and outside the analysis effect's dependencies — hiding a
   // row must not re-run the optimizer.
   const [claimingPrefs, setClaimingPrefs] = useState<ClaimingPrefsByPerson>({});
+  // Held here, not in `ClaimingGridPanel`, so the exported report prints the
+  // near-best region the adviser was looking at rather than the default.
+  const [gridTarget, setGridTarget] = useState<TargetRange>(DEFAULT_TARGET_RANGE);
 
   // Strip the query string separately, because this is a side effect and
   // StrictMode double-invokes state initializers. replaceState is idempotent,
@@ -273,7 +277,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setExportError(null);
     setExporting(true);
     try {
-      await downloadPdfReport(analysis, claimingRowsByPerson);
+      await downloadPdfReport(analysis, claimingRowsByPerson, gridTarget);
     } catch {
       setExportError('PDF export failed. Please try again.');
     } finally {
@@ -497,6 +501,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 onClaimingPrefsChange={(personId, next) =>
                   setClaimingPrefs(withPrefsFor(claimingPrefs, personId, next))
                 }
+                gridTarget={gridTarget}
+                onGridTargetChange={setGridTarget}
               />
 
               {/* A widow(er) has no spousal benefit and no living spouse to

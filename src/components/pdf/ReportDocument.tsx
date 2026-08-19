@@ -249,6 +249,7 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
 export function ReportDocument({
   analysis,
   claimingRowsByPerson = {},
+  gridTarget,
 }: {
   analysis: HouseholdAnalysis;
   /**
@@ -258,6 +259,8 @@ export function ReportDocument({
    * itself.
    */
   claimingRowsByPerson?: Record<string, import('../../lib/claimingRows').ClaimingRow[]>;
+  /** The claiming grid's near-best region, as shown on screen. */
+  gridTarget?: { on: boolean; percent: number };
 }) {
   // Exhaustive rather than `=== 'married'`: a widowed household used to fall
   // through to the single-claimant layout, printing a report that never
@@ -289,6 +292,7 @@ export function ReportDocument({
           footerText={footerText}
           appendix={appendix}
           leadingHeader={leadingHeader}
+          gridTarget={gridTarget}
         />
       )}
       {/* A widow(er)'s own page IS the widowed section — `PersonSection` is

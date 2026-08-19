@@ -2389,10 +2389,31 @@ tbody tr:hover {
   border-radius: 4px;
 }
 
-/* The near-best region. An inset ring rather than a border, so adding it
-   cannot move a cell and reflow the grid. */
+/* The near-best region.
+ *
+ * An inset ring rather than a border, so adding it cannot move a cell and
+ * reflow the grid — and the ring alone was not enough. A green outline on a
+ * tan square of similar value reads as a faint edge; what makes a REGION
+ * visible is the contrast with what surrounds it, so everything outside it
+ * steps back at the same time. The two together turn the near-best cloud
+ * into a shape you see before you read any number, which is the whole point
+ * of drawing it. */
 .claim-cell-near {
-  box-shadow: inset 0 0 0 2px var(--green);
+  box-shadow:
+    inset 0 0 0 2px var(--green),
+    0 0 0 1px var(--green);
+  position: relative;
+  z-index: 1;
+}
+
+.claim-grid-dimmed .claim-cell:not(.claim-cell-near):not(.claim-cell-best) {
+  opacity: 0.4;
+}
+
+/* Hovering an excluded square brings it back — dimming is emphasis, not a
+   claim that those combinations are unavailable. */
+.claim-grid-dimmed .claim-cell:not(.claim-cell-near):hover {
+  opacity: 1;
 }
 
 .claim-cell-best {
@@ -2459,7 +2480,9 @@ tbody tr:hover {
   height: 12px;
   margin-left: 6px;
   border-radius: 3px;
-  box-shadow: inset 0 0 0 2px var(--green);
+  box-shadow:
+    inset 0 0 0 2px var(--green),
+    0 0 0 1px var(--green);
 }
 
 .claim-grid-side {
