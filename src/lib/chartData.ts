@@ -102,6 +102,59 @@ export function generateMonthlyRampData(
   }));
 }
 
+/**
+ * The value range of each COLUMN of the lifetime heatmap, keyed by living age.
+ *
+ * The heatmap was shaded against one range spanning the whole matrix, and
+ * cumulative benefits only ever grow with age, so the strongest gradient ran
+ * left to right and said nothing but "more years alive, more money". The
+ * comparison worth making is vertical — which claiming age is ahead if death
+ * falls at THIS age — and on a global ramp it is the weak axis: for a
+ * plan-to-79 claimant the rightmost column spans 16% of the matrix's range,
+ * so nine visibly different outcomes printed as nine near-identical golds.
+ *
+ * Shading each column against its own range makes the winner in every column
+ * plain. The cost is that colour no longer compares ACROSS columns, which is
+ * why the cells also carry their figures — a reader comparing two columns
+ * reads the numbers, not the shade.
+ */
+export interface ColumnScale {
+  lo: number;
+  hi: number;
+}
+
+export function heatmapColumnScales(cells: readonly HeatmapCell[]): Map<number, ColumnScale> {
+  const scales = new Map<number, ColumnScale>();
+  for (const cell of cells) {
+    const current = scales.get(cell.livingAge);
+    if (current === undefined) {
+      scales.set(cell.livingAge, { lo: cell.cumulative, hi: cell.cumulative });
+      continue;
+    }
+    current.lo = Math.min(current.lo, cell.cumulative);
+    current.hi = Math.max(current.hi, cell.cumulative);
+  }
+  return scales;
+}
+
+/**
+ * Where one cell sits on the ramp within its own column, 0 (palest) to 1.
+ *
+ * A column with a single cell returns 0. That case is always the leftmost
+ * column — the one living age only the earliest claimer has reached — and its
+ * one cell is worth $0, having been claimed that very month. Shading a zero
+ * the darkest on the board would be the opposite of true.
+ */
+export function heatmapColumnRatio(
+  scales: Map<number, ColumnScale>,
+  livingAge: number,
+  value: number,
+): number {
+  const scale = scales.get(livingAge);
+  if (scale === undefined || scale.hi <= scale.lo) return 0;
+  return (value - scale.lo) / (scale.hi - scale.lo);
+}
+
 /** Interpolate hex colors for heatmap cells (ratio 0–1). */
 export function heatmapColorWeb(ratio: number): string {
   const t = Math.max(0, Math.min(1, ratio));

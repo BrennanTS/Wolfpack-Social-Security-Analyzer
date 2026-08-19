@@ -314,8 +314,10 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
 
       <Text style={styles.sectionTitle}>Lifetime Benefit Heatmap</Text>
       <Text style={styles.sectionDesc}>
-        Cumulative benefits by claiming age (rows) and living age (columns). Gold row = age{' '}
-        {shownAge}, the age shown.
+        Cumulative benefits by claiming age (rows) and age at death (columns). Colour
+        ranks the claiming ages WITHIN each column, so the darkest cell in a column is
+        the age that wins if death falls there; compare across columns by the figures,
+        not the shade. Gold row label = age {shownAge}, the age shown.
       </Text>
       <View style={styles.chartBox} wrap={false}>
         <PdfHeatmap

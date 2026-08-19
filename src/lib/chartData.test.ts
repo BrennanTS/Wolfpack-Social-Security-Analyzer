@@ -6,6 +6,8 @@ import {
   getHeatmapValue,
   getLivingAgeTicks,
   heatmapColorWeb,
+  heatmapColumnRatio,
+  heatmapColumnScales,
 } from './chartData';
 import type { ClaimingOption } from './benefitMath';
 
@@ -72,5 +74,41 @@ describe('heatmapColorWeb', () => {
 
   it('returns a six-digit hex color', () => {
     expect(heatmapColorWeb(0.5)).toMatch(/^#[0-9a-f]{6}$/);
+  });
+});
+
+describe('heatmapColumnScales and heatmapColumnRatio', () => {
+  const cells = [
+    { claimAge: 62, livingAge: 62, cumulative: 0 },
+    { claimAge: 62, livingAge: 70, cumulative: 300 },
+    { claimAge: 66, livingAge: 70, cumulative: 200 },
+    { claimAge: 70, livingAge: 70, cumulative: 100 },
+  ];
+
+  it('ranges each column independently of the rest of the matrix', () => {
+    const scales = heatmapColumnScales(cells);
+    expect(scales.get(70)).toEqual({ lo: 100, hi: 300 });
+    expect(scales.get(62)).toEqual({ lo: 0, hi: 0 });
+  });
+
+  it('puts the winner of a column at the dark end, whatever the matrix spans', () => {
+    // The whole point: on one global ramp this column would span a third of
+    // the range and print three near-identical shades. Ranged to itself, the
+    // claiming age that wins at this age of death is unmistakable.
+    const scales = heatmapColumnScales(cells);
+    expect(heatmapColumnRatio(scales, 70, 300)).toBe(1);
+    expect(heatmapColumnRatio(scales, 70, 200)).toBeCloseTo(0.5, 6);
+    expect(heatmapColumnRatio(scales, 70, 100)).toBe(0);
+  });
+
+  it('leaves a one-cell column pale rather than darkest', () => {
+    // That column is always the $0 diagonal — death in the month of claiming.
+    // Shading a zero the darkest thing on the board is the opposite of true.
+    const scales = heatmapColumnScales(cells);
+    expect(heatmapColumnRatio(scales, 62, 0)).toBe(0);
+  });
+
+  it('returns 0 for a column that is not in the matrix', () => {
+    expect(heatmapColumnRatio(heatmapColumnScales(cells), 99, 500)).toBe(0);
   });
 });

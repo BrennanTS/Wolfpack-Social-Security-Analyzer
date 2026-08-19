@@ -104,9 +104,11 @@ export function ClaimingGridPanel({
   const unit = compactUnitFor(grid.max);
 
   const [yearsA, yearsB] = grid.years;
-  // Rows run high-to-low so the vertical axis reads upward, the way an axis
-  // is expected to; columns run low-to-high left-to-right.
-  const rows = [...yearsB].reverse();
+  // Both ages start at 62 in the top-left and increase outward — down the
+  // rows and along the columns — matching the lifetime heatmap on the person
+  // pages. These are two matrices in one report, and a reader who learns to
+  // read one should not have to relearn the other upside down.
+  const rows = yearsB;
 
   const canSelect = scenarios !== undefined && onScenariosChange !== undefined;
   const picked = pickedKey === null ? null : (byKey.get(pickedKey) ?? null);

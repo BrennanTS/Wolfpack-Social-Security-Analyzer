@@ -301,7 +301,8 @@ export function ClaimingGridPlot({
   target: { on: boolean; percent: number };
 }) {
   const [yearsA, yearsB] = grid.years;
-  const rows = [...yearsB].reverse();
+  // 62 top-left, increasing outward — see the screen panel.
+  const rows = yearsB;
   const within = target.on ? cellsWithin(grid, target.percent) : new Set<string>();
   const byKey = new Map(grid.cells.map((c) => [gridKey(c.years[0], c.years[1]), c]));
   const best = grid.cells.reduce((a, b) => (b.value > a.value ? b : a));

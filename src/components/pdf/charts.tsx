@@ -1,7 +1,12 @@
 import { Text, View, Svg, Line, Path, Rect } from '@react-pdf/renderer';
 import type { ClaimingOption } from '../../lib/benefitMath';
 import { generateCumulativeChartData } from '../../lib/benefitMath';
-import { formatCurrency, formatThousandsTick } from '../../lib/format';
+import {
+  compactUnitFor,
+  formatCompactCurrency,
+  formatCurrency,
+  formatThousandsTick,
+} from '../../lib/format';
 import {
   generateHeatmapData,
   generateOpportunityCostData,
@@ -9,6 +14,8 @@ import {
   getHeatmapValue,
   getLivingAgeTicks,
   heatmapColorPdf,
+  heatmapColumnRatio,
+  heatmapColumnScales,
 } from '../../lib/chartData';
 import { styles, BORDER, CHART_INNER_W, GOLD, INK, MUTED, RED, SUBTLE } from './theme';
 
@@ -128,16 +135,18 @@ export function PdfHeatmap({
   const cells = generateHeatmapData(options, lifeExpectancy, annualCola);
   const claimAges = options.map((o) => o.age);
   const livingAges = getLivingAgeTicks(62, lifeExpectancy);
-  const values = cells.map((c) => c.cumulative);
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
+  // Shaded within each column, and every cell carries its figure — see
+  // `heatmapColumnScales`. Printed with neither, this chart said only that
+  // living longer pays more.
+  const scales = heatmapColumnScales(cells);
+  const unit = compactUnitFor(Math.max(...cells.map((c) => c.cumulative)));
 
   const labelW = 22;
   // Also drawn inside a `chartBox` — see CHART_INNER_W.
   const W = CHART_INNER_W;
   const plotW = W - labelW - 4;
   const colW = plotW / livingAges.length;
-  const rowH = 9;
+  const rowH = 11;
   const headerH = 11;
   const H = headerH + claimAges.length * rowH + 2;
 
@@ -171,7 +180,7 @@ export function PdfHeatmap({
           livingAges.map((livingAge, ci) => {
             if (livingAge < claimAge) return null;
             const value = getHeatmapValue(cells, claimAge, livingAge)!;
-            const ratio = maxVal === minVal ? 0.5 : (value - minVal) / (maxVal - minVal);
+            const ratio = heatmapColumnRatio(scales, livingAge, value);
             return (
               <Rect
                 key={`${claimAge}-${livingAge}`}
@@ -185,11 +194,31 @@ export function PdfHeatmap({
             );
           }),
         )}
+        {claimAges.map((claimAge, ri) =>
+          livingAges.map((livingAge, ci) => {
+            if (livingAge < claimAge) return null;
+            const value = getHeatmapValue(cells, claimAge, livingAge)!;
+            return (
+              <Text
+                key={`v-${claimAge}-${livingAge}`}
+                x={labelW + ci * colW + colW / 2}
+                y={headerH + ri * rowH + rowH * 0.68}
+                style={{ fontSize: 5.5, fill: INK }}
+                textAnchor="middle"
+              >
+                {/* An em dash on the diagonal where death falls in the month
+                    of claiming: nothing has been paid, and "$0k" puts a unit
+                    on a quantity that does not exist yet. */}
+                {value === 0 ? '\u2014' : formatCompactCurrency(value, unit)}
+              </Text>
+            );
+          }),
+        )}
       </Svg>
       <View style={styles.pdfHeatmapLegend}>
-        <Text style={styles.pdfHeatmapLegendText}>Lower total</Text>
+        <Text style={styles.pdfHeatmapLegendText}>Behind in this column</Text>
         <View style={styles.pdfHeatmapLegendBar} />
-        <Text style={styles.pdfHeatmapLegendText}>Higher total</Text>
+        <Text style={styles.pdfHeatmapLegendText}>Ahead in this column</Text>
       </View>
     </View>
   );

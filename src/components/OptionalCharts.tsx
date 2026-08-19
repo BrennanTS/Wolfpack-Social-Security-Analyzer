@@ -20,6 +20,8 @@ import {
   generateMonthlyRampData,
   getHeatmapValue,
   getLivingAgeTicks,
+  heatmapColumnRatio,
+  heatmapColumnScales,
 } from '../lib/chartData';
 import {
   CHART_AXIS_LINE,
@@ -230,9 +232,8 @@ export function LifetimeHeatmapChart({
   );
   const claimAges = options.map((o) => o.age);
   const livingAges = getLivingAgeTicks(62, lifeExpectancy);
-  const values = cells.map((c) => c.cumulative);
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
+  // Shaded within each column — see `heatmapColumnScales`.
+  const scales = useMemo(() => heatmapColumnScales(cells), [cells]);
 
   return (
     <div className="heatmap-wrap">
@@ -264,7 +265,7 @@ export function LifetimeHeatmapChart({
               );
             }
             const value = getHeatmapValue(cells, claimAge, livingAge)!;
-            const ratio = maxVal === minVal ? 0.5 : (value - minVal) / (maxVal - minVal);
+            const ratio = heatmapColumnRatio(scales, livingAge, value);
             return (
               <div
                 key={`${claimAge}-${livingAge}`}
@@ -276,9 +277,14 @@ export function LifetimeHeatmapChart({
                 title={`Claim ${claimAge}, live to ${livingAge}: ${formatCurrency(value)} cumulative`}
               >
                 <span className="heatmap-cell-value">
-                  {value >= 1_000_000
-                    ? `$${(value / 1_000_000).toFixed(1)}M`
-                    : `$${Math.round(value / 1000)}k`}
+                  {/* An em dash, not "$0k". This is the diagonal where death
+                      falls in the month of claiming, so nothing has been
+                      paid — a unit on a quantity that does not exist yet. */}
+                  {value === 0
+                    ? '—'
+                    : value >= 1_000_000
+                      ? `$${(value / 1_000_000).toFixed(1)}M`
+                      : `$${Math.round(value / 1000)}k`}
                 </span>
               </div>
             );
@@ -286,13 +292,15 @@ export function LifetimeHeatmapChart({
         ])}
       </div>
       <div className="heatmap-legend">
-        <span>Lower cumulative</span>
+        <span>Behind in this column</span>
         <div className="heatmap-legend-bar" />
-        <span>Higher cumulative</span>
+        <span>Ahead in this column</span>
       </div>
       <p className="heatmap-caption">
-        Rows = claiming age · Columns = living age · Color = total benefits received
-        (illustrative flat {annualCola}% COLA)
+        Rows = claiming age · Columns = age at death · Colour ranks the claiming ages
+        WITHIN each column, so the darkest cell in a column is the age that wins if
+        death falls there. Compare across columns by the figures, not the shade.
+        Illustrative flat {annualCola}% COLA.
       </p>
     </div>
   );
