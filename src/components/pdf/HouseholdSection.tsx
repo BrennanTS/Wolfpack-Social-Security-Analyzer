@@ -20,6 +20,7 @@ import {
 } from '../../lib/claimingGrid';
 import { heatmapColorPdf } from '../../lib/chartData';
 import { formatPercent } from '../../lib/cpiHistory';
+import { filingMonth, shortMonthYearLabel } from '../../lib/filingDates';
 import {
   compactUnitFor,
   formatCompactCurrency,
@@ -120,9 +121,13 @@ export function StrategyTable({
             {s.isSelected && !s.isOptimal && <Text style={styles.badgeShown}>SHOWN</Text>}
           </View>
           {s.filingAges.map((filingAge, i) => (
-            <Text key={people[i].id} style={[styles.td, { width: HCOL.person }]}>
-              {filingAge.label}
-            </Text>
+            <View key={people[i].id} style={{ width: HCOL.person }}>
+              <Text style={styles.td}>{filingAge.label}</Text>
+              {/* The date under the age — see the screen table. */}
+              <Text style={styles.tdDate}>
+                {shortMonthYearLabel(filingMonth(people[i], filingAge))}
+              </Text>
+            </View>
           ))}
           <Text style={[styles.td, { width: HCOL.npv }]}>{formatCurrency(s.expectedNpv)}</Text>
           <Text style={[styles.td, { width: HCOL.delta }, s.deltaVsOptimal < 0 ? styles.negative : {}]}>

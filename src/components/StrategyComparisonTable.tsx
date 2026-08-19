@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { formatCurrency, personLabel } from '../lib/format';
+import { filingMonth, shortMonthYearLabel } from '../lib/filingDates';
 import { showSurvivorIncomeColumn, type HouseholdStrategy } from '../lib/household';
 import type { Person } from '../lib/personAnalysis';
 import { EyeIcon } from './EyeIcon';
@@ -293,6 +294,13 @@ export function StrategyComparisonTable({
                     return (
                       <td key={people[i].id} data-testid={`cell-age-${people[i].id}`}>
                         {filingAge.label}
+                        {/* The date under the age. Nobody can put an age in a
+                            diary, and every competing report in this field
+                            gives both. Arithmetic on the birth month, not a
+                            benefit computation. */}
+                        <span className="cell-filing-date">
+                          {shortMonthYearLabel(filingMonth(people[i], filingAge))}
+                        </span>
                       </td>
                     );
                   }

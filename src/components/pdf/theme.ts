@@ -170,6 +170,7 @@ export const styles = StyleSheet.create({
   },
   td: { fontSize: 8.5, color: INK },
   tdBold: { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: INK },
+  tdDate: { fontSize: 6.5, color: SUBTLE, paddingHorizontal: 4, marginTop: -3 },
   /* ─── Beta report ─── */
   thRight: { textAlign: 'right' },
   tdRight: { textAlign: 'right' },

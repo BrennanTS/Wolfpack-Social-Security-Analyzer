@@ -2591,3 +2591,13 @@ tbody tr:hover {
 [data-theme='dark'] .btn-export-beta {
   color: var(--text);
 }
+
+/* The filing date under a filing age in the comparison table. Its own line,
+   quieter than the age: the age is the decision and the date is where it
+   lands. */
+.cell-filing-date {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+  margin-top: 1px;
+}
