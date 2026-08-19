@@ -12,6 +12,15 @@ import type { ScenarioSet } from './scenario';
  */
 export const LONGEVITY_SPREAD_YEARS = 10;
 
+/**
+ * How far ahead a strategy must be before the page calls it the winner.
+ *
+ * Half a percent of a lifetime total is a few thousand dollars across thirty
+ * years — below the precision of every assumption feeding it, and below what
+ * the table itself prints. Leading by less is not a reason to choose.
+ */
+export const MATERIAL_MARGIN = 0.005;
+
 /** The lowest plan-to age worth pricing. Below it nobody has filed yet. */
 const FLOOR_AGE = 70;
 const CEILING_AGE = 100;
@@ -40,12 +49,23 @@ export interface LongevitySensitivity {
    */
   droppedKeys: string[];
   /**
-   * Whether one strategy wins every row. The whole point of the page: a
-   * strategy that leads whatever the lifespan can be chosen without having to
-   * be right about longevity, and that is a far stronger thing to tell a
-   * client than a single present value.
+   * A strategy that leads every row by a margin worth acting on. The whole
+   * point of the page: one that leads whatever the lifespan can be chosen
+   * without having to be right about longevity, which is a far stronger
+   * thing to tell a client than a single figure.
+   *
+   * Null when no strategy leads every row, and ALSO null when one leads them
+   * all by less than `MATERIAL_MARGIN` — see `tiedEveryRow`.
    */
   winsEveryRow: string | null;
+  /**
+   * Set when the top two are within `MATERIAL_MARGIN` of each other in every
+   * row. A verdict naming a winner while two figures on the page print the
+   * same number is the kind of small untruth that makes a reader stop
+   * trusting the rest of it — and "these are level, choose on other grounds"
+   * is the more useful thing to say anyway.
+   */
+  tiedEveryRow: boolean;
 }
 
 /**
@@ -162,7 +182,22 @@ export async function longevitySensitivity(
   }));
 
   const first = rows[0]?.bestKey ?? null;
-  const winsEveryRow = first !== null && rows.every((r) => r.bestKey === first) ? first : null;
+  const leadsEveryRow = first !== null && first !== '' && rows.every((r) => r.bestKey === first);
 
-  return { rows, strategies, droppedKeys, winsEveryRow };
+  // The runner-up in each row, and how far behind it is.
+  const closest = (row: (typeof rows)[number]) => {
+    const best = row.valueByKey[row.bestKey];
+    const others = strategies.filter((s) => s.key !== row.bestKey).map((s) => row.valueByKey[s.key]);
+    if (others.length === 0 || best <= 0) return Infinity;
+    return (best - Math.max(...others)) / best;
+  };
+  const materialEverywhere = rows.every((r) => closest(r) >= MATERIAL_MARGIN);
+
+  return {
+    rows,
+    strategies,
+    droppedKeys,
+    winsEveryRow: leadsEveryRow && materialEverywhere ? first : null,
+    tiedEveryRow: leadsEveryRow && !materialEverywhere,
+  };
 }

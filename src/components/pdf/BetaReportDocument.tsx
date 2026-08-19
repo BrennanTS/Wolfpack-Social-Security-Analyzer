@@ -17,6 +17,7 @@ import {
   BetaActionSection,
   BetaAnswerSection,
   BetaLongevitySection,
+  BetaAppendixSection,
   BetaSurvivorSection,
   BetaTermsSection,
 } from './BetaSections';
@@ -105,7 +106,8 @@ export function BetaReportDocument({
       {/* Terms and assumptions last, with the methodology appendix attached —
           the reader who wants them will look, and the reader who does not is
           no longer made to walk past them. */}
-      <BetaTermsSection analysis={analysis} footer={footer} appendix={appendix} />
+      <BetaTermsSection analysis={analysis} footer={footer} />
+      <BetaAppendixSection appendix={appendix} footer={footer} />
     </Document>
   );
 }

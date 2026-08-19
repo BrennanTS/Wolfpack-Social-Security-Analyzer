@@ -243,9 +243,14 @@ export function BetaLongevitySection({
 }) {
   const { rows, strategies } = sensitivity;
   if (strategies.length === 0) return null;
-  const unit = compactUnitFor(
-    Math.max(...rows.flatMap((r) => strategies.map((s) => r.valueByKey[s.key]))),
-  );
+  // Thousands, not whatever `compactUnitFor` picks from the maximum.
+  //
+  // A household's lifetime value crosses a million and the millions unit
+  // resolves to about $10,000, which is coarser than the gaps this table
+  // exists to show: two strategies $4,000 apart both printed $0.47m on the
+  // same row, directly under a verdict saying one of them wins every row.
+  // The table is three columns wide and can afford the digits.
+  const unit = 'thousands' as const;
   const winnerLabel =
     strategies.find((s) => s.key === sensitivity.winsEveryRow)?.label ?? null;
   const dropped = copy.longevityDroppedNote(sensitivity.droppedKeys);
@@ -288,7 +293,9 @@ export function BetaLongevitySection({
       ))}
 
       <View style={styles.betaCallout}>
-        <Text style={styles.betaCalloutText}>{copy.longevityVerdict(winnerLabel)}</Text>
+        <Text style={styles.betaCalloutText}>
+          {copy.longevityVerdict(winnerLabel, sensitivity.tiedEveryRow)}
+        </Text>
       </View>
       {dropped && <Text style={[styles.sectionDesc, { marginTop: 8 }]}>{dropped}</Text>}
 
@@ -371,17 +378,9 @@ export function BetaActionSection({
 export function BetaTermsSection({
   analysis,
   footer,
-  appendix,
 }: {
   analysis: HouseholdAnalysis;
   footer: React.ReactNode;
-  /**
-   * `MethodologyAppendix`, which is a FRAGMENT of `Text` and `View` rather
-   * than a `Page` — it has to be rendered inside one. Passing it as a direct
-   * child of `Document` breaks pagination outright, with an error that names
-   * neither the component nor the reason.
-   */
-  appendix?: React.ReactNode;
 }) {
   const names = analysis.people.map((p, i) => personLabel(p.person.name, i));
   const ages = analysis.people.map((p) => p.person.lifeExpectancy);
@@ -401,6 +400,29 @@ export function BetaTermsSection({
       <View style={styles.betaTerm}>
         <Text style={styles.betaTermBody}>{copy.planToNote(names, ages)}</Text>
       </View>
+      {footer}
+    </Page>
+  );
+}
+
+/**
+ * The methodology appendix on a page of its own.
+ *
+ * `MethodologyAppendix` is a FRAGMENT of `Text` and `View`, not a `Page` —
+ * as a direct child of `Document` it breaks pagination outright, and tacked
+ * onto the end of the terms page it filled that page to the last point and
+ * spilled an empty twelfth page carrying nothing but a footer. Its own page
+ * is also the better reading: the terms are for the client, this is not.
+ */
+export function BetaAppendixSection({
+  appendix,
+  footer,
+}: {
+  appendix: React.ReactNode;
+  footer: React.ReactNode;
+}) {
+  return (
+    <Page size="LETTER" style={styles.page}>
       {appendix}
       {footer}
     </Page>

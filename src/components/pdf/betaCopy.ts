@@ -93,7 +93,15 @@ export const LONGEVITY_INTRO =
   'those ages. So here is the same comparison priced three ways — as planned, and if ' +
   'you both live about ten years less or ten years more.';
 
-export function longevityVerdict(winnerLabel: string | null): string {
+export function longevityVerdict(winnerLabel: string | null, tied = false): string {
+  if (winnerLabel === null && tied) {
+    return (
+      'The leading plans are within half a percent of each other however long you live — ' +
+      'a few thousand dollars across thirty years, which is less than the assumptions ' +
+      'behind them can be trusted to. Choose between them on when you actually want to ' +
+      'stop working, not on these figures.'
+    );
+  }
   if (winnerLabel === null) {
     return (
       'No single plan wins in all three cases. Which one suits you depends on how long ' +
@@ -212,7 +220,13 @@ export const ASSUMPTIONS_INTRO =
   'The front of this report keeps the arithmetic out of the way. Here it is.';
 
 export function planToNote(names: readonly string[], ages: readonly number[]): string {
-  const pairs = names.map((name, i) => `${name} to ${ages[i]}`).join(', and ');
+  const each = names.map((name, i) => `${name} to ${ages[i]}`);
+  // "A to 85 and B to 90" for two; an Oxford comma only once there are three
+  // to separate, which a household never has but a caller might.
+  const pairs =
+    each.length <= 2
+      ? each.join(' and ')
+      : `${each.slice(0, -1).join(', ')}, and ${each[each.length - 1]}`;
   return (
     `Every figure assumes ${pairs}. These are the ages you chose, not a prediction. ` +
     'The page on longevity shows how much the answer moves if they are wrong.'

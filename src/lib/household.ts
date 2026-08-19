@@ -462,6 +462,13 @@ const agesKey = (ages: readonly FilingAgeChoice[]) => ages.map(filingAgeMonths).
  * caller's own display→engine mapping, passed in rather than re-derived here
  * so this function never has to know which household ordering it is inside.
  */
+/** The lowest or highest filing age each person can actually reach. */
+function extremeAges(ranked: RankedStrategy[], end: 'first' | 'last'): FilingAgeChoice[] {
+  return filingAgeOptionsFrom(ranked).map((options) =>
+    end === 'first' ? options[0] : options[options.length - 1],
+  );
+}
+
 function resolveScenario(
   ranked: RankedStrategy[],
   optimalStrategy: RankedStrategy,
@@ -472,16 +479,21 @@ function resolveScenario(
   switch (scenario.kind) {
     case 'best':
       return optimalStrategy;
+    // Each person's own attainable extreme, not a hardcoded 62 or 70.
+    //
+    // "Earliest" asked the engine for 62 years 0 MONTHS, and SSA needs a full
+    // month of entitlement — the floor is 62y1m — so the lookup never
+    // matched and the row was dropped from EVERY household. The comparison a
+    // client most wants, and the natural baseline for "what does waiting
+    // buy", has never once appeared in this report.
+    //
+    // Reading the extremes off the engine's own attainable set also handles
+    // the cases a constant cannot: someone already past 62 has a higher
+    // floor, and someone past 70 has a lower ceiling.
     case 'earliest':
-      return findStrategyByAges(
-        ranked,
-        enginePeople.map(() => ({ years: 62, months: 0 })),
-      );
+      return findStrategyByAges(ranked, extremeAges(ranked, 'first'));
     case 'latest':
-      return findStrategyByAges(
-        ranked,
-        enginePeople.map(() => ({ years: 70, months: 0 })),
-      );
+      return findStrategyByAges(ranked, extremeAges(ranked, 'last'));
     case 'fra':
       return findStrategyByAges(
         ranked,

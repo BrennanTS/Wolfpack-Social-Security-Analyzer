@@ -801,31 +801,24 @@ describe('analyzeHousehold — survivor income per strategy', () => {
     );
     expect(result.comparisons.every((s) => s.survivorIncome !== null)).toBe(true);
 
-    // `earliest` (exactly 62 years, 0 months) is unreachable for every
-    // household this app can produce: `createPiaRecipient` fixes every
-    // recipient's birth day at `DEFAULT_BIRTH_DAY = 15` (`ssaTools.ts`), and
-    // `Birthdate.earliestFilingMonth()` rounds anyone not born on the 1st or
-    // 2nd of the month up to 62 years *1* month (`birthday.ts:207-213`) — one
-    // month past the exact age the `earliest` row's `namedAges` entry asks
-    // `findStrategyByAges` to match (`household.ts`: `{ years: 62, months: 0
-    // }`). Asserted directly, rather than left as a silent `if (earliest &&
-    // latest)` guard around the real assertion below: the day someone fixes
-    // the row so `earliest` starts appearing, this line fails and says so,
-    // instead of the guard quietly starting to fire for the first time with
-    // no one having decided that was safe.
+    // `earliest` used to be unreachable for every household this app can
+    // produce, and this line asserted its absence as a tripwire: the row
+    // asked `findStrategyByAges` for exactly 62 years 0 months, while
+    // `createPiaRecipient` fixes every birth day at `DEFAULT_BIRTH_DAY = 15`
+    // and `Birthdate.earliestFilingMonth()` rounds anyone not born on the
+    // 1st or 2nd up to 62 years *1* month. The tripwire fired as designed
+    // when `resolveScenario` started reading each person's own floor off the
+    // engine's attainable set instead of a constant. It is now the FULL
+    // ordering that is asserted, which is the thing the column exists to
+    // show and could never be checked while the earliest row was missing.
     const earliest = result.comparisons.find((s) => s.key === 'earliest');
-    expect(earliest).toBeUndefined();
-
-    // `fra` and `latest` are both reliably present for this fixture, so this
-    // is the assertion that actually exercises the column's thesis —
-    // delaying raises the survivor's income. Presence is asserted first so
-    // this cannot go vacuous if either ever folds into `optimal`, which
-    // `household.ts` does whenever a named row's ages coincide with the
-    // optimum's.
     const fra = result.comparisons.find((s) => s.key === 'fra');
     const latest = result.comparisons.find((s) => s.key === 'latest');
+    expect(earliest).toBeDefined();
     expect(fra).toBeDefined();
     expect(latest).toBeDefined();
+    // Delaying raises the survivor's income, at every step.
+    expect(fra!.survivorIncome!).toBeGreaterThan(earliest!.survivorIncome!);
     expect(latest!.survivorIncome!).toBeGreaterThan(fra!.survivorIncome!);
   });
 

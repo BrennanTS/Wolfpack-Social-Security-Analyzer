@@ -35,6 +35,7 @@ function allCopy(): string[] {
     beta.survivorGainNote('$686', 'Both claim at your full ages', 0),
     beta.longevityVerdict('Both wait until 70'),
     beta.longevityVerdict(null),
+    beta.longevityVerdict(null, true),
     beta.longevityDroppedNote(['Both wait until 70']) ?? '',
     beta.planToNote(['Dan', 'Sarah'], [79, 95]),
   );
@@ -87,6 +88,14 @@ describe('beta copy', () => {
   it('does not claim a winner when there is none', () => {
     expect(beta.longevityVerdict(null)).toMatch(/No single plan wins/);
     expect(beta.longevityVerdict('Both wait until 70')).toContain('Both wait until 70');
+  });
+
+  it('says the leaders are level rather than naming one by a hair', () => {
+    const tied = beta.longevityVerdict(null, true);
+    expect(tied).toMatch(/within half a percent/);
+    expect(tied).not.toMatch(/No single plan wins/);
+    // And it tells the reader what to decide on instead.
+    expect(tied).toMatch(/when you actually want to stop working/);
   });
 
   it('stays silent about dropped strategies when none were dropped', () => {

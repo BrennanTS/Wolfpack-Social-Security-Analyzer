@@ -70,11 +70,16 @@ describe('no scenario', () => {
     expect(result.comparisons.filter((c) => c.isSelected)).toHaveLength(1);
   });
 
-  it('shows the built-in rows this household can reach, and no others', async () => {
+  it('shows every built-in row, each resolved to what this household can reach', async () => {
     const result = await run(married);
-    // No `earliest`: Dan is 63 as of `asOf`, so 62/62 is not reachable and
-    // `buildComparisons` drops it rather than substituting figures.
-    expect(result.comparisons.map((c) => c.key).sort()).toEqual(['fra', 'latest', 'optimal']);
+    // All four, including `earliest` — which now means each person's own
+    // floor rather than a literal 62y0m nobody can ever file at.
+    expect(result.comparisons.map((c) => c.key).sort()).toEqual([
+      'earliest',
+      'fra',
+      'latest',
+      'optimal',
+    ]);
   });
 });
 
@@ -135,7 +140,7 @@ describe('a chosen scenario', () => {
     expect(rows[0].isOptimal).toBe(false);
     expect(chosen.comparisons.filter((c) => c.isOptimal)).toHaveLength(1);
     // One more row than the built-ins this household reaches.
-    expect(chosen.comparisons).toHaveLength(4);
+    expect(chosen.comparisons).toHaveLength(5);
   });
 
   it('leaves the OPTIMAL row’s survivor income belonging to the optimum', async () => {
@@ -158,7 +163,7 @@ describe('selecting one of the built-in rows', () => {
     const result = await run(married, selectScenario(resetScenarios(), 'fra'));
     expect(result.selected.key).toBe('fra');
     expect(result.scenarioIsBest).toBe(false);
-    expect(result.comparisons).toHaveLength(3);
+    expect(result.comparisons).toHaveLength(4);
     expect(result.comparisons.filter((c) => c.isSelected)).toHaveLength(1);
     // Each person files at their own FRA, not at a shared age.
     expect(result.people.map((p) => p.filingAge.label)).toEqual(['67', '67']);
@@ -188,7 +193,7 @@ describe('selecting one of the built-in rows', () => {
     const set = withCustom(...agesOf(fra!));
     const result = await run(married, set);
     expect(result.selected.key).toBe(set.selectedId);
-    expect(result.comparisons).toHaveLength(4);
+    expect(result.comparisons).toHaveLength(5);
     // Same ages, both rows present, and the delta agrees.
     const twin = result.comparisons.find((c) => c.key === 'fra');
     expect(twin?.expectedNpv).toBe(result.selected.expectedNpv);
@@ -240,11 +245,20 @@ describe('a scenario that has gone stale', () => {
     expect(agesOf(result.selected)).toEqual(agesOf(result.optimal));
   });
 
-  it('drops an unattainable built-in row rather than substituting figures', async () => {
-    // Dan is 63, so "both claim earliest (62)" is not reachable.
+  it('resolves “as early as you can” to each person’s own floor', async () => {
+    // Dan is 63 as of `asOf`, so his earliest is not 62 — and it is not
+    // nothing either, which is what asking the engine for a literal 62 years
+    // 0 months used to produce for every household alive.
     const result = await run(married, selectScenario(resetScenarios(), 'earliest'));
-    expect(result.comparisons.map((c) => c.key)).not.toContain('earliest');
-    expect(result.scenarioIsBest).toBe(true);
+    const row = result.comparisons.find((c) => c.key === 'earliest');
+    expect(row).toBeDefined();
+    expect(result.selected.key).toBe('earliest');
+    expect(result.scenarioIsBest).toBe(false);
+    // Nobody can file at 62 years 0 months; a full month of entitlement is
+    // required, which is why the old constant never matched.
+    for (const age of row!.filingAges) {
+      expect(age.years * 12 + age.months).toBeGreaterThan(62 * 12);
+    }
   });
 });
 

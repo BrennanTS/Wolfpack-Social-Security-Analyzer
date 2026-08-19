@@ -1,7 +1,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { longevityAges, longevitySensitivity, LONGEVITY_SPREAD_YEARS } from './longevity';
+import {
+  longevityAges,
+  longevitySensitivity,
+  LONGEVITY_SPREAD_YEARS,
+  MATERIAL_MARGIN,
+} from './longevity';
 import type { Household } from './household';
 
 const asOf = new Date(2026, 7, 18);
@@ -94,6 +99,24 @@ describe('longevitySensitivity', () => {
     // Either one key wins everywhere, or none is claimed to.
     if (result.winsEveryRow !== null) {
       expect(result.rows.every((r) => r.bestKey === result.winsEveryRow)).toBe(true);
+    }
+    // And the two verdicts are mutually exclusive — a page cannot both name
+    // a winner and say the leaders are level.
+    expect(result.winsEveryRow !== null && result.tiedEveryRow).toBe(false);
+  });
+
+  it('does not name a winner that leads by less than the margin', async () => {
+    // A verdict naming a winner while two figures on the page print the same
+    // number is the untruth this guards. Where a winner IS named, it leads
+    // every row by at least the margin.
+    const result = (await longevitySensitivity(married, assumptions, asOf))!;
+    if (result.winsEveryRow === null) return;
+    for (const row of result.rows) {
+      const best = row.valueByKey[result.winsEveryRow];
+      const others = result.strategies
+        .filter((s) => s.key !== result.winsEveryRow)
+        .map((s) => row.valueByKey[s.key]);
+      expect((best - Math.max(...others)) / best).toBeGreaterThanOrEqual(MATERIAL_MARGIN);
     }
   });
 
