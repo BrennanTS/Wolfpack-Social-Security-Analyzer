@@ -72,6 +72,9 @@ export function ClaimingGridPanel({
   // makes the field fight the user. The shared state carries the parsed
   // value; this carries what is in the box.
   const [targetText, setTargetText] = useState(String(target.percent));
+  // Which square the adviser is looking AT — local to this panel, and
+  // deliberately not the same thing as the scenario the report is built on.
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
 
   const grid = analysis.claimingGrid;
   if (grid === null) return null;
@@ -93,13 +96,20 @@ export function ClaimingGridPanel({
   const rows = [...yearsB].reverse();
 
   const canSelect = scenarios !== undefined && onScenariosChange !== undefined;
+  const picked = pickedKey === null ? null : (byKey.get(pickedKey) ?? null);
 
-  function chooseCell(cell: ClaimingGridCell) {
-    if (!canSelect) return;
-    // Add AND select. Everywhere else in the app adding a scenario is an act
-    // of comparison and leaves the selection alone; here the click IS the
-    // choice, and a cell that lit up nothing would read as a dead control.
-    const next = addScenario(scenarios!, [cell.ages[0], cell.ages[1]]);
+  /**
+   * Applying a square is a BUTTON, not the click on the square itself.
+   *
+   * Clicking to apply meant every square an adviser touched while exploring
+   * minted a scenario row on the Household tab — a list that grew without
+   * anyone deciding it should, which is exactly the shape of defect the
+   * `addScenario` change fixed everywhere else in the app. Exploring is now
+   * free; committing is one deliberate act.
+   */
+  function applyPicked() {
+    if (!canSelect || picked === null) return;
+    const next = addScenario(scenarios!, [picked.ages[0], picked.ages[1]]);
     onScenariosChange!(selectScenario(next, next.rows[next.rows.length - 1].id));
   }
 
@@ -116,7 +126,7 @@ export function ClaimingGridPanel({
         Household value at every combination of whole claiming ages, darkest at the best.
         Each square is the best either of them can do filing somewhere inside those two
         years, so the darkest square is the optimizer&rsquo;s own answer.{' '}
-        {canSelect && 'Click a square to build the whole report on it.'}
+        Click a square to read it; the report only moves if you say so.
       </p>
 
       <div className="claim-grid-controls">
@@ -206,15 +216,15 @@ export function ClaimingGridPanel({
                             isNear ? 'claim-cell-near' : '',
                             isBest ? 'claim-cell-best' : '',
                             isSelected ? 'claim-cell-selected' : '',
+                            cell === picked ? 'claim-cell-picked' : '',
                           ]
                             .filter(Boolean)
                             .join(' ')}
                           style={{ '--t': gridRatio(grid, cell.value) } as React.CSSProperties}
                           data-testid={`grid-cell-${ya}-${yb}`}
-                          aria-pressed={isSelected}
-                          disabled={!canSelect}
+                          aria-pressed={cell === picked}
                           title={cellLabel(cell)}
-                          onClick={() => chooseCell(cell)}
+                          onClick={() => setPickedKey(gridKey(ya, yb))}
                         >
                           <span className="visually-hidden">{cellLabel(cell)}</span>
                           <span aria-hidden="true">
@@ -262,6 +272,40 @@ export function ClaimingGridPanel({
               {formatCurrency(grid.min)} &ndash; {formatCurrency(grid.max)}
             </dd>
           </dl>
+          {picked && (
+            <div className="claim-grid-picked" data-testid="grid-picked">
+              <h4>Square you clicked</h4>
+              <dl>
+                <dt>Household value</dt>
+                <dd data-testid="grid-picked-value">{formatCurrency(picked.value)}</dd>
+                <dt>{names[0]}</dt>
+                <dd>{filingAgeLabel(picked.ages[0])}</dd>
+                <dt>{names[1]}</dt>
+                <dd>{filingAgeLabel(picked.ages[1])}</dd>
+                <dt>Share of the best</dt>
+                <dd data-testid="grid-picked-share">
+                  {percentOfBest(grid, picked.value).toFixed(1)}%
+                  {picked.value < grid.max && (
+                    <span className="claim-grid-gap">
+                      {' '}
+                      ({formatCurrency(picked.value - grid.max)})
+                    </span>
+                  )}
+                </dd>
+              </dl>
+              {canSelect && (
+                <button
+                  type="button"
+                  className="claim-grid-apply"
+                  data-testid="grid-apply"
+                  onClick={applyPicked}
+                >
+                  Build the report on this
+                </button>
+              )}
+            </div>
+          )}
+
           <p className="claim-grid-note">
             Each square prints the household value at those two ages, rounded. Hover one
             for the exact figure and its share of the best. Every combination shown is one

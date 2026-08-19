@@ -565,14 +565,21 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   await expect(count).toHaveCount(0);
   await expect(page.locator('.claim-grid-dimmed')).toHaveCount(0);
 
-  // Clicking a square drives the whole report: a new scenario row appears in
-  // the household comparison table, selected, and the eyebrow stops saying
-  // the report is on the optimizer's answer.
+  // Clicking a square only READS it. Applying used to happen on the click
+  // itself, which minted a scenario row for every square an adviser touched
+  // while exploring — a list on another tab growing without anyone deciding
+  // it should.
   // Whichever square sits one in from each axis end — named from the axes
   // rather than hardcoded, for the same reason the count is.
   const [firstCol] = await page.locator('[data-testid="claiming-grid-table"] thead th').nth(2).allInnerTexts();
   const [firstRow] = await page.locator('[data-testid="claiming-grid-table"] tbody tr').nth(1).locator('th').allInnerTexts();
   await page.getByTestId(`grid-cell-${firstCol}-${firstRow}`).click();
+  await expect(page.getByTestId('grid-picked')).toBeVisible();
+  // Nothing has reached the comparison table — the square is only being read.
+  await expect(page.getByTestId('strategy-row-s1')).toHaveCount(0);
+
+  // Applying is its own act, and then it does drive the whole report.
+  await page.getByTestId('grid-apply').click();
   await page.getByRole('tab', { name: 'Household' }).click();
   await expect(page.getByTestId('strategy-row-s1')).toHaveClass(/row-selected/);
   await expect(page.locator('.rec-label').first()).toHaveText(/Selected Scenario/);

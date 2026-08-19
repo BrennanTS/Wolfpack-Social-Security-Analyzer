@@ -2521,3 +2521,39 @@ tbody tr:hover {
   line-height: 1.6;
   color: var(--text-subtle);
 }
+
+.claim-grid-picked {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.claim-grid-gap {
+  color: var(--red);
+  font-size: 0.8125rem;
+}
+
+/* The square the adviser clicked. A dashed ring, so it cannot be mistaken
+   for `claim-cell-selected` — that one marks the scenario the whole report
+   is built on, and this marks nothing but where they are looking. */
+.claim-cell-picked {
+  outline: 2px dashed var(--gold-dark);
+  outline-offset: 1px;
+}
+
+.claim-grid-apply {
+  margin-top: 14px;
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--surface);
+  background: var(--ink);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.claim-grid-apply:hover {
+  background: var(--gold-dark);
+}
