@@ -183,12 +183,12 @@ export function HouseholdPanel({
 
   return (
     <div className="results">
-      <div className="recommendation-card">
-        <span className="rec-label">Household — {scenarioEyebrow(analysis.scenarioIsBest)}</span>
-        <h2 data-testid="recommendation-title">{analysis.recommendation}</h2>
-        <p>{analysis.recommendationDetail}</p>
-      </div>
-
+      {/* The table first, then the card.
+          The table is where the strategy is CHOSEN, and everything below —
+          this card, the income chart, the cliff, both person tabs, the whole
+          report — is computed from whichever row is selected in it. Reading
+          the conclusion before seeing the choice that produced it put the
+          answer above the question. */}
       <StrategyComparisonTable
         comparisons={displayComparisons}
         allComparisons={displayAllComparisons}
@@ -200,6 +200,12 @@ export function HouseholdPanel({
         onScenariosChange={onScenariosChange}
         filingAgeOptions={analysis.filingAgeOptions}
       />
+
+      <div className="recommendation-card">
+        <span className="rec-label">Household — {scenarioEyebrow(analysis.scenarioIsBest)}</span>
+        <h2 data-testid="recommendation-title">{analysis.recommendation}</h2>
+        <p>{analysis.recommendationDetail}</p>
+      </div>
 
       <CombinedIncomeChart
         monthlySeries={displayMonthlySeries}

@@ -348,8 +348,7 @@ test('drives the whole report from a scenario edited in the comparison table', a
   await expect(eyebrow).toHaveText(/Recommended Strategy/);
   const optimalPv = await page
     .getByTestId('strategy-row-optimal')
-    .locator('td')
-    .nth(3)
+    .getByTestId('cell-npv')
     .textContent();
 
   // View mode carries no controls.
@@ -376,7 +375,7 @@ test('drives the whole report from a scenario edited in the comparison table', a
   // figure — the money columns are still on screen while editing.
   await expect(eyebrow).toHaveText(/Selected Scenario/);
   await expect(page.getByTestId('strategy-row-s1')).toHaveClass(/row-selected/);
-  await expect(page.getByTestId('strategy-row-optimal').locator('td').nth(4)).toHaveText(
+  await expect(page.getByTestId('strategy-row-optimal').getByTestId('cell-npv')).toHaveText(
     optimalPv ?? '',
   );
 
@@ -540,8 +539,7 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   await page.getByRole('tab', { name: 'Household' }).click();
   const optimalValue = await page
     .getByTestId('strategy-row-optimal')
-    .locator('td')
-    .nth(3)
+    .getByTestId('cell-npv')
     .textContent();
   expect(gridBest?.trim()).toBe(optimalValue?.trim());
   await gridTab.click();

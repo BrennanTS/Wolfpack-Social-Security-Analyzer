@@ -2085,10 +2085,20 @@ tbody tr:hover {
    the width they have in view mode — the table must not reflow far when Edit
    is pressed, or the figures appear to move with the click. */
 .strategy-editing .cell-eye,
+.strategy-editing .cell-pick,
 .strategy-editing .cell-remove {
   width: 32px;
   padding-left: 6px;
   padding-right: 6px;
+}
+
+.strategy-editing .cell-pick,
+.strategy-editing .cell-pick-head {
+  text-align: center;
+}
+
+.cell-pick-head {
+  font-size: 0.625rem;
 }
 
 /* Rows carrying controls need more room VERTICALLY than rows carrying text —
@@ -2151,21 +2161,20 @@ tbody tr:hover {
   color: var(--text-subtle);
 }
 
-.row-use {
-  margin-left: 10px;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-subtle);
-  font-family: var(--font);
-  font-size: 0.6875rem;
-  white-space: nowrap;
+/* The Select column. A radio rather than a button, because exactly one row
+   can be the one the report is built on — which is what a radio group means
+   and what a scatter of buttons does not. */
+.row-pick {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--gold-dark);
+  cursor: pointer;
 }
 
-.row-use:hover {
-  background: var(--fill);
-  color: var(--text);
+.row-pick:disabled {
+  cursor: default;
+  opacity: 0.35;
 }
 
 .scenario-name {

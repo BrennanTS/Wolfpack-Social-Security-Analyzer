@@ -188,9 +188,12 @@ export function StrategyComparisonTable({
         <thead>
           <tr>
             {editing && (
-              <th>
-                <span className="visually-hidden">Show on screen and in the report</span>
-              </th>
+              <>
+                <th className="cell-pick-head">Select</th>
+                <th>
+                  <span className="visually-hidden">Show on screen and in the report</span>
+                </th>
+              </>
             )}
             <th>Strategy</th>
             {people.map((p, i) => (
@@ -221,6 +224,28 @@ export function StrategyComparisonTable({
                   .filter(Boolean)
                   .join(' ')}
               >
+                {editing && (
+                  <td className="cell-pick">
+                    {/* A radio in a column of its own, rather than the
+                        "Show this" button that used to hide inside the
+                        Strategy cell. One control per row, always in the
+                        same place, and its column header says what it does —
+                        the button only appeared on rows that were neither
+                        selected nor hidden, so the control an adviser was
+                        looking for was missing from the row they were
+                        looking at. */}
+                    <input
+                      type="radio"
+                      name="strategy-selected"
+                      className="row-pick"
+                      checked={s.isSelected}
+                      disabled={s.hidden}
+                      aria-label={`Build the report on ${s.label}`}
+                      data-testid={`scenario-use-${s.key}`}
+                      onChange={() => change(selectScenario(scenarios!, s.key))}
+                    />
+                  </td>
+                )}
                 {editing && (
                   <td className="cell-eye">
                     {s.key === BEST_ROW_ID ? (
@@ -261,16 +286,6 @@ export function StrategyComparisonTable({
                       tint already mark it, the card above it names the same
                       strategy in words, and a second badge beside "Best" was
                       two labels competing over one row. */}
-                  {editing && !s.isSelected && !s.hidden && (
-                    <button
-                      type="button"
-                      className="row-use"
-                      data-testid={`scenario-use-${s.key}`}
-                      onClick={() => change(selectScenario(scenarios!, s.key))}
-                    >
-                      Show this
-                    </button>
-                  )}
                 </td>
 
                 {s.filingAges.map((filingAge, i) => {
@@ -328,7 +343,11 @@ export function StrategyComparisonTable({
                   );
                 })}
 
-                <td>{formatCurrency(s.expectedNpv)}</td>
+                {/* Named, not counted. Tests reached these two by `td` index
+                    until the Select column shifted every one of them — a
+                    column added to a table should not be able to break an
+                    assertion about a figure in it. */}
+                <td data-testid="cell-npv">{formatCurrency(s.expectedNpv)}</td>
                 <td data-testid="cell-delta" className={s.deltaVsOptimal < 0 ? 'negative' : ''}>
                   {s.deltaVsOptimal === 0 ? '—' : formatCurrency(s.deltaVsOptimal)}
                 </td>
