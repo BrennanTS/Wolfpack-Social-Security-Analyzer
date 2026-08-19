@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   compactUnitFor,
   formatCompactCurrency,
@@ -15,6 +15,9 @@ import {
   type ClaimingGridCell,
 } from '../lib/claimingGrid';
 import { addScenario, filingAgeLabel, selectScenario, type ScenarioSet } from '../lib/scenario';
+
+/** How long the button holds its confirmation before returning to its label. */
+const APPLIED_MS = 2200;
 
 /** Default tolerance for the near-best region, in percent. */
 export const DEFAULT_TARGET_PERCENT = 1;
@@ -46,6 +49,13 @@ interface Props {
    */
   picked?: string | null;
   onPickedChange?: (key: string | null) => void;
+  /**
+   * Called after a square has been applied, with the button that applied it.
+   * The panel does not know where the result lands — the Household tab is
+   * `HouseholdView`'s — so it reports the origin and lets the owner draw the
+   * connection.
+   */
+  onApplied?: (origin: HTMLElement | null) => void;
 }
 
 /**
@@ -71,6 +81,7 @@ export function ClaimingGridPanel({
   onTargetChange,
   picked: controlledPick,
   onPickedChange,
+  onApplied,
 }: Props) {
   // Uncontrolled fallback, so this component's own tests (and any caller that
   // does not care about print) still work without threading state.
@@ -86,6 +97,11 @@ export function ClaimingGridPanel({
   // as the scenario the report is built on. Uncontrolled fallback for callers
   // that do not hold it, the same shape as `target` above.
   const [ownPick, setOwnPick] = useState<string | null>(null);
+  // Confirmation the click landed, in words. The flight and the tab's pulse
+  // are both motion, and motion is the one signal a reader can have turned
+  // off — this one always shows.
+  const [justApplied, setJustApplied] = useState(false);
+  const applyRef = useRef<HTMLButtonElement | null>(null);
   const pickedKey = controlledPick === undefined ? ownPick : controlledPick;
   const setPickedKey = onPickedChange ?? setOwnPick;
 
@@ -126,6 +142,9 @@ export function ClaimingGridPanel({
     if (!canSelect || picked === null) return;
     const next = addScenario(scenarios!, [picked.ages[0], picked.ages[1]]);
     onScenariosChange!(selectScenario(next, next.rows[next.rows.length - 1].id));
+    setJustApplied(true);
+    window.setTimeout(() => setJustApplied(false), APPLIED_MS);
+    onApplied?.(applyRef.current);
   }
 
   function cellLabel(cell: ClaimingGridCell): string {
@@ -310,12 +329,13 @@ export function ClaimingGridPanel({
               </dl>
               {canSelect && (
                 <button
+                  ref={applyRef}
                   type="button"
-                  className="claim-grid-apply"
+                  className={`claim-grid-apply${justApplied ? ' is-applied' : ''}`}
                   data-testid="grid-apply"
                   onClick={applyPicked}
                 >
-                  Build the report on this
+                  {justApplied ? 'Added to the table ✓' : 'Build the report on this'}
                 </button>
               )}
             </div>

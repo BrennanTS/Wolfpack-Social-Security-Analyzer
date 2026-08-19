@@ -1,4 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
+import { flyBetween } from '../lib/arcFlight';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
 import { personLabel } from '../lib/format';
@@ -92,6 +93,27 @@ export function HouseholdView({
   // rendered, so a pick kept in that component would not survive the adviser
   // stepping over to the Household table to look at what they clicked.
   const [pickedCell, setPickedCell] = useState<string | null>(null);
+  // The Household tab flashes when a square lands in its table. It is on
+  // another tab, so without this the click that changed the whole report
+  // produced no visible result at all.
+  const [tabLanded, setTabLanded] = useState(false);
+
+  /**
+   * Draws the connection between the button that was clicked and the tab
+   * that now holds the result: a token leaps from one to the other, and the
+   * tab flashes as it arrives.
+   *
+   * The flash is set on arrival rather than on click, so the two read as one
+   * event. `flyBetween` resolves immediately when it cannot fly — no motion
+   * allowed, no layout — and the flash still happens.
+   */
+  function handleApplied(origin: HTMLElement | null) {
+    const householdTab = tabRefs.current[0];
+    void flyBetween(origin, householdTab).then(() => {
+      setTabLanded(true);
+      window.setTimeout(() => setTabLanded(false), 1400);
+    });
+  }
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   /** The claiming-table props for one person, or none when nothing is wired. */
@@ -158,7 +180,13 @@ export function HouseholdView({
             aria-selected={i === active}
             aria-controls={`household-panel-${tab.id}`}
             tabIndex={i === active ? 0 : -1}
-            className={`household-tab${i === active ? ' household-tab-active' : ''}`}
+            className={[
+              'household-tab',
+              i === active ? 'household-tab-active' : '',
+              i === 0 && tabLanded ? 'household-tab-landed' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             onClick={() => setActive(i)}
             onKeyDown={onKeyDown}
           >
@@ -182,6 +210,7 @@ export function HouseholdView({
             onTargetChange={onGridTargetChange}
             picked={pickedCell}
             onPickedChange={setPickedCell}
+            onApplied={handleApplied}
           />
         ) : active === 0 ? (
           <HouseholdPanel

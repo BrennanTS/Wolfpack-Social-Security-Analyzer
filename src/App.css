@@ -2589,3 +2589,43 @@ tbody tr:hover {
   color: var(--text-subtle);
   margin-top: 1px;
 }
+
+/* ─── Applying a square from the claiming grid ─── */
+
+/* The button's own confirmation. Text, not motion, so it survives
+   `prefers-reduced-motion` and a screen reader alike. */
+.claim-grid-apply.is-applied {
+  background: var(--green);
+  color: var(--surface);
+}
+
+.claim-grid-apply.is-applied:hover {
+  background: var(--green);
+}
+
+/* The tab the result landed on. A ring rather than a colour change, so it
+   reads as "look here" rather than as a new selected state — the tab the
+   reader is on has not changed. */
+.household-tab-landed {
+  animation: tabLanded 1.4s var(--ease);
+}
+
+@keyframes tabLanded {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  15%,
+  70% {
+    box-shadow: 0 0 0 2px var(--gold);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The ring still appears and still fades — it simply does not pulse. The
+     signal is the point; the bouncing is not. */
+  .household-tab-landed {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--gold);
+  }
+}

@@ -588,7 +588,36 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   await expect(page.getByTestId('grid-picked-value')).toHaveText(pickedValue ?? '');
 
   // Applying is its own act, and then it does drive the whole report.
+  //
+  // Three signals fire, because the result lands on a DIFFERENT tab and
+  // without them the click that changed the whole report looks like it did
+  // nothing: the button confirms in words, a token flies to the Household
+  // tab, and that tab flashes as it arrives. The words are asserted rather
+  // than the motion — motion is the one signal a reader can switch off.
+  const flights: number[] = [];
+  await page.exposeFunction('__flight', (n: number) => void flights.push(n));
+  await page.evaluate(() => {
+    const observer = new MutationObserver((records) => {
+      for (const r of records) {
+        for (const node of r.addedNodes) {
+          if (node instanceof HTMLElement && node.className === 'arc-flight-token') {
+            (window as unknown as { __flight: (n: number) => void }).__flight(1);
+          }
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true });
+  });
+
   await page.getByTestId('grid-apply').click();
+  await expect(page.getByTestId('grid-apply')).toHaveText(/Added to the table/);
+  await expect(page.locator('.household-tab-landed')).toHaveCount(1);
+  expect(flights.length, 'a token left the button').toBe(1);
+
+  // And the button returns to its label rather than staying confirmed.
+  await expect(page.getByTestId('grid-apply')).toHaveText(/Build the report on this/, {
+    timeout: 4000,
+  });
   await page.getByRole('tab', { name: 'Household' }).click();
   await expect(page.getByTestId('strategy-row-s1')).toHaveClass(/row-selected/);
   await expect(page.locator('.rec-label').first()).toHaveText(/Selected Scenario/);
