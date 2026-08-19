@@ -473,7 +473,7 @@ export function HouseholdSection({
 
       <Text style={styles.sectionTitle}>Strategy Comparison</Text>
       <Text style={styles.sectionDesc}>
-        What the optimizer rejected, and by how much.
+        The other ways you could file, and what each is worth.
       </Text>
       <StrategyTable comparisons={analysis.comparisons} people={people} />
       {/* The column's meaning, under the column rather than above the

@@ -211,7 +211,9 @@ test('toggles dollars mode and moves the chart, the income-cliff callout and the
   // beside a callout still in real would be the same defect class as a wrong
   // caption, just harder to spot.
   const captionAfter = await page.getByTestId('combined-income-caveat').textContent();
-  expect(captionAfter).toContain('nominal');
+  // The caption says what the mode MEANS rather than naming it — "nominal"
+  // is a term the client half of the report no longer uses.
+  expect(captionAfter).toContain('future dollars');
   expect(captionAfter).not.toBe(captionBefore);
 
   const cliffAfter = await page.getByTestId('income-cliff-sentence').textContent();

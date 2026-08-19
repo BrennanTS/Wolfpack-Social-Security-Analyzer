@@ -168,7 +168,7 @@ describe('StrategyComparisonTable', () => {
       );
     });
 
-    it('names nominal dollars, contrasted against Household value, when passed nominal', () => {
+    it('says future dollars, contrasted against Household value, when passed nominal', () => {
       render(
         <StrategyComparisonTable
           comparisons={comparisons}
@@ -177,7 +177,7 @@ describe('StrategyComparisonTable', () => {
         />,
       );
       const caption = screen.getByTestId('survivor-income-caption');
-      expect(caption).toHaveTextContent(/nominal/i);
+      expect(caption).toHaveTextContent(/future dollars/i);
       expect(caption).toHaveTextContent(/Household value/);
     });
   });

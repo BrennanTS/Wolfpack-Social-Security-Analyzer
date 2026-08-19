@@ -80,7 +80,7 @@ function BenefitTable({
       <View style={styles.tableHeader}>
         <Text style={[styles.th, { width: COL.age }]}>Age</Text>
         <Text style={[styles.th, { width: COL.monthly }]}>Monthly</Text>
-        <Text style={[styles.th, { width: COL.pia }]}>% PIA</Text>
+        <Text style={[styles.th, { width: COL.pia }]}>% of full</Text>
         <Text style={[styles.th, { width: COL.life }]}>Lifetime</Text>
         <Text style={[styles.th, { width: COL.diff }]}>vs. Age {baselineAge}</Text>
       </View>
@@ -200,7 +200,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
           ['Date of Birth', dob],
           ['Current Age', yearsMonthsLabel(currentAge.years, currentAge.months)],
           ['Full Retirement Age', fraLabel(fra)],
-          ['PIA (Benefit at FRA)', `${formatCurrencyPrecise(person.piaMonthly)}/mo`],
+          ['Full benefit', `${formatCurrencyPrecise(person.piaMonthly)}/mo`],
           ['Life Expectancy', `Age ${person.lifeExpectancy}`],
           ['SSA Suggested Age', `Age ${ssaSuggestedLifeExpectancy}`],
         ].map(([label, value]) => (
@@ -216,7 +216,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         <Text style={styles.recHeadline}>File at age {filingAge.label}</Text>
         <Text style={styles.recBody}>
           {name} filing at age {filingAge.label} yields {formatCurrency(monthlyAtFilingAge)}
-          /month, {optimal.percentOfPia}% of PIA.
+          /month, {optimal.percentOfPia}% of their full benefit.
         </Text>
         <View style={styles.recMetrics}>
           <View style={styles.recMetricBlock}>
@@ -229,15 +229,15 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
           </View>
           <View style={styles.recMetricBlock}>
             <Text style={styles.recMetricValue}>{optimal.percentOfPia}%</Text>
-            <Text style={styles.recMetricLabel}>Of PIA</Text>
+            <Text style={styles.recMetricLabel}>Of full benefit</Text>
           </View>
         </View>
       </View>
 
       <Text style={styles.sectionTitle}>Benefit Comparison by Claiming Age</Text>
       <Text style={styles.sectionDesc}>
-        Monthly benefit and lifetime total through age {person.lifeExpectancy}, in
-        today&rsquo;s dollars before any future cost-of-living adjustment, undiscounted
+        What you would be paid each month at each age, and what it adds up to by age{' '}
+        {person.lifeExpectancy}. In today&rsquo;s money, before Social Security&rsquo;s yearly rises
       </Text>
       <BenefitTable
         rows={tableRows}

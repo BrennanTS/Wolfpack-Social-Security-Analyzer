@@ -1174,9 +1174,9 @@ function coupleRecommendationDetail(
   }
 
   return (
-    `The couple optimizer maximizes the household's value at ${formatCurrency(expectedNpv)} ` +
-    `when ${labels[0]} files at age ${ages[0]} and ${labels[1]} files at age ${ages[1]}, ` +
-    `assuming each lives to the plan-to age set for them.`
+    `Filing at these ages is worth ${formatCurrency(expectedNpv)} to the two of you over ` +
+    `your lifetimes — more than any other pair of ages — with ${labels[0]} filing at age ` +
+    `${ages[0]} and ${labels[1]} at age ${ages[1]}, assuming each lives to the age set for them.`
   );
 }
 

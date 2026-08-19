@@ -1338,14 +1338,16 @@ describe('analyzeHousehold — entry order', () => {
         assumptions,
         asOf,
       );
-      expect(result.recommendationDetail).toContain(
-        "The couple optimizer maximizes the household's value",
-      );
+      // Says the figure is the best available, and on what assumption —
+      // without a term the client would have to be taught first.
+      expect(result.recommendationDetail).toContain('more than any other pair of ages');
+      expect(result.recommendationDetail).toContain('assuming each lives to the age set for them');
+      expect(result.recommendationDetail).not.toMatch(/optimi[sz]er|present value/i);
       // The word that had to go when the optimizer stopped weighting by
-      // mortality: the figure is a present value of one assumed future, not
-      // an expectation across how long someone might live.
+      // mortality: the figure is for one assumed future, not an expectation
+      // across how long someone might live.
       expect(result.recommendationDetail).not.toContain('expected present value');
-      expect(result.recommendationDetail).not.toContain('Both spouses have the same PIA');
+      expect(result.recommendationDetail).not.toContain('Both spouses have the same full benefit');
     });
 
     it('gives the projected survivor the slot the engine can pay a survivor benefit to', async () => {

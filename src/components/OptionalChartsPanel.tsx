@@ -71,7 +71,7 @@ export function OptionalChartsPanel({
 
       <ToggleChartSection
         title="Monthly Benefit Ramp (62–70)"
-        description="How your monthly check grows for each year you delay — includes % of PIA and boost vs. claiming at 62."
+        description="How your monthly cheque grows for each year you delay, and how it compares with claiming at 62."
         visible={visibility.monthlyRamp}
         onToggle={() => onToggle('monthlyRamp')}
       >
@@ -94,7 +94,7 @@ export function OptionalChartsPanel({
         // which carry no projected COLA. Screen and print used to agree here
         // and both be wrong; correcting only print would leave them
         // disagreeing about identical numbers.
-        description={`Total benefits received through age ${lifeExpectancy}, in today’s dollars before any future cost-of-living adjustment, undiscounted.`}
+        description={`Total benefits received by age ${lifeExpectancy}, in today’s money, before Social Security’s yearly rises.`}
         visible={visibility.lifetimeBar}
         onToggle={() => onToggle('lifetimeBar')}
       >

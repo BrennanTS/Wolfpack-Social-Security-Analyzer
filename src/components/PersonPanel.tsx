@@ -214,12 +214,12 @@ export function PersonPanel({
         <div className="summary-card">
           <span className="summary-label">Age 62 Benefit</span>
           <span className="summary-value" data-testid="summary-age62">{formatCurrency(age62.monthlyBenefit)}</span>
-          <span className="summary-hint">{age62.percentOfPia}% of PIA · earliest</span>
+          <span className="summary-hint">{age62.percentOfPia}% of full · earliest</span>
         </div>
         <div className="summary-card">
           <span className="summary-label">Age 70 Benefit</span>
           <span className="summary-value" data-testid="summary-age70">{formatCurrency(age70.monthlyBenefit)}</span>
-          <span className="summary-hint">{age70.percentOfPia}% of PIA · maximum</span>
+          <span className="summary-hint">{age70.percentOfPia}% of full · maximum</span>
         </div>
       </div>
 
@@ -250,7 +250,7 @@ export function PersonPanel({
                 )}
                 <th>Age</th>
                 <th>Monthly</th>
-                <th>% of PIA</th>
+                <th>% of full</th>
                 <th>Lifetime</th>
                 <th>Status</th>
                 {editingRows && (

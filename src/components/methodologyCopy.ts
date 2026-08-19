@@ -36,7 +36,7 @@ type SpousalTopUp = NonNullable<HouseholdAnalysis['spousalTopUp']>;
  */
 function dollarsBasisClause(mode: DollarsMode): string {
   return mode === 'nominal'
-    ? 'figures are in future (nominal) dollars, compounded forward using the assumed COLA'
+    ? 'figures are in future dollars, grown forward at the assumed yearly rise'
     : 'figures are in today’s dollars, before any cost-of-living adjustment';
 }
 
@@ -389,8 +389,8 @@ export function combinedIncomeCaption(
   // toggle does exactly that, so the sentence has to say so instead.
   const dollarsClause =
     mode === 'nominal'
-      ? 'Amounts are in future (nominal) dollars — the engine’s own today’s-dollars figures, ' +
-        'compounded forward using the assumed COLA — not today’s purchasing power.'
+      ? 'Amounts are in future dollars — today’s figures grown forward at the assumed ' +
+        'yearly rise, so they are what the cheque will say rather than what it will buy.'
       : 'Amounts are in today’s dollars, before any cost-of-living adjustment.';
   // Typographic apostrophes, matching the `&rsquo;` the two duplicated copies
   // carried before extraction. This sentence prints beside copy that uses
@@ -506,8 +506,8 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
     // genuinely exceed what they receive while this sentence is still true.
     // Unqualified, the sentence denied that.
     return (
-      `No top-up applies to this household — half of the higher earner's PIA does not ` +
-      `exceed ${subject}'s own benefit at their own FRA.`
+      `No top-up applies to this household — half of the higher earner's full benefit does not ` +
+      `exceed ${subject}'s own benefit at their own full retirement age.`
     );
   }
 
@@ -655,9 +655,9 @@ export function nominalFirstDeathNote(
   annualCola: number,
 ): string {
   return (
-    `In future (nominal) dollars — compounding the assumed ${formatPercent(annualCola, 2)} COLA ` +
-    `forward from today — that ${cliff.deathYear + 1} figure is approximately ` +
-    `${formatCurrency(nominalAfter)}.`
+    `Grown forward at the assumed ${formatPercent(annualCola, 2)} a year, the ` +
+    `${cliff.deathYear + 1} figure is about ${formatCurrency(nominalAfter)} as it will ` +
+    `actually be paid.`
   );
 }
 
@@ -704,10 +704,11 @@ export const HOUSEHOLD_VALUE_COLUMN_HEADER = 'Household value';
  */
 export function householdValueCaption(discountRatePercent: string): string {
   return (
-    `Household value is the present value of everything the household receives if each ` +
-    `person lives to the plan-to age set for them, discounted at ${discountRatePercent}. It ` +
-    `assumes those ages are reached rather than averaging across how long someone might ` +
-    `live, so it is not comparable with a mortality-weighted figure.`
+    `Household value is everything Social Security pays this household over both your ` +
+    `lifetimes, in today’s money. It assumes each of you lives exactly to the age set for ` +
+    `you rather than averaging over how long someone might live, so it is a figure for ` +
+    `those ages and not an average across all of them. Future payments are counted at ` +
+    `${discountRatePercent} less per year for being further away — see the assumptions page.`
   );
 }
 
@@ -818,9 +819,9 @@ export function survivorIncomeCaption(
 
   const basisClause =
     mode === 'nominal'
-      ? ' This column is in future (nominal) dollars, compounded forward using the assumed ' +
-        `COLA — unlike ${HOUSEHOLD_VALUE_COLUMN_HEADER} beside it, which stays in present-value dollars regardless ` +
-        'of this toggle.'
+      ? ' This column is in future dollars, grown forward at the assumed yearly rise — ' +
+        `unlike ${HOUSEHOLD_VALUE_COLUMN_HEADER} beside it, which stays in today’s money ` +
+        'whichever way this is set.'
       : ' This column is in today’s dollars, before any cost-of-living adjustment.';
 
   // The claim, made only when the figures below actually support it.
@@ -876,7 +877,7 @@ export function soloVsHouseholdNote(
     parts.push(
       `Two answers, because there are two questions. On ${label}'s own record alone, age ` +
         `${soloAge} is worth the most. For the household — where a filing age also sets what ` +
-        `a surviving spouse inherits — the optimizer chooses age ${householdBestAge}.`,
+        `a surviving spouse inherits — age ${householdBestAge} is worth the most.`,
     );
   } else {
     parts.push(`The optimizer's own answer for this household is age ${householdBestAge}.`);

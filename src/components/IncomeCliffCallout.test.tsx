@@ -147,11 +147,11 @@ describe('IncomeCliffCallout', () => {
       );
     });
 
-    it('names nominal dollars when passed nominal', () => {
+    it('says the figures are future dollars when passed nominal', () => {
       const { getByTestId } = render(
         <IncomeCliffCallout analysis={analysisWith()} dollarsMode="nominal" />,
       );
-      expect(getByTestId('income-cliff-sentence')).toHaveTextContent(/nominal/i);
+      expect(getByTestId('income-cliff-sentence')).toHaveTextContent(/future dollars/i);
     });
   });
 });

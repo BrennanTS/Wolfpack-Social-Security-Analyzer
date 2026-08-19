@@ -515,7 +515,7 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
     };
     const text = collectText(HouseholdSection({ analysis, footerText: 'f' })).join(' ');
     expect(text).toContain('Income at the First Death');
-    expect(text).toMatch(/nominal/i);
+    expect(text).toMatch(/as it will actually be paid/i);
     expect(text).toContain('2.50%');
     // 2048 is `deathYear + 1` (2047 + 1); household total that year is
     // $38,000 real. `asOf` is 2026, so this is 22 years of 2.5% compounding:

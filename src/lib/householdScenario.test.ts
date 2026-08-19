@@ -61,7 +61,7 @@ describe('no scenario', () => {
     expect(result.scenarioIsBest).toBe(true);
     expect(agesOf(result.selected)).toEqual(agesOf(result.optimal));
     expect(result.selected.isOptimal).toBe(true);
-    expect(result.recommendationDetail).toContain('couple optimizer');
+    expect(result.recommendationDetail).toContain('more than any other pair of ages');
   });
 
   it('adds no extra comparison row', async () => {

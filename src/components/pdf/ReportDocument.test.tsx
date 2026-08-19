@@ -147,6 +147,55 @@ describe('ReportDocument renders', () => {
    * Married and widowed both: they share almost no copy, and the widowed
    * surfaces were written last and reviewed least.
    */
+  /**
+   * The client-facing pages must not need a glossary.
+   *
+   * Asserted over the assembled sections rather than a list of strings, for
+   * the same reason `unprintableInPdf` is: the sentence that reintroduces a
+   * term will be in a component nobody thought to check. The methodology
+   * appendix is deliberately exempt — it IS the technical page, and the rule
+   * has always been that caveats move there rather than disappear.
+   */
+  it('keeps the client-facing pages free of terms that need teaching', async () => {
+    const married = await analyzeHousehold(
+      { status: 'married', people: [dan, sarah] },
+      assumptions,
+      asOf,
+    );
+
+    const clientPages = [
+      collectText(HouseholdSection({ analysis: married, footerText: 'f' })),
+      ...married.people.map((rep, i) =>
+        collectText(
+          PersonSection({
+            analysis: rep,
+            index: i === 0 ? 0 : 1,
+            annualCola: assumptions.annualCola,
+            footerText: 'f',
+          }),
+        ),
+      ),
+    ]
+      .flat()
+      .join(' ');
+
+    // Guard: an empty walk would make every assertion below vacuous.
+    expect(clientPages.length).toBeGreaterThan(2000);
+
+    for (const term of [
+      'present value',
+      'optimizer',
+      'discounted',
+      'mortality-weighted',
+      'undiscounted',
+      'PIA',
+    ]) {
+      expect(clientPages, `"${term}" on a client-facing page`).not.toContain(term);
+    }
+    // "FRA" survives only inside "Full Retirement Age", which is spelled out.
+    expect(clientPages).not.toMatch(/\bFRA\b/);
+  });
+
   it('prints no character the standard-14 fonts cannot render', async () => {
     const married = await analyzeHousehold(
       { status: 'married', people: [dan, sarah] },

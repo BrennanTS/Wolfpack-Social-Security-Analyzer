@@ -111,7 +111,7 @@ describe('spousalMethodologyCopy', () => {
         lowerEarnerLabel: 'Client',
       }),
     );
-    expect(copy).toContain("does not exceed Client's own benefit at their own FRA");
+    expect(copy).toContain("does not exceed Client's own benefit at their own full retirement age");
   });
 
   it('states when the spousal benefit begins', () => {
@@ -671,19 +671,19 @@ describe('survivorIncomeCaption', () => {
     it('names today’s dollars in real mode, in the no-gap branch', () => {
       const caption = survivorIncomeCaption(RISING, null, 'real');
       expect(caption).toMatch(/today.s dollars, before any cost-of-living/i);
-      expect(caption).not.toMatch(/nominal/i);
+      expect(caption).not.toMatch(/future dollars/i);
     });
 
     it('names nominal dollars and calls out Household value by contrast, in the no-gap branch', () => {
       const caption = survivorIncomeCaption(RISING, null, 'nominal');
-      expect(caption).toMatch(/nominal/i);
+      expect(caption).toMatch(/future dollars/i);
       expect(caption).toMatch(/Household value/);
       expect(caption).not.toMatch(/today.s dollars, before any cost-of-living/i);
     });
 
     it('states the dollars basis in the falling branch too', () => {
       expect(survivorIncomeCaption(FALLING, null, 'real')).toMatch(/today.s dollars/i);
-      expect(survivorIncomeCaption(FALLING, null, 'nominal')).toMatch(/nominal/i);
+      expect(survivorIncomeCaption(FALLING, null, 'nominal')).toMatch(/future dollars/i);
     });
 
     it('states the dollars basis in the under-60 branch too', () => {
@@ -695,7 +695,7 @@ describe('survivorIncomeCaption', () => {
       };
       const zeroed = rowsWith([[67, 67], 0], [[70, 70], 0]);
       expect(survivorIncomeCaption(zeroed, gap, 'real')).toMatch(/today.s dollars/i);
-      expect(survivorIncomeCaption(zeroed, gap, 'nominal')).toMatch(/nominal/i);
+      expect(survivorIncomeCaption(zeroed, gap, 'nominal')).toMatch(/future dollars/i);
     });
 
     it('states the dollars basis in the gap branch too', () => {
@@ -706,7 +706,7 @@ describe('survivorIncomeCaption', () => {
         survivorUnder60: false,
       };
       expect(survivorIncomeCaption(RISING, gap, 'real')).toMatch(/today.s dollars/i);
-      expect(survivorIncomeCaption(RISING, gap, 'nominal')).toMatch(/nominal/i);
+      expect(survivorIncomeCaption(RISING, gap, 'nominal')).toMatch(/future dollars/i);
     });
   });
 });
@@ -841,12 +841,12 @@ describe('combinedIncomeCaption', () => {
     it('states today’s dollars explicitly in real mode', () => {
       const caption = combinedIncomeCaption(null, 'real');
       expect(caption).toContain('today’s dollars, before any cost-of-living adjustment');
-      expect(caption).not.toMatch(/nominal/i);
+      expect(caption).not.toMatch(/future dollars/i);
     });
 
     it('says nominal in nominal mode, and stops claiming today’s dollars', () => {
       const caption = combinedIncomeCaption(null, 'nominal');
-      expect(caption).toMatch(/nominal/i);
+      expect(caption).toMatch(/future dollars/i);
       expect(caption).not.toContain('today’s dollars, before any cost-of-living adjustment');
     });
 
@@ -990,12 +990,12 @@ describe('incomeCliffSentence', () => {
     it('states today’s dollars explicitly in real mode', () => {
       const sentence = incomeCliffSentence(base, 'real');
       expect(sentence).toMatch(/today.s dollars, before any cost-of-living/i);
-      expect(sentence).not.toMatch(/nominal/i);
+      expect(sentence).not.toMatch(/future dollars/i);
     });
 
     it('states nominal dollars in nominal mode, and stops claiming today’s', () => {
       const sentence = incomeCliffSentence(base, 'nominal');
-      expect(sentence).toMatch(/nominal/i);
+      expect(sentence).toMatch(/future dollars/i);
       expect(sentence).not.toMatch(/today.s dollars, before any cost-of-living/i);
     });
 
@@ -1029,7 +1029,7 @@ describe('nominalFirstDeathNote', () => {
     expect(note).toContain('2048');
     expect(note).toContain('$48,620');
     expect(note).toContain('2.50%');
-    expect(note).toMatch(/nominal/i);
+    expect(note).toMatch(/as it will actually be paid/i);
   });
 
   it('is the identity at a zero COLA — same figure, still labeled nominal', () => {
@@ -1291,7 +1291,7 @@ describe('survivorClaimNote', () => {
     // be ABSENT — this is the assertion that matters, not the presence check
     // below.
     const real = survivorClaimNote(alt, 'real')!;
-    expect(real).not.toMatch(/nominal/i);
+    expect(real).not.toMatch(/future dollars/i);
     expect(real).not.toContain('today’s dollars, before any cost-of-living adjustment');
 
     // Nominal mode: the figure above says future dollars, this figure has
@@ -1341,7 +1341,7 @@ describe('survivorClaimNote', () => {
         null,
         'nominal',
       ),
-    ).toContain('Household value beside it, which stays in present-value dollars');
+    ).toContain('Household value beside it, which stays in today’s money');
   });
 
   it('names the benefit with one on-screen noun in both branches', () => {
