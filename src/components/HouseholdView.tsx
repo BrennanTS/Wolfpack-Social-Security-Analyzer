@@ -12,6 +12,7 @@ import type { ScenarioSet } from '../lib/scenario';
 import { HouseholdPanel } from './HouseholdPanel';
 import { PersonPanel } from './PersonPanel';
 import { WidowedPanel } from './WidowedPanel';
+import { ClaimingGridPanel } from './ClaimingGridPanel';
 
 interface HouseholdViewProps {
   analysis: HouseholdAnalysis;
@@ -74,6 +75,10 @@ export function HouseholdView({
             id: p.person.id,
             label: personLabel(p.person.name, i),
           })),
+          // Last, and only when there is a cross-product to show. A single
+          // claimant's grid would be one axis, which is the
+          // benefit-by-claiming-age table they already have.
+          ...(analysis.claimingGrid ? [{ id: 'grid', label: 'Claiming grid' }] : []),
         ]
       : [];
 
@@ -159,7 +164,13 @@ export function HouseholdView({
         aria-labelledby={`household-tab-${activeTab.id}`}
         className="household-tabpanel"
       >
-        {active === 0 ? (
+        {activeTab.id === 'grid' ? (
+          <ClaimingGridPanel
+            analysis={analysis}
+            scenarios={scenarios}
+            onScenariosChange={onScenariosChange}
+          />
+        ) : active === 0 ? (
           <HouseholdPanel
             analysis={analysis}
             annualCola={annualCola}

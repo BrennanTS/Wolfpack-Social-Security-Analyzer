@@ -2641,3 +2641,229 @@ tbody tr:hover {
   color: var(--text-muted);
   border: 1px solid var(--border-strong);
 }
+
+/* ─── Claiming age grid ─── */
+/*
+ * Ramp endpoints reuse the lifetime heatmap's, per theme, so the two
+ * heat surfaces in the app cannot drift apart. `--t` is set inline per
+ * cell from `gridRatio`.
+ */
+.claim-grid-panel {
+  --heat-lo: #f4efe4;
+  --heat-hi: #be9a57;
+}
+
+[data-theme='dark'] .claim-grid-panel {
+  --heat-lo: #232323;
+  --heat-hi: #7d6633;
+}
+
+.claim-grid-controls {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 16px 0 20px;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.claim-grid-toggle,
+.claim-grid-tolerance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.claim-grid-tolerance input {
+  width: 72px;
+  padding: 4px 6px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.claim-grid-tolerance input:disabled {
+  opacity: 0.5;
+}
+
+.claim-grid-count {
+  color: var(--gold-dark);
+}
+
+.claim-grid-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.claim-grid-wrap {
+  flex: 1 1 420px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.claim-grid {
+  border-collapse: separate;
+  border-spacing: 2px;
+  margin: 0 auto;
+}
+
+.claim-grid th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 6px;
+}
+
+.claim-cell-td {
+  padding: 0;
+}
+
+.claim-cell {
+  --t: 0;
+  display: block;
+  width: clamp(40px, 5vw, 60px);
+  min-height: clamp(26px, 3.4vw, 36px);
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(0, 0, 0, 0.78);
+  background: color-mix(in oklab, var(--heat-lo), var(--heat-hi) calc(var(--t) * 100%));
+  cursor: pointer;
+  transition: transform 0.15s var(--ease);
+}
+
+.claim-cell:disabled {
+  cursor: default;
+}
+
+[data-theme='dark'] .claim-cell {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.claim-cell:hover:not(:disabled) {
+  transform: scale(1.06);
+  z-index: 1;
+  box-shadow: var(--shadow-sm);
+}
+
+.claim-cell-empty {
+  background: var(--fill);
+  opacity: 0.3;
+  border-radius: 4px;
+}
+
+/* The near-best region. An inset ring rather than a border, so adding it
+   cannot move a cell and reflow the grid. */
+.claim-cell-near {
+  box-shadow: inset 0 0 0 2px var(--green);
+}
+
+.claim-cell-best {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+
+.claim-cell-selected {
+  outline: 2px solid var(--gold-dark);
+  outline-offset: 1px;
+}
+
+.claim-grid-plot {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.claim-grid-axis-x,
+.claim-grid-axis-y {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.claim-grid-axis-x {
+  padding-top: 8px;
+}
+
+/* Rotated, and reading bottom-to-top the way a y-axis label does. `flex` on
+   the wrapper rather than a fixed height so it centres against whatever the
+   table's height turns out to be. */
+.claim-grid-axis-y {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.claim-grid-axis-y span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+}
+
+.claim-grid-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+}
+
+.claim-grid-ramp {
+  width: 120px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--heat-lo), var(--heat-hi));
+}
+
+.claim-grid-swatch-near {
+  width: 12px;
+  height: 12px;
+  margin-left: 6px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 2px var(--green);
+}
+
+.claim-grid-side {
+  flex: 0 1 220px;
+  min-width: 180px;
+}
+
+.claim-grid-side h4 {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+}
+
+.claim-grid-side dl {
+  margin: 0;
+}
+
+.claim-grid-side dt {
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 12px;
+}
+
+.claim-grid-side dd {
+  margin: 2px 0 0;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.claim-grid-note {
+  margin-top: 16px;
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: var(--text-subtle);
+}

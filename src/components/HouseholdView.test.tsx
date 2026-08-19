@@ -117,6 +117,7 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     periods: [],
     survivorGap: null,
   survivorFloor: null,
+  claimingGrid: null,
     survivorClaim: null,
     finalIndexByPersonId: { a: 24_653, ...(status === 'married' ? { b: 24_700 } : {}) },
     recommendation: status === 'married'

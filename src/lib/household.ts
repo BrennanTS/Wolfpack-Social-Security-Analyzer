@@ -3,6 +3,7 @@ import { classifyEarnerDependent } from '$lib/strategy/calculations/earner-depen
 import { MonthDate, type MonthDuration } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
 import { roundCents } from './benefitMath';
+import { buildClaimingGrid, type ClaimingGrid } from './claimingGrid';
 import {
   householdPeriods,
   monthsInYear,
@@ -308,6 +309,12 @@ export interface HouseholdAnalysis {
    * `SurvivorFloor`.
    */
   survivorFloor: SurvivorFloor | null;
+  /**
+   * Every whole-age combination and what the household gets for it — the
+   * claiming-age grid. Null for anything that is not two claimants; see
+   * `buildClaimingGrid`.
+   */
+  claimingGrid: ClaimingGrid | null;
   /**
    * The best month the survivor could claim their OWN widow(er) benefit,
    * holding the recommendation's filing ages fixed — see `survivorClaim.ts`.
@@ -1354,6 +1361,8 @@ async function analyzeWidowed(
     combinedTimeline: buildCombinedTimeline(bands, people),
     periods: bands,
     survivorGap: null,
+    // Two dates, but one claimant — not a two-person cross-product.
+    claimingGrid: null,
     // Widowed households render their own stages (`widowedStages`), which
     // never split a survivor benefit against a living spouse's band — there
     // is no "more than they were getting" comparison on that surface.
@@ -1580,6 +1589,7 @@ export async function analyzeHousehold(
       periods: bands,
       survivorGap,
       survivorFloor,
+      claimingGrid: buildClaimingGrid(ranked, reorder),
       survivorClaim,
       finalIndexByPersonId,
       spousalTopUp: spousalFiguresFrom(
@@ -1692,6 +1702,8 @@ export async function analyzeHousehold(
     periods: bands,
     survivorGap,
     survivorFloor,
+    // One axis is the benefit-by-claiming-age table this person already has.
+    claimingGrid: null,
     survivorClaim: null,
     finalIndexByPersonId,
     recommendation: `Claim at age ${selected.filingAges[0].label}`,

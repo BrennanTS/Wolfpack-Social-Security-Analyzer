@@ -525,3 +525,67 @@ test('blocks the widowed dates SSA would not pay, instead of failing the analysi
   // A field error, not a failed analysis.
   await expect(page.getByTestId('analysis-error')).toHaveCount(0);
 });
+
+test('explores the claiming grid and builds the report on a square', async ({ page }) => {
+  await page.goto('/');
+  await fillScenarioForm(page, married);
+
+  // The tab exists only for two claimants — a single claimant's grid would
+  // be one axis, which is the benefit table they already have.
+  const gridTab = page.getByRole('tab', { name: 'Claiming grid' });
+  await expect(gridTab).toBeVisible();
+  await gridTab.click();
+
+  const table = page.getByTestId('claiming-grid-table');
+  await expect(table).toBeVisible();
+
+  // A COMPLETE board: one square per pair of attainable whole ages. Not a
+  // hard 81 — an axis starts at the person's own floor, and this couple is
+  // already past 62, so counting rows times columns is the real invariant
+  // and a hardcoded number would only pin the fixture's birth years.
+  const cols = await page.locator('[data-testid="claiming-grid-table"] thead th').count();
+  const rows = await page.locator('[data-testid="claiming-grid-table"] tbody tr').count();
+  const cells = page.locator('[data-testid^="grid-cell-"]');
+  expect(rows).toBeGreaterThan(1);
+  await expect(cells).toHaveCount(rows * (cols - 1));
+  // The grid's best must BE the optimizer's answer, not a separate number
+  // that happens to look similar. Each square is a max over the months
+  // inside its year pair, so the board's maximum is the same figure the
+  // strategy table prints on its Optimal row — if these two ever disagree,
+  // one of the surfaces is quoting a strategy the other says is unavailable.
+  const gridBest = await page.getByTestId('grid-best-value').textContent();
+  await page.getByRole('tab', { name: 'Household' }).click();
+  const optimalValue = await page
+    .getByTestId('strategy-row-optimal')
+    .locator('td')
+    .nth(3)
+    .textContent();
+  expect(gridBest?.trim()).toBe(optimalValue?.trim());
+  await gridTab.click();
+
+  // Widening the tolerance can only ever admit more squares, never fewer.
+  const count = page.getByTestId('target-range-count');
+  const atOne = Number((await count.textContent())!.match(/^(\d+)/)![1]);
+  await page.getByTestId('target-range-percent').fill('5');
+  const atFive = Number((await count.textContent())!.match(/^(\d+)/)![1]);
+  expect(atFive).toBeGreaterThan(atOne);
+
+  // Turning the highlight off retires the count with it.
+  await page.getByTestId('target-range-toggle').uncheck();
+  await expect(count).toHaveCount(0);
+
+  // Clicking a square drives the whole report: a new scenario row appears in
+  // the household comparison table, selected, and the eyebrow stops saying
+  // the report is on the optimizer's answer.
+  // Whichever square sits one in from each axis end — named from the axes
+  // rather than hardcoded, for the same reason the count is.
+  const [firstCol] = await page.locator('[data-testid="claiming-grid-table"] thead th').nth(2).allInnerTexts();
+  const [firstRow] = await page.locator('[data-testid="claiming-grid-table"] tbody tr').nth(1).locator('th').allInnerTexts();
+  await page.getByTestId(`grid-cell-${firstCol}-${firstRow}`).click();
+  await page.getByRole('tab', { name: 'Household' }).click();
+  await expect(page.getByTestId('strategy-row-s1')).toHaveClass(/row-selected/);
+  await expect(page.locator('.rec-label').first()).toHaveText(/Selected Scenario/);
+  const scenarioRow = page.getByTestId('strategy-row-s1');
+  await expect(scenarioRow).toContainText(firstCol);
+  await expect(scenarioRow).toContainText(firstRow);
+});
