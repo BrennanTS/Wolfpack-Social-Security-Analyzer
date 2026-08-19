@@ -330,7 +330,7 @@ export function PersonPanel({
                       {!row.isEligible ? (
                         <span className="status-future">Future</span>
                       ) : isShown ? (
-                        <span className="status-optimal">Optimal</span>
+                        <span className="status-optimal">Shown</span>
                       ) : (
                         <span className="status-eligible">Eligible</span>
                       )}

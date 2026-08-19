@@ -61,7 +61,7 @@ export function BenefitChart({
                 }}
               />
               Claim at {opt.age}
-              {opt.age === optimalAge ? ' (optimal)' : ''}
+              {opt.age === optimalAge ? ' (shown)' : ''}
             </span>
           ))}
         </div>

@@ -308,7 +308,7 @@ export function OpportunityCostChart({ options, optimalAge }: OpportunityCostCha
     () =>
       generateOpportunityCostData(options, optimalAge).map((row) => ({
         ...row,
-        label: row.age === optimalAge ? `${row.age} (optimal)` : String(row.age),
+        label: row.age === optimalAge ? `${row.age} (shown)` : String(row.age),
         shortfall: row.vsOptimal < 0 ? Math.abs(row.vsOptimal) : 0,
       })),
     [options, optimalAge],
@@ -410,7 +410,7 @@ export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps)
           x={optimalAge}
           stroke={GOLD}
           strokeDasharray="4 4"
-          label={{ value: 'Optimal', fill: GOLD, fontSize: 10, position: 'top' }}
+          label={{ value: 'Shown', fill: GOLD, fontSize: 10, position: 'top' }}
         />
         <Line
           type="monotone"

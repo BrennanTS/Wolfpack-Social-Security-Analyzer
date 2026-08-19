@@ -47,12 +47,21 @@ interface Props {
 function BenefitTable({
   rows,
   optimalLifetime,
+  baselineAge,
   optimalRowId,
   soloRowId,
   shownRowId,
 }: {
   rows: ClaimingRow[];
   optimalLifetime: number;
+  /**
+   * The age every `vs.` figure is measured FROM — the shown scenario, which
+   * is what `optimalLifetime` above is the lifetime of. Named in the header
+   * rather than left as "vs. Optimal", which claimed the baseline was the
+   * optimizer's answer while six of nine rows printed a positive number
+   * against it.
+   */
+  baselineAge: number;
   optimalRowId: string;
   /**
    * The row this person would file at ALONE. Empty only for a lone claimant,
@@ -70,7 +79,7 @@ function BenefitTable({
         <Text style={[styles.th, { width: COL.monthly }]}>Monthly</Text>
         <Text style={[styles.th, { width: COL.pia }]}>% PIA</Text>
         <Text style={[styles.th, { width: COL.life }]}>Lifetime</Text>
-        <Text style={[styles.th, { width: COL.diff }]}>vs. Optimal</Text>
+        <Text style={[styles.th, { width: COL.diff }]}>vs. Age {baselineAge}</Text>
       </View>
       {rows.map((row) => {
         const diff = row.lifetimeBenefits - optimalLifetime;
@@ -121,8 +130,13 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
   const { person, fra, currentAge, claimingOptions, filingAge, monthlyAtFilingAge, ssaSuggestedLifeExpectancy } =
     analysis;
   const name = personLabel(person.name, index);
-  const optimalAge = nearestWholeClaimAge(filingAge.decimalYears);
-  const optimal = claimingOptions.find((o) => o.age === optimalAge) ?? claimingOptions[0];
+  // `shownAge`, not `optimalAge`. It is the SELECTED scenario rounded to a
+  // whole claiming age, and it was named for the optimizer's answer — which
+  // is how five labels on this page came to call the adviser's own choice
+  // "optimal", on the same page as a note saying the optimizer chose
+  // something else. See `householdBestFilingAge` for the three ages.
+  const shownAge = nearestWholeClaimAge(filingAge.decimalYears);
+  const optimal = claimingOptions.find((o) => o.age === shownAge) ?? claimingOptions[0];
   const dob = `${MONTHS[person.birthMonth - 1]} ${person.birthYear}`;
   const breakEvens = computeBreakEvens(claimingOptions, annualCola);
 
@@ -148,11 +162,11 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
   const exactRow = tableRows.find(
     (r) => r.years === analysis.filingAge.years && r.months === analysis.filingAge.months,
   );
-  const optimalRow = exactRow ?? tableRows.find((r) => r.months === 0 && r.years === optimalAge);
+  const optimalRow = exactRow ?? tableRows.find((r) => r.months === 0 && r.years === shownAge);
 
   // `== null` — an analysis built before this field existed carries
   // `undefined`, not `null`. See `PersonPanel` for the same convention.
-  // Three ages, as on screen — see `householdBestFilingAge`. `optimalAge`
+  // Three ages, as on screen — see `householdBestFilingAge`. `shownAge`
   // above is the SHOWN scenario's, which is what the charts mark.
   const bestTogetherAge = nearestWholeClaimAge(
     (analysis.householdBestFilingAge ?? analysis.filingAge).decimalYears,
@@ -171,7 +185,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
   const soloRow =
     soloAge === null ? undefined : tableRows.find((r) => r.months === 0 && r.years === soloAge);
   const soloDiffers = soloAge !== null && soloAge !== bestTogetherAge;
-  const shownDiffers = optimalAge !== bestTogetherAge;
+  const shownDiffers = shownAge !== bestTogetherAge;
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -225,6 +239,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
       <BenefitTable
         rows={tableRows}
         optimalLifetime={optimalRow?.lifetimeBenefits ?? optimal.lifetimeBenefits}
+        baselineAge={shownAge}
         optimalRowId={bestTogetherRow?.id ?? ''}
         soloRowId={soloRow?.id ?? ''}
         shownRowId={shownDiffers ? (optimalRow?.id ?? '') : ''}
@@ -250,7 +265,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
           <PdfChart
             options={claimingOptions}
             lifeExpectancy={person.lifeExpectancy}
-            optimalAge={optimalAge}
+            optimalAge={shownAge}
             annualCola={annualCola}
           />
         </View>
@@ -296,32 +311,32 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
 
       <Text style={styles.sectionTitle}>Lifetime Benefit Heatmap</Text>
       <Text style={styles.sectionDesc}>
-        Cumulative benefits by claiming age (rows) and living age (columns). Gold row = optimal
-        age {optimalAge}.
+        Cumulative benefits by claiming age (rows) and living age (columns). Gold row = age{' '}
+        {shownAge}, the age shown.
       </Text>
       <View style={styles.chartBox} wrap={false}>
         <PdfHeatmap
           options={claimingOptions}
           lifeExpectancy={person.lifeExpectancy}
-          optimalAge={optimalAge}
+          optimalAge={shownAge}
           annualCola={annualCola}
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Opportunity Cost vs. Optimal</Text>
+      <Text style={styles.sectionTitle}>Opportunity Cost vs. Age {shownAge}</Text>
       <Text style={styles.sectionDesc}>
-        Lifetime income shortfall compared to claiming at age {optimalAge}.
+        Lifetime income shortfall compared to claiming at age {shownAge}.
       </Text>
       <View style={styles.chartBox} wrap={false}>
-        <PdfOpportunityCost options={claimingOptions} optimalAge={optimalAge} />
+        <PdfOpportunityCost options={claimingOptions} optimalAge={shownAge} />
       </View>
 
       <Text style={styles.sectionTitle}>Monthly Benefit Ramp (Ages 62–70)</Text>
       <Text style={styles.sectionDesc}>
-        Monthly check at each claiming age. Gold marker = optimal age {optimalAge}.
+        Monthly check at each claiming age. Gold marker = age {shownAge}, the age shown.
       </Text>
       <View style={styles.chartBox} wrap={false}>
-        <PdfMonthlyRamp options={claimingOptions} optimalAge={optimalAge} />
+        <PdfMonthlyRamp options={claimingOptions} optimalAge={shownAge} />
       </View>
 
       {appendix}

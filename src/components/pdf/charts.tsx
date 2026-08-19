@@ -105,7 +105,7 @@ export function PdfChart({
             <View style={[styles.legendLine, { backgroundColor: age === optimalAge ? GOLD : colors[age] }]} />
             <Text style={styles.legendText}>
               Claim {age}
-              {age === optimalAge ? ' (optimal)' : ''}
+              {age === optimalAge ? ' (shown)' : ''}
             </Text>
           </View>
         ))}
@@ -217,7 +217,7 @@ export function PdfOpportunityCost({ options, optimalAge }: { options: ClaimingO
                 <View style={[styles.pdfBarFill, { width: `${pct}%` }]} />
               )}
             </View>
-            <Text style={styles.pdfBarValue}>{row.isOptimal ? 'Optimal' : formatCurrency(shortfall)}</Text>
+            <Text style={styles.pdfBarValue}>{row.isOptimal ? 'Shown' : formatCurrency(shortfall)}</Text>
           </View>
         );
       })}

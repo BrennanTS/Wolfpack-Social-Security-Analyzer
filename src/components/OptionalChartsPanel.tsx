@@ -61,7 +61,7 @@ export function OptionalChartsPanel({
       </ToggleChartSection>
 
       <ToggleChartSection
-        title="Opportunity Cost vs. Optimal"
+        title={`Opportunity Cost vs. Age ${optimalAge}`}
         description={`How much lifetime income you leave on the table by claiming before or after age ${optimalAge}.`}
         visible={visibility.opportunityCost}
         onToggle={() => onToggle('opportunityCost')}
