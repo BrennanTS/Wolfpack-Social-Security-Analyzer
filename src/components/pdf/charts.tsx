@@ -121,6 +121,42 @@ export function PdfChart({
   );
 }
 
+/**
+ * The colour key for a heatmap, drawn as stepped rects.
+ *
+ * react-pdf gives a `View` no gradient, so this printed as a bar of flat
+ * gold — a key with one colour on it, between the words "Behind" and
+ * "Ahead", explaining nothing. Stepping through `heatmapColorPdf` is what
+ * makes the key the same ramp as the cells it explains, by construction
+ * rather than by two definitions agreeing.
+ *
+ * Exported for its test: a flat bar is invisible to a text walk, which is
+ * how the one-colour version survived here in the first place.
+ */
+export function PdfRampBar({ width = 100, height = 6, steps = 28 }: {
+  width?: number;
+  height?: number;
+  steps?: number;
+}) {
+  const stepW = width / steps;
+  return (
+    <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {Array.from({ length: steps }, (_, i) => (
+        <Rect
+          key={i}
+          x={i * stepW}
+          y={0}
+          // A hair of overlap, so the seams between steps cannot show as
+          // hairlines the way the combined-income bars once did.
+          width={stepW + 0.5}
+          height={height}
+          fill={heatmapColorPdf(steps === 1 ? 1 : i / (steps - 1))}
+        />
+      ))}
+    </Svg>
+  );
+}
+
 export function PdfHeatmap({
   options,
   lifeExpectancy,
@@ -217,7 +253,9 @@ export function PdfHeatmap({
       </Svg>
       <View style={styles.pdfHeatmapLegend}>
         <Text style={styles.pdfHeatmapLegendText}>Behind in this column</Text>
-        <View style={styles.pdfHeatmapLegendBar} />
+        <View style={styles.pdfHeatmapLegendBar}>
+          <PdfRampBar />
+        </View>
         <Text style={styles.pdfHeatmapLegendText}>Ahead in this column</Text>
       </View>
     </View>

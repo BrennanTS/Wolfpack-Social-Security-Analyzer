@@ -283,11 +283,13 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 6,
   },
+  /* Just a spacer now — the ramp itself is `PdfRampBar`, drawn as stepped
+     rects because react-pdf gives a `View` no gradient. A flat
+     `backgroundColor` here printed a one-colour key. */
   pdfHeatmapLegendBar: {
     width: 100,
     height: 6,
     marginHorizontal: 8,
-    backgroundColor: GOLD,
   },
   pdfHeatmapLegendText: { fontSize: 6.5, color: MUTED },
   pdfBarRow: {
