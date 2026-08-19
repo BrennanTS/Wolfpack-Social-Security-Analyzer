@@ -31,7 +31,7 @@ const claimingOptions = [62, 67, 70].map((age) => ({
 // As of the Task 19 fix round, OptionalChartsPanel takes plain
 // PersonAnalysis-derived values directly (no legacy AnalysisResult/UserInputs
 // wrapper) — see its own doc comment.
-const optimalAge = 70;
+const shownAge = 70;
 const lifeExpectancy = 85;
 const annualCola = 2.5;
 
@@ -40,7 +40,7 @@ describe('OptionalChartsPanel', () => {
     render(
       <OptionalChartsPanel
         claimingOptions={claimingOptions}
-        optimalAge={optimalAge}
+        shownAge={shownAge}
         lifeExpectancy={lifeExpectancy}
         annualCola={annualCola}
         visibility={DEFAULT_CHART_VISIBILITY}
@@ -54,7 +54,7 @@ describe('OptionalChartsPanel', () => {
     render(
       <OptionalChartsPanel
         claimingOptions={claimingOptions}
-        optimalAge={optimalAge}
+        shownAge={shownAge}
         lifeExpectancy={lifeExpectancy}
         annualCola={annualCola}
         visibility={DEFAULT_CHART_VISIBILITY}

@@ -48,8 +48,8 @@ describe('generateHeatmapData', () => {
 describe('generateOpportunityCostData', () => {
   it('scores every age against the optimal age, which is zero', () => {
     const rows = generateOpportunityCostData(options, 67);
-    expect(rows.find((r) => r.age === 67)).toMatchObject({ vsOptimal: 0, isOptimal: true });
-    expect(rows.find((r) => r.age === 62)!.vsOptimal).toBe(-100_000);
+    expect(rows.find((r) => r.age === 67)).toMatchObject({ vsShown: 0, isShown: true });
+    expect(rows.find((r) => r.age === 62)!.vsShown).toBe(-100_000);
   });
 });
 
@@ -59,7 +59,7 @@ describe('generateMonthlyRampData', () => {
     expect(rows.find((r) => r.age === 70)).toMatchObject({
       monthly: 3100,
       percentOfPia: 124,
-      isOptimal: true,
+      isShown: true,
     });
   });
 });

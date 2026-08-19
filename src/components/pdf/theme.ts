@@ -306,6 +306,6 @@ export const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   pdfBarFill: { height: 10, backgroundColor: RED, borderRadius: 2 },
-  pdfBarFillOptimal: { height: 10, backgroundColor: GREEN, borderRadius: 2, width: 4 },
+  pdfBarFillShown: { height: 10, backgroundColor: GREEN, borderRadius: 2, width: 4 },
   pdfBarValue: { width: 52, fontSize: 7, color: MUTED, textAlign: 'right' },
 });

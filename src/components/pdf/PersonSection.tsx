@@ -46,23 +46,26 @@ interface Props {
 
 function BenefitTable({
   rows,
-  optimalLifetime,
+  baselineLifetime,
   baselineAge,
-  optimalRowId,
+  bestTogetherRowId,
   soloRowId,
   shownRowId,
 }: {
   rows: ClaimingRow[];
-  optimalLifetime: number;
   /**
-   * The age every `vs.` figure is measured FROM — the shown scenario, which
-   * is what `optimalLifetime` above is the lifetime of. Named in the header
-   * rather than left as "vs. Optimal", which claimed the baseline was the
-   * optimizer's answer while six of nine rows printed a positive number
-   * against it.
+   * The lifetime total every `vs.` figure is measured FROM, and `baselineAge`
+   * is the age it belongs to — the SHOWN scenario, not the optimum.
+   *
+   * These two were `optimalLifetime` beside `optimalRowId`, which is the
+   * household BEST row: one component, two props named "optimal", meaning
+   * two different ages. The header read "vs. Optimal" off the wrong one and
+   * printed six of nine rows positive against it.
    */
+  baselineLifetime: number;
   baselineAge: number;
-  optimalRowId: string;
+  /** The optimizer's row for this household — genuinely the optimum. */
+  bestTogetherRowId: string;
   /**
    * The row this person would file at ALONE. Empty only for a lone claimant,
    * who has no household answer to be contrasted with; a married person whose
@@ -82,17 +85,17 @@ function BenefitTable({
         <Text style={[styles.th, { width: COL.diff }]}>vs. Age {baselineAge}</Text>
       </View>
       {rows.map((row) => {
-        const diff = row.lifetimeBenefits - optimalLifetime;
-        const isOptimal = row.id === optimalRowId;
+        const diff = row.lifetimeBenefits - baselineLifetime;
+        const isBestTogether = row.id === bestTogetherRowId;
         return (
-          <View key={row.id} style={[styles.tableRow, isOptimal ? styles.tableRowOptimal : {}]}>
+          <View key={row.id} style={[styles.tableRow, isBestTogether ? styles.tableRowOptimal : {}]}>
             <View style={[styles.tdAge, { width: COL.age }]}>
               <Text style={styles.tdBold}>{row.label}</Text>
               {/* Same rule as the screen: TOGETHER whenever this person has
                   a spouse, so the pair with ALONE stays legible even where
                   both land on one row. OPT for a lone claimant, who has no
                   second answer to be distinguished from. */}
-              {isOptimal && (
+              {isBestTogether && (
                 <Text style={styles.badge}>{soloRowId === '' ? 'OPT' : 'TOGETHER'}</Text>
               )}
               {soloRowId !== '' && row.id === soloRowId && (
@@ -162,7 +165,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
   const exactRow = tableRows.find(
     (r) => r.years === analysis.filingAge.years && r.months === analysis.filingAge.months,
   );
-  const optimalRow = exactRow ?? tableRows.find((r) => r.months === 0 && r.years === shownAge);
+  const shownRow = exactRow ?? tableRows.find((r) => r.months === 0 && r.years === shownAge);
 
   // `== null` — an analysis built before this field existed carries
   // `undefined`, not `null`. See `PersonPanel` for the same convention.
@@ -238,11 +241,11 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
       </Text>
       <BenefitTable
         rows={tableRows}
-        optimalLifetime={optimalRow?.lifetimeBenefits ?? optimal.lifetimeBenefits}
+        baselineLifetime={shownRow?.lifetimeBenefits ?? optimal.lifetimeBenefits}
         baselineAge={shownAge}
-        optimalRowId={bestTogetherRow?.id ?? ''}
+        bestTogetherRowId={bestTogetherRow?.id ?? ''}
         soloRowId={soloRow?.id ?? ''}
-        shownRowId={shownDiffers ? (optimalRow?.id ?? '') : ''}
+        shownRowId={shownDiffers ? (shownRow?.id ?? '') : ''}
       />
       {(soloDiffers || shownDiffers) && (
         <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
@@ -265,7 +268,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
           <PdfChart
             options={claimingOptions}
             lifeExpectancy={person.lifeExpectancy}
-            optimalAge={shownAge}
+            shownAge={shownAge}
             annualCola={annualCola}
           />
         </View>
@@ -318,7 +321,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         <PdfHeatmap
           options={claimingOptions}
           lifeExpectancy={person.lifeExpectancy}
-          optimalAge={shownAge}
+          shownAge={shownAge}
           annualCola={annualCola}
         />
       </View>
@@ -328,7 +331,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         Lifetime income shortfall compared to claiming at age {shownAge}.
       </Text>
       <View style={styles.chartBox} wrap={false}>
-        <PdfOpportunityCost options={claimingOptions} optimalAge={shownAge} />
+        <PdfOpportunityCost options={claimingOptions} shownAge={shownAge} />
       </View>
 
       <Text style={styles.sectionTitle}>Monthly Benefit Ramp (Ages 62–70)</Text>
@@ -336,7 +339,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         Monthly check at each claiming age. Gold marker = age {shownAge}, the age shown.
       </Text>
       <View style={styles.chartBox} wrap={false}>
-        <PdfMonthlyRamp options={claimingOptions} optimalAge={shownAge} />
+        <PdfMonthlyRamp options={claimingOptions} shownAge={shownAge} />
       </View>
 
       {appendix}

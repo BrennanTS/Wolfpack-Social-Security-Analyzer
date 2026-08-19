@@ -25,7 +25,7 @@ import {
 interface BenefitChartProps {
   options: ClaimingOption[];
   lifeExpectancy: number;
-  optimalAge: number;
+  shownAge: number;
   annualCola?: number;
 }
 
@@ -35,7 +35,7 @@ const HIGHLIGHT_AGES = [62, 67, 70];
 export function BenefitChart({
   options,
   lifeExpectancy,
-  optimalAge,
+  shownAge,
   annualCola = 0,
 }: BenefitChartProps) {
   const chartData = useMemo(
@@ -57,11 +57,11 @@ export function BenefitChart({
                 className="chart-legend-swatch"
                 style={{
                   background:
-                    opt.age === optimalAge ? CLAIM_AGE_COLORS[70] : CLAIM_AGE_COLORS[opt.age],
+                    opt.age === shownAge ? CLAIM_AGE_COLORS[70] : CLAIM_AGE_COLORS[opt.age],
                 }}
               />
               Claim at {opt.age}
-              {opt.age === optimalAge ? ' (shown)' : ''}
+              {opt.age === shownAge ? ' (shown)' : ''}
             </span>
           ))}
         </div>
@@ -116,8 +116,8 @@ export function BenefitChart({
                 type="monotone"
                 dataKey={`age${opt.age}`}
                 name={`age${opt.age}`}
-                stroke={opt.age === optimalAge ? CLAIM_AGE_COLORS[70] : CLAIM_AGE_COLORS[opt.age]}
-                strokeWidth={opt.age === optimalAge ? 3 : 2}
+                stroke={opt.age === shownAge ? CLAIM_AGE_COLORS[70] : CLAIM_AGE_COLORS[opt.age]}
+                strokeWidth={opt.age === shownAge ? 3 : 2}
                 dot={false}
                 connectNulls
               />

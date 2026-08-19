@@ -26,12 +26,12 @@ const TICK = { fontSize: 5.5, fill: MUTED };
 export function PdfChart({
   options,
   lifeExpectancy,
-  optimalAge,
+  shownAge,
   annualCola,
 }: {
   options: ClaimingOption[];
   lifeExpectancy: number;
-  optimalAge: number;
+  shownAge: number;
   annualCola: number;
 }) {
   const data = generateCumulativeChartData(options, lifeExpectancy, annualCola);
@@ -96,16 +96,16 @@ export function PdfChart({
         )}
         <Line x1={xScale(lifeExpectancy)} y1={padT} x2={xScale(lifeExpectancy)} y2={padT + plotH} stroke={RED} strokeWidth={1} strokeDasharray="3 2" />
         {lineAges.map((age) => (
-          <Path key={age} d={linePath(age)} stroke={age === optimalAge ? GOLD : colors[age]} strokeWidth={age === optimalAge ? 2 : 1.2} fill="none" />
+          <Path key={age} d={linePath(age)} stroke={age === shownAge ? GOLD : colors[age]} strokeWidth={age === shownAge ? 2 : 1.2} fill="none" />
         ))}
       </Svg>
       <View style={styles.chartLegend}>
         {lineAges.map((age) => (
           <View key={age} style={styles.legendItem}>
-            <View style={[styles.legendLine, { backgroundColor: age === optimalAge ? GOLD : colors[age] }]} />
+            <View style={[styles.legendLine, { backgroundColor: age === shownAge ? GOLD : colors[age] }]} />
             <Text style={styles.legendText}>
               Claim {age}
-              {age === optimalAge ? ' (shown)' : ''}
+              {age === shownAge ? ' (shown)' : ''}
             </Text>
           </View>
         ))}
@@ -117,12 +117,12 @@ export function PdfChart({
 export function PdfHeatmap({
   options,
   lifeExpectancy,
-  optimalAge,
+  shownAge,
   annualCola,
 }: {
   options: ClaimingOption[];
   lifeExpectancy: number;
-  optimalAge: number;
+  shownAge: number;
   annualCola: number;
 }) {
   const cells = generateHeatmapData(options, lifeExpectancy, annualCola);
@@ -159,8 +159,8 @@ export function PdfHeatmap({
             y={headerH + ri * rowH + rowH * 0.65}
             style={{
               fontSize: 6,
-              fill: claimAge === optimalAge ? GOLD : MUTED,
-              fontFamily: claimAge === optimalAge ? 'Helvetica-Bold' : 'Helvetica',
+              fill: claimAge === shownAge ? GOLD : MUTED,
+              fontFamily: claimAge === shownAge ? 'Helvetica-Bold' : 'Helvetica',
             }}
             textAnchor="end"
           >
@@ -195,29 +195,29 @@ export function PdfHeatmap({
   );
 }
 
-export function PdfOpportunityCost({ options, optimalAge }: { options: ClaimingOption[]; optimalAge: number }) {
-  const data = generateOpportunityCostData(options, optimalAge);
-  const maxShortfall = Math.max(...data.map((d) => (d.vsOptimal < 0 ? Math.abs(d.vsOptimal) : 0)), 1);
+export function PdfOpportunityCost({ options, shownAge }: { options: ClaimingOption[]; shownAge: number }) {
+  const data = generateOpportunityCostData(options, shownAge);
+  const maxShortfall = Math.max(...data.map((d) => (d.vsShown < 0 ? Math.abs(d.vsShown) : 0)), 1);
 
   return (
     <View>
       {data.map((row) => {
-        const shortfall = row.vsOptimal < 0 ? Math.abs(row.vsOptimal) : 0;
-        const pct = row.isOptimal ? 0 : (shortfall / maxShortfall) * 100;
+        const shortfall = row.vsShown < 0 ? Math.abs(row.vsShown) : 0;
+        const pct = row.isShown ? 0 : (shortfall / maxShortfall) * 100;
         return (
           <View key={row.age} style={styles.pdfBarRow}>
             <Text style={styles.pdfBarLabel}>
               {row.age}
-              {row.isOptimal ? ' *' : ''}
+              {row.isShown ? ' *' : ''}
             </Text>
             <View style={styles.pdfBarTrack}>
-              {row.isOptimal ? (
-                <View style={styles.pdfBarFillOptimal} />
+              {row.isShown ? (
+                <View style={styles.pdfBarFillShown} />
               ) : (
                 <View style={[styles.pdfBarFill, { width: `${pct}%` }]} />
               )}
             </View>
-            <Text style={styles.pdfBarValue}>{row.isOptimal ? 'Shown' : formatCurrency(shortfall)}</Text>
+            <Text style={styles.pdfBarValue}>{row.isShown ? 'Shown' : formatCurrency(shortfall)}</Text>
           </View>
         );
       })}
@@ -225,8 +225,8 @@ export function PdfOpportunityCost({ options, optimalAge }: { options: ClaimingO
   );
 }
 
-export function PdfMonthlyRamp({ options, optimalAge }: { options: ClaimingOption[]; optimalAge: number }) {
-  const data = generateMonthlyRampData(options, optimalAge);
+export function PdfMonthlyRamp({ options, shownAge }: { options: ClaimingOption[]; shownAge: number }) {
+  const data = generateMonthlyRampData(options, shownAge);
   const W = CHART_INNER_W;
   const H = 88;
   const padL = 32;
@@ -270,15 +270,15 @@ export function PdfMonthlyRamp({ options, optimalAge }: { options: ClaimingOptio
         {data.map((d) => (
           <Rect
             key={d.age}
-            x={xScale(d.age) - (d.isOptimal ? 2.5 : 1.5)}
-            y={yScale(d.monthly) - (d.isOptimal ? 2.5 : 1.5)}
-            width={d.isOptimal ? 5 : 3}
-            height={d.isOptimal ? 5 : 3}
-            fill={d.isOptimal ? GOLD : INK}
-            rx={d.isOptimal ? 2.5 : 1.5}
+            x={xScale(d.age) - (d.isShown ? 2.5 : 1.5)}
+            y={yScale(d.monthly) - (d.isShown ? 2.5 : 1.5)}
+            width={d.isShown ? 5 : 3}
+            height={d.isShown ? 5 : 3}
+            fill={d.isShown ? GOLD : INK}
+            rx={d.isShown ? 2.5 : 1.5}
           />
         ))}
-        <Line x1={xScale(optimalAge)} y1={padT} x2={xScale(optimalAge)} y2={padT + plotH} stroke={GOLD} strokeWidth={0.8} strokeDasharray="2 2" />
+        <Line x1={xScale(shownAge)} y1={padT} x2={xScale(shownAge)} y2={padT + plotH} stroke={GOLD} strokeWidth={0.8} strokeDasharray="2 2" />
       </Svg>
     </View>
   );

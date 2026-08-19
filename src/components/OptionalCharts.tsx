@@ -35,18 +35,18 @@ import {
 
 interface MonthlyBenefitBarChartProps {
   options: ClaimingOption[];
-  optimalAge: number;
+  shownAge: number;
 }
 
-export function MonthlyBenefitBarChart({ options, optimalAge }: MonthlyBenefitBarChartProps) {
+export function MonthlyBenefitBarChart({ options, shownAge }: MonthlyBenefitBarChartProps) {
   const data = useMemo(
     () =>
       options.map((o) => ({
         age: o.age,
         monthly: o.monthlyBenefit,
-        isOptimal: o.age === optimalAge,
+        isShown: o.age === shownAge,
       })),
-    [options, optimalAge],
+    [options, shownAge],
   );
 
   return (
@@ -80,8 +80,8 @@ export function MonthlyBenefitBarChart({ options, optimalAge }: MonthlyBenefitBa
           {data.map((entry) => (
             <Cell
               key={entry.age}
-              fill={entry.isOptimal ? GOLD : INK}
-              fillOpacity={entry.isOptimal ? 1 : 0.75}
+              fill={entry.isShown ? GOLD : INK}
+              fillOpacity={entry.isShown ? 1 : 0.75}
             />
           ))}
         </Bar>
@@ -93,18 +93,18 @@ export function MonthlyBenefitBarChart({ options, optimalAge }: MonthlyBenefitBa
 
 interface LifetimeBarChartProps {
   options: ClaimingOption[];
-  optimalAge: number;
+  shownAge: number;
 }
 
-export function LifetimeBarChart({ options, optimalAge }: LifetimeBarChartProps) {
+export function LifetimeBarChart({ options, shownAge }: LifetimeBarChartProps) {
   const data = useMemo(
     () =>
       options.map((o) => ({
         age: o.age,
         lifetime: o.lifetimeBenefits,
-        isOptimal: o.age === optimalAge,
+        isShown: o.age === shownAge,
       })),
-    [options, optimalAge],
+    [options, shownAge],
   );
 
   return (
@@ -138,8 +138,8 @@ export function LifetimeBarChart({ options, optimalAge }: LifetimeBarChartProps)
           {data.map((entry) => (
             <Cell
               key={entry.age}
-              fill={entry.isOptimal ? GOLD : INK}
-              fillOpacity={entry.isOptimal ? 1 : 0.7}
+              fill={entry.isShown ? GOLD : INK}
+              fillOpacity={entry.isShown ? 1 : 0.7}
             />
           ))}
         </Bar>
@@ -214,14 +214,14 @@ export function ColaProjectionChart({
 interface LifetimeHeatmapProps {
   options: ClaimingOption[];
   lifeExpectancy: number;
-  optimalAge: number;
+  shownAge: number;
   annualCola: number;
 }
 
 export function LifetimeHeatmapChart({
   options,
   lifeExpectancy,
-  optimalAge,
+  shownAge,
   annualCola,
 }: LifetimeHeatmapProps) {
   const cells = useMemo(
@@ -249,10 +249,10 @@ export function LifetimeHeatmapChart({
         {claimAges.flatMap((claimAge) => [
           <div
             key={`y-${claimAge}`}
-            className={`heatmap-y-label${claimAge === optimalAge ? ' heatmap-y-label-optimal' : ''}`}
+            className={`heatmap-y-label${claimAge === shownAge ? ' heatmap-y-label-shown' : ''}`}
           >
             {claimAge}
-            {claimAge === optimalAge ? ' ★' : ''}
+            {claimAge === shownAge ? ' ★' : ''}
           </div>,
           ...livingAges.map((livingAge) => {
             if (livingAge < claimAge) {
@@ -268,7 +268,7 @@ export function LifetimeHeatmapChart({
             return (
               <div
                 key={`${claimAge}-${livingAge}`}
-                className={`heatmap-cell${claimAge === optimalAge ? ' heatmap-cell-optimal-row' : ''}`}
+                className={`heatmap-cell${claimAge === shownAge ? ' heatmap-cell-shown-row' : ''}`}
                 // The ramp lives in CSS so light and dark can use different
                 // endpoints. A single shared ramp meant a pale cell kept pale
                 // in dark mode while the label flipped to white — unreadable.
@@ -300,18 +300,18 @@ export function LifetimeHeatmapChart({
 
 interface OpportunityCostChartProps {
   options: ClaimingOption[];
-  optimalAge: number;
+  shownAge: number;
 }
 
-export function OpportunityCostChart({ options, optimalAge }: OpportunityCostChartProps) {
+export function OpportunityCostChart({ options, shownAge }: OpportunityCostChartProps) {
   const data = useMemo(
     () =>
-      generateOpportunityCostData(options, optimalAge).map((row) => ({
+      generateOpportunityCostData(options, shownAge).map((row) => ({
         ...row,
-        label: row.age === optimalAge ? `${row.age} (shown)` : String(row.age),
-        shortfall: row.vsOptimal < 0 ? Math.abs(row.vsOptimal) : 0,
+        label: row.age === shownAge ? `${row.age} (shown)` : String(row.age),
+        shortfall: row.vsShown < 0 ? Math.abs(row.vsShown) : 0,
       })),
-    [options, optimalAge],
+    [options, shownAge],
   );
 
   return (
@@ -340,17 +340,20 @@ export function OpportunityCostChart({ options, optimalAge }: OpportunityCostCha
           labelStyle={CHART_TOOLTIP_LABEL_STYLE}
           formatter={(value, _name, item) => {
             const row = item.payload as (typeof data)[number];
-            if (row.isOptimal) return ['—', 'Optimal strategy'];
+            // Both strings name the baseline as what it is — the age the
+            // report is built on. They said "optimal", which is the shown
+            // scenario only when the adviser has not chosen another one.
+            if (row.isShown) return ['—', 'The age shown'];
             const num = typeof value === 'number' ? value : 0;
-            return [formatCurrency(num), 'Lifetime shortfall vs optimal'];
+            return [formatCurrency(num), `Lifetime shortfall vs age ${shownAge}`];
           }}
         />
         <Bar dataKey="shortfall" radius={[0, 4, 4, 0]} maxBarSize={22}>
           {data.map((entry) => (
             <Cell
               key={entry.age}
-              fill={entry.isOptimal ? GOLD : CHART_RED}
-              fillOpacity={entry.isOptimal ? 0.35 : 0.75}
+              fill={entry.isShown ? GOLD : CHART_RED}
+              fillOpacity={entry.isShown ? 0.35 : 0.75}
             />
           ))}
         </Bar>
@@ -362,13 +365,13 @@ export function OpportunityCostChart({ options, optimalAge }: OpportunityCostCha
 
 interface MonthlyRampChartProps {
   options: ClaimingOption[];
-  optimalAge: number;
+  shownAge: number;
 }
 
-export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps) {
+export function MonthlyRampChart({ options, shownAge }: MonthlyRampChartProps) {
   const data = useMemo(
-    () => generateMonthlyRampData(options, optimalAge),
-    [options, optimalAge],
+    () => generateMonthlyRampData(options, shownAge),
+    [options, shownAge],
   );
   const age62 = data.find((d) => d.age === 62)?.monthly ?? 1;
 
@@ -407,7 +410,7 @@ export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps)
           labelFormatter={(age) => `Claim at age ${age}`}
         />
         <ReferenceLine
-          x={optimalAge}
+          x={shownAge}
           stroke={GOLD}
           strokeDasharray="4 4"
           label={{ value: 'Shown', fill: GOLD, fontSize: 10, position: 'top' }}
@@ -426,8 +429,8 @@ export function MonthlyRampChart({ options, optimalAge }: MonthlyRampChartProps)
                 key={row.age}
                 cx={cx}
                 cy={cy}
-                r={row.isOptimal ? 6 : 4}
-                fill={row.isOptimal ? GOLD : INK}
+                r={row.isShown ? 6 : 4}
+                fill={row.isShown ? GOLD : INK}
                 stroke="white"
                 strokeWidth={2}
               />

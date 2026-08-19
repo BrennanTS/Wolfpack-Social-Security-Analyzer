@@ -14,7 +14,7 @@ export type { ChartKey };
 
 interface OptionalChartsPanelProps {
   claimingOptions: ClaimingOption[];
-  optimalAge: number;
+  shownAge: number;
   lifeExpectancy: number;
   annualCola: number;
   visibility: Record<ChartKey, boolean>;
@@ -23,19 +23,19 @@ interface OptionalChartsPanelProps {
 
 /**
  * Per-person optional chart gallery — takes plain `PersonAnalysis`-derived
- * values (`claimingOptions`, `optimalAge`, `lifeExpectancy`, `annualCola`)
+ * values (`claimingOptions`, `shownAge`, `lifeExpectancy`, `annualCola`)
  * rather than a household-level shape, so it has no dependency on
  * `household.ts`. Rendered once per person, inside `PersonPanel`.
  */
 export function OptionalChartsPanel({
   claimingOptions,
-  optimalAge,
+  shownAge,
   lifeExpectancy,
   annualCola,
   visibility,
   onToggle,
 }: OptionalChartsPanelProps) {
-  const optimal = claimingOptions.find((o) => o.age === optimalAge)!;
+  const optimal = claimingOptions.find((o) => o.age === shownAge)!;
 
   return (
     <div className="optional-charts">
@@ -55,18 +55,18 @@ export function OptionalChartsPanel({
         <LifetimeHeatmapChart
           options={claimingOptions}
           lifeExpectancy={lifeExpectancy}
-          optimalAge={optimalAge}
+          shownAge={shownAge}
           annualCola={annualCola}
         />
       </ToggleChartSection>
 
       <ToggleChartSection
-        title={`Opportunity Cost vs. Age ${optimalAge}`}
-        description={`How much lifetime income you leave on the table by claiming before or after age ${optimalAge}.`}
+        title={`Opportunity Cost vs. Age ${shownAge}`}
+        description={`How much lifetime income you leave on the table by claiming before or after age ${shownAge}.`}
         visible={visibility.opportunityCost}
         onToggle={() => onToggle('opportunityCost')}
       >
-        <OpportunityCostChart options={claimingOptions} optimalAge={optimalAge} />
+        <OpportunityCostChart options={claimingOptions} shownAge={shownAge} />
       </ToggleChartSection>
 
       <ToggleChartSection
@@ -75,7 +75,7 @@ export function OptionalChartsPanel({
         visible={visibility.monthlyRamp}
         onToggle={() => onToggle('monthlyRamp')}
       >
-        <MonthlyRampChart options={claimingOptions} optimalAge={optimalAge} />
+        <MonthlyRampChart options={claimingOptions} shownAge={shownAge} />
       </ToggleChartSection>
 
       <ToggleChartSection
@@ -84,7 +84,7 @@ export function OptionalChartsPanel({
         visible={visibility.monthlyBar}
         onToggle={() => onToggle('monthlyBar')}
       >
-        <MonthlyBenefitBarChart options={claimingOptions} optimalAge={optimalAge} />
+        <MonthlyBenefitBarChart options={claimingOptions} shownAge={shownAge} />
       </ToggleChartSection>
 
       <ToggleChartSection
@@ -98,17 +98,17 @@ export function OptionalChartsPanel({
         visible={visibility.lifetimeBar}
         onToggle={() => onToggle('lifetimeBar')}
       >
-        <LifetimeBarChart options={claimingOptions} optimalAge={optimalAge} />
+        <LifetimeBarChart options={claimingOptions} shownAge={shownAge} />
       </ToggleChartSection>
 
       <ToggleChartSection
         title="COLA Growth Projection"
-        description={`How your monthly benefit grows from age ${optimalAge} to ${lifeExpectancy} at ${annualCola}% annual COLA.`}
+        description={`How your monthly benefit grows from age ${shownAge} to ${lifeExpectancy} at ${annualCola}% annual COLA.`}
         visible={visibility.colaProjection}
         onToggle={() => onToggle('colaProjection')}
       >
         <ColaProjectionChart
-          claimAge={optimalAge}
+          claimAge={shownAge}
           monthlyBenefit={optimal.monthlyBenefit}
           lifeExpectancy={lifeExpectancy}
           annualCola={annualCola}

@@ -1929,7 +1929,7 @@ tbody tr:hover {
   padding-right: 8px;
 }
 
-.heatmap-y-label-optimal {
+.heatmap-y-label-shown {
   color: var(--gold-dark);
 }
 
@@ -1964,7 +1964,7 @@ tbody tr:hover {
   opacity: 0.35;
 }
 
-.heatmap-cell-optimal-row {
+.heatmap-cell-shown-row {
   outline: 1px solid rgba(184, 150, 90, 0.45);
   outline-offset: -1px;
 }

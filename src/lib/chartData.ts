@@ -8,15 +8,25 @@ export interface HeatmapCell {
 
 export interface OpportunityCostRow {
   age: number;
-  vsOptimal: number;
-  isOptimal: boolean;
+  /**
+   * Lifetime benefits at this age less those at the SHOWN age — positive
+   * where this age would pay more. Named for the baseline it is measured
+   * from, which is the selected scenario and NOT the optimizer's answer:
+   * these two were the same value until scenarios made a filing age an
+   * input, and the report spent a release calling a chosen age optimal
+   * while six of nine rows printed a positive number against it.
+   */
+  vsShown: number;
+  /** The baseline row itself — the age every other row is compared to. */
+  isShown: boolean;
 }
 
 export interface MonthlyRampRow {
   age: number;
   monthly: number;
   percentOfPia: number;
-  isOptimal: boolean;
+  /** The age the charts mark — the shown scenario. See `OpportunityCostRow`. */
+  isShown: boolean;
 }
 
 /** Living-age ticks for heatmap axes (keeps labels readable). */
@@ -66,29 +76,29 @@ export function getHeatmapValue(
   return cell?.cumulative ?? null;
 }
 
-/** Lifetime benefit shortfall vs the optimal claiming age. */
+/** Lifetime benefit shortfall against the age the report is built on. */
 export function generateOpportunityCostData(
   options: ClaimingOption[],
-  optimalAge: number,
+  shownAge: number,
 ): OpportunityCostRow[] {
-  const optimal = options.find((o) => o.age === optimalAge)!;
+  const shown = options.find((o) => o.age === shownAge)!;
   return options.map((o) => ({
     age: o.age,
-    vsOptimal: o.lifetimeBenefits - optimal.lifetimeBenefits,
-    isOptimal: o.age === optimalAge,
+    vsShown: o.lifetimeBenefits - shown.lifetimeBenefits,
+    isShown: o.age === shownAge,
   }));
 }
 
 /** Monthly benefit ramp from 62 through 70. */
 export function generateMonthlyRampData(
   options: ClaimingOption[],
-  optimalAge: number,
+  shownAge: number,
 ): MonthlyRampRow[] {
   return options.map((o) => ({
     age: o.age,
     monthly: o.monthlyBenefit,
     percentOfPia: o.percentOfPia,
-    isOptimal: o.age === optimalAge,
+    isShown: o.age === shownAge,
   }));
 }
 

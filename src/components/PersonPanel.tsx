@@ -463,7 +463,7 @@ export function PersonPanel({
         <BenefitChart
           options={claimingOptions}
           lifeExpectancy={analysis.person.lifeExpectancy}
-          optimalAge={shownAge}
+          shownAge={shownAge}
           annualCola={annualCola}
         />
 
@@ -472,7 +472,7 @@ export function PersonPanel({
 
       <OptionalChartsPanel
         claimingOptions={claimingOptions}
-        optimalAge={shownAge}
+        shownAge={shownAge}
         lifeExpectancy={analysis.person.lifeExpectancy}
         annualCola={annualCola}
         visibility={chartVisibility}
