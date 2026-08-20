@@ -11,7 +11,7 @@ const KEY = 'wolfpack.planToAge.v1';
  * `localStorage` is `undefined`, so a test leaning on the environment would
  * have exercised the not-available path while appearing to test the happy
  * one. Supplying a controlled implementation means each case below tests the
- * behaviour it names.
+ * behavior it names.
  */
 function memoryStorage(): Storage {
   const map = new Map<string, string>();

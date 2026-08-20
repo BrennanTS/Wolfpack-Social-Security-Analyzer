@@ -562,7 +562,7 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   await expect(dimmed.first()).toHaveCSS('opacity', '0.4');
 
   // Turning the highlight off retires the count and the dimming with it —
-  // an excluded square is de-emphasised, never presented as unavailable.
+  // an excluded square is de-emphasized, never presented as unavailable.
   await page.getByTestId('target-range-toggle').uncheck();
   await expect(count).toHaveCount(0);
   await expect(page.locator('.claim-grid-dimmed')).toHaveCount(0);
@@ -728,7 +728,7 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
       expect(await contrast(which), `${which} at rest in ${theme}`).toBeGreaterThan(4.5);
 
       await button.hover();
-      // Longer than the 0.25s colour transition, so the measurement is of a
+      // Longer than the 0.25s color transition, so the measurement is of a
       // settled state rather than a frame of the fade.
       await page.waitForTimeout(500);
       expect(await contrast(which), `${which} on hover in ${theme}`).toBeGreaterThan(4.5);

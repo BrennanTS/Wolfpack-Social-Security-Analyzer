@@ -18,7 +18,7 @@ export interface ArcFlightOptions {
   durationMs?: number;
   /** Size of the token in pixels. */
   size?: number;
-  /** CSS colour for the token. */
+  /** CSS color for the token. */
   color?: string;
 }
 
@@ -110,9 +110,9 @@ export function flyBetween(
   });
   document.body.appendChild(token);
 
-  const centre = (r: DOMRect) => ({ x: r.left + r.width / 2 - size / 2, y: r.top + r.height / 2 - size / 2 });
-  const start = centre(a);
-  const end = centre(b);
+  const center = (r: DOMRect) => ({ x: r.left + r.width / 2 - size / 2, y: r.top + r.height / 2 - size / 2 });
+  const start = center(a);
+  const end = center(b);
   // The arc peaks at the midpoint's height less the lift, so this is how far
   // it may rise before the token clears the top of the window.
   const headroom = (start.y + end.y) / 2 - VIEWPORT_MARGIN;

@@ -6,7 +6,7 @@ export interface YearlySuspicion {
   /**
    * The monthly equivalent to offer them, rounded to a WHOLE DOLLAR.
    *
-   * Whole dollars rather than cents, for two reasons. The button is labelled
+   * Whole dollars rather than cents, for two reasons. The button is labeled
    * with `formatCurrency`, which is zero-decimal, so a cent-precise suggestion
    * produced a control reading "Use $2,583/month" that entered 2583.33 — in a
    * feature whose entire justification is not silently substituting numbers,

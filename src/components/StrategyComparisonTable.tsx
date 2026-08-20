@@ -68,7 +68,7 @@ function monthsAvailable(options: FilingAgeChoice[], years: number): number[] {
 }
 
 /**
- * The centrepiece of the household tab: shows the client what the optimizer
+ * The centerpiece of the household tab: shows the client what the optimizer
  * rejected and by how much, not just what it picked. Rows carry real engine
  * numbers (`HouseholdStrategy` from `household.ts`) — nothing here is
  * illustrative. `filingAges`/`people` are variable-length so the same table

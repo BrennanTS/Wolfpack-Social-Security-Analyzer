@@ -294,7 +294,7 @@ describe('the printed spousal sentence, over real households', () => {
   it('prints no placeholder when the lower earner dies before the higher earner files', async () => {
     // Eligible but bandless: `atFra` is a positive $1,250 and the engine still
     // emits no Spousal period, because the period's end date precedes its
-    // start. Before the absence was modelled as null this printed
+    // start. Before the absence was modeled as null this printed
     // "beginning at age — — the later of…".
     const young: Person = {
       id: 'a', name: 'Avery', birthYear: 1976, birthMonth: 6,

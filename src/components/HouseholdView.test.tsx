@@ -147,7 +147,7 @@ describe('HouseholdView', () => {
     // printed a recommended $845/mo against an actual recommended income of
     // $3,000/mo.
     //
-    // This used to assert a throw, which was the honest behaviour while there
+    // This used to assert a throw, which was the honest behavior while there
     // was no widowed display. Now there is one, so the assertion is that it
     // renders — and, just as importantly, that the single-claimant surface is
     // NOT what rendered.

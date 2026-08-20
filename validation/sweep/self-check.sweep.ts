@@ -135,7 +135,7 @@ describe('the sweep can fail', () => {
  * phase while `npm run sweep` reported success. These assert the model
  * actually produces widowed lines and that they reach the checks.
  */
-describe('the widowed surfaces are modelled', () => {
+describe('the widowed surfaces are modeled', () => {
   it('produces lines on both surfaces', async () => {
     const analysis = await widowedEstimated();
     const screen = screenSurface(analysis, 'real');

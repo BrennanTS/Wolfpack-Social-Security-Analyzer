@@ -6,7 +6,7 @@ interface BreakEvenSectionProps {
   /**
    * Whose break-even this is. Required wherever the surrounding context does
    * not already answer that — notably the Household tab, which feeds in one
-   * person's claiming options and life expectancy but is labelled
+   * person's claiming options and life expectancy but is labeled
    * "Household", and whose second-person copy ("you live past break-even")
    * would otherwise read as if it applied to the couple. On a person's own
    * tab the heading above already names them, so it is omitted there.

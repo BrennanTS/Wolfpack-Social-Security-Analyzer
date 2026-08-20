@@ -120,7 +120,7 @@ export function PersonPanel({
   // The table shows the decision still available: this person's current age
   // and every age ahead of it, plus any age the adviser added. A row for 62
   // when they are 66 offers a choice that has already gone by, and
-  // `isEligible` — which means "has already reached this age" — labelled
+  // `isEligible` — which means "has already reached this age" — labeled
   // exactly those rows "Eligible", the opposite of what a reader takes it to
   // mean. `buildClaimingRows` in `claimingRows.ts` applies that same rule;
   // the fallback here reproduces it for a call site that passes no rows.

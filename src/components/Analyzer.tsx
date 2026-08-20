@@ -173,19 +173,19 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
       return;
     }
 
-    let cancelled = false;
+    let canceled = false;
     setAnalyzing(true);
     setAnalysisError(null);
 
     analyzeIfComplete(form, asOf)
       .then((next) => {
-        if (!cancelled) {
+        if (!canceled) {
           setAnalysis(next);
           setAnalyzing(false);
         }
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!canceled) {
           setAnalysis(null);
           setAnalysisError('Analysis failed. Check your inputs and try again.');
           setAnalyzing(false);
@@ -193,7 +193,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
       });
 
     return () => {
-      cancelled = true;
+      canceled = true;
     };
     // `scenarios` IS in this list, unlike `annualCola` and `dollarsMode`
     // above: it changes which filing ages the engine is asked about, so the

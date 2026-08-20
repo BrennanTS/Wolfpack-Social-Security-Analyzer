@@ -30,7 +30,7 @@ export function analyze(household: Household): Promise<HouseholdAnalysis> {
  * from its own generator.
  *
  * Lives here rather than in each sweep because the widowed surfaces went
- * un-modelled for an entire phase while `npm run sweep` reported success, and
+ * un-modeled for an entire phase while `npm run sweep` reported success, and
  * a per-sweep opt-in is how that happens again. A sweep that wants only the
  * main corpus passes `widowedCount: 0` and says why.
  */

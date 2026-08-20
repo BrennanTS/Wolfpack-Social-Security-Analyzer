@@ -150,7 +150,7 @@ export interface RankedStrategy {
  * value is the more defensible actuarial figure and is the vendored engine's
  * own default. What this produces is a certainty-equivalent — "best if they
  * live exactly this long" — so it is systematically larger than the
- * mortality-weighted figure and must never be labelled an *expected* value.
+ * mortality-weighted figure and must never be labeled an *expected* value.
  * Measured across 90 single claimants, 71 recommendations moved, by a mean of
  * 25 months.
  *

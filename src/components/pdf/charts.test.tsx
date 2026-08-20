@@ -12,9 +12,9 @@ function fills(node: unknown): string[] {
 }
 
 describe('PdfRampBar', () => {
-  it('draws a ramp, not a block of one colour', () => {
+  it('draws a ramp, not a block of one color', () => {
     // The bar printed as flat gold between the words "Behind" and "Ahead" —
-    // a key with a single colour on it, explaining nothing. react-pdf gives a
+    // a key with a single color on it, explaining nothing. react-pdf gives a
     // `View` no gradient, so the steps ARE the ramp, and nothing in a text
     // walk can see whether they are there.
     const drawn = fills(PdfRampBar({}));

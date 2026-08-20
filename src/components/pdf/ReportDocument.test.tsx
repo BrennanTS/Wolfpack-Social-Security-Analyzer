@@ -245,7 +245,7 @@ describe('ReportDocument renders', () => {
     // walk over `ReportDocument`'s own tree comes back empty and every
     // `toContain` against it would pass for any string at all.
     const page = collectText(WidowedSection({ analysis, footerText: 'f' })).join(' ');
-    // Both dates named, and the money column labelled for what it is.
+    // Both dates named, and the money column labeled for what it is.
     expect(page).toContain('Survivor benefit at');
     expect(page).toContain('Own record at');
     expect(page).toContain('Lifetime total');

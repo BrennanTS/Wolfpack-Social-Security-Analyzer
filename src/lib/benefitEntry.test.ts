@@ -6,7 +6,7 @@ describe('detectYearlyEntry', () => {
     expect(detectYearlyEntry(36_000)).toEqual({ entered: 36_000, monthly: 3000 });
   });
 
-  // Whole dollars, not cents: the nudge button is labelled with the
+  // Whole dollars, not cents: the nudge button is labeled with the
   // zero-decimal `formatCurrency`, so a cent-precise suggestion made the
   // control read "Use $2,583/month" while entering 2583.33. The benefit field
   // is digits-only by construction too, so cents could only ever get in

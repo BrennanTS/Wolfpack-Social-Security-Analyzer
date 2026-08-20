@@ -521,7 +521,7 @@ describe('visibleBenefitSeries', () => {
 
   // A `bySeries` key naming someone absent from `people` means the two
   // arguments are inconsistent with each other. Defaulting that series to
-  // person 0 used to draw it in person 0's colour under person 0's name — a
+  // person 0 used to draw it in person 0's color under person 0's name — a
   // wrong label with no visible error. This must fail loudly instead.
   it('throws rather than silently attributing an unrecognized personId to person 0', () => {
     const timeline = [
@@ -1548,7 +1548,7 @@ describe('analyzeHousehold — widowed', () => {
     // The labels were constants: "Survivor benefit first, own at 70" and
     // "Own benefit first, survivor at FRA". Neither age is a property of the
     // row — `ranges.own[1]` is age 70 only while `alreadyClaimed.ownSince` is
-    // null. With `ownSince = Jan 2030` the app printed a row labelled
+    // null. With `ownSince = Jan 2030` the app printed a row labeled
     // "...own at 70" beside its own filing age of "65 years, 7 months".
     //
     // This reads the LABEL. The dedupe test above asserts which rows appear

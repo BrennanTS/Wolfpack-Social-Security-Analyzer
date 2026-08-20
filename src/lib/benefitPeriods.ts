@@ -53,7 +53,7 @@ export interface SurvivorGap {
    * What the survivor is paid on their own record in the month after the
    * death. **Null when they hold no personal band that month** — they have
    * not filed yet, there is no amount to quote, and the chart's zero is
-   * correct. Modelled as null rather than 0 so each surface has to say which
+   * correct. Modeled as null rather than 0 so each surface has to say which
    * of the two it means.
    */
   survivorOwnMonthly: number | null;
@@ -299,9 +299,9 @@ function detectSurvivorFloor(
  * survivor income is higher than anything on screen.
  *
  * It fires only when the survivor is the engine's own `earner`. The engine
- * ALSO emits no Survivor period in the modelled direction when the dependent
+ * ALSO emits no Survivor period in the modeled direction when the dependent
  * survives and their own benefit already exceeds the survivor benefit
- * (`strategy-calc.ts:88-98`) — that is the engine modelling the direction and
+ * (`strategy-calc.ts:88-98`) — that is the engine modeling the direction and
  * declining the step-up, not failing to model it, and disclosing a gap there
  * would be false. `classifyEarnerDependent` is the engine's own classifier
  * (strict `>` on PIA), deliberately used in preference to `household.ts`'s
@@ -333,7 +333,7 @@ function detectSurvivorGap(
   if (finalIndexes[survivorIdx] === finalIndexes[deceasedIdx]) return null;
 
   // The unmodelled direction is specifically the earner outliving the
-  // dependent. The other no-survivor-band case is a modelled decision.
+  // dependent. The other no-survivor-band case is a modeled decision.
   const { earnerIndex } = classifyEarnerDependent([recipients[0], recipients[1]]);
   if (survivorIdx !== earnerIndex) return null;
 

@@ -2462,7 +2462,7 @@ tbody tr:hover {
 }
 
 /* Rotated, and reading bottom-to-top the way a y-axis label does. `flex` on
-   the wrapper rather than a fixed height so it centres against whatever the
+   the wrapper rather than a fixed height so it centers against whatever the
    table's height turns out to be. */
 .claim-grid-axis-y {
   display: flex;

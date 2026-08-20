@@ -297,7 +297,7 @@ export function LifetimeHeatmapChart({
         <span>Ahead in this column</span>
       </div>
       <p className="heatmap-caption">
-        Rows = claiming age · Columns = age at death · Colour ranks the claiming ages
+        Rows = claiming age · Columns = age at death · Color ranks the claiming ages
         WITHIN each column, so the darkest cell in a column is the age that wins if
         death falls there. Compare across columns by the figures, not the shade.
         Illustrative flat {annualCola}% COLA.

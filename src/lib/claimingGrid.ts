@@ -120,14 +120,14 @@ export function cellsWithin(grid: ClaimingGrid, percent: number): Set<string> {
 }
 
 /**
- * Where a cell sits on the colour ramp, 0 (palest) to 1 (darkest).
+ * Where a cell sits on the color ramp, 0 (palest) to 1 (darkest).
  *
  * Stretched across the grid's OWN range rather than anchored at zero. Every
  * combination on the board pays a lifetime of benefits, so an absolute scale
  * renders the whole grid one shade and shows nothing; this household spans
  * 93.3% to 100% of its own maximum. The percentage printed in each cell and
  * the near-best outline are what keep the contrast from overstating the
- * differences — the colour ranks, the number quantifies.
+ * differences — the color ranks, the number quantifies.
  *
  * A flat grid (every combination identical) returns 1 for every cell rather
  * than dividing by zero.

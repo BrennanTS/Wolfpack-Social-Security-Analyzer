@@ -44,7 +44,7 @@ export interface LongevitySensitivity {
   strategies: { key: string; label: string }[];
   /**
    * Strategies the planned run shows but that some other lifespan folds into
-   * a neighbour, so they cannot be compared across rows. Named rather than
+   * a neighbor, so they cannot be compared across rows. Named rather than
    * silently dropped — a table that quietly loses a column reads as complete.
    */
   droppedKeys: string[];

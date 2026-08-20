@@ -83,7 +83,7 @@ describe('the widowed generator', () => {
       }
     }
 
-    console.log(summarize('widowed households analyse', findings));
+    console.log(summarize('widowed households analyze', findings));
     expect(findings).toEqual([]);
   });
 

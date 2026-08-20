@@ -77,7 +77,7 @@ function buildAnalysis(): HouseholdAnalysis {
     periods: [],
     // Explicit `null`, not omitted — `HouseholdAnalysis.survivorClaim` is
     // typed non-optional, and the null-case test below relies on this
-    // fixture actually carrying the modelled absence rather than an
+    // fixture actually carrying the modeled absence rather than an
     // `undefined` the type says cannot exist.
     survivorClaim: null,
     survivorGap: null,
@@ -121,7 +121,7 @@ describe('HouseholdPanel', () => {
   });
 
   // The section is fed person A's claiming options and life expectancy but
-  // sits under a tab labelled "Household", and its cards speak in the second
+  // sits under a tab labeled "Household", and its cards speak in the second
   // person ("you live past break-even"). Without attribution a reader takes
   // it for a couple-level result, which it is not.
   it('attributes the break-even section to the person it is actually computed for', () => {

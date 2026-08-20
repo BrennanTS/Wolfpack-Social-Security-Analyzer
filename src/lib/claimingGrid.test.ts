@@ -22,7 +22,7 @@ describe('buildClaimingGrid', () => {
   it('takes the best month combination inside each pair of years', () => {
     // Two month-pairs inside the same 67/67 square. The square must carry the
     // better one, and must name the exact ages that achieve it — a square
-    // labelled "67" while quoting the value of 67y11m would misstate what an
+    // labeled "67" while quoting the value of 67y11m would misstate what an
     // adviser is being shown.
     const grid = buildClaimingGrid([
       pair([67, 0], [67, 0], 100),
@@ -94,7 +94,7 @@ describe('cellsWithin', () => {
 
   it('includes a cell exactly on the boundary', () => {
     // 900 is exactly 10% below. A strict comparison would drop the cell the
-    // adviser just dialled the tolerance to reach.
+    // adviser just dialed the tolerance to reach.
     expect(cellsWithin(grid, 10).has(gridKey(62, 62))).toBe(true);
   });
 

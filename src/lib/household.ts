@@ -272,7 +272,7 @@ export interface HouseholdAnalysis {
      * The lower earner's age when the benefit begins, e.g. "68 years, 3
      * months". **Null when the engine emits no Spousal band at all** — there
      * is then no date to state, and every display layer must say so rather
-     * than print a placeholder. Modelled as `null` rather than a sentinel
+     * than print a placeholder. Modeled as `null` rather than a sentinel
      * string precisely so the type system forces that decision at each call
      * site: a `'—'` sentinel chosen here once escaped into the PDF unguarded.
      *
@@ -287,7 +287,7 @@ export interface HouseholdAnalysis {
      * pick is positional (always the same array index), not a fact about
      * either person, and printing it would name whichever spouse happened to
      * be entered first. There genuinely is no lower earner for a household
-     * with two equal PIAs, so this is modelled as an absence rather than an
+     * with two equal PIAs, so this is modeled as an absence rather than an
      * arbitrary name, the same reasoning as `startsAtSpouseAge`.
      */
     lowerEarnerLabel: string | null;
@@ -395,14 +395,14 @@ export interface DeceasedSummary {
  * at FRA") named ages the row does not necessarily carry: `ranges.own[1]` is
  * age 70 only while `alreadyClaimed.ownSince` is null, and `ranges.survivor[1]`
  * is survivor-FRA only while `survivorSince` is null and survivor-FRA has not
- * already passed. With `ownSince = Jan 2030` the app printed a row labelled
+ * already passed. With `ownSince = Jan 2030` the app printed a row labeled
  * "…own at 70" whose own filing age was "65 years, 7 months".
  *
  * `bothEarliest` states no age because it needs none, and it is the one row
  * whose wording stays true unconditionally: whenever either axis is collapsed
  * by `alreadyClaimed`, its (S, F) pair is identical to `survivorFirst`'s or
  * `ownFirst`'s and `analyzeWidowed`'s pair-dedupe drops it before it is ever
- * labelled.
+ * labeled.
  */
 function widowedLabel(key: WidowedStrategyKey, outcome: WidowedOutcome): string {
   switch (key) {
@@ -1031,7 +1031,7 @@ export interface VisibleBenefitSeries {
   /** `${personId}:${type}` — matches `CombinedTimelinePoint.bySeries`'s keys. */
   key: string;
   personId: string;
-  /** The person's position in the `people` array passed in — for colour and label. */
+  /** The person's position in the `people` array passed in — for color and label. */
   personIndex: number;
   type: BandType;
 }
@@ -1075,7 +1075,7 @@ export function visibleBenefitSeries(
     // A `bySeries` key naming someone absent from `people` indicates the two
     // arguments are inconsistent with each other — a caller bug, not a data
     // shape to degrade gracefully on. Defaulting to person 0 used to draw
-    // this series in person 0's colour under person 0's name: a wrong label
+    // this series in person 0's color under person 0's name: a wrong label
     // with no visible error, the worst failure shape on this project. Throw
     // instead, so it surfaces as a crash a caller can trace, not a chart that
     // quietly lies about whose money is whose.
@@ -1110,7 +1110,7 @@ export function visibleBenefitSeries(
  * than the zero-entitlement case: `strategy-calc.ts:158` pushes the period
  * only when `endDate >= startDate`, so a lower earner who dies before the
  * higher earner files is eligible — `atFra` is positive — and still bandless.
- * Absence is modelled on the type rather than as a display glyph so no caller
+ * Absence is modeled on the type rather than as a display glyph so no caller
  * can print it by accident.
  */
 function spousalFiguresFrom(

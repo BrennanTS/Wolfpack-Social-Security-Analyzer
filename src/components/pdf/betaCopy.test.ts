@@ -58,7 +58,7 @@ describe('beta copy', () => {
   it('introduces each barred term on the terms page, in plain words first', () => {
     const terms = beta.KEY_TERMS.map((t) => `${t.term} ${t.body}`).join(' ');
     // The three a client will meet elsewhere — on an SSA statement, or from
-    // another adviser — have to be recognisable when they do.
+    // another adviser — have to be recognizable when they do.
     for (const word of ['FRA', 'PIA', 'COLA']) {
       expect(terms).toContain(word);
     }

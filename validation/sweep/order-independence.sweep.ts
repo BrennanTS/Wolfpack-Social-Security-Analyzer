@@ -77,7 +77,7 @@ describe('a widowed analysis is a function of its household', () => {
   });
 
   it(`does not depend on a deep-cloned input across ${WIDOWED_COUNT} households`, async () => {
-    // The other half: analysing a structurally identical COPY must give the
+    // The other half: analyzing a structurally identical COPY must give the
     // same answer. This is what catches an analysis that mutates its input —
     // `analyzeWidowed` reads `household.deceased` in three places and one of
     // them recovers a PIA by bisection.

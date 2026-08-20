@@ -1,7 +1,7 @@
 /**
  * What each surface actually renders, as a list of strings.
  *
- * Modelled per surface rather than "every copy function", because the two
+ * Modeled per surface rather than "every copy function", because the two
  * questions differ. A sentinel is a defect wherever it appears; a *duplicate*
  * is only a defect when both copies land in front of the same reader. Two
  * traps make a naive list wrong:
@@ -123,7 +123,7 @@ function widowedPdfSurface(analysis: HouseholdAnalysis): Line[] {
     );
   }
   // The appendix attaches to this same physical page, so its two widowed
-  // slots share a reader with everything above. Both are modelled precisely
+  // slots share a reader with everything above. Both are modeled precisely
   // because they held the identical constant at first, and the sweep found it.
   push(lines, 'pdf/MethodologyAppendix.disclosure', WIDOWED_MODELING_NOTE);
   push(lines, 'pdf/MethodologyAppendix.survivorBenefitCard', WIDOWED_SURVIVOR_CARD);
@@ -280,7 +280,7 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
  * Separate from the household surfaces above, not folded into them, because
  * the duplicate check's question is "does one reader see this sentence
  * twice?" On screen `HouseholdView` mounts only the active tab, so two people
- * never share a reader; in print they are two pages. Modelling both people's
+ * never share a reader; in print they are two pages. Modeling both people's
  * notes as one surface reported a duplicate for every household whose two
  * spouses file at the same age — the explanatory half of the sentence is
  * identical then, and correctly so, because it is explaining the same age to

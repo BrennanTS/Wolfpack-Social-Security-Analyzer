@@ -304,7 +304,7 @@ The comment at `benefit-calculator.ts:410-411` states survivor benefits are **no
 ### 2.5 Deemed filing — modeled structurally, not as a rule
 
 There is **no** occurrence of the string `deem` anywhere in the vendored source (§3). But the
-behaviour is baked into the data model: each recipient has exactly one filing age
+behavior is baked into the data model: each recipient has exactly one filing age
 (`strats: [MonthDuration, MonthDuration]`, `strategy-calc.ts:27`), and the dependent's Personal
 period (`strategy-calc.ts:124-130`) and Spousal period (`strategy-calc.ts:144-170`) are both
 generated from that single date. There is no way to express "file for spousal only" or "file for
@@ -317,7 +317,7 @@ Two consequences:
 - **Deemed filing is applied universally**, including to cohorts born before Jan 2, 1954 who are
   legally exempt from it (<https://www.ssa.gov/benefits/retirement/planner/claiming.html>). The
   engine has no birth-date test for this. For a 2026-vintage client base — everyone reaching 62 was
-  born in 1964 or later — this is moot, but it is a real modelling simplification.
+  born in 1964 or later — this is moot, but it is a real modeling simplification.
 
 ---
 
@@ -407,7 +407,7 @@ The array is therefore **neither chronological nor grouped by recipient**. Calle
   (`benefit-calculator.ts:455-459`) holds.
 - **The survivor start date is never earlier than the dependent's filing date, and filing dates are
   ≥ 62.** A widow(er) claiming a survivor benefit at 60 or 61 — legal under SSA rules — cannot be
-  represented by this function. This is a genuine modelling gap for a widow-focused chart.
+  represented by this function. This is a genuine modeling gap for a widow-focused chart.
 
 ### 4.2 `strategySumPeriodsOptimized`
 
@@ -503,7 +503,7 @@ Every age and date computation in the strategy code goes through `dateAtSsaAge` 
   SSA birthdate Dec 31 of the previous year → `ssaBirthYear()` is a year earlier. Because
   `findAgeBracket` keys on `ssaBirthYear()` (`recipient.ts:405`), **a person born Jan 1, 1960 gets
   the 1959 FRA bracket (66y 10m), not the 1960 bracket (67y)** — and likewise a different survivor
-  FRA bracket. This is correct SSA behaviour, and it is invisible unless you are testing Jan 1.
+  FRA bracket. This is correct SSA behavior, and it is invisible unless you are testing Jan 1.
 - **A second, different convention governs earliest filing.** `earliestFilingMonth()`
   (`birthday.ts:207-213`) uses the **lay** day of month:
   ```ts
@@ -780,7 +780,7 @@ false **both ways** and `classifyEarnerDependent` falls through to a fixed posit
 The dependent slot is the only one that can hold a Spousal or Survivor period at all
 (`strategy-calc.ts:104`), and that default reaches the engine through **both**
 `rankedCoupleStrategies` (via `expectedNPVCoupleOptimized`) and `strategySumPeriodsCouple`. So on a
-tie the argument order decides the recommended filing ages, not only who is labelled what.
+tie the argument order decides the recommended filing ages, not only who is labeled what.
 
 Measured on a two-PIA-2200 household (Dan b. 1962-04 plan-to 85, Sarah b. 1964-02 plan-to 88,
 `asOf` 2026-01-15):
@@ -848,7 +848,7 @@ UI does not distinguish them.
   (`pia.ts:165-171`). All of §2.4's wage-indexing, bend-point, top-35 and COLA-chain machinery is
   dead code for us — as is the `throughColaYear` / nominal-display path.
 - `isEligible()` is hard-coded `true` and `earnedCredits()` returns `40` (`recipient.ts:300-329`), so
-  the 40-credit test never runs. A person with no work history is modelled as fully insured on
+  the 40-credit test never runs. A person with no work history is modeled as fully insured on
   whatever PIA we supply.
 - `primaryInsuranceAmountByBracket` and `primaryInsuranceAmountUnadjusted` **throw** for our
   recipients (`pia.ts:102-104`, `:140-142`). Any future "show the PIA breakdown" feature needs

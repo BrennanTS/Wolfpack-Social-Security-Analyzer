@@ -39,7 +39,7 @@ export type Scenario =
   | { kind: 'latest' }
   /**
    * One entry per person, in DISPLAY order (the order the form collects
-   * them), not the engine's canonical order — this is a UI choice travelling
+   * them), not the engine's canonical order — this is a UI choice traveling
    * inward, and `analyzeHousehold` owns the mapping. A length that doesn't
    * match the household's people is treated as no scenario at all rather
    * than as a partial one: switching married → single leaves a two-entry
@@ -76,7 +76,7 @@ export interface ScenarioRow {
    * report, and a per-surface pair of toggles is two states per row to keep
    * straight.
    *
-   * Hidden rows are still ANALYSED — they carry ages, they appear in the
+   * Hidden rows are still ANALYZED — they carry ages, they appear in the
    * editor, and un-hiding one costs nothing. What they lose is only their
    * place in the rendered table.
    */

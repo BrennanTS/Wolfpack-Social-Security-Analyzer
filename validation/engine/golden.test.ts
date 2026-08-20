@@ -371,7 +371,7 @@ describe.each(fullScenarios)('golden scenario (full pipeline): $id', (scenario) 
       // The defect the old assertion guarded has not gone unwatched. Gender
       // still has to reach the right PERSON — it seeds each one's suggested
       // plan-to age — and the vendored engine's own gender-sensitive
-      // behaviour is pinned in `vendored-optimizer.test.ts`, whose recorded
+      // behavior is pinned in `vendored-optimizer.test.ts`, whose recorded
       // ages differ between the same-sex and mixed scenarios precisely
       // because that engine does read the tables.
       expect(result.optimal.expectedNpv).toBeGreaterThan(0);
@@ -465,7 +465,7 @@ describe.each(widowedScenarios)('golden scenario (widowed): $id', (scenario) => 
   // that pins a misleading number teaches the next reader it is the right one.
   // The fields are still recorded in scenarios.json — they are real facts
   // about her own record — they are simply not asserted as her benefits here.
-  // Single and married behaviour is untouched.
+  // Single and married behavior is untouched.
 
   it('is a widowed household with no spousal top-up and no married-style survivor-claim alternative', async () => {
     // Both are structurally guaranteed for a widowed household (see

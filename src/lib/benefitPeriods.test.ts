@@ -277,7 +277,7 @@ describe('householdPeriods — the unmodeled survivor direction', () => {
     // gap: Blake (PIA $1,900) is the engine's dependent and outlives Avery
     // (PIA $2,000), but Blake's own $1,330 already exceeds the reduced widower
     // benefit, so `strategy-calc.ts:88-98` declines the step-up. That is the
-    // engine MODELLING this direction, not failing to.
+    // engine MODELING this direction, not failing to.
     //
     // The predicate that only asked who outlives whom fired here, claiming
     // "survivor benefits are modeled only for the lower-earning spouse, so no

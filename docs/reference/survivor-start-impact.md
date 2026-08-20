@@ -40,7 +40,7 @@ lowers the benefit. Applied literally, the correction *reduces* lifetime househo
 half the households it touches at the recommended ages (400 of 800, by up to $48,532), and in 308
 households it makes the reduced survivor amount fall below the dependent's own benefit, at which
 point the engine's single evaluation (`strategy-calc.ts:92-100`) deletes the survivor period
-outright and the household loses up to $292,092. Modelling the choice SSA actually gives a widow —
+outright and the household loses up to $292,092. Modeling the choice SSA actually gives a widow —
 claim the survivor benefit and your own benefit on separate dates, and be paid the larger each month
 — removes every one of those losses and is worth up to **$149,907** more than the best plan the
 engine's model can express (§4). **The start-date fix alone is not safe to ship; the unit of work is
@@ -292,7 +292,7 @@ correction in every household measured (§0).
 ### 3.2 The fixtures record no survivor figure at all
 
 `ScenarioExpected` (`validation/fixtures/scenarios.ts:41-91`) has no survivor field. The only place
-survivor behaviour is asserted in the golden suite is a structural check —
+survivor behavior is asserted in the golden suite is a structural check —
 `validation/engine/golden.test.ts:343-358`, that a Spousal band always ends before a Survivor band
 for the same person. That invariant continues to hold under the correction by construction: spousal
 ends at `survivorStart − 1` and survivor starts at `survivorStart`, whichever rule sets the date.
@@ -477,7 +477,7 @@ household, and adding a survivor claim month multiplies that by up to 85.
   (`strategy-calc.ts:103-111`); that gap is separate, already disclosed by `detectSurvivorGap`
   (`src/lib/benefitPeriods.ts:243-280`), and untouched by this correction.
 - **Remarriage, disabled-widow(er) benefits at 50, child-in-care survivor benefits, the family
-  maximum, and the lump-sum death payment.** None are modelled by the engine (audit §2.3, §3) and
+  maximum, and the lump-sum death payment.** None are modeled by the engine (audit §2.3, §3) and
   none were added here. In particular the age-60 rule this correction implements has an eligibility
   condition — unmarried, or remarried after 60 — that the app collects no input for.
 - **Anything nominal.** Every figure is in constant today's dollars, as the engine produces them

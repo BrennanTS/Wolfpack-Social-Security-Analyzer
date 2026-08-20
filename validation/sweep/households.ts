@@ -3,7 +3,7 @@
  *
  * The golden corpus is thirty hand-written scenarios that share a shape: both
  * people plan to age 85, ages cluster, PIAs never tie. That shape makes whole
- * behaviours bit-exact and therefore invisible — see
+ * behaviors bit-exact and therefore invisible — see
  * `docs/reference/survivor-start-impact.md` §3 and the `married-1964-dual-high-earners`
  * note in `order-independence-runs-deep`. This generator exists to leave that
  * shape deliberately.
@@ -55,7 +55,7 @@ const PIAS = [0, 500, 1200, 2000, 2400, 2400, 3000, 3000, 3500, 4200, 5000];
 
 /**
  * Life expectancies that differ between spouses. The golden corpus uses 85 for
- * everyone, which makes the survivor-start behaviour bit-exact across every
+ * everyone, which makes the survivor-start behavior bit-exact across every
  * filing-age combination the optimizer considers — the exact blindness that
  * hid the Phase 3A defect.
  */

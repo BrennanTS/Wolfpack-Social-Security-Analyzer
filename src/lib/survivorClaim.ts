@@ -82,7 +82,7 @@ export interface SurvivorClaimAlternative {
    *   stayed silent — either because the deceased held no personal band at the
    *   death month (`benefitPeriods.ts:279`) or because their benefit did not
    *   exceed the survivor's own (`:284`);
-   * - the engine modelling the direction and declining the step-up, because
+   * - the engine modeling the direction and declining the step-up, because
    *   the survivor's own benefit already wins (`strategy-calc.ts:98-100`);
    * - `splitDualEntitlement` dropping a band whose top-up is not positive
    *   (`benefitPeriods.ts:200-201`) — rare, and a household the engine DID

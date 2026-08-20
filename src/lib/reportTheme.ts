@@ -80,7 +80,7 @@ const MIDNIGHT: ReportTheme = {
 const SLATE: ReportTheme = {
   id: 'slate',
   name: 'Slate',
-  blurb: 'Teal on cool grey — quieter, more modern',
+  blurb: 'Teal on cool gray — quieter, more modern',
   ink: '#171c1a',
   muted: '#414b48',
   subtle: '#5f6b67',
@@ -96,7 +96,7 @@ const SLATE: ReportTheme = {
 /**
  * For firms that brand in black and white, and for anyone printing on a
  * monochrome office laser — where a colored accent becomes an indistinct
- * grey and the report loses the emphasis it was relying on.
+ * gray and the report loses the emphasis it was relying on.
  *
  * Gain and loss keep a trace of hue rather than going fully neutral: they are
  * the one place in the report where color carries meaning a reader would

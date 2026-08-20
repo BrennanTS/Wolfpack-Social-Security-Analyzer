@@ -79,7 +79,7 @@ const BLANK_PERSON: PersonFormFields = {
   monthlyBenefit: '',
   // Set, not null. `reseedLifeExpectancy` no longer fills this in from the
   // SSA table on the first identity edit, so leaving it null would leave
-  // `isFormComplete` permanently false — the form would never analyse at all.
+  // `isFormComplete` permanently false — the form would never analyze at all.
   lifeExpectancy: DEFAULT_PLAN_TO_AGE,
 };
 

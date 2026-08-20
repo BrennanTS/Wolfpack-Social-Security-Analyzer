@@ -20,7 +20,7 @@ export const MONTHS = [
  *
  * `SURFACE` is the one color that is not themeable: the report is printed on
  * paper, and paper is white. A theme that tinted the page would cost a client
- * an entire ink cartridge and still print grey on a monochrome laser.
+ * an entire ink cartridge and still print gray on a monochrome laser.
  */
 export let INK = DEFAULT_THEME.ink;
 export let GOLD = DEFAULT_THEME.brand;
@@ -401,7 +401,7 @@ export let styles = buildStyles();
  * same palette as the rest of the report rather than in a fixed ramp that
  * would clash with three themes out of four.
  *
- * The old ramp detoured through grey on its way from cream to gold, which
+ * The old ramp detoured through gray on its way from cream to gold, which
  * bought range at the cost of hue — mid-value cells read as "no color"
  * rather than as "middling". A straight two-stop mix keeps every cell
  * recognizably on the same scale.

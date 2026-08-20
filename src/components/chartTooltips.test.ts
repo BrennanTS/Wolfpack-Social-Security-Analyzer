@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
  * `separator` — Recharts joins a row's name and value with " : " unless told
  * otherwise, a space before the colon. Fixed on one chart, left wrong on six.
  *
- * `itemStyle` — Recharts paints each row in its SERIES colour, and against
+ * `itemStyle` — Recharts paints each row in its SERIES color, and against
  * this app's near-black tooltip most of those score under 3:1: `CHART_INK`
  * managed 1.6:1, so the figures were simply invisible.
  *
@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 const DIR = join(import.meta.dirname, '.');
 
 describe('chart tooltips', () => {
-  it('never leave Recharts to pick the separator or the text colour', () => {
+  it('never leave Recharts to pick the separator or the text color', () => {
     const offenders: string[] = [];
 
     for (const file of readdirSync(DIR).filter((f) => f.endsWith('.tsx') && !f.includes('.test.'))) {

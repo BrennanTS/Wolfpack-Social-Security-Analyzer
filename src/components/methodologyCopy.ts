@@ -309,7 +309,7 @@ export const COMBINED_INCOME_SUBTITLE =
  * started drawing one segment per person per benefit type: the original
  * wording ("each person's band is everything they are paid") described the
  * old one-band layout and became false the moment a person could hold up to
- * three segments beside each other — the segment labelled "own benefit" is
+ * three segments beside each other — the segment labeled "own benefit" is
  * specifically NOT everything they are paid once a spousal or survivor
  * segment sits next to it. This is the sixth instance on this project of a
  * right number with wrong text beside it, and the lesson generalizes:
@@ -758,7 +758,7 @@ export function householdValueCaption(discountRatePercent: string): string {
  * started by then shows $0") is therefore an accurate description of THE
  * MODEL and is not a statement of SSA's rule — deliberately, since this module
  * states what the pipeline computed and never asserts a benefit rule. A Phase
- * 3 fix must decide between modelling the age-60 start (a benefit rule the app
+ * 3 fix must decide between modeling the age-60 start (a benefit rule the app
  * would then own) and disclosing the divergence; changing only this sentence
  * would describe the model wrongly without making the figures right. See
  * `docs/reference/ssa-tools-engine-audit.md` §5.2 and §2.3.

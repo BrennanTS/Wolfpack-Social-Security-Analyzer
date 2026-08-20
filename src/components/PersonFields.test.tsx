@@ -121,7 +121,7 @@ describe('yearly-entry nudge', () => {
     expect(nudge.textContent).toMatch(/3,000/);
   });
 
-  // The button is labelled with the zero-decimal `formatCurrency` but applied
+  // The button is labeled with the zero-decimal `formatCurrency` but applied
   // `yearlySuspicion.monthly`, which used to be cent-precise. 36,000 divides
   // evenly so the tests above never caught it; 31,000 produced a control
   // reading "Use $2,583/month" that entered 2583.33. In a feature whose whole

@@ -25,10 +25,10 @@ export const CHART_GOLD = '#a8863f';
  * boxes. Values live in index.css beside the rest of the theme.
  */
 export const CHART_INK = 'var(--chart-ink)';
-/** Muted grey for axis ticks and secondary text. */
+/** Muted gray for axis ticks and secondary text. */
 export const CHART_MUTED = 'var(--chart-muted)';
-/** Mid grey for non-highlighted comparison series. */
-export const CHART_GREY_MID = 'var(--chart-grey-mid)';
+/** Mid gray for non-highlighted comparison series. */
+export const CHART_GRAY_MID = 'var(--chart-gray-mid)';
 /** Hairline color for axes and grid lines. */
 export const CHART_AXIS_LINE = 'var(--chart-axis)';
 /** Muted red used to flag shortfalls / life-expectancy markers. */
@@ -55,7 +55,7 @@ export const CHART_SLATE = '#6f8ba3';
 export const CHART_PLUM = '#9d78b0';
 
 /** A person's own record, indexed by their position in the household. */
-const OWN_BENEFIT_COLORS = [CHART_GOLD, CHART_PLUM, CHART_GREY_MID];
+const OWN_BENEFIT_COLORS = [CHART_GOLD, CHART_PLUM, CHART_GRAY_MID];
 
 /**
  * A person's own record keeps their identity color; benefits drawn on the
@@ -113,7 +113,7 @@ export const CHART_TOOLTIP_STYLE = {
 } as const;
 
 /**
- * Grey-to-gold ramp keyed by claiming age (62–70). Later ages read as darker,
+ * Gray-to-gold ramp keyed by claiming age (62–70). Later ages read as darker,
  * with age 70 rendered in gold to signal the maximum-delay strategy.
  *
  * Reversed for dark mode — a ramp that darkens toward 70 would send the most
