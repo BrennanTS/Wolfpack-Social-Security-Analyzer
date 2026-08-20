@@ -31,6 +31,8 @@ import {
   type DeceasedFormFields,
 } from '../lib/widowedForm';
 import { AboutPanel } from './AboutPanel';
+import { MenuPanel } from './MenuPanel';
+import { useReportTheme } from '../hooks/useReportTheme';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
@@ -39,7 +41,6 @@ import { PersonFields } from './PersonFields';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
 import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
-import { AppVersion } from './AppVersion';
 import { CopyLinkButton } from './CopyLinkButton';
 import { spousalMethodologyCopy } from './methodologyCopy';
 
@@ -113,6 +114,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { themeId, chooseTheme } = useReportTheme();
   const [showAssumptions, setShowAssumptions] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -279,7 +282,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setExportError(null);
     setExporting(true);
     try {
-      await downloadPdfReport(analysis, claimingRowsByPerson, gridTarget);
+      await downloadPdfReport(analysis, claimingRowsByPerson, gridTarget, themeId);
     } catch {
       setExportError('PDF export failed. Please try again.');
     } finally {
@@ -299,7 +302,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setExportingBeta(true);
     try {
       const sensitivity = await longevityIfComplete(form, asOf);
-      await downloadBetaPdfReport(analysis, claimingRowsByPerson, gridTarget, sensitivity);
+      await downloadBetaPdfReport(analysis, claimingRowsByPerson, gridTarget, sensitivity, themeId);
     } catch {
       setExportError('Beta PDF export failed. Please try again.');
     } finally {
@@ -321,50 +324,6 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
           </div>
         </div>
         <div className="header-actions">
-          <button
-            type="button"
-            className="btn-resources"
-            onClick={() => {
-              // Both drawers render `.resources-panel.is-open` at the same
-              // fixed position and z-index, and the header sits above the
-              // backdrop, so both buttons stay live while either is open.
-              // Left independent, opening the second paints it over the first
-              // and closing it reveals a drawer that looks like it refused to
-              // close. One is open, or neither.
-              setResourcesOpen(false);
-              setAboutOpen(true);
-            }}
-            aria-haspopup="dialog"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM8 7v4.5M8 4.75v.75"
-                stroke="currentColor"
-                strokeWidth="1.1"
-                strokeLinecap="round"
-              />
-            </svg>
-            About
-          </button>
-          <button
-            type="button"
-            className="btn-resources"
-            onClick={() => {
-              setAboutOpen(false);
-              setResourcesOpen(true);
-            }}
-            aria-haspopup="dialog"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M8 1.5l1.8 3.7 4 .6-2.9 2.8.7 4L8 10.8l-3.6 1.9.7-4L2.2 5.8l4-.6L8 1.5z"
-                stroke="currentColor"
-                strokeWidth="1.1"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Resources
-          </button>
           <DarkModeToggle active={darkMode} onToggle={onToggleDarkMode} />
           <button
             type="button"
@@ -398,7 +357,26 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
           </button>
           <CopyLinkButton form={form} disabled={!inputsComplete} />
           {exportError && <span className="export-error">{exportError}</span>}
-          <AppVersion />
+          <button
+            type="button"
+            className="btn-menu"
+            onClick={() => {
+              setAboutOpen(false);
+              setResourcesOpen(false);
+              setMenuOpen(true);
+            }}
+            aria-haspopup="dialog"
+            aria-label="Menu"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M2.5 4h11M2.5 8h11M2.5 12h11"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -566,6 +544,14 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
 
       <ResourcesPanel open={resourcesOpen} onClose={() => setResourcesOpen(false)} />
       <AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      <MenuPanel
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        themeId={themeId}
+        onThemeChange={chooseTheme}
+        onOpenAbout={() => setAboutOpen(true)}
+        onOpenResources={() => setResourcesOpen(true)}
+      />
 
       <footer className="footer">
         <p>

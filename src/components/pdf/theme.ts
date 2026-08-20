@@ -1,19 +1,39 @@
 import { StyleSheet } from '@react-pdf/renderer';
+import { DEFAULT_REPORT_THEME_ID, reportTheme, type ReportTheme } from '../../lib/reportTheme';
+import { mixHex } from '../../lib/chartData';
+
+const DEFAULT_THEME = reportTheme(DEFAULT_REPORT_THEME_ID);
 
 export const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-export const INK = '#141414';
-export const GOLD = '#b8965a';
-export const GOLD_DARK = '#8a7144';
+/**
+ * The palette the document is currently being printed in.
+ *
+ * `let`, not `const`, so these are ESM live bindings: the six components that
+ * import `GOLD`/`INK`/… read them at render time and therefore see whatever
+ * `setActiveReportTheme` last installed. The alternative was threading a
+ * theme prop (or a context) through every section, table and chart in the
+ * report for a value that is constant across any single render.
+ *
+ * `SURFACE` is the one color that is not themeable: the report is printed on
+ * paper, and paper is white. A theme that tinted the page would cost a client
+ * an entire ink cartridge and still print grey on a monochrome laser.
+ */
+export let INK = DEFAULT_THEME.ink;
+export let GOLD = DEFAULT_THEME.brand;
+export let GOLD_DARK = DEFAULT_THEME.brandDark;
 export const SURFACE = '#ffffff';
-export const BORDER = '#e4e1da';
-export const MUTED = '#5c5c5c';
-export const SUBTLE = '#8a8a8a';
-export const GREEN = '#5a7a5e';
-export const RED = '#9a4a44';
+export let BORDER = DEFAULT_THEME.border;
+export let MUTED = DEFAULT_THEME.muted;
+export let SUBTLE = DEFAULT_THEME.subtle;
+export let GREEN = DEFAULT_THEME.green;
+export let RED = DEFAULT_THEME.red;
+/** Heat ramp endpoints for this theme, read by `heatmapColorPdf`. */
+export let HEAT_LO = DEFAULT_THEME.heatLo;
+export let HEAT_HI = DEFAULT_THEME.heatHi;
 
 /** Letter page content width: 612pt − left/right padding */
 export const CONTENT_W = 516;
@@ -45,7 +65,8 @@ export const PAD_BOTTOM = 40;
  */
 export const COL = { age: 80, monthly: 108, pia: 56, life: 118, diff: 154 };
 
-export const styles = StyleSheet.create({
+function buildStyles() {
+  return StyleSheet.create({
   page: {
     fontFamily: 'Helvetica',
     fontSize: 9,
@@ -343,7 +364,7 @@ export const styles = StyleSheet.create({
   },
   /* Just a spacer now — the ramp itself is `PdfRampBar`, drawn as stepped
      rects because react-pdf gives a `View` no gradient. A flat
-     `backgroundColor` here printed a one-colour key. */
+     `backgroundColor` here printed a one-color key. */
   pdfHeatmapLegendBar: {
     width: 100,
     height: 6,
@@ -369,3 +390,47 @@ export const styles = StyleSheet.create({
   pdfBarFillShown: { height: 10, backgroundColor: GREEN, borderRadius: 2, width: 4 },
   pdfBarValue: { width: 52, fontSize: 7, color: MUTED, textAlign: 'right' },
 });
+}
+
+export let styles = buildStyles();
+
+/**
+ * A heat-map cell's fill, `ratio` from 0 (coldest) to 1 (the best combination).
+ *
+ * Reads the active theme's endpoints, so the claiming grid is printed in the
+ * same palette as the rest of the report rather than in a fixed ramp that
+ * would clash with three themes out of four.
+ *
+ * The old ramp detoured through grey on its way from cream to gold, which
+ * bought range at the cost of hue — mid-value cells read as "no color"
+ * rather than as "middling". A straight two-stop mix keeps every cell
+ * recognizably on the same scale.
+ */
+export function heatColor(ratio: number): string {
+  return mixHex(HEAT_LO, HEAT_HI, Math.max(0, Math.min(1, ratio)));
+}
+
+/**
+ * Install the palette the next render will use.
+ *
+ * Call this before building a `<Document>`; `printReport` does, once per
+ * export. Deliberately module-level rather than per-document: react-pdf
+ * renders one document at a time, and the report has no notion of two themes
+ * being live at once.
+ */
+export function setActiveReportTheme(theme: ReportTheme): void {
+  INK = theme.ink;
+  GOLD = theme.brand;
+  GOLD_DARK = theme.brandDark;
+  BORDER = theme.border;
+  MUTED = theme.muted;
+  SUBTLE = theme.subtle;
+  GREEN = theme.green;
+  RED = theme.red;
+  HEAT_LO = theme.heatLo;
+  HEAT_HI = theme.heatHi;
+  // Rebuilt, not patched: the stylesheet baked these colors in when it was
+  // created, so reassigning the bindings alone would leave every `styles.*`
+  // entry printing the previous theme.
+  styles = buildStyles();
+}

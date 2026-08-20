@@ -18,7 +18,7 @@ import {
   gridRatio,
   type ClaimingGrid,
 } from '../../lib/claimingGrid';
-import { heatmapColorPdf } from '../../lib/chartData';
+
 import { formatPercent } from '../../lib/cpiHistory';
 import { filingMonth, shortMonthYearLabel } from '../../lib/filingDates';
 import {
@@ -45,7 +45,7 @@ import {
   SURVIVOR_INCOME_COLUMN_HEADER,
 } from '../methodologyCopy';
 import { scenarioEyebrow } from '../../lib/scenario';
-import { BORDER, CHART_INNER_W, GREEN, INK, MUTED, styles } from './theme';
+import { BORDER, CHART_INNER_W, GREEN, INK, MUTED, styles, heatColor } from './theme';
 import { PageFooter } from './ReportDocument';
 
 interface Props {
@@ -173,7 +173,7 @@ export function StrategyTable({
  * ~1pt gap a ~16pt annual bar could afford. That inset, left over from the
  * annual version, used to cost half the bar's own width at ~2pt and printed
  * a flat band as a field of half-density hairline stripes instead of a
- * block; edge-to-edge, adjacent same-colour months merge into one solid
+ * block; edge-to-edge, adjacent same-color months merge into one solid
  * region and a transition still reads as a single sharp edge. Exported so
  * `HouseholdSection.test.tsx` can assert on its decomposition in isolation
  * from the household page's own caption text.
@@ -223,7 +223,7 @@ export function CombinedIncomeBars({
   // Drawing a rect per month gave each series a barely-half-point column, and
   // the PDF rasterizer left a hairline seam at every one of the ~400 shared
   // edges — the printed chart read as vertical pinstripes rather than solid
-  // colour. Merging is exact rather than cosmetic: a benefit band pays a flat
+  // color. Merging is exact rather than cosmetic: a benefit band pays a flat
   // amount for its whole span, so every month inside a run carries the same
   // height, and the runs are the steps the chart exists to show. A typical
   // household drops from ~400 rects per series to about four.
@@ -374,7 +374,7 @@ export function ClaimingGridPlot({
                 width={cellW - 1}
                 height={cellH - 1}
                 rx={1.5}
-                fill={heatmapColorPdf(shade)}
+                fill={heatColor(shade)}
                 stroke={isBest ? INK : near ? GREEN : 'none'}
                 strokeWidth={isBest ? 1.2 : near ? 1 : 0}
               />

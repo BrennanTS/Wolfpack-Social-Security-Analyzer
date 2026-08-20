@@ -13,11 +13,11 @@ import {
   generateMonthlyRampData,
   getHeatmapValue,
   getLivingAgeTicks,
-  heatmapColorPdf,
+
   heatmapColumnRatio,
   heatmapColumnScales,
 } from '../../lib/chartData';
-import { styles, BORDER, CHART_INNER_W, GOLD, INK, MUTED, RED, SUBTLE } from './theme';
+import { styles, BORDER, CHART_INNER_W, GOLD, INK, MUTED, RED, SUBTLE, heatColor } from './theme';
 
 /**
  * Axis labels in this file go through `formatThousandsTick`, which returns
@@ -28,7 +28,14 @@ import { styles, BORDER, CHART_INNER_W, GOLD, INK, MUTED, RED, SUBTLE } from './
  * as an unreadable overlap.
  */
 
-const TICK = { fontSize: 5.5, fill: MUTED };
+/**
+ * Axis-tick style.
+ *
+ * A function, not a constant: `MUTED` is a live binding that changes with the
+ * report theme, and an object literal evaluated at module load would hold the
+ * color the first import happened to see.
+ */
+const tick = () => ({ fontSize: 5.5, fill: MUTED });
 
 export function PdfChart({
   options,
@@ -84,7 +91,7 @@ export function PdfChart({
           <Line key={t} x1={padL} y1={yScale(maxVal * t)} x2={W - padR} y2={yScale(maxVal * t)} stroke={BORDER} strokeWidth={0.5} />
         ))}
         {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-          <Text key={`y-${t}`} x={padL - 4} y={yScale(maxVal * t) + 2} style={TICK} textAnchor="end">
+          <Text key={`y-${t}`} x={padL - 4} y={yScale(maxVal * t) + 2} style={tick()} textAnchor="end">
             {formatThousandsTick(maxVal * t)}
           </Text>
         ))}
@@ -122,16 +129,16 @@ export function PdfChart({
 }
 
 /**
- * The colour key for a heatmap, drawn as stepped rects.
+ * The color key for a heatmap, drawn as stepped rects.
  *
  * react-pdf gives a `View` no gradient, so this printed as a bar of flat
- * gold — a key with one colour on it, between the words "Behind" and
+ * gold — a key with one color on it, between the words "Behind" and
  * "Ahead", explaining nothing. Stepping through `heatmapColorPdf` is what
  * makes the key the same ramp as the cells it explains, by construction
  * rather than by two definitions agreeing.
  *
  * Exported for its test: a flat bar is invisible to a text walk, which is
- * how the one-colour version survived here in the first place.
+ * how the one-color version survived here in the first place.
  */
 export function PdfRampBar({ width = 100, height = 6, steps = 28 }: {
   width?: number;
@@ -150,7 +157,7 @@ export function PdfRampBar({ width = 100, height = 6, steps = 28 }: {
           // hairlines the way the combined-income bars once did.
           width={stepW + 0.5}
           height={height}
-          fill={heatmapColorPdf(steps === 1 ? 1 : i / (steps - 1))}
+          fill={heatColor(steps === 1 ? 1 : i / (steps - 1))}
         />
       ))}
     </Svg>
@@ -189,11 +196,11 @@ export function PdfHeatmap({
   return (
     <View>
       <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <Text x={labelW - 2} y={8} style={TICK} textAnchor="end">
+        <Text x={labelW - 2} y={8} style={tick()} textAnchor="end">
           Claim
         </Text>
         {livingAges.map((age, i) => (
-          <Text key={`hx-${age}`} x={labelW + i * colW + colW / 2} y={9} style={TICK} textAnchor="middle">
+          <Text key={`hx-${age}`} x={labelW + i * colW + colW / 2} y={9} style={tick()} textAnchor="middle">
             {age}
           </Text>
         ))}
@@ -224,7 +231,7 @@ export function PdfHeatmap({
                 y={headerH + ri * rowH + 0.5}
                 width={colW - 1}
                 height={rowH - 1}
-                fill={heatmapColorPdf(ratio)}
+                fill={heatColor(ratio)}
                 rx={1}
               />
             );
@@ -327,10 +334,10 @@ export function PdfMonthlyRamp({ options, shownAge }: { options: ClaimingOption[
             "$3k" and "$5k" for $2,773 and $4,912, so the axis said the ramp
             covered a range it does not, at both ends. Thousands are the
             right unit for a lifetime total; they are the wrong unit here. */}
-        <Text x={padL - 3} y={yScale(maxM) + 2} style={TICK} textAnchor="end">
+        <Text x={padL - 3} y={yScale(maxM) + 2} style={tick()} textAnchor="end">
           {formatCurrency(maxM)}
         </Text>
-        <Text x={padL - 3} y={yScale(minM) + 2} style={TICK} textAnchor="end">
+        <Text x={padL - 3} y={yScale(minM) + 2} style={tick()} textAnchor="end">
           {formatCurrency(minM)}
         </Text>
         <Path d={path} stroke={INK} strokeWidth={1.5} fill="none" />

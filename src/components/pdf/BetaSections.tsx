@@ -18,7 +18,7 @@ import {
   personLabel,
 } from '../../lib/format';
 import { firstDeath } from '../../lib/incomeCliff';
-import { styles, BORDER, CHART_INNER_W, GOLD, INK, MUTED } from './theme';
+import { styles, CHART_INNER_W } from './theme';
 import * as copy from './betaCopy';
 
 /** A month index on the band convention, as a calendar month. */
@@ -430,4 +430,3 @@ export function BetaAppendixSection({
 }
 
 export const BETA_CHART_WIDTH = CHART_INNER_W;
-export const BETA_TOKENS = { BORDER, GOLD, INK, MUTED };

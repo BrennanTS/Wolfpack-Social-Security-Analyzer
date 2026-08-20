@@ -18,7 +18,7 @@ function applyDarkMode(active: boolean): void {
 
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) {
-    themeMeta.setAttribute('content', active ? '#0e0e0e' : '#f7f5f0');
+    themeMeta.setAttribute('content', active ? '#0d0d0d' : '#f7f4ee');
   }
 }
 

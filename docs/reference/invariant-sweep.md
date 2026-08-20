@@ -9,7 +9,7 @@
 
 Across five shipped branches this project produced **zero arithmetic defects and sixteen copy defects**, four tests that structurally could not fail, and three separate encounters with golden-suite blindness. Every one of those was caught by a human reading a screenshot or a reviewer reading a diff. **None was caught by the test suite.**
 
-That is a shape, not bad luck. The suite asserts *the field that was just touched*, across thirty fixtures that share a shape — all thirty give both people plan-to age 85, which makes whole behaviours bit-exact and therefore invisible. `order-independence-runs-deep` states the lesson: **test a property over the whole output, not over the field you just touched.**
+That is a shape, not bad luck. The suite asserts *the field that was just touched*, across thirty fixtures that share a shape — all thirty give both people plan-to age 85, which makes whole behaviors bit-exact and therefore invisible. `order-independence-runs-deep` states the lesson: **test a property over the whole output, not over the field you just touched.**
 
 This sweep is the other half of the suite: properties asserted over the entire analysis, across thousands of generated households instead of thirty hand-written ones.
 
@@ -83,7 +83,7 @@ There is precedent for the fix: `IncomeCliffCallout` carries a comment saying it
 
 **Recommendation:** apply the same rule — the chart owns the gap note; `spousalMethodologyCopy` keeps its blanket survivor sentence and drops the embedded gap note.
 
-### 4. The "earliest" comparison row has never rendered, for any household
+### 4. The "earliest" comparison row has never rendered, for any household — FIXED
 
 Confirmed empirically for the first time: across **2,000 households (1,500 of them married)**, the strategy table reached only `fra`, `latest` and `optimal`. `earliest` was reached by none.
 
@@ -94,6 +94,8 @@ Confirmed empirically for the first time: across **2,000 households (1,500 of th
 **Why it wasn't fixed autonomously:** `household.test.ts:783` carries a deliberate tripwire asserting `earliest` is `undefined`, whose comment says the day the row starts appearing, a human should decide that is safe rather than have a guard "quietly start to fire for the first time with no one having decided that was safe." That is an explicit request for a human decision, and it is respected. The sweep now carries the same tripwire at scale.
 
 **Recommendation:** take the fix. It adds a row that was always intended, changes no existing figure, and does not touch the recommendation.
+
+**Resolved.** `resolveScenario` now reads both extremes off the engine's own attainable ages (`extremeAges(ranked, 'first' | 'last')`) rather than asking for a hardcoded 62y0m, which also handles someone already past 62, whose floor is higher still. Both tripwires — `household.test.ts` and the sweep assertion above — are inverted rather than deleted, so a regression that drops the row again still fails loudly.
 
 ---
 

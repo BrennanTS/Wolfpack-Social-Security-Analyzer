@@ -5,7 +5,7 @@ import {
   generateOpportunityCostData,
   getHeatmapValue,
   getLivingAgeTicks,
-  heatmapColorWeb,
+  mixHex,
   heatmapColumnRatio,
   heatmapColumnScales,
 } from './chartData';
@@ -66,14 +66,14 @@ describe('generateMonthlyRampData', () => {
   });
 });
 
-describe('heatmapColorWeb', () => {
-  it('clamps out-of-range ratios to the palette endpoints', () => {
-    expect(heatmapColorWeb(-1)).toBe(heatmapColorWeb(0));
-    expect(heatmapColorWeb(2)).toBe(heatmapColorWeb(1));
+describe('mixHex', () => {
+  it('returns each endpoint untouched at the ends of the range', () => {
+    expect(mixHex('#000000', '#ffffff', 0)).toBe('#000000');
+    expect(mixHex('#000000', '#ffffff', 1)).toBe('#ffffff');
   });
 
-  it('returns a six-digit hex color', () => {
-    expect(heatmapColorWeb(0.5)).toMatch(/^#[0-9a-f]{6}$/);
+  it('returns a six-digit hex color in between', () => {
+    expect(mixHex('#000000', '#ffffff', 0.5)).toMatch(/^#[0-9a-f]{6}$/);
   });
 });
 

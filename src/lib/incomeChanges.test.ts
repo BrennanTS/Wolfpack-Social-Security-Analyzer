@@ -15,6 +15,21 @@ const married: Household = {
   ],
 };
 
+/** The same couple, with whatever names the case under test needs. */
+function marriedAnalysis(names: [string | undefined, string | undefined]) {
+  return analyzeHousehold(
+    {
+      ...married,
+      people: [
+        { ...married.people[0], name: names[0] },
+        { ...married.people[1], name: names[1] },
+      ],
+    } as Household,
+    assumptions,
+    asOf,
+  );
+}
+
 beforeAll(() => {
   globalThis.fetch = (async (url: string) => {
     const contents = await readFile(
@@ -79,5 +94,42 @@ describe('incomeChanges', () => {
     const changes = incomeChanges(analysis);
     expect(changes.length).toBeGreaterThan(0);
     expect(changes.some((c) => /first death/.test(c.reason))).toBe(false);
+  });
+});
+
+describe('naming the person a change belongs to', () => {
+  /**
+   * The name field is optional, and page 1 of the report printed "They starts
+   * their own benefit" for every household that left it blank — subject and
+   * verb disagreeing in the first sentence a client reads.
+   */
+  it('never disagrees with its own verb, whatever the household is called', async () => {
+    for (const names of [
+      ['Dan', 'Sarah'],
+      ['', ''],
+      [undefined, undefined],
+      ['Dan', ''],
+    ] as [string | undefined, string | undefined][]) {
+      const analysis = await marriedAnalysis(names);
+      for (const change of incomeChanges(analysis)) {
+        expect(change.reason).not.toMatch(/\bThey (starts|adds)\b/);
+        // A blank name must not leave the sentence starting with its own space.
+        expect(change.reason).toBe(change.reason.trim());
+        expect(change.reason).not.toMatch(/^\s/);
+      }
+    }
+  });
+
+  it('falls back to the same Client/Spouse labels the rest of the report uses', async () => {
+    const analysis = await marriedAnalysis([undefined, undefined]);
+    const reasons = incomeChanges(analysis).map((c) => c.reason);
+    // Not "They", and not a bare verb with nobody in front of it.
+    expect(reasons.some((r) => /^(Client|Spouse) /.test(r))).toBe(true);
+  });
+
+  it('uses the typed name when there is one', async () => {
+    const analysis = await marriedAnalysis(['Dan', 'Sarah']);
+    const reasons = incomeChanges(analysis).map((c) => c.reason);
+    expect(reasons.some((r) => r.startsWith('Dan ') || r.startsWith('Sarah '))).toBe(true);
   });
 });

@@ -1,33 +1,56 @@
 :root {
-  --ink: #141414;
+  --ink: #101010;
   --ink-soft: #2a2a2a;
-  --cream: #f7f5f0;
-  --cream-dark: #ebe8e1;
-  --bg: #f7f5f0;
+  --cream: #f7f4ee;
+  --cream-dark: #e9e4d9;
+  --bg: #f7f4ee;
   --bg-secondary: #ffffff;
   --surface: #ffffff;
   --surface-raised: rgba(255, 255, 255, 0.88);
-  --fill: #f0eeea;
-  --fill-secondary: #e4e1da;
-  --border: rgba(20, 20, 20, 0.08);
-  --border-strong: rgba(20, 20, 20, 0.14);
-  --text: #141414;
-  --text-muted: #5c5c5c;
-  --text-subtle: #8a8a8a;
-  --gold: #b8965a;
-  --gold-light: #d4bc8a;
-  --gold-dark: #8a7144;
-  --gold-soft: rgba(184, 150, 90, 0.14);
+  --fill: #efece4;
+  --fill-secondary: #e2ddd2;
+  --border: rgba(16, 16, 16, 0.15);
+  --border-strong: rgba(16, 16, 16, 0.28);
+  --text: #101010;
+  --text-muted: #454545;
+  --text-subtle: #6b6b6b;
+  --gold: #9a7736;
+  --gold-light: #c8a865;
+  --gold-dark: #6f5526;
+  --gold-soft: rgba(154, 119, 54, 0.14);
   --blue: var(--gold);
-  --blue-hover: #a6844f;
+  --blue-hover: #85662e;
   --blue-soft: var(--gold-soft);
-  --green: #5a7a5e;
-  --green-soft: rgba(90, 122, 94, 0.12);
-  --red: #9a4a44;
-  --red-soft: rgba(154, 74, 68, 0.1);
+  --green: #47694c;
+  --green-soft: rgba(71, 105, 76, 0.12);
+  --red: #96423c;
+  --red-soft: rgba(150, 66, 60, 0.1);
   --orange: var(--gold);
   --orange-soft: var(--gold-soft);
-  --purple: #6b6b6b;
+  --purple: #5b5b5b;
+  /* ─── Chart tokens ───
+     Web charts only: the PDF shares `seriesColor` and nothing else, so these
+     are free to be theme-aware. They were plain constants while dark mode hid
+     its charts behind `saturate(0.4)`; with that filter gone each one has to
+     stand on its own canvas, and no single grey can clear 4.5:1 on both white
+     and #1a1a1a at once — the two requirements are arithmetically opposed. */
+  --chart-ink: #3a3a3a;
+  --chart-muted: #5e5e5e;
+  --chart-axis: #dcdcdc;
+  --chart-grey-mid: #8f8f8f;
+  --chart-red: #96423c;
+  /* Claiming-age ramp: later ages read darker, age 70 in gold. Reversed for
+     dark mode, where "darker" would mean "closer to the background". */
+  --claim-age-62: #949494;
+  --claim-age-63: #8a8a8a;
+  --claim-age-64: #7d7d7d;
+  --claim-age-65: #6f6f6f;
+  --claim-age-66: #626262;
+  --claim-age-67: #545454;
+  --claim-age-68: #464646;
+  --claim-age-69: #383838;
+  --claim-age-70: #9a7736;
+
   --radius-sm: 4px;
   --radius: 6px;
   --radius-lg: 10px;
@@ -100,7 +123,7 @@ select {
 
 /* The select chevron, once. `.birth-row select` drew its own inline copy of
    this data URI; a second copy elsewhere is how the two come to disagree
-   about the arrow's colour, which is the only thing that separates a styled
+   about the arrow's color, which is the only thing that separates a styled
    select from a native one at a glance. */
 :root {
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2386868b' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
@@ -123,26 +146,42 @@ a:hover {
 /* ─── Dark mode ─── */
 [data-theme='dark'] {
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b4b4b4' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
-  --bg: #0e0e0e;
-  --bg-secondary: #141414;
+  --bg: #0d0d0d;
+  --bg-secondary: #131313;
   --surface: #1a1a1a;
   --surface-raised: rgba(26, 26, 26, 0.92);
-  --fill: #242424;
-  --fill-secondary: #2e2e2e;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --text: #e6e6e6;
-  --text-muted: #b4b4b4;
-  --text-subtle: #949494;
-  --gold: #c4a66a;
-  --gold-soft: rgba(196, 166, 106, 0.14);
+  --fill: #262626;
+  --fill-secondary: #303030;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text: #f0ece4;
+  --text-muted: #cfc9bd;
+  --text-subtle: #a8a294;
+  --gold: #d8b371;
+  --gold-light: #e6c98d;
+  --gold-dark: #d8b371;
+  --gold-soft: rgba(216, 179, 113, 0.16);
   --blue: var(--gold);
-  --blue-hover: #d4bc8a;
+  --blue-hover: #e6c98d;
   --blue-soft: var(--gold-soft);
-  --green: #7a9a7e;
-  --green-soft: rgba(122, 154, 126, 0.14);
-  --red: #b87a74;
-  --red-soft: rgba(184, 122, 116, 0.14);
+  --green: #86a98b;
+  --green-soft: rgba(134, 169, 139, 0.16);
+  --red: #c07f78;
+  --red-soft: rgba(192, 127, 120, 0.16);
+  --chart-ink: #d5d0c6;
+  --chart-muted: #a8a294;
+  --chart-axis: #3a3a3a;
+  --chart-grey-mid: #8f8f8f;
+  --chart-red: #c07f78;
+  --claim-age-62: #6e6e6e;
+  --claim-age-63: #7a7a7a;
+  --claim-age-64: #878787;
+  --claim-age-65: #949494;
+  --claim-age-66: #a1a1a1;
+  --claim-age-67: #aeaeae;
+  --claim-age-68: #bbbbbb;
+  --claim-age-69: #c8c8c8;
+  --claim-age-70: #d8b371;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.35);
@@ -151,11 +190,6 @@ a:hover {
 
 [data-theme='dark'] .gate-panel-brand {
   background: #0a0a0a;
-}
-
-[data-theme='dark'] .chart-container,
-[data-theme='dark'] .toggle-chart-body {
-  filter: brightness(0.85) saturate(0.4) contrast(0.95);
 }
 
 [data-theme='dark'] .gate-monogram,

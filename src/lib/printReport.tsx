@@ -1,4 +1,5 @@
 import type { ClaimingRow } from './claimingRows';
+import { reportTheme } from './reportTheme';
 import type { HouseholdAnalysis } from './household';
 import type { LongevitySensitivity } from './longevity';
 
@@ -32,14 +33,19 @@ function save(blob: Blob, filename: string): void {
  * builders would eventually disagree about which rows a table has.
  *
  * `gridTarget` travels for the same reason: the printed claiming grid must
- * outline the near-best region the adviser had dialled in, not a default.
+ * outline the near-best region the adviser had dialed in, not a default.
  */
 export async function downloadPdfReport(
   analysis: HouseholdAnalysis,
   claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
   gridTarget?: { on: boolean; percent: number },
+  themeId?: string,
 ): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
+  const { setActiveReportTheme } = await import('../components/pdf/theme');
+  // Before the document is imported OR built: the stylesheet is rebuilt here,
+  // and a section that had already captured `styles` would print the old one.
+  setActiveReportTheme(reportTheme(themeId));
   const { ReportDocument } = await import('../components/pdf/ReportDocument');
 
   const blob = await pdf(
@@ -68,8 +74,11 @@ export async function downloadBetaPdfReport(
   claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
   gridTarget?: { on: boolean; percent: number },
   sensitivity?: LongevitySensitivity | null,
+  themeId?: string,
 ): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
+  const { setActiveReportTheme } = await import('../components/pdf/theme');
+  setActiveReportTheme(reportTheme(themeId));
   const { BetaReportDocument } = await import('../components/pdf/BetaReportDocument');
 
   const blob = await pdf(

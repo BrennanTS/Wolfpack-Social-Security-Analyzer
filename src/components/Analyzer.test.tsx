@@ -253,6 +253,17 @@ describe('Analyzer', () => {
   });
 
   describe('the About panel', () => {
+    /**
+     * About and Resources are reached through the right-hand menu now — the
+     * header carries only what an adviser touches during a meeting. Routed
+     * through a helper so these tests keep asserting drawer behavior rather
+     * than turning into assertions about the menu.
+     */
+    async function openFromMenu(name: RegExp) {
+      await userEvent.click(screen.getByRole('button', { name: /^menu$/i }));
+      await userEvent.click(screen.getByRole('button', { name }));
+    }
+
     // A completed married household, so the main-surface methodology block
     // actually mounts. A blank form leaves `analysis` null and the whole
     // `.methodology` div never renders — asserting absence against a blank
@@ -280,10 +291,10 @@ describe('Analyzer', () => {
       vi.unstubAllGlobals();
     });
 
-    it('opens from the header and is closed by default', async () => {
+    it('opens from the menu and is closed by default', async () => {
       renderAnalyzer();
       expect(screen.queryByRole('heading', { name: 'About' })).not.toBeInTheDocument();
-      await userEvent.click(screen.getByRole('button', { name: /^about$/i }));
+      await openFromMenu(/^about this analysis$/i);
       // Scoped to the panel itself, not a bare page-wide text query — so this
       // cannot pass by matching a same-named heading somewhere else on the
       // page (the main surface briefly carried its own "How This Works"
@@ -294,7 +305,7 @@ describe('Analyzer', () => {
 
     it('closes when its own close button is used', async () => {
       renderAnalyzer();
-      await userEvent.click(screen.getByRole('button', { name: /^about$/i }));
+      await openFromMenu(/^about this analysis$/i);
       const panel = screen.getByRole('heading', { name: 'About' }).closest('aside') as HTMLElement;
       await userEvent.click(within(panel).getByRole('button', { name: /^close$/i }));
       expect(screen.queryByRole('heading', { name: 'About' })).not.toBeInTheDocument();
@@ -309,16 +320,18 @@ describe('Analyzer', () => {
     it('opens one drawer at a time, whichever was open first', async () => {
       renderAnalyzer();
 
-      await userEvent.click(screen.getByRole('button', { name: /^resources$/i }));
+      await openFromMenu(/^resources$/i);
       expect(screen.getByRole('heading', { name: 'Resources' })).toBeInTheDocument();
 
-      await userEvent.click(screen.getByRole('button', { name: /^about$/i }));
+      await openFromMenu(/^about this analysis$/i);
       expect(screen.getByRole('heading', { name: 'About' })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Resources' })).not.toBeInTheDocument();
 
-      await userEvent.click(screen.getByRole('button', { name: /^resources$/i }));
+      await openFromMenu(/^resources$/i);
       expect(screen.getByRole('heading', { name: 'Resources' })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'About' })).not.toBeInTheDocument();
+      // And the menu itself stepped aside rather than stacking on top.
+      expect(screen.queryByRole('heading', { name: 'Menu' })).not.toBeInTheDocument();
     });
 
     it(
@@ -368,7 +381,7 @@ describe('Analyzer', () => {
         await screen.findByTestId('methodology-spousal', {}, { timeout: 10000 });
         expect(screen.getByRole('heading', { name: /spousal benefit/i })).toBeInTheDocument();
 
-        await userEvent.click(screen.getByRole('button', { name: /^about$/i }));
+        await openFromMenu(/^about this analysis$/i);
         // Exactly one "How This Works" heading on the page — About's — even
         // with the main surface's own methodology card also rendered.
         expect(screen.getAllByText(/How This Works/i)).toHaveLength(1);

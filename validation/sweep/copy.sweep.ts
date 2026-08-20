@@ -9,7 +9,7 @@
  * the output.
  *
  * Copy is single-sourced in `methodologyCopy.ts` by design, so calling those
- * functions against real analyses covers the same strings both surfaces
+ * functions against real analyzes covers the same strings both surfaces
  * render — cheaply enough to run over thousands of households. `surfaces.ts`
  * models WHICH strings land in front of the same reader, which is what makes
  * the duplicate check meaningful rather than noisy.
@@ -373,19 +373,22 @@ describe('branch reachability', () => {
           .join('\n'),
     );
 
-    // PARKED DEFECT, pinned deliberately — see `docs/reference/invariant-sweep.md`.
+    // Every comparison row the table can display is reachable by SOME
+    // household — including `earliest`, which for the whole life of this
+    // assertion was reachable by none.
     //
-    // Every comparison row the table can display should be reachable by SOME
-    // household. `earliest` is reachable by none: `buildComparisons` asks
-    // `findStrategyByAges` for exactly `{years: 62, months: 0}`, and SSA
+    // It used to pin that as a PARKED DEFECT: `buildComparisons` asked
+    // `findStrategyByAges` for exactly `{years: 62, months: 0}`, SSA
     // entitlement needs a full month at 62, so the engine's grid starts at
-    // 62y1m and the row is silently dropped by `if (!match) continue`.
+    // 62y1m and the row was silently dropped by `if (!match) continue`.
+    // `resolveScenario` now reads both extremes off the engine's own
+    // attainable ages, so the row resolves for every household — and for
+    // someone already past 62, whose floor is higher still.
     //
-    // Not fixed here because `household.test.ts` carries an explicit tripwire
-    // saying the day this row starts appearing, a human should decide it is
-    // safe. This assertion is the same tripwire at sweep scale: it pins the
-    // DEFECT, so it fails — and says so — the moment the row is fixed.
-    expect([...strategyKeys].sort()).toEqual(['fra', 'latest', 'optimal']);
+    // The pin is inverted rather than deleted: a regression that drops
+    // `earliest` again would otherwise be invisible, which is exactly how it
+    // went unnoticed the first time.
+    expect([...strategyKeys].sort()).toEqual(['earliest', 'fra', 'latest', 'optimal']);
   });
 
   it(`reports which widowed branches ${WIDOWED_COUNT} households reach`, async () => {

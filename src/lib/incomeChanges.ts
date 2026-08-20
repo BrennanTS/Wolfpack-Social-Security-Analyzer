@@ -1,4 +1,5 @@
 import type { BenefitBand } from './benefitPeriods';
+import { personLabel } from './format';
 import { firstDeath } from './incomeCliff';
 import type { HouseholdAnalysis } from './household';
 
@@ -67,7 +68,16 @@ export function incomeChanges(analysis: HouseholdAnalysis): IncomeChange[] {
       return 'At the first death, the survivor keeps the larger of the two';
     }
     const starting = bands.filter((b) => b.startIndex === month);
-    const who = (b: BenefitBand) => names[ids.indexOf(b.personId)] ?? 'They';
+    // `personLabel`, like every other surface that names a person, rather
+    // than the raw name. The name field is optional, so it arrives blank far
+    // more often than it arrives missing — and `?? 'They'` caught only the
+    // missing case, which is how "They starts their own benefit" reached
+    // page 1 of the report. Every label it returns is singular, so the verbs
+    // below agree whether or not anyone typed a name.
+    const who = (b: BenefitBand) => {
+      const index = ids.indexOf(b.personId);
+      return personLabel(names[index], index);
+    };
     const survivor = starting.find((b) => b.type === 'survivor');
     if (survivor) return `${who(survivor)} adds a survivor benefit`;
     const spousal = starting.find((b) => b.type === 'spousal');

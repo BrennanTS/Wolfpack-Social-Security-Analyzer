@@ -432,7 +432,8 @@
 }
 
 .drawer-backdrop-resources,
-.drawer-backdrop-about {
+.drawer-backdrop-about,
+.drawer-backdrop-menu {
   z-index: 105;
 }
 
@@ -1370,7 +1371,7 @@ tbody tr:hover {
   max-width: none;
   margin-top: 6px;
   padding-left: 10px;
-  border-left: 2px solid var(--gold, #b8965a);
+  border-left: 2px solid var(--gold, #9a7736);
   font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--text-muted, #5c5c5c);
@@ -1514,13 +1515,13 @@ tbody tr:hover {
   overflow-x: auto;
   /* Ramp endpoints per theme; `--t` is set inline per cell. Defined here
      rather than on the grid so the legend bar below inherits the same ramp. */
-  --heat-lo: #f4efe4;
-  --heat-hi: #be9a57;
+  --heat-lo: #eaf0f7;
+  --heat-hi: #8fb0d4;
 }
 
 [data-theme='dark'] .heatmap-wrap {
-  --heat-lo: #232323;
-  --heat-hi: #7d6633;
+  --heat-lo: #1a2634;
+  --heat-hi: #4f77a3;
 }
 
 .heatmap-grid {
@@ -1572,7 +1573,7 @@ tbody tr:hover {
  * The heatmap ramp is defined per theme rather than computed once in JS.
  * A single shared ramp left pale low-value cells pale in dark mode while the
  * label flipped to white, so the cheapest cells were the least readable. Each
- * theme now stays inside a lightness band that one text colour can sit on.
+ * theme now stays inside a lightness band that one text color can sit on.
  * `--t` is the 0-1 position, set inline per cell by `LifetimeHeatmapChart`.
  */
 .heatmap-cell {
@@ -1600,7 +1601,7 @@ tbody tr:hover {
 }
 
 .heatmap-cell-shown-row {
-  outline: 1px solid rgba(184, 150, 90, 0.45);
+  outline: 1px solid rgba(36, 85, 127, 0.5);
   outline-offset: -1px;
 }
 
@@ -2293,13 +2294,13 @@ tbody tr:hover {
  * cell from `gridRatio`.
  */
 .claim-grid-panel {
-  --heat-lo: #f4efe4;
-  --heat-hi: #be9a57;
+  --heat-lo: #eaf0f7;
+  --heat-hi: #8fb0d4;
 }
 
 [data-theme='dark'] .claim-grid-panel {
-  --heat-lo: #232323;
-  --heat-hi: #7d6633;
+  --heat-lo: #1a2634;
+  --heat-hi: #4f77a3;
 }
 
 .claim-grid-controls {
@@ -2603,7 +2604,7 @@ tbody tr:hover {
   background: var(--green);
 }
 
-/* The tab the result landed on. A ring rather than a colour change, so it
+/* The tab the result landed on. A ring rather than a color change, so it
    reads as "look here" rather than as a new selected state — the tab the
    reader is on has not changed. */
 .household-tab-landed {
@@ -2628,4 +2629,143 @@ tbody tr:hover {
     animation: none;
     box-shadow: 0 0 0 2px var(--gold);
   }
+}
+
+/* ─── Right-hand menu ─── */
+/* Icon-only sibling of `.btn-resources`, square rather than pill-shaped so it
+   reads as the drawer handle rather than as one more labeled action. */
+.btn-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.btn-menu:hover {
+  background: var(--fill);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.menu-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-note {
+  margin: 0 0 12px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-subtle);
+}
+
+.theme-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.theme-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.theme-choice:hover {
+  background: var(--fill);
+  border-color: var(--border-strong);
+}
+
+.theme-choice.is-selected {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+/* The swatch row is the only honest preview available here: these are print
+   colors on white paper, and the panel behind them may be in dark mode. Each
+   sits on its own white chip so the theme is judged against what it will
+   actually be printed on. */
+.theme-swatches {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 3px;
+  gap: 3px;
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+.theme-swatch {
+  width: 10px;
+  height: 18px;
+  border-radius: 2px;
+}
+
+.theme-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.theme-choice-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.theme-choice-blurb {
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+  line-height: 1.35;
+}
+
+.theme-choice-tick {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--gold-dark);
+}
+
+.menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-link {
+  width: 100%;
+  padding: 9px 10px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.8125rem;
+  transition: background 0.2s var(--ease);
+}
+
+.menu-link:hover {
+  background: var(--fill);
+}
+
+.menu-footer {
+  margin-top: auto;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
 }

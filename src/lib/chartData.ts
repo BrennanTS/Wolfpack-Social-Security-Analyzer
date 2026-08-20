@@ -114,7 +114,7 @@ export function generateMonthlyRampData(
  * so nine visibly different outcomes printed as nine near-identical golds.
  *
  * Shading each column against its own range makes the winner in every column
- * plain. The cost is that colour no longer compares ACROSS columns, which is
+ * plain. The cost is that color no longer compares ACROSS columns, which is
  * why the cells also carry their figures — a reader comparing two columns
  * reads the numbers, not the shade.
  */
@@ -155,21 +155,14 @@ export function heatmapColumnRatio(
   return (value - scale.lo) / (scale.hi - scale.lo);
 }
 
-/** Interpolate hex colors for heatmap cells (ratio 0–1). */
-export function heatmapColorWeb(ratio: number): string {
-  const t = Math.max(0, Math.min(1, ratio));
-  if (t < 0.55) {
-    return mixHex('#f0eeea', '#8a8a8a', t / 0.55);
-  }
-  return mixHex('#8a8a8a', '#b8965a', (t - 0.55) / 0.45);
-}
-
-/** PDF heatmap palette — matches web (cream → grey → gold). */
-export function heatmapColorPdf(ratio: number): string {
-  return heatmapColorWeb(ratio);
-}
-
-function mixHex(a: string, b: string, t: number): string {
+/**
+ * Blend two hex colors, `t` from 0 (all `a`) to 1 (all `b`).
+ *
+ * The heat ramp this used to hard-code moved to `pdf/theme.ts`, which owns
+ * the report palette and therefore knows which theme's endpoints to mix. What
+ * is left here is the arithmetic, which no theme changes.
+ */
+export function mixHex(a: string, b: string, t: number): string {
   const parse = (hex: string) => [
     parseInt(hex.slice(1, 3), 16),
     parseInt(hex.slice(3, 5), 16),
