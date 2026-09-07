@@ -48,7 +48,22 @@ export type ReportBlockId =
  * break, several in a row mean more of it.
  */
 export type LayoutItem =
-  | { kind: 'block'; id: ReportBlockId }
+  | {
+      kind: 'block';
+      id: ReportBlockId;
+      /**
+       * Kept in the layout, left out of the report.
+       *
+       * Removing a block and adding it back costs its position: it returns to
+       * the end of the list and has to be dragged home. Hiding is the answer
+       * to "what does this look like without that section", which is a
+       * question asked far more often than "delete this permanently".
+       *
+       * Absent rather than `false` when shown, so a layout saved before this
+       * existed is byte-identical to the same layout saved after it.
+       */
+      hidden?: boolean;
+    }
   | { kind: 'break' }
   | { kind: 'space' };
 
@@ -355,9 +370,27 @@ export const PRESETS: readonly ReportLayout[] = [CLIENT_LAYOUT, ADVISER_LAYOUT];
 
 export const DEFAULT_LAYOUT_ID = CLIENT_LAYOUT.id;
 
-/** Blocks in a layout, in order, ignoring breaks. */
+/**
+ * Blocks in a layout, in order, ignoring breaks.
+ *
+ * Hidden blocks are included: they are in the layout, which is what decides
+ * whether the palette offers to add them again.
+ */
 export function layoutBlockIds(layout: ReportLayout): ReportBlockId[] {
   return layout.items.flatMap((i) => (i.kind === 'block' ? [i.id] : []));
+}
+
+/** Blocks kept in the layout but left out of the report. */
+export function hiddenBlockIds(layout: ReportLayout): ReportBlockId[] {
+  return layout.items.flatMap((i) => (i.kind === 'block' && i.hidden === true ? [i.id] : []));
+}
+
+/** Blocks this household will actually see, in order. */
+export function printedBlockIds(
+  layout: ReportLayout,
+  shape: HouseholdDisplayShape,
+): ReportBlockId[] {
+  return layoutRuns(layout, shape).flat().filter((item): item is ReportBlockId => item !== SPACE);
 }
 
 /** Blocks NOT in a layout — the editor's "not included" column. */
@@ -403,6 +436,7 @@ export function layoutRuns(layout: ReportLayout, shape: HouseholdDisplayShape): 
       current.push(SPACE);
       continue;
     }
+    if (item.hidden === true) continue;
     if (blockAppliesTo(item.id, shape)) current.push(item.id);
   }
   close();
@@ -424,6 +458,7 @@ export function spaceIgnored(
   if (items[index]?.kind !== 'space') return null;
   const printing = (item: LayoutItem | undefined): ReportBlockId | null => {
     if (item === undefined || item.kind !== 'block') return null;
+    if (item.hidden === true) return null;
     if (shape !== undefined && !blockAppliesTo(item.id, shape)) return null;
     return item.id;
   };
@@ -521,7 +556,14 @@ export function parseLayout(raw: unknown): ReportLayout | null {
     // A block twice would render its content twice under one heading.
     if (seen.has(id as ReportBlockId)) continue;
     seen.add(id as ReportBlockId);
-    items.push({ kind: 'block', id: id as ReportBlockId });
+    // Written only when true, so a shown block round-trips to exactly what it
+    // was before hiding existed.
+    const hidden = (item as { hidden?: unknown }).hidden === true;
+    items.push(
+      hidden
+        ? { kind: 'block', id: id as ReportBlockId, hidden: true }
+        : { kind: 'block', id: id as ReportBlockId },
+    );
   }
   while (items.length > 0 && items[items.length - 1].kind !== 'block') items.pop();
   if (items.length === 0) return null;

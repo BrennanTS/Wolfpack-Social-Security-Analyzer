@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReportLayoutEditor } from './ReportLayoutEditor';
 import {
@@ -8,6 +8,7 @@ import {
   CLIENT_LAYOUT,
   PRESETS,
   type LayoutItem,
+  type ReportBlockId,
   type ReportLayout,
 } from '../lib/reportLayout';
 
@@ -24,7 +25,12 @@ function store(overrides: Partial<ReturnType<typeof base>> = {}) {
  * would never re-render and every assertion about the visible list would be
  * about nothing.
  */
-function Harness(props: ReturnType<typeof store> & { shape?: 'oneClaimant' | 'twoClaimants' | 'widowed' }) {
+function Harness(
+  props: ReturnType<typeof store> & {
+    shape?: 'oneClaimant' | 'twoClaimants' | 'widowed';
+    blockPages?: ReadonlyMap<ReportBlockId, number>;
+  },
+) {
   const [draftItems, setDraftItems] = useState<LayoutItem[] | null>(props.draftItems ?? null);
   const layout = draftItems === null ? props.layout : { ...props.layout, items: draftItems };
   return <ReportLayoutEditor {...props} layout={layout} draftItems={draftItems} setDraftItems={setDraftItems} />;
@@ -54,6 +60,51 @@ function base() {
 
 const rowNames = () =>
   screen.getAllByRole('listitem').map((li) => li.textContent?.trim().slice(0, 40) ?? '');
+
+/**
+ * A pointer drag, the way the editor implements one.
+ *
+ * jsdom's pointer events carry no coordinates and no button, so they are put
+ * back on by hand — the editor reads `clientY`, `button` and nothing else.
+ */
+function pointer(type: 'pointerDown' | 'pointerMove' | 'pointerUp', clientY: number, target?: HTMLElement) {
+  const event = createEvent[type](target ?? document.body);
+  Object.defineProperty(event, 'clientX', { value: 0 });
+  Object.defineProperty(event, 'clientY', { value: clientY });
+  Object.defineProperty(event, 'button', { value: 0 });
+  if (target !== undefined) Object.defineProperty(event, 'target', { value: target });
+  return event;
+}
+
+const press = (el: HTMLElement, y: number) => fireEvent(el, pointer('pointerDown', y));
+const move = (el: HTMLElement, y: number) => fireEvent(el, pointer('pointerMove', y));
+const release = (el: HTMLElement, y: number) => fireEvent(el, pointer('pointerUp', y));
+
+/** Press, drag to `y`, let go. */
+function dragFrom(el: HTMLElement, y: number) {
+  press(el, 0);
+  move(el, y);
+  release(el, y);
+}
+
+/** jsdom lays nothing out, so the rows are given somewhere to be. */
+function layOutRows() {
+  screen.getAllByRole('listitem').forEach((row, i) => {
+    row.getBoundingClientRect = () => ({ top: i * 50, height: 40 }) as DOMRect;
+  });
+}
+
+const twoRowStore = () => {
+  const mine: ReportLayout = {
+    id: 'mine',
+    name: 'Mine',
+    items: [
+      { kind: 'block', id: 'answer' },
+      { kind: 'block', id: 'terms' },
+    ],
+  };
+  return store({ layout: mine, selectedId: 'mine', layouts: [...PRESETS, mine] });
+};
 
 describe('ReportLayoutEditor', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -176,6 +227,165 @@ describe('ReportLayoutEditor', () => {
       { kind: 'block', id: 'answer' },
       { kind: 'block', id: 'terms' },
     ]);
+  });
+
+  it('hides a block without moving it', async () => {
+    // Removing and re-adding costs the position: the block returns to the end
+    // of the list and has to be walked back up. Hiding answers "how does it
+    // read without this section", which is the question actually being asked.
+    const mine: ReportLayout = {
+      id: 'mine',
+      name: 'Mine',
+      items: [
+        { kind: 'block', id: 'answer' },
+        { kind: 'block', id: 'changes' },
+        { kind: 'block', id: 'terms' },
+      ],
+    };
+    const s = store({ layout: mine, selectedId: 'mine', layouts: [...PRESETS, mine] });
+    renderEditor(s, 'twoClaimants');
+    await userEvent.click(screen.getByRole('button', { name: /^hide what changes, and when$/i }));
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'block', id: 'answer' },
+      { kind: 'block', id: 'changes', hidden: true },
+      { kind: 'block', id: 'terms' },
+    ]);
+  });
+
+  it('offers to show a block that is hidden, and says it is', async () => {
+    const mine: ReportLayout = {
+      id: 'mine',
+      name: 'Mine',
+      items: [{ kind: 'block', id: 'answer', hidden: true }],
+    };
+    const s = store({ layout: mine, selectedId: 'mine', layouts: [...PRESETS, mine] });
+    renderEditor(s, 'twoClaimants');
+    expect(screen.getByText(/hidden — kept here, left out of the report/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^show your social security decision$/i }));
+    expect(s.update).toHaveBeenCalledWith('mine', [{ kind: 'block', id: 'answer' }]);
+  });
+
+  it('adds a block from the palette where it is dragged, not at the end', async () => {
+    // Adding at the bottom and pressing ↓ eleven times is what the drag is
+    // for; a palette that only appends leaves the reordering to be done twice.
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    // 45 is past the middle of the first row and before the middle of the
+    // second, so it lands between them — including in the gap, which the
+    // rows themselves do not cover.
+    dragFrom(screen.getByRole('button', { name: /\+ Your action plan/ }), 45);
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'block', id: 'answer' },
+      { kind: 'block', id: 'action' },
+      { kind: 'block', id: 'terms' },
+    ]);
+  });
+
+  it('drops past the last row, and says so while the drag is on', () => {
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    expect(screen.queryByText(/put it last/i)).not.toBeInTheDocument();
+    const chip = screen.getByRole('button', { name: /\+ Your action plan/ });
+    press(chip, 0);
+    move(chip, 400);
+    expect(screen.getByText(/put it last/i)).toBeInTheDocument();
+    release(chip, 400);
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'block', id: 'answer' },
+      { kind: 'block', id: 'terms' },
+      { kind: 'block', id: 'action' },
+    ]);
+  });
+
+  it('shows what is in hand, so a drag that started looks like one', () => {
+    // The browser draws nothing for a pointer drag. Without this an adviser
+    // sees no difference between a drag in progress and a dead gesture.
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    const chip = screen.getByRole('button', { name: /\+ Your action plan/ });
+    press(chip, 0);
+    move(chip, 45);
+    expect(document.querySelector('.layout-ghost')?.textContent).toBe('Your action plan');
+    release(chip, 45);
+    expect(document.querySelector('.layout-ghost')).toBeNull();
+  });
+
+  it('treats a press that never moves as a click, and adds at the end', () => {
+    // Which is what a keyboard and a touch screen have.
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    const chip = screen.getByRole('button', { name: /\+ Your action plan/ });
+    press(chip, 10);
+    release(chip, 11);
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'block', id: 'answer' },
+      { kind: 'block', id: 'terms' },
+      { kind: 'block', id: 'action' },
+    ]);
+  });
+
+  it('calls a drag off on Escape, changing nothing', async () => {
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    const chip = screen.getByRole('button', { name: /\+ Your action plan/ });
+    press(chip, 0);
+    move(chip, 45);
+    await userEvent.keyboard('{Escape}');
+    expect(document.querySelector('.layout-ghost')).toBeNull();
+    release(chip, 45);
+    expect(s.update).not.toHaveBeenCalled();
+  });
+
+  it('still moves a row that is dragged over another', () => {
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    // The second row, taken above the middle of the first.
+    dragFrom(screen.getAllByRole('listitem')[1], 5);
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'block', id: 'terms' },
+      { kind: 'block', id: 'answer' },
+    ]);
+  });
+
+  it('does not start a drag from the buttons inside a row', () => {
+    // The eye and the arrows are pressed, not dragged, and a press that
+    // turned into a drag would make them unusable.
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    const row = screen.getAllByRole('listitem')[0];
+    const eye = screen.getByRole('button', { name: /^hide your social security decision$/i });
+    fireEvent(row, pointer('pointerDown', 0, eye));
+    fireEvent(row, pointer('pointerMove', 60));
+    expect(document.querySelector('.layout-ghost')).toBeNull();
+  });
+
+  it('says which page each block starts on', async () => {
+    // Measured by the preview as it renders, because it cannot be worked out
+    // from the list: one long table above moves everything after it.
+    render(
+      <Harness
+        {...store()}
+        shape="twoClaimants"
+        blockPages={new Map([['cover', 1], ['answer', 2]])}
+      />,
+    );
+    const rows = screen.getAllByRole('listitem');
+    expect(rows[0]).toHaveTextContent(/Cover\s*Page 1/);
+    expect(screen.getByText('Page 2')).toBeInTheDocument();
+  });
+
+  it('leaves the page unnamed before the first render lands', () => {
+    // The dialog is reachable before the inputs are complete, and a made-up
+    // page number is worse than none.
+    renderEditor();
+    expect(screen.queryByText(/^Page \d/)).not.toBeInTheDocument();
   });
 
   it('will not write an edit back into a preset', async () => {

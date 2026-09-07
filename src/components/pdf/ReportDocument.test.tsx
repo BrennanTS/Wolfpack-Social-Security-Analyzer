@@ -89,14 +89,23 @@ function collectText(node: unknown, out: string[] = []): string[] {
  * retuned without rewriting the tests that say where it lands.
  */
 function spacers(node: unknown, out: unknown[] = []): unknown[] {
+  return byStyle(node, styles.spacer, out);
+}
+
+/** The zero-height markers that report page numbers to the preview. */
+function markers(node: unknown, out: unknown[] = []): unknown[] {
+  return byStyle(node, styles.pageMark, out);
+}
+
+function byStyle(node: unknown, style: unknown, out: unknown[]): unknown[] {
   if (Array.isArray(node)) {
-    node.forEach((c) => spacers(c, out));
+    node.forEach((c) => byStyle(c, style, out));
     return out;
   }
   if (node === null || typeof node !== 'object') return out;
   const el = node as { props?: { style?: unknown; children?: unknown } };
-  if (el.props?.style === styles.spacer) out.push(node);
-  if (el.props?.children !== undefined) spacers(el.props.children, out);
+  if (el.props?.style === style) out.push(node);
+  if (el.props?.children !== undefined) byStyle(el.props.children, style, out);
   return out;
 }
 
@@ -289,6 +298,45 @@ describe('ReportDocument composition', () => {
     const single = pageGroups(build({ ...married, status: 'single' } as HouseholdAnalysis, spaced));
     expect(single).toHaveLength(1);
     expect(spacers(single)).toHaveLength(0);
+  });
+
+  it('reports which page each block landed on, when asked', async () => {
+    // Which sheet a block ends up on is decided by the layout pass, not by
+    // the list — a long table above moves everything after it. The preview
+    // has no other way to ask, so this is rendered for real rather than
+    // walked: the page numbers only exist once react-pdf has paginated.
+    const { pdf } = await import('@react-pdf/renderer');
+    const landed = new Map<string, number>();
+    const layout: ReportLayout = {
+      id: 'x', name: 'Paged',
+      items: [
+        { kind: 'block', id: 'cover' },
+        { kind: 'break' },
+        { kind: 'block', id: 'answer' },
+        { kind: 'block', id: 'terms' },
+      ],
+    };
+    await pdf(
+      <ReportDocument
+        analysis={married}
+        layout={layout}
+        onBlockPage={(id, page) => landed.set(id, page)}
+      />,
+    ).toBuffer();
+    expect(landed.get('cover')).toBe(1);
+    expect(landed.get('answer')).toBe(2);
+    // Both on the second sheet, in order — not that it matters which, only
+    // that a block never reports a page before the one before it.
+    expect(landed.get('terms')!).toBeGreaterThanOrEqual(landed.get('answer')!);
+  }, 30000);
+
+  it('renders no markers at all for the export', () => {
+    // The marker exists to answer the preview. An exported file carries
+    // nothing that was put there for the editor's benefit.
+    expect(markers(build(married, CLIENT_LAYOUT))).toHaveLength(0);
+    expect(
+      markers(ReportDocument({ analysis: married, layout: CLIENT_LAYOUT, onBlockPage: () => {} })),
+    ).not.toHaveLength(0);
   });
 
   it('omits the longevity block when the caller did not price it', () => {

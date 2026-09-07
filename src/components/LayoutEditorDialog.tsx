@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ReportLayoutEditor } from './ReportLayoutEditor';
 import { ReportPreview } from './ReportPreview';
 import type { HouseholdAnalysis, HouseholdDisplayShape } from '../lib/household';
 import type { ClaimingRow } from '../lib/claimingRows';
 import type { LongevitySensitivity } from '../lib/longevity';
 import type { useReportLayouts } from '../hooks/useReportLayouts';
+import type { ReportBlockId } from '../lib/reportLayout';
 
 /**
  * The layout editor, with room to work.
@@ -43,6 +44,10 @@ export function LayoutEditorDialog({
   };
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  // Which page each block starts on, measured by the preview as it renders
+  // and handed to the editor for its row labels. Held here because it
+  // travels between the two halves of the dialog.
+  const [pages, setPages] = useState<ReadonlyMap<ReportBlockId, number>>(new Map());
 
   useEffect(() => {
     if (!open) return;
@@ -57,6 +62,27 @@ export function LayoutEditorDialog({
     // Focus moves into the dialog, so the next Tab lands inside it rather
     // than back on the page behind.
     if (open) panel.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    // The page behind is held still while the dialog is up.
+    //
+    // Without this the wheel goes to whatever is under the pointer, and the
+    // report scrolls away behind the dialog — most obviously once the block
+    // list has reached its own end, since that is when the wheel starts
+    // being handed on. Padding replaces the width the scrollbar was holding,
+    // where the platform draws one, so nothing shifts sideways as it goes.
+    if (!open) return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    const previousPadding = root.style.paddingRight;
+    const scrollbar = window.innerWidth - root.clientWidth;
+    root.style.overflow = 'hidden';
+    if (scrollbar > 0) root.style.paddingRight = `${scrollbar}px`;
+    return () => {
+      root.style.overflow = previousOverflow;
+      root.style.paddingRight = previousPadding;
+    };
   }, [open]);
 
   if (!open) return null;
@@ -82,7 +108,8 @@ export function LayoutEditorDialog({
             <h2 id="layout-dialog-title">Report layout</h2>
             <p>
               What the exported PDF contains, in what order, and where its pages break. Drag a
-              block to move it.
+              block to move it, or in from the right to add it. Each block says which page it
+              starts on.
             </p>
           </div>
           <button type="button" className="btn-panel-close" onClick={onClose} aria-label="Close">
@@ -98,9 +125,9 @@ export function LayoutEditorDialog({
         </header>
 
         <div className="layout-dialog-body">
-          <ReportLayoutEditor {...layouts} shape={shape} wide />
+          <ReportLayoutEditor {...layouts} shape={shape} wide blockPages={pages} />
           {preview ? (
-            <ReportPreview {...preview} layout={layouts.layout} />
+            <ReportPreview {...preview} layout={layouts.layout} onPages={setPages} />
           ) : (
             <div className="report-preview">
               <div className="report-preview-head">

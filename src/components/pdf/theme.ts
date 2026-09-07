@@ -109,6 +109,13 @@ function buildStyles() {
    * and two read as twice as much.
    */
   spacer: { height: 24 },
+  /**
+   * The marker that reports which page a block landed on.
+   *
+   * Zero height and empty, so it cannot move what follows it; rendered only
+   * when the preview asks where things are, never in an exported file.
+   */
+  pageMark: { height: 0, fontSize: 1 },
   sectionDesc: { fontSize: 8, color: MUTED, marginBottom: 8, lineHeight: 1.45 },
   profileGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },
   profileItem: { width: '33.33%', marginBottom: 8, paddingRight: 8 },

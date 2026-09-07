@@ -67,4 +67,13 @@ describe('ReportPreview', () => {
     render(<ReportPreview {...props} />);
     expect(screen.getByText(/building the report/i)).toBeInTheDocument();
   });
+
+  it('reports no page numbers when it never renders', () => {
+    // The editor labels its rows from these. A browser that cannot show a PDF
+    // must leave the rows unlabeled rather than stale.
+    setPdfViewer(false);
+    const onPages = vi.fn();
+    render(<ReportPreview {...props} onPages={onPages} />);
+    expect(onPages).not.toHaveBeenCalled();
+  });
 });

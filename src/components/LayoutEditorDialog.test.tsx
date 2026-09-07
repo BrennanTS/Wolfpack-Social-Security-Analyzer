@@ -77,6 +77,29 @@ describe('LayoutEditorDialog', () => {
     expect(screen.getByText(/fill in the dates and benefit amounts/i)).toBeInTheDocument();
   });
 
+  it('holds the page behind it still, and gives it back on close', () => {
+    // Otherwise the wheel goes to whatever is under the pointer and the
+    // report scrolls away behind the dialog.
+    const { rerender } = render(
+      <LayoutEditorDialog open onClose={vi.fn()} layouts={layouts()} shape="twoClaimants" />,
+    );
+    expect(document.documentElement.style.overflow).toBe('hidden');
+    rerender(
+      <LayoutEditorDialog
+        open={false}
+        onClose={vi.fn()}
+        layouts={layouts()}
+        shape="twoClaimants"
+      />,
+    );
+    expect(document.documentElement.style.overflow).toBe('');
+  });
+
+  it('does not hold the page while it is closed', () => {
+    renderDialog({ open: false });
+    expect(document.documentElement.style.overflow).toBe('');
+  });
+
   it('does not listen for Escape while closed', () => {
     // A dialog that answers keystrokes it cannot see would close itself the
     // next time anything else on the page used Escape.

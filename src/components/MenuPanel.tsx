@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { REPORT_THEMES } from '../lib/reportTheme';
-import { blockAppliesTo, layoutBlockIds } from '../lib/reportLayout';
+import { blockAppliesTo, hiddenBlockIds, layoutBlockIds } from '../lib/reportLayout';
 import type { useReportLayouts } from '../hooks/useReportLayouts';
 import type { HouseholdDisplayShape } from '../lib/household';
 import { AppVersion } from './AppVersion';
@@ -10,14 +10,21 @@ function summarize(
   layout: ReturnType<typeof useReportLayouts>['layout'],
   shape?: HouseholdDisplayShape,
 ): string {
-  const blocks = layoutBlockIds(layout);
-  const printed =
-    shape === undefined ? blocks : blocks.filter((id) => blockAppliesTo(id, shape));
-  const skipped = blocks.length - printed.length;
+  const hiddenIds = new Set(hiddenBlockIds(layout));
+  const shown = layoutBlockIds(layout).filter((id) => !hiddenIds.has(id));
+  const printed = shape === undefined ? shown : shown.filter((id) => blockAppliesTo(id, shape));
+  const hidden = hiddenIds.size;
+  const skipped = shown.length - printed.length;
   const count = `${printed.length} section${printed.length === 1 ? '' : 's'}`;
-  return skipped === 0
+  // Two different reasons a block is in the layout and not in the report, and
+  // an adviser looking at a short report needs to know which one applies.
+  const notes = [
+    hidden > 0 ? `${hidden} hidden` : '',
+    skipped > 0 ? `${skipped} not printed for this household` : '',
+  ].filter(Boolean);
+  return notes.length === 0
     ? `“${layout.name}” — ${count}.`
-    : `“${layout.name}” — ${count}; ${skipped} not printed for this household.`;
+    : `“${layout.name}” — ${count}; ${notes.join(', ')}.`;
 }
 
 interface MenuPanelProps {

@@ -2846,6 +2846,34 @@ tbody tr:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: grab;
+  /* Dragging is on pointer events, so a touch that starts on a row must not
+     also scroll the panel underneath it. */
+  touch-action: none;
+}
+
+/* Nothing selects while a drag is in progress: the pointer is crossing rows
+   of text, and a blue smear across them is what a native drag avoids. */
+.layout-editor.is-dragging {
+  user-select: none;
+}
+
+/* What is in hand, following the pointer. */
+.layout-ghost {
+  position: fixed;
+  z-index: 60;
+  transform: translate(12px, -50%);
+  padding: 5px 10px;
+  max-width: 260px;
+  overflow: hidden;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  pointer-events: none;
 }
 
 .layout-row:active {
@@ -2904,7 +2932,45 @@ tbody tr:hover {
   min-width: 0;
 }
 
+/* Where the block starts in the report as it stands — measured by the
+   preview, so it moves as blocks above it are added, hidden or dragged. */
+.layout-row-page {
+  font-size: 0.625rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+/* Hidden: still in the layout, out of the report. Dimmed rather than struck
+   through — it is a state, not a deletion. */
+.layout-row-hidden {
+  border-style: dashed;
+  background: transparent;
+}
+
+.layout-row-hidden .layout-row-name {
+  color: var(--text-muted);
+}
+
+.layout-row-hidden .layout-row-eye {
+  color: var(--gold-dark);
+}
+
+/* Somewhere to let go past the last row, shown only while dragging. */
+.layout-drop-end {
+  padding: 9px;
+  font-size: 0.6875rem;
+  text-align: center;
+  color: var(--text-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+
 .layout-row-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: 0.8125rem;
   color: var(--text);
 }
@@ -2958,14 +3024,34 @@ tbody tr:hover {
   margin-top: 2px;
 }
 
+/* The block chips are spans carrying the button role — Safari and Firefox
+   will not drag a real button — so they need the box a button gave them. */
 .layout-add-block,
 .layout-add-break {
+  display: inline-flex;
+  align-items: center;
   padding: 5px 9px;
+  font-family: inherit;
   font-size: 0.6875rem;
   color: var(--text-muted);
   background: transparent;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-pill);
+}
+
+.layout-add-block {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.layout-add-block:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.layout-add-block:active {
+  cursor: grabbing;
 }
 
 .layout-add-block:hover,
@@ -3031,7 +3117,13 @@ tbody tr:hover {
   left: 50%;
   transform: translate(-50%, -50%);
   width: min(1040px, calc(100vw - 48px));
-  max-height: min(820px, calc(100vh - 64px));
+  /* Tall windows had 250px of empty page above and below the dialog while the
+     block list inside it was scrolling. The cap is still there — on a very
+     tall screen a dialog running edge to edge puts the palette an arm's reach
+     from the rows at the top — but it is set well above the common window
+     sizes rather than below them. Every extra pixel goes to the list and the
+     preview, which are the two things sized `1fr`. */
+  max-height: min(1160px, calc(100vh - 72px));
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
@@ -3083,12 +3175,28 @@ tbody tr:hover {
   padding-right: 4px;
 }
 
+/* Except in the dialog, where the LIST scrolls and the editor does not —
+   see `.layout-editor-wide` below for why. */
+.layout-dialog-body > .layout-editor-wide {
+  overflow: hidden;
+  padding-right: 0;
+}
+
 /* Two columns: the report on the left, everything not in it on the right —
    which is the direction things actually travel. Named areas rather than
    source order so the narrow drawer keeps its single column unchanged. */
 /* One column inside the dialog's left half: the preview took the right, and
    splitting the remaining ~520px again left both halves too narrow to read a
    block's name and its size hint on one line. */
+/* The list scrolls inside itself, and everything else holds still.
+ *
+ * With the whole editor scrolling, the palette sat below a list twice the
+ * height of the panel — so the chips you drag FROM were off screen whenever
+ * the rows you were aiming at were on it, which is no way to drag anything.
+ * Keeping the rows at their full width instead of giving the palette a
+ * column of its own is what pays for this: the longest block name still fits
+ * beside its page badge and its four buttons on one line.
+ */
 .layout-editor-wide {
   display: grid;
   gap: 14px;
@@ -3100,7 +3208,10 @@ tbody tr:hover {
     'add'
     'actions'
     'note';
-  align-content: start;
+  /* The list keeps a floor, so a layout with almost nothing in it — which
+     offers every block at once — cannot let the palette squeeze it away. */
+  grid-template-rows: auto auto minmax(220px, 1fr) auto auto auto;
+  min-height: 0;
 }
 
 .layout-editor-wide > .layout-picker {
@@ -3113,6 +3224,13 @@ tbody tr:hover {
 
 .layout-editor-wide > .layout-list {
   grid-area: list;
+  overflow-y: auto;
+  /* The wheel stops at the ends of this list rather than being handed to
+     whatever is behind it. */
+  overscroll-behavior: contain;
+  min-height: 0;
+  /* Room for the scrollbar, so a row's buttons are never under it. */
+  padding-right: 4px;
 }
 
 .layout-editor-wide > .layout-add {
@@ -3188,18 +3306,14 @@ tbody tr:hover {
   }
 }
 
-/* The dialog body is the scroll container, and the block list is much taller
-   than the palette beside it. Left alone, the things you drag INTO and the
-   buttons that save your work both scroll away while you are still working
-   on the list — so both stay put. */
-.layout-editor-wide > .layout-actions {
-  position: sticky;
-  bottom: -20px;
-  z-index: 1;
-  margin-bottom: -8px;
-  padding-top: 12px;
-  padding-bottom: 14px;
-  background: var(--bg-secondary);
+/* Both of these are held in place by the grid above rather than by sticky
+   positioning: the list is the only thing that scrolls now. The palette is
+   capped because an empty layout offers all nineteen blocks, which would
+   otherwise wrap into five rows of chips and take the list's room. */
+.layout-editor-wide > .layout-add {
+  max-height: 28vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* ─── Live report preview ─── */

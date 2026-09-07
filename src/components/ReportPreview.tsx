@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { HouseholdAnalysis } from '../lib/household';
 import type { ClaimingRow } from '../lib/claimingRows';
 import type { LongevitySensitivity } from '../lib/longevity';
-import type { ReportLayout } from '../lib/reportLayout';
+import type { ReportBlockId, ReportLayout } from '../lib/reportLayout';
 
 /** How long to wait after the last edit before rendering. */
 const SETTLE_MS = 250;
@@ -29,6 +29,14 @@ interface Props {
   sensitivity?: LongevitySensitivity | null;
   themeId: string;
   layout: ReportLayout;
+  /**
+   * Called with the page each block starts on, after every render.
+   *
+   * The editor labels its rows with these. It cannot work them out for
+   * itself: which sheet a block lands on is decided by the layout pass, and
+   * one long table above moves everything after it.
+   */
+  onPages?: (pages: ReadonlyMap<ReportBlockId, number>) => void;
 }
 
 /**
@@ -51,6 +59,7 @@ export function ReportPreview({
   sensitivity,
   themeId,
   layout,
+  onPages,
 }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [rendering, setRendering] = useState(true);
@@ -77,6 +86,11 @@ export function ReportPreview({
           // captured `styles` would render in the previous theme.
           setActiveReportTheme(reportTheme(themeId));
           const { ReportDocument } = await import('./pdf/ReportDocument');
+          // Filled as the document renders, and only then complete: which
+          // sheet a block lands on is decided by the layout pass, not by the
+          // layout list. A fresh map each time, so a block that has since
+          // been removed cannot leave a page behind.
+          const landed = new Map<ReportBlockId, number>();
           const blob = await pdf(
             <ReportDocument
               analysis={analysis}
@@ -84,9 +98,11 @@ export function ReportPreview({
               gridTarget={gridTarget}
               sensitivity={sensitivity}
               layout={layout}
+              onBlockPage={(id, page) => landed.set(id, page)}
             />,
           ).toBlob();
           if (cancelled) return;
+          report.current?.(landed);
           const next = URL.createObjectURL(blob);
           // Revoked only once the new one is in hand, so the frame never
           // points at a URL that has just been freed.
@@ -107,6 +123,11 @@ export function ReportPreview({
       clearTimeout(timer);
     };
   }, [analysis, claimingRowsByPerson, gridTarget, sensitivity, themeId, layout, inlineOk]);
+
+  // Held in a ref so a caller passing an inline function does not re-render
+  // the whole report on every keystroke somewhere else in the dialog.
+  const report = useRef(onPages);
+  report.current = onPages;
 
   // On unmount only — the effect above frees each URL as it replaces it.
   useEffect(
@@ -137,6 +158,11 @@ export function ReportPreview({
             {failed ? 'This layout could not be rendered.' : 'Building the report…'}
           </p>
         ) : (
+          // No `#page=` here, however tempting. The viewer is a plugin, not a
+          // document: given a blob URL carrying a page fragment it renders
+          // nothing at all — measured, both as a fresh load and as a change to
+          // an already-loaded frame — and a fragment changed underneath it
+          // moves nothing. The editor names the page instead of going to it.
           <iframe
             src={`${url}#toolbar=0&navpanes=0&view=FitH`}
             title="Report preview"

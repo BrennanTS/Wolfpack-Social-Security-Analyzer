@@ -5,8 +5,10 @@ import {
   CLIENT_LAYOUT,
   DEFAULT_LAYOUT_ID,
   PRESETS,
+  hiddenBlockIds,
   layoutBlockIds,
   layoutRuns,
+  printedBlockIds,
   SPACE,
   spaceIgnored,
   omittedBlocks,
@@ -160,6 +162,60 @@ describe('spaces', () => {
   });
 });
 
+describe('hidden blocks', () => {
+  const items = (...list: LayoutItem[]) => ({ id: 'x', name: 'x', items: list });
+  const shown = (id: ReportBlockId): LayoutItem => ({ kind: 'block', id });
+  const hidden = (id: ReportBlockId): LayoutItem => ({ kind: 'block', id, hidden: true });
+
+  it('are left out of the report', () => {
+    const layout = items(shown('answer'), hidden('changes'), shown('terms'));
+    expect(printedBlockIds(layout, 'twoClaimants')).toEqual(['answer', 'terms']);
+  });
+
+  it('are still in the layout, so the palette does not offer them again', () => {
+    // Otherwise hiding a block would put a second copy one click away, and
+    // adding it back would print it twice.
+    const layout = items(shown('answer'), hidden('changes'));
+    expect(layoutBlockIds(layout)).toEqual(['answer', 'changes']);
+    expect(omittedBlocks(layout).map((b) => b.id)).not.toContain('changes');
+    expect(hiddenBlockIds(layout)).toEqual(['changes']);
+  });
+
+  it('keep their position, which is the whole point of hiding one', () => {
+    // Remove-and-add-back sends a block to the end of the list. Hiding is the
+    // answer to "how does it read without this", asked far more often.
+    const layout = items(shown('answer'), hidden('changes'), shown('terms'));
+    expect(layoutBlockIds(layout)[1]).toBe('changes');
+  });
+
+  it('never leave a page holding nothing', () => {
+    const layout = items(shown('terms'), brk(), hidden('answer'));
+    expect(layoutRuns(layout, 'twoClaimants')).toEqual([['terms']]);
+  });
+
+  it('survive export and import', () => {
+    const layout = items(shown('answer'), hidden('changes'));
+    expect(parseLayoutFile(serializeLayout(layout))?.items).toEqual(layout.items);
+  });
+
+  it('are absent, not false, on a block that is shown', () => {
+    // A layout saved before hiding existed must serialize identically to the
+    // same layout saved after, or every stored file changes for nothing.
+    const parsed = parseLayout({ items: [{ kind: 'block', id: 'answer' }] });
+    expect(parsed?.items[0]).toEqual({ kind: 'block', id: 'answer' });
+    expect(Object.keys(parsed!.items[0])).not.toContain('hidden');
+  });
+
+  it('do not trust a hidden value that is not true', () => {
+    const parsed = parseLayout({ items: [{ kind: 'block', id: 'answer', hidden: 'yes' }] });
+    expect(parsed?.items[0]).toEqual({ kind: 'block', id: 'answer' });
+  });
+
+  function brk(): LayoutItem {
+    return { kind: 'break' };
+  }
+});
+
 describe('spaceIgnored', () => {
   const space: LayoutItem = { kind: 'space' };
   const brk: LayoutItem = { kind: 'break' };
@@ -179,6 +235,17 @@ describe('spaceIgnored', () => {
     expect(spaceIgnored([block('answer'), space, brk, block('terms')], 1, 'twoClaimants')).toBe(
       'edge',
     );
+  });
+
+  it('flags one whose only neighbor is hidden', () => {
+    // Hiding a block can leave the space beside it with nothing to separate.
+    expect(
+      spaceIgnored(
+        [{ kind: 'block', id: 'answer', hidden: true }, space, block('terms')],
+        1,
+        'twoClaimants',
+      ),
+    ).toBe('edge');
   });
 
   it('flags one whose only neighbor prints for another household', () => {

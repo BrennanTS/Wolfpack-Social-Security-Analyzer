@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { Document, Page, View } from '@react-pdf/renderer';
+import { Document, Page, Text, View } from '@react-pdf/renderer';
 import { BRAND_NAME } from '../../lib/brand';
 import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
 import type { ClaimingRow } from '../../lib/claimingRows';
@@ -99,6 +99,7 @@ export function ReportDocument({
   gridTarget,
   sensitivity,
   layout = ADVISER_LAYOUT,
+  onBlockPage,
 }: {
   analysis: HouseholdAnalysis;
   claimingRowsByPerson?: Record<string, ClaimingRow[]>;
@@ -112,6 +113,18 @@ export function ReportDocument({
   sensitivity?: LongevitySensitivity | null;
   /** What to include, in what order, and where the pages break. */
   layout?: ReportLayout;
+  /**
+   * Called with the page each block landed on, as the document is rendered.
+   *
+   * Which sheet a block ends up on is not knowable before layout: a run
+   * flows, and one long table above moves everything after it. react-pdf
+   * hands `pageNumber` to a dynamic `render`, so a zero-height marker in
+   * front of each group can report it — there is no other way to ask.
+   *
+   * The editor's preview passes this to jump to the block being clicked; the
+   * export does not, and renders no markers at all.
+   */
+  onBlockPage?: (id: ReportBlockId, page: number) => void;
 }) {
   const shape = householdDisplayShape(analysis.status);
   const reportDate = formatReportDate();
@@ -221,12 +234,33 @@ export function ReportDocument({
               assertion about which page carries it. */}
           {runIndex === headerRun && !isWidowed && ReportHeader({ dateLabel: reportDate })}
           {groupRun(run).map((group, i) => {
+            /**
+             * Where this group starts, reported as it renders.
+             *
+             * Every id in a person group reports the same page: those blocks
+             * print inside one claimant's section, and the page an adviser
+             * wants to be shown is where that section begins.
+             */
+            const mark = (ids: readonly ReportBlockId[]) =>
+              onBlockPage === undefined ? null : (
+                <Text
+                  style={styles.pageMark}
+                  render={({ pageNumber }) => {
+                    for (const id of ids) onBlockPage(id, pageNumber);
+                    return '';
+                  }}
+                />
+              );
             // A space is padding on top of the gap the next block already
             // gets, which is what makes one enough to see and two twice as
             // much.
             if (group.kind === 'space') return <View key={i} style={styles.spacer} />;
-            const content =
-              group.scope === 'person' ? renderPeople(group.ids) : renderBlock(group.ids[0]);
+            const content = (
+              <>
+                {mark(group.ids)}
+                {group.scope === 'person' ? renderPeople(group.ids) : renderBlock(group.ids[0])}
+              </>
+            );
             // The first group on a sheet sits against the top margin; every
             // one after it needs the gap its own heading deliberately does
             // not carry. A plain Fragment for the first, so nothing adds a
