@@ -349,15 +349,19 @@ export const LIMITS: Term[] = [
   {
     term: 'Other benefits',
     body:
-      'Benefits for children, for a former spouse, for disability, and the reductions ' +
-      'that apply to some public-sector pensions are not modeled. If any of these apply ' +
-      'to you, tell your adviser. They can change the answer.',
+      'Benefits for children, for a former spouse, and for disability are not modeled. ' +
+      'If any of these apply to you, tell your adviser. They can change the answer.',
   },
   {
     term: 'The law',
+    // The Social Security Fairness Act, signed in January 2025, repealed the
+    // Windfall Elimination Provision and the Government Pension Offset. This
+    // report used to list them among the things it did not model; a client
+    // with a public pension deserves to hear that they no longer apply.
     body:
       'Every figure follows the rules as they stand today. Congress can change them, ' +
-      'and has before. Nobody can say when or how.',
+      'and has before: the reductions that once applied to some government pensions ' +
+      'were repealed in 2025. Nobody can say when or how the rules will change next.',
   },
   {
     term: 'Which ages were compared',

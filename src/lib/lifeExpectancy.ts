@@ -1,4 +1,4 @@
-/** SSA 2021 Period Life Table — remaining years of life at exact age. Source: ssa.gov/oact/STATS/table4c6.html */
+/** SSA period life table (year in `dataVintage.ts`): remaining years of life at exact age. Source: ssa.gov/oact/STATS/table4c6.html */
 
 export type Gender = 'male' | 'female';
 

@@ -7,6 +7,8 @@
  * surfaces, and nothing here does.
  */
 
+import { DATA_VINTAGE } from './dataVintage';
+
 export interface AboutCard {
   title: string;
   body: string;
@@ -38,7 +40,7 @@ export const ABOUT_CARDS: AboutCard[] = [
   {
     title: 'Life expectancy by gender',
     body:
-      "SSA's 2021 period life table supplies a suggested planning age for each person. " +
+      `SSA's ${DATA_VINTAGE.lifeTableYear} period life table supplies a suggested planning age for each person. ` +
       'Adjust it under Planning assumptions. Every lifetime total moves with it.',
   },
 ];

@@ -33,6 +33,13 @@ export const BLS_CPI_U_ANNUAL: Readonly<Record<number, number>> = {
   2022: 6.5,
   2023: 3.4,
   2024: 2.9,
+  // From the BLS release for December 2025 (bls.gov/news.release/archives/
+  // cpi_01132026.htm): "Over the last 12 months, the all items index increased
+  // 2.7 percent before seasonal adjustment." That release notes October and
+  // November 2025 monthly values are missing owing to the lapse in
+  // appropriations; the December-over-December figure this table stores is
+  // stated in it directly and is not affected.
+  2025: 2.7,
 };
 
 export const BLS_CPI_URL = 'https://www.bls.gov/cpi/';

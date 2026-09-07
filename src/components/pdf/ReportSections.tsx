@@ -2,6 +2,7 @@ import { Image, Text, View } from '@react-pdf/renderer';
 import type { HouseholdAnalysis } from '../../lib/household';
 import type { LongevitySensitivity } from '../../lib/longevity';
 import { incomeChanges } from '../../lib/incomeChanges';
+import { dataVintageLine } from '../../lib/dataVintage';
 import { monthDateAt } from '../../lib/benefitPeriods';
 import {
   applyMonth,
@@ -563,6 +564,11 @@ export function DisclosureBlock() {
           {paragraph}
         </Text>
       ))}
+      {/* App-owned, not the firm's to edit: the one line that says how old
+          the rules and data behind every figure are. */}
+      <Text style={styles.disclosureParagraph} wrap={false}>
+        {dataVintageLine()}
+      </Text>
     </>
   );
 }

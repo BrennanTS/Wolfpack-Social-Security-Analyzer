@@ -12,6 +12,7 @@ import { BLS_CPI_URL, formatPercent, getCpiLast30Years } from '../../lib/cpiHist
 import { fraLabel } from '../../lib/format';
 import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../../lib/lifeExpectancy';
+import { dataVintageLine } from '../../lib/dataVintage';
 import {
   coupleModelingNote,
   SINGLE_CLAIMANT_BENEFIT_NOTE,
@@ -192,7 +193,9 @@ export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, Meth
       },
       {
         title: 'Data Sources',
-        body: `COLA: ${BLS_CPI_URL}. Life tables: ${SSA_LIFE_TABLE_URL}.`,
+        // The vintages print beside the links, so a reader can tell how old
+        // the figures are without opening either.
+        body: `${dataVintageLine()} COLA: ${BLS_CPI_URL}. Life tables: ${SSA_LIFE_TABLE_URL}.`,
       },
     ],
   ];
