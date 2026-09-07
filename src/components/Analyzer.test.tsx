@@ -116,13 +116,13 @@ describe('Analyzer', () => {
 
       await screen.findByTestId('widowed-strategy-table', {}, { timeout: 10000 });
 
-      expect(screen.getByTestId('export-beta')).toBeEnabled();
+      expect(screen.getByTestId('export-report')).toBeEnabled();
       expect(screen.getByRole('button', { name: /copy link/i })).toBeEnabled();
 
-      // The original report moved into the menu — still offered, just no
-      // longer competing with the beta for the same corner of the header.
+      // The legacy report moved into the menu — still offered, just no
+      // longer competing with the current report for the same corner of the header.
       await userEvent.click(screen.getByRole('button', { name: /^menu$/i }));
-      expect(screen.getByRole('button', { name: 'Export PDF' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Export legacy PDF' })).toBeEnabled();
     });
 
     it('drops the spousal methodology block, which contradicts what it just showed', async () => {

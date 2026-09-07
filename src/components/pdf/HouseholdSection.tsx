@@ -46,7 +46,7 @@ import {
 } from '../methodologyCopy';
 import { scenarioEyebrow } from '../../lib/scenario';
 import { BORDER, CHART_INNER_W, GREEN, INK, MUTED, styles, heatColor } from './theme';
-import { PageFooter } from './ReportDocument';
+import { PageFooter } from './reportChrome';
 
 interface Props {
   analysis: HouseholdAnalysis;
@@ -296,7 +296,7 @@ export function CombinedIncomeBars({
  *
  * Drawn as SVG rather than a `View` grid for the same reason `PdfHeatmap` is:
  * react-pdf's box model makes a border change a cell's size, so an outlined
- * near-best square would sit a hair out of line with its neighbours across a
+ * near-best square would sit a hair out of line with its neighbors across a
  * whole row. In SVG a stroke is drawn on the rect, not around it.
  *
  * The printed sheet loses the screen's hover, so every square carries its
@@ -571,7 +571,7 @@ export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
  * claiming grid, and the methodology appendix on one sheet.
  *
  * Kept so `ReportDocument` and the tests that call it as a plain function
- * carry on working untouched while the beta report moves to layouts.
+ * carry on working untouched while the report itself moves to layouts.
  */
 export function HouseholdSection({
   analysis,

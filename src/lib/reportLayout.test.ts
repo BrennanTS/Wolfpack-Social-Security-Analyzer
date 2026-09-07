@@ -7,11 +7,15 @@ import {
   PRESETS,
   layoutBlockIds,
   layoutRuns,
+  SPACE,
+  spaceIgnored,
   omittedBlocks,
   blockScope,
   parseLayout,
   parseLayoutFile,
   serializeLayout,
+  type LayoutItem,
+  type ReportBlockId,
   type ReportLayout,
 } from './reportLayout';
 
@@ -91,6 +95,107 @@ describe('layoutRuns', () => {
     expect(ids).toContain('cover');
     expect(ids).toContain('limits');
     expect(ids).toContain('terms');
+  });
+});
+
+describe('spaces', () => {
+  const items = (...list: LayoutItem[]) => ({ id: 'x', name: 'x', items: list });
+  const space: LayoutItem = { kind: 'space' };
+  const brk: LayoutItem = { kind: 'break' };
+  const block = (id: ReportBlockId): LayoutItem => ({ kind: 'block', id });
+
+  it('cannot be mistaken for a block', () => {
+    // Runs are a flat list of ids and spaces. A block id equal to the space
+    // marker would print as a gap and vanish from the report.
+    expect(BLOCKS.map((b) => b.id)).not.toContain(SPACE);
+  });
+
+  it('travels in the run, between the blocks it separates', () => {
+    const runs = layoutRuns(items(block('answer'), space, block('terms')), 'twoClaimants');
+    expect(runs).toEqual([['answer', SPACE, 'terms']]);
+  });
+
+  it('stacks, because that is how a bigger gap is asked for', () => {
+    const runs = layoutRuns(items(block('answer'), space, space, block('terms')), 'twoClaimants');
+    expect(runs[0]).toEqual(['answer', SPACE, SPACE, 'terms']);
+  });
+
+  it('is trimmed at both ends of a page, where the margin already sits', () => {
+    const runs = layoutRuns(
+      items(space, block('answer'), space, brk, space, block('terms'), space),
+      'twoClaimants',
+    );
+    expect(runs).toEqual([['answer'], ['terms']]);
+  });
+
+  it('is trimmed when the block beside it is dropped for this household', () => {
+    // `survivor` says nothing to a single claimant. The space that separated
+    // it would otherwise be left first in the run, padding a margin.
+    const layout = items(block('survivor'), space, block('terms'));
+    expect(layoutRuns(layout, 'twoClaimants')[0]).toEqual(['survivor', SPACE, 'terms']);
+    expect(layoutRuns(layout, 'oneClaimant')[0]).toEqual(['terms']);
+  });
+
+  it('never makes a page of its own', () => {
+    // Spaces around a block that this household does not get would leave a
+    // run holding nothing but gaps — a sheet carrying a footer and air.
+    const runs = layoutRuns(items(block('terms'), brk, space, block('survivor'), space), 'oneClaimant');
+    expect(runs).toEqual([['terms']]);
+  });
+
+  it('survives export and import', () => {
+    const layout = items(block('answer'), space, space, block('terms'));
+    expect(parseLayoutFile(serializeLayout(layout))?.items).toEqual(layout.items);
+  });
+
+  it('is dropped by import where a page edge would eat it anyway', () => {
+    const parsed = parseLayout({
+      items: [space, block('answer'), space, brk, space, block('terms'), space],
+    });
+    expect(parsed?.items).toEqual([block('answer'), brk, block('terms')]);
+  });
+
+  it('is not recoverable on its own', () => {
+    expect(parseLayout({ items: [space, space] })).toBeNull();
+  });
+});
+
+describe('spaceIgnored', () => {
+  const space: LayoutItem = { kind: 'space' };
+  const brk: LayoutItem = { kind: 'break' };
+  const block = (id: ReportBlockId): LayoutItem => ({ kind: 'block', id });
+
+  it('says nothing about anything that is not a space', () => {
+    expect(spaceIgnored([block('answer')], 0, 'twoClaimants')).toBeNull();
+  });
+
+  it('passes a space that has a block on either side', () => {
+    expect(spaceIgnored([block('answer'), space, block('terms')], 1, 'twoClaimants')).toBeNull();
+  });
+
+  it('flags one against a page edge, break or end of report', () => {
+    expect(spaceIgnored([space, block('answer')], 0, 'twoClaimants')).toBe('edge');
+    expect(spaceIgnored([block('answer'), space], 1, 'twoClaimants')).toBe('edge');
+    expect(spaceIgnored([block('answer'), space, brk, block('terms')], 1, 'twoClaimants')).toBe(
+      'edge',
+    );
+  });
+
+  it('flags one whose only neighbor prints for another household', () => {
+    // The adviser sees why it does nothing here without exporting to find out.
+    expect(spaceIgnored([block('survivor'), space, block('terms')], 1, 'oneClaimant')).toBe('edge');
+  });
+
+  it('flags one between two per-person sections, which travel together', () => {
+    expect(
+      spaceIgnored([block('personDetails'), space, block('personRamp')], 1, 'twoClaimants'),
+    ).toBe('person');
+  });
+
+  it('passes one between a person section and a household block', () => {
+    expect(
+      spaceIgnored([block('personDetails'), space, block('terms')], 1, 'twoClaimants'),
+    ).toBeNull();
   });
 });
 

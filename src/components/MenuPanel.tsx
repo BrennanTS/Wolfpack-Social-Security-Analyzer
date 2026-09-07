@@ -31,13 +31,13 @@ interface MenuPanelProps {
   /** Opens the layout editor, which needs more room than this drawer has. */
   onEditLayout: () => void;
   /**
-   * The original report.
+   * The legacy report.
    *
    * It lives here rather than in the header now: it is on its way out, and an
-   * adviser reaching for "Export PDF" should land on the one being developed.
+   * adviser reaching for "Export PDF" should land on the current one.
    */
-  onExportOriginal: () => void;
-  exportingOriginal: boolean;
+  onExportLegacy: () => void;
+  exportingLegacy: boolean;
   canExport: boolean;
   /** The household on screen, so the editor can flag blocks it will skip. */
   shape?: HouseholdDisplayShape;
@@ -66,8 +66,8 @@ export function MenuPanel({
   layouts,
   shape,
   onEditLayout,
-  onExportOriginal,
-  exportingOriginal,
+  onExportLegacy,
+  exportingLegacy,
   canExport,
 }: MenuPanelProps) {
   useEffect(() => {
@@ -167,7 +167,7 @@ export function MenuPanel({
                 pages. Beside the theme because the two are the same decision
                 from a client's side: what the document looks like. */}
             <p className="menu-note">
-              Applies to the beta PDF. {summarize(layouts.layout, shape)}
+              Sets what the exported PDF contains. {summarize(layouts.layout, shape)}
             </p>
             <button type="button" className="menu-action" onClick={onEditLayout}>
               Edit layout…
@@ -175,18 +175,18 @@ export function MenuPanel({
           </section>
 
           <section className="resources-section">
-            <h3>Original report</h3>
+            <h3>Legacy report</h3>
             <p className="menu-note">
-              The report the beta replaces. Kept while the beta settles, and not built from
-              a layout.
+              The report as it printed before layouts. Kept while advisers move across, and
+              on its way out — its order is fixed, so nothing here changes it.
             </p>
             <button
               type="button"
               className="menu-action"
-              onClick={onExportOriginal}
-              disabled={exportingOriginal || !canExport}
+              onClick={onExportLegacy}
+              disabled={exportingLegacy || !canExport}
             >
-              {exportingOriginal ? 'Generating…' : 'Export PDF'}
+              {exportingLegacy ? 'Generating…' : 'Export legacy PDF'}
             </button>
           </section>
 

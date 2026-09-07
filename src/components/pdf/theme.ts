@@ -101,6 +101,14 @@ function buildStyles() {
    * what precedes it, so the gap belongs to whatever places them.
    */
   blockGap: { marginTop: 16 },
+  /**
+   * One space item from the layout.
+   *
+   * Half a line taller than the gap blocks already get between them, so one
+   * is visible as a deliberate pause rather than as slightly loose setting,
+   * and two read as twice as much.
+   */
+  spacer: { height: 24 },
   sectionDesc: { fontSize: 8, color: MUTED, marginBottom: 8, lineHeight: 1.45 },
   profileGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },
   profileItem: { width: '33.33%', marginBottom: 8, paddingRight: 8 },
@@ -209,51 +217,51 @@ function buildStyles() {
      up into the age's line box and the second indented it away from the age
      it belongs to, so "67" and "Dec 2045" printed on top of one another. */
   tdDate: { fontSize: 6.5, color: SUBTLE, marginTop: 1 },
-  /* ─── Beta report ─── */
+  /* ─── Layout-composed report ─── */
   thRight: { textAlign: 'right' },
   tdRight: { textAlign: 'right' },
-  betaHero: {
+  heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 24,
     marginBottom: 6,
   },
-  betaFacts: { flex: 1 },
-  betaFactRow: {
+  heroFacts: { flex: 1 },
+  heroFactRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
   },
-  betaFactLabel: { fontSize: 9, color: MUTED },
-  betaFactValue: { fontSize: 9, color: INK, fontFamily: 'Helvetica-Bold' },
-  betaBig: { width: 190, alignItems: 'flex-end' },
-  betaBigCap: { fontSize: 7, color: MUTED, textAlign: 'right', marginBottom: 3 },
-  betaBigNum: { fontSize: 30, color: INK, fontFamily: 'Helvetica-Bold', letterSpacing: -0.5 },
-  betaBigSub: { fontSize: 8, color: GREEN, textAlign: 'right', marginTop: 4 },
-  betaBarRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  betaBarLabel: { width: 150, fontSize: 8.5, color: INK },
-  betaBarTrack: { flex: 1, height: 13, backgroundColor: '#f2efe8', borderRadius: 2 },
-  betaBarFill: { height: 13, backgroundColor: GOLD, borderRadius: 2 },
-  betaBarFillDim: { backgroundColor: '#d9d3c4' },
-  betaBarValue: {
+  heroFactLabel: { fontSize: 9, color: MUTED },
+  heroFactValue: { fontSize: 9, color: INK, fontFamily: 'Helvetica-Bold' },
+  heroBig: { width: 190, alignItems: 'flex-end' },
+  heroBigCap: { fontSize: 7, color: MUTED, textAlign: 'right', marginBottom: 3 },
+  heroBigNum: { fontSize: 30, color: INK, fontFamily: 'Helvetica-Bold', letterSpacing: -0.5 },
+  heroBigSub: { fontSize: 8, color: GREEN, textAlign: 'right', marginTop: 4 },
+  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  barLabel: { width: 150, fontSize: 8.5, color: INK },
+  barTrack: { flex: 1, height: 13, backgroundColor: '#f2efe8', borderRadius: 2 },
+  barFill: { height: 13, backgroundColor: GOLD, borderRadius: 2 },
+  barFillDim: { backgroundColor: '#d9d3c4' },
+  barValue: {
     width: 72,
     fontSize: 8.5,
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
     color: INK,
   },
-  betaCallout: {
+  callout: {
     marginTop: 12,
     borderLeftWidth: 3,
     borderLeftColor: GOLD,
     paddingLeft: 10,
     paddingVertical: 6,
   },
-  betaCalloutText: { fontSize: 9.5, color: INK, lineHeight: 1.45 },
-  betaWinner: { fontFamily: 'Helvetica-Bold', color: GREEN },
-  betaCheckbox: {
+  calloutText: { fontSize: 9.5, color: INK, lineHeight: 1.45 },
+  winnerText: { fontFamily: 'Helvetica-Bold', color: GREEN },
+  checkbox: {
     width: 9,
     height: 9,
     borderWidth: 1,
@@ -264,7 +272,7 @@ function buildStyles() {
      the report is allowed to look like a document rather than a page — then
      the names with room around them. Nothing absolute-positioned: react-pdf
      places these in flow, so a long firm name simply takes another line. */
-  betaCoverBand: {
+  coverBand: {
     backgroundColor: GOLD,
     paddingVertical: 26,
     paddingHorizontal: 28,
@@ -272,25 +280,25 @@ function buildStyles() {
     marginBottom: 70,
     borderRadius: 3,
   },
-  betaCoverTitle: { fontSize: 24, color: SURFACE, fontFamily: 'Helvetica-Bold', lineHeight: 1.2 },
-  betaCoverSub: { fontSize: 10, color: SURFACE, marginTop: 8, lineHeight: 1.4 },
-  betaCoverLabel: {
+  coverTitle: { fontSize: 24, color: SURFACE, fontFamily: 'Helvetica-Bold', lineHeight: 1.2 },
+  coverSub: { fontSize: 10, color: SURFACE, marginTop: 8, lineHeight: 1.4 },
+  coverLabel: {
     fontSize: 8,
     color: MUTED,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: 4,
   },
-  betaCoverName: { fontSize: 18, color: INK, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
-  betaCoverDate: { fontSize: 10, color: MUTED, marginBottom: 36 },
-  betaCoverFirm: { fontSize: 11, color: INK },
+  coverName: { fontSize: 18, color: INK, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
+  coverDate: { fontSize: 10, color: MUTED, marginBottom: 36 },
+  coverFirm: { fontSize: 11, color: INK },
   /* Introduction: a list of questions, each on its own line with a mark. */
-  betaQuestion: { flexDirection: 'row', marginBottom: 5 },
-  betaQuestionMark: { width: 14, fontSize: 9.5, color: GOLD, fontFamily: 'Helvetica-Bold' },
-  betaQuestionText: { flex: 1, fontSize: 9.5, color: INK, lineHeight: 1.4 },
-  betaTerm: { marginBottom: 9 },
-  betaTermName: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: INK, marginBottom: 2 },
-  betaTermBody: { fontSize: 9, color: MUTED, lineHeight: 1.45 },
+  questionRow: { flexDirection: 'row', marginBottom: 5 },
+  questionMark: { width: 14, fontSize: 9.5, color: GOLD, fontFamily: 'Helvetica-Bold' },
+  questionText: { flex: 1, fontSize: 9.5, color: INK, lineHeight: 1.4 },
+  termRow: { marginBottom: 9 },
+  termName: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: INK, marginBottom: 2 },
+  termBody: { fontSize: 9, color: MUTED, lineHeight: 1.45 },
   tdAge: { flexDirection: 'row', alignItems: 'center' },
   negative: { color: RED },
   badge: {

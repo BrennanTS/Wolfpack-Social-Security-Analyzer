@@ -81,7 +81,7 @@ export function LayoutEditorDialog({
           <div>
             <h2 id="layout-dialog-title">Report layout</h2>
             <p>
-              What the beta PDF contains, in what order, and where its pages break. Drag a
+              What the exported PDF contains, in what order, and where its pages break. Drag a
               block to move it.
             </p>
           </div>

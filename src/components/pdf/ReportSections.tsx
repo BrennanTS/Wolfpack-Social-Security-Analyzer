@@ -19,8 +19,8 @@ import {
   personLabel,
 } from '../../lib/format';
 import { firstDeath } from '../../lib/incomeCliff';
-import { styles, CHART_INNER_W } from './theme';
-import * as copy from './betaCopy';
+import { styles } from './theme';
+import * as copy from './reportCopy';
 
 /** A month index on the band convention, as a calendar month. */
 function calendarAt(monthIndex: number): CalendarMonth {
@@ -75,40 +75,40 @@ export function AnswerBlock({
       {header}
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.ANSWER_TITLE}</Text>
 
-      <View style={styles.betaHero}>
-        <View style={styles.betaFacts}>
+      <View style={styles.heroRow}>
+        <View style={styles.heroFacts}>
           {people.map((person, i) => (
-            <View key={person.id} style={styles.betaFactRow}>
-              <Text style={styles.betaFactLabel}>
+            <View key={person.id} style={styles.heroFactRow}>
+              <Text style={styles.heroFactLabel}>
                 {people.length === 1 ? 'You file at' : `${names[i]} files at`}
               </Text>
-              <Text style={styles.betaFactValue}>
+              <Text style={styles.heroFactValue}>
                 {selected.filingAges[i].label} — {shortMonthYearLabel(
                   filingMonth(person, selected.filingAges[i]),
                 )}
               </Text>
             </View>
           ))}
-          <View style={styles.betaFactRow}>
-            <Text style={styles.betaFactLabel}>Together, at most</Text>
-            <Text style={styles.betaFactValue}>{formatCurrencyPrecise(peak)}/mo</Text>
+          <View style={styles.heroFactRow}>
+            <Text style={styles.heroFactLabel}>Together, at most</Text>
+            <Text style={styles.heroFactValue}>{formatCurrencyPrecise(peak)}/mo</Text>
           </View>
           {afterDeath && (
-            <View style={styles.betaFactRow}>
-              <Text style={styles.betaFactLabel}>If one of you is left alone</Text>
-              <Text style={styles.betaFactValue}>
+            <View style={styles.heroFactRow}>
+              <Text style={styles.heroFactLabel}>If one of you is left alone</Text>
+              <Text style={styles.heroFactValue}>
                 {formatCurrencyPrecise(afterDeath.total)}/mo
               </Text>
             </View>
           )}
         </View>
 
-        <View style={styles.betaBig}>
-          <Text style={styles.betaBigCap}>{copy.LIFETIME_CAPTION}</Text>
-          <Text style={styles.betaBigNum}>
+        <View style={styles.heroBig}>
+          <Text style={styles.heroBigCap}>{copy.LIFETIME_CAPTION}</Text>
+          <Text style={styles.heroBigNum}>
             {formatCompactCurrency(selected.expectedNpv, compactUnitFor(selected.expectedNpv))}
           </Text>
-          {gainNote && <Text style={styles.betaBigSub}>{gainNote}</Text>}
+          {gainNote && <Text style={styles.heroBigSub}>{gainNote}</Text>}
         </View>
       </View>
 
@@ -213,18 +213,18 @@ export function SurvivorBlock({
           const value = row.survivorIncome as number;
           const isSelected = row.key === analysis.selected.key;
           return (
-            <View key={row.key} style={styles.betaBarRow} wrap={false}>
-              <Text style={styles.betaBarLabel}>{row.label}</Text>
-              <View style={styles.betaBarTrack}>
+            <View key={row.key} style={styles.barRow} wrap={false}>
+              <Text style={styles.barLabel}>{row.label}</Text>
+              <View style={styles.barTrack}>
                 <View
                   style={[
-                    styles.betaBarFill,
+                    styles.barFill,
                     { width: `${Math.max(2, (value / max) * 100)}%` },
-                    isSelected ? {} : styles.betaBarFillDim,
+                    isSelected ? {} : styles.barFillDim,
                   ]}
                 />
               </View>
-              <Text style={styles.betaBarValue}>{formatCurrency(value)}</Text>
+              <Text style={styles.barValue}>{formatCurrency(value)}</Text>
             </View>
           );
         })}
@@ -236,8 +236,8 @@ export function SurvivorBlock({
           left rule on one sheet and its sentence on the next — exactly as the
           disclaimer box once did. */}
       {selected !== null && selected > (worst.survivorIncome as number) && (
-        <View style={styles.betaCallout} wrap={false}>
-          <Text style={styles.betaCalloutText}>
+        <View style={styles.callout} wrap={false}>
+          <Text style={styles.calloutText}>
             {copy.survivorGainNote(
               formatCurrency(selected - (worst.survivorIncome as number)),
               worst.label,
@@ -304,7 +304,7 @@ export function LongevityBlock({
                 styles.td,
                 styles.tdRight,
                 { width: 104 },
-                row.bestKey === s.key ? styles.betaWinner : {},
+                row.bestKey === s.key ? styles.winnerText : {},
               ]}
             >
               {formatCompactCurrency(row.valueByKey[s.key], unit)}
@@ -313,8 +313,8 @@ export function LongevityBlock({
         </View>
       ))}
 
-      <View style={styles.betaCallout} wrap={false}>
-        <Text style={styles.betaCalloutText}>
+      <View style={styles.callout} wrap={false}>
+        <Text style={styles.calloutText}>
           {copy.longevityVerdict(winnerLabel, sensitivity.tiedEveryRow)}
         </Text>
       </View>
@@ -379,7 +379,7 @@ export function ActionBlock({
       {steps.map((step) => (
         <View key={`${step.when}-${step.who}`} style={styles.tableRow} wrap={false}>
           <View style={{ width: 18, paddingTop: 2 }}>
-            <View style={styles.betaCheckbox} />
+            <View style={styles.checkbox} />
           </View>
           <Text style={[styles.td, styles.tdBold, { width: 92 }]}>{step.when}</Text>
           <Text style={[styles.td, { width: 84 }]}>{step.who}</Text>
@@ -409,9 +409,9 @@ export function TermsBlock({
     <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Words used in this report</Text>
       {copy.KEY_TERMS.map((term) => (
-        <View key={term.term} style={styles.betaTerm} wrap={false}>
-          <Text style={styles.betaTermName}>{term.term}</Text>
-          <Text style={styles.betaTermBody}>{term.body}</Text>
+        <View key={term.term} style={styles.termRow} wrap={false}>
+          <Text style={styles.termName}>{term.term}</Text>
+          <Text style={styles.termBody}>{term.body}</Text>
         </View>
       ))}
 
@@ -421,8 +421,8 @@ export function TermsBlock({
       <View wrap={false}>
         <Text style={styles.sectionTitle}>{copy.ASSUMPTIONS_TITLE}</Text>
         <Text style={styles.sectionDesc}>{copy.ASSUMPTIONS_INTRO}</Text>
-        <View style={styles.betaTerm}>
-          <Text style={styles.betaTermBody}>{copy.planToNote(names, ages)}</Text>
+        <View style={styles.termRow}>
+          <Text style={styles.termBody}>{copy.planToNote(names, ages)}</Text>
         </View>
       </View>
     </>
@@ -450,7 +450,6 @@ export function MethodologyBlock({
   );
 }
 
-export const BETA_CHART_WIDTH = CHART_INNER_W;
 
 /* ------------------------------------------------------------------ *
  * Cover
@@ -474,15 +473,15 @@ export function CoverBlock({
   const hasSpouse = analysis.people.length === 2;
   return (
     <>
-      <View style={styles.betaCoverBand}>
-        <Text style={styles.betaCoverTitle}>{copy.COVER_TITLE}</Text>
-        <Text style={styles.betaCoverSub}>{copy.coverSubtitle(hasSpouse)}</Text>
+      <View style={styles.coverBand}>
+        <Text style={styles.coverTitle}>{copy.COVER_TITLE}</Text>
+        <Text style={styles.coverSub}>{copy.coverSubtitle(hasSpouse)}</Text>
       </View>
-      <Text style={styles.betaCoverLabel}>{copy.COVER_PREPARED_FOR}</Text>
-      <Text style={styles.betaCoverName}>{names.join(' and ')}</Text>
-      <Text style={styles.betaCoverDate}>{dateLabel}</Text>
-      <Text style={styles.betaCoverLabel}>{copy.COVER_PREPARED_BY}</Text>
-      <Text style={styles.betaCoverFirm}>{BRAND_NAME}</Text>
+      <Text style={styles.coverLabel}>{copy.COVER_PREPARED_FOR}</Text>
+      <Text style={styles.coverName}>{names.join(' and ')}</Text>
+      <Text style={styles.coverDate}>{dateLabel}</Text>
+      <Text style={styles.coverLabel}>{copy.COVER_PREPARED_BY}</Text>
+      <Text style={styles.coverFirm}>{BRAND_NAME}</Text>
     </>
   );
 }
@@ -497,12 +496,12 @@ export function IntroBlock({ analysis }: { analysis: HouseholdAnalysis }) {
   return (
     <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.INTRO_TITLE}</Text>
-      <Text style={styles.betaCalloutText}>{copy.INTRO_LEAD}</Text>
+      <Text style={styles.calloutText}>{copy.INTRO_LEAD}</Text>
       <View style={{ marginTop: 10, marginBottom: 6 }}>
         {copy.introQuestions(hasSpouse).map((q, i) => (
-          <View key={q} style={styles.betaQuestion} wrap={false}>
-            <Text style={styles.betaQuestionMark}>{i + 1}.</Text>
-            <Text style={styles.betaQuestionText}>{q}</Text>
+          <View key={q} style={styles.questionRow} wrap={false}>
+            <Text style={styles.questionMark}>{i + 1}.</Text>
+            <Text style={styles.questionText}>{q}</Text>
           </View>
         ))}
       </View>
@@ -522,9 +521,9 @@ export function LimitsBlock() {
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.LIMITS_TITLE}</Text>
       <Text style={styles.sectionDesc}>{copy.LIMITS_INTRO}</Text>
       {copy.LIMITS.map((limit) => (
-        <View key={limit.term} style={styles.betaTerm} wrap={false}>
-          <Text style={styles.betaTermName}>{limit.term}</Text>
-          <Text style={styles.betaTermBody}>{limit.body}</Text>
+        <View key={limit.term} style={styles.termRow} wrap={false}>
+          <Text style={styles.termName}>{limit.term}</Text>
+          <Text style={styles.termBody}>{limit.body}</Text>
         </View>
       ))}
     </>

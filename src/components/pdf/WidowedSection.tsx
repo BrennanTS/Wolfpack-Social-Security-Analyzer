@@ -17,7 +17,7 @@ import {
 import { widowedBenefitsOverlap, widowedStages } from '../../lib/widowedStages';
 import { CombinedIncomeBars } from './HouseholdSection';
 import { MONTHS, styles } from './theme';
-import { PageFooter } from './ReportDocument';
+import { PageFooter } from './reportChrome';
 
 /** Shared with `WidowedPanel` in spirit; see its own note on why a stage is not an increment. */
 function stageLabel(types: readonly string[]): string {

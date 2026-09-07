@@ -5,6 +5,7 @@ import {
   omittedBlocks,
   parseLayoutFile,
   serializeLayout,
+  spaceIgnored,
   type LayoutItem,
   type ReportBlockId,
   type ReportLayout,
@@ -25,6 +26,13 @@ const FILL_LABEL: Record<'small' | 'medium' | 'full', string> = {
   small: 'about a third of a page',
   medium: 'about half a page',
   full: 'a page or more',
+};
+
+/** What a space says about itself, including when it will do nothing. */
+const SPACE_BLURB: Record<'edge' | 'person' | 'prints', string> = {
+  prints: 'Extra room before what follows — add another for a wider gap',
+  edge: 'Nothing to separate here — the page margin already does it',
+  person: 'Not printed between two per-person sections',
 };
 
 /**
@@ -60,7 +68,7 @@ export function ReportLayoutEditor({
   /**
    * Two columns instead of one — the report on the left, what is not in it on
    * the right. Only a layout change: the drawer and the dialog run the same
-   * editor, so neither can grow behaviour the other lacks.
+   * editor, so neither can grow behavior the other lacks.
    */
   wide?: boolean;
 }) {
@@ -108,6 +116,10 @@ export function ReportLayoutEditor({
 
   const addBreak = useCallback(() => {
     commit([...items, { kind: 'break' }]);
+  }, [items, commit]);
+
+  const addSpace = useCallback(() => {
+    commit([...items, { kind: 'space' }]);
   }, [items, commit]);
 
   const onExport = useCallback(() => {
@@ -185,16 +197,21 @@ export function ReportLayoutEditor({
       <ol className="layout-list">
         {items.map((item, index) => {
           const meta = item.kind === 'block' ? blockMeta(item.id) : undefined;
-          const key = item.kind === 'break' ? `break-${index}` : item.id;
+          const key = item.kind === 'block' ? item.id : `${item.kind}-${index}`;
           const skipped =
             item.kind === 'block' && shape !== undefined && !blockAppliesTo(item.id, shape);
+          // A space can be dragged somewhere it cannot print. Saying which
+          // is the difference between a layout that adapts and one an
+          // adviser thinks is broken.
+          const ignored = item.kind === 'space' ? spaceIgnored(items, index, shape) : null;
           return (
             <li
               key={key}
               className={[
                 'layout-row',
                 item.kind === 'break' ? 'layout-row-break' : '',
-                skipped ? 'layout-row-skipped' : '',
+                item.kind === 'space' ? 'layout-row-space' : '',
+                skipped || ignored !== null ? 'layout-row-skipped' : '',
                 overIndex === index ? 'layout-row-over' : '',
                 dragIndex === index ? 'layout-row-dragging' : '',
               ]
@@ -223,6 +240,11 @@ export function ReportLayoutEditor({
               </span>
               {item.kind === 'break' ? (
                 <span className="layout-break-label">Page break</span>
+              ) : item.kind === 'space' ? (
+                <span className="layout-row-text">
+                  <span className="layout-break-label">Space</span>
+                  <span className="layout-row-blurb">{SPACE_BLURB[ignored ?? 'prints']}</span>
+                </span>
               ) : (
                 <span className="layout-row-text">
                   <span className="layout-row-name">{meta?.label ?? item.id}</span>
@@ -275,6 +297,9 @@ export function ReportLayoutEditor({
         {wide && <h3 className="layout-add-heading">Not in this report</h3>}
         <button type="button" className="layout-add-break" onClick={addBreak}>
           + Page break
+        </button>
+        <button type="button" className="layout-add-break" onClick={addSpace}>
+          + Space
         </button>
         {omitted.length > 0 && !wide && <span className="layout-add-label">Not included</span>}
         {omitted.map((b) => (
@@ -348,7 +373,9 @@ export function ReportLayoutEditor({
 }
 
 function describe(item: LayoutItem): string {
-  return item.kind === 'break' ? 'page break' : blockMeta(item.id)?.label ?? item.id;
+  if (item.kind === 'break') return 'page break';
+  if (item.kind === 'space') return 'space';
+  return blockMeta(item.id)?.label ?? item.id;
 }
 
 /** Name-and-save, inline rather than a prompt so the name can be seen first. */

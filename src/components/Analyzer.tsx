@@ -16,7 +16,7 @@ import {
 import { personLabel } from '../lib/format';
 import { DEFAULT_PLAN_TO_AGE } from '../lib/formBounds';
 import { readPlanToAges, writePlanToAge } from '../lib/planToAgeStore';
-import { downloadBetaPdfReport, downloadPdfReport } from '../lib/printReport';
+import { downloadLegacyPdfReport, downloadPdfReport } from '../lib/printReport';
 import {
   buildClaimingRows,
   prefsFor,
@@ -94,7 +94,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // Held here, not in `ClaimingGridPanel`, so the exported report prints the
   // near-best region the adviser was looking at rather than the default.
   const [gridTarget, setGridTarget] = useState<TargetRange>(DEFAULT_TARGET_RANGE);
-  const [exportingBeta, setExportingBeta] = useState(false);
+  const [exportingReport, setExportingReport] = useState(false);
 
   // Strip the query string separately, because this is a side effect and
   // StrictMode double-invokes state initializers. replaceState is idempotent,
@@ -131,7 +131,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const { themeId, chooseTheme } = useReportTheme();
   const reportLayouts = useReportLayouts();
   const [showAssumptions, setShowAssumptions] = useState(true);
-  const [exporting, setExporting] = useState(false);
+  const [exportingLegacy, setExportingLegacy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   const form = useMemo<AnalyzerFormState>(
@@ -291,32 +291,33 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     );
   }
 
-  async function handleExportPdf() {
+  /** The report as it printed before layouts, now reachable only from the menu. */
+  async function handleExportLegacyPdf() {
     if (!analysis) return;
     setExportError(null);
-    setExporting(true);
+    setExportingLegacy(true);
     try {
-      await downloadPdfReport(analysis, claimingRowsByPerson, gridTarget, themeId);
+      await downloadLegacyPdfReport(analysis, claimingRowsByPerson, gridTarget, themeId);
     } catch {
-      setExportError('PDF export failed. Please try again.');
+      setExportError('Legacy PDF export failed. Please try again.');
     } finally {
-      setExporting(false);
+      setExportingLegacy(false);
     }
   }
 
   /**
-   * The beta report. Its longevity page needs the analysis re-run at other
+   * The report. Its longevity block needs the analysis re-run at other
    * plan-to ages, which is asynchronous and needs the form rather than the
    * finished analysis — so it is computed here, at export, rather than on
    * every keystroke. It costs about 50ms and nothing on screen depends on it.
    */
-  async function handleExportBetaPdf() {
+  async function handleExportPdf() {
     if (!analysis) return;
     setExportError(null);
-    setExportingBeta(true);
+    setExportingReport(true);
     try {
       const sensitivity = await longevityIfComplete(form, asOf);
-      await downloadBetaPdfReport(
+      await downloadPdfReport(
         analysis,
         claimingRowsByPerson,
         gridTarget,
@@ -325,9 +326,9 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         reportLayouts.layout,
       );
     } catch {
-      setExportError('Beta PDF export failed. Please try again.');
+      setExportError('PDF export failed. Please try again.');
     } finally {
-      setExportingBeta(false);
+      setExportingReport(false);
     }
   }
 
@@ -346,18 +347,18 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         </div>
         <div className="header-actions">
           <DarkModeToggle active={darkMode} onToggle={onToggleDarkMode} />
-          {/* The only export in the header. The original moved into the menu
-              — it is on its way out, and an adviser reaching for "Export PDF"
-              should land on the report being developed rather than choose
-              between two buttons a few pixels apart. */}
+          {/* The only export in the header. The legacy report moved into the
+              menu — it is on its way out, and an adviser reaching for
+              "Export PDF" should land on the report the layout describes
+              rather than choose between two buttons a few pixels apart. */}
           <button
             type="button"
             className="btn-export"
-            data-testid="export-beta"
-            onClick={handleExportBetaPdf}
-            disabled={!analysis || exportingBeta}
+            data-testid="export-report"
+            onClick={handleExportPdf}
+            disabled={!analysis || exportingReport}
           >
-            {exportingBeta ? 'Generating…' : 'Export PDF (beta)'}
+            {exportingReport ? 'Generating…' : 'Export PDF'}
           </button>
           <CopyLinkButton form={form} disabled={!inputsComplete} />
           {exportError && <span className="export-error">{exportError}</span>}
@@ -564,8 +565,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
           setLayoutEditorOpen(true);
           void longevityIfComplete(form, asOf).then(setPreviewSensitivity);
         }}
-        onExportOriginal={handleExportPdf}
-        exportingOriginal={exporting}
+        onExportLegacy={handleExportLegacyPdf}
+        exportingLegacy={exportingLegacy}
         canExport={inputsComplete}
       />
       <LayoutEditorDialog

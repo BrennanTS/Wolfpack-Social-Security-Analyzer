@@ -31,8 +31,8 @@ function renderMenu(overrides: Partial<Parameters<typeof MenuPanel>[0]> = {}) {
     onOpenResources: vi.fn(),
     layouts: stubLayouts(),
     onEditLayout: vi.fn(),
-    onExportOriginal: vi.fn(),
-    exportingOriginal: false,
+    onExportLegacy: vi.fn(),
+    exportingLegacy: false,
     canExport: true,
     ...overrides,
   };
@@ -90,17 +90,17 @@ describe('MenuPanel', () => {
     expect(screen.getByText(/section/)).toBeInTheDocument();
   });
 
-  it('offers the original report here rather than in the header', async () => {
+  it('offers the legacy report here rather than in the header', async () => {
     // It is on its way out; an adviser reaching for "Export PDF" should land
-    // on the beta, not choose between two buttons a few pixels apart.
+    // on the current report, not choose between two buttons a few pixels apart.
     const props = renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
-    expect(props.onExportOriginal).toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Export legacy PDF' }));
+    expect(props.onExportLegacy).toHaveBeenCalled();
   });
 
-  it('will not export the original before the inputs are complete', () => {
+  it('will not export the legacy report before the inputs are complete', () => {
     renderMenu({ canExport: false });
-    expect(screen.getByRole('button', { name: 'Export PDF' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Export legacy PDF' })).toBeDisabled();
   });
 
   it('closes itself as it hands over to another drawer', async () => {

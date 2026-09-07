@@ -200,7 +200,7 @@ describe('the engine brand in app source', () => {
       'src/components/PersonPanel.tsx',
       'src/components/pdf/PersonSection.tsx',
       'src/components/pdf/HouseholdSection.tsx',
-      'src/components/pdf/ReportDocument.tsx',
+      'src/components/pdf/reportChrome.tsx',
       'src/lib/household.ts',
       'src/lib/formState.ts',
     ]) {

@@ -1,281 +1,203 @@
-import { Document, Text, View } from '@react-pdf/renderer';
+import { Fragment } from 'react';
+import { Document, Page, View } from '@react-pdf/renderer';
 import { BRAND_NAME } from '../../lib/brand';
-import { BLS_CPI_URL, formatPercent, getCpiLast30Years } from '../../lib/cpiHistory';
-import { fraLabel } from '../../lib/format';
 import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
-import { genderLabel, SSA_LIFE_TABLE_URL } from '../../lib/lifeExpectancy';
-import { formatVersionLabel } from '../../lib/version';
+import type { ClaimingRow } from '../../lib/claimingRows';
+import type { LongevitySensitivity } from '../../lib/longevity';
 import {
-  coupleModelingNote,
-  SINGLE_CLAIMANT_BENEFIT_NOTE,
-  spousalSummary,
-} from '../methodologyCopy';
-import { WIDOWED_MODELING_NOTE, WIDOWED_SURVIVOR_CARD } from '../widowedCopy';
-import { HouseholdSection } from './HouseholdSection';
-import { PersonSection } from './PersonSection';
-import { WidowedSection } from './WidowedSection';
+  ADVISER_LAYOUT,
+  blockScope,
+  layoutRuns,
+  SPACE,
+  type ReportBlockId,
+  type ReportLayout,
+  type RunItem,
+} from '../../lib/reportLayout';
+import { formatVersionLabel } from '../../lib/version';
 import { styles } from './theme';
-
-interface MethodItem {
-  title: string;
-  body: string;
-}
-
-export function PageFooter({ text }: { text: string }) {
-  return (
-    <Text
-      style={styles.footer}
-      fixed
-      render={({ pageNumber, totalPages }) => `${text} · Page ${pageNumber} of ${totalPages}`}
-    />
-  );
-}
+import {
+  formatReportDate,
+  MethodologyAppendix,
+  PageFooter,
+  ReportHeader,
+} from './reportChrome';
+import { ClaimingGridBlock, HouseholdBlock } from './HouseholdSection';
+import { PersonBlock, type PersonPart } from './PersonSection';
+import { WidowedSection } from './WidowedSection';
+import {
+  ActionBlock,
+  AnswerBlock,
+  ChangesBlock,
+  CoverBlock,
+  IntroBlock,
+  LimitsBlock,
+  LongevityBlock,
+  MethodologyBlock,
+  SurvivorBlock,
+  TermsBlock,
+} from './ReportSections';
 
 /**
- * Lightweight cover treatment for the first page only — document title and
- * report date, styled with the same theme tokens as the rest of the report.
- * It exists so a printed/downloaded report reads as a finished document
- * rather than opening on a bare section heading.
+ * The report, composed from a layout.
  *
- * No brand line: `PageFooter` already prints "Wolfpack | Planning Team" on
- * every page including this one, so a second copy 700pt above it was the
- * same name twice on one sheet. The rule that kept this header off pages 2+
- * is the same rule, applied one level in.
+ * Every block used to render its own `<Page>`, which is why the report
+ * printed at about 5% ink: a block holding a third of a page still consumed
+ * a whole sheet. Blocks are now content, and the document groups them into
+ * pages — one `<Page>` per run of blocks between the adviser's page breaks,
+ * inside which react-pdf paginates on its own. A run that overflows spills
+ * onto another sheet; a run that underfills simply ends.
+ *
+ * `LegacyReportDocument` is the fixed-order report this replaced. It was
+ * built alongside rather than in place, so advisers could move across on
+ * their own schedule.
+ *
+ * Widowed households keep their own section: every block built for two
+ * living claimants choosing between filing ages has already been decided for
+ * a widow(er), and `layoutRuns` drops them.
  */
-export function ReportHeader({ dateLabel }: { dateLabel: string }) {
-  return (
-    <View style={styles.docHeader}>
-      <View>
-        <Text style={styles.docTitle}>Social Security Claiming Analysis</Text>
-      </View>
-      <Text style={styles.docDate}>{dateLabel}</Text>
-    </View>
-  );
-}
-
-export function MethodPair({ left, right }: { left: MethodItem; right?: MethodItem }) {
-  if (!left.title && !right?.title) return null;
-  return (
-    <View style={styles.methodRow}>
-      <View style={styles.methodBlock}>
-        {left.title ? (
-          <>
-            <Text style={styles.methodTitle}>{left.title}</Text>
-            <Text style={styles.methodText}>{left.body}</Text>
-          </>
-        ) : null}
-      </View>
-      {right?.title ? (
-        <View style={[styles.methodBlock, styles.methodBlockLast]}>
-          <Text style={styles.methodTitle}>{right.title}</Text>
-          <Text style={styles.methodText}>{right.body}</Text>
-        </View>
-      ) : (
-        <View style={[styles.methodBlock, styles.methodBlockLast]} />
-      )}
-    </View>
-  );
-}
-
-export function formatReportDate(): string {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date());
-}
+/** What one page is built from: content, and the adviser's own padding. */
+type RunGroup =
+  | { kind: 'space' }
+  | { kind: 'blocks'; scope: 'household' | 'person'; ids: ReportBlockId[] };
 
 /**
- * Methodology pairs are computed once for the whole document from the
- * representative person (`people[0]`), the same household-representative
- * convention `HouseholdPanel` uses for its break-even section — FRA/DRC
- * mechanics don't meaningfully vary per person. The spousal figure names
- * which of the two `spousalTopUp` quantities it shows, since one is reduced
- * for early filing and one isn't; no survivor figure is stated anywhere here.
+ * A run of blocks, collapsed so consecutive person blocks travel together.
+ *
+ * Household blocks stay one to a group; person blocks gather into one, which
+ * is what keeps the report person-major when a layout interleaves them.
+ *
+ * A space between two person blocks is dropped for the same reason: those two
+ * blocks print inside one person's section, and a gap between them would have
+ * to be inside it too. The editor says so where the space is dragged, rather
+ * than leaving an adviser to work out why nothing moved.
  */
-/**
- * Exported for `ReportDocument.test.tsx`. The pairs reach the page as PROPS
- * on a row component, not as children, so a text walk over the rendered tree
- * cannot see them — asserting on this function directly is both the honest
- * unit and the only thing that can fail.
- */
-export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, MethodItem][] {
-  const rep = analysis.people[0];
-  // Empty for a widow(er) — `analyzeWidowed` clears `claimingOptions` because
-  // a table of what this person's OWN record pays at each age describes income
-  // they may never receive. The two cards built from it are replaced below
-  // rather than guarded with a fallback figure: a `!` here threw on the very
-  // first widowed export.
-  const isWidowed = householdDisplayShape(analysis.status) === 'widowed';
-  const age62 = rep.claimingOptions.find((o) => o.age === 62);
-  const age70 = rep.claimingOptions.find((o) => o.age === 70);
-  const cpi = getCpiLast30Years();
-  const { annualCola } = analysis.assumptions;
-  const spousal = analysis.spousalTopUp;
-
-  return [
-    [
-      {
-        title: 'Full Retirement Age (FRA)',
-        // No arrow — see the note in `PersonSection`'s break-even cards.
-        body: `FRA ${fraLabel(rep.fra)} for birth year ${rep.person.birthYear}, per SSA schedule.`,
-      },
-      isWidowed || age62 === undefined
-        ? {
-            title: 'Two Independent Dates',
-            body:
-              'A survivor benefit can start at 60 and an own-record benefit at 62. Deemed ' +
-              'filing does not apply to survivor benefits, so neither date forces the other.',
-          }
-        : {
-            title: 'Early Claiming Reduction',
-            body: `5/9 of 1% per month (first 36 mo), then 5/12 of 1% thereafter. Age 62 = ${age62.percentOfPia}% of PIA.`,
-          },
-    ],
-    [
-      isWidowed || age70 === undefined
-        ? {
-            title: 'Survivor Full Retirement Age',
-            body:
-              'Survivor benefits use their own full-retirement-age schedule, which is not the ' +
-              'retirement one — the two coincide only for birth years from 1962 onward.',
-          }
-        : {
-            title: 'Delayed Retirement Credits',
-            body: `2/3 of 1% per month past FRA to age 70. Age 70 = ${age70.percentOfPia}% of PIA.`,
-          },
-      {
-        title: 'Lifetime Benefit Projection',
-        // The engine projects no future COLA — only the historical COLAs
-        // already baked into the PIA — so every dollar figure in this report
-        // is in today's dollars. The household page says exactly this; these
-        // two strings used to claim the opposite on the same printed page.
-        body: `Lifetime totals are in today’s dollars, before any future cost-of-living adjustment, undiscounted, through age ${rep.person.lifeExpectancy}.`,
-      },
-    ],
-    [
-      {
-        title: 'Inflation / COLA',
-        // Stated as the assumption it is: this slider reaches the break-even
-        // ages and nothing else, so it must not read as if benefit amounts
-        // were inflated by it.
-        body: `${formatPercent(annualCola, 2)} annual COLA, applied to break-even ages only. BLS CPI-U ${cpi.startYear}–${cpi.endYear} avg ${formatPercent(cpi.arithmeticMean, 2)}.`,
-      },
-      {
-        title: 'Life Expectancy',
-        body: `Plan-to age ${rep.person.lifeExpectancy}. SSA period life table suggests age ${rep.ssaSuggestedLifeExpectancy} for ${genderLabel(rep.person.gender).toLowerCase()} at ${rep.currentAge.years}.`,
-      },
-    ],
-    [
-      {
-        title: isWidowed ? 'Survivor Benefit' : 'Spousal Benefit',
-        // Both arms are shared with the household page and the on-screen
-        // panel: the married one so the three cannot branch differently on an
-        // absent start date again, the single one so they cannot make three
-        // different claims about what a single claimant is and is not shown.
-        //
-        // The subject comes from `lowerEarnerLabel`, exactly as on the
-        // household page and on screen. A hardcoded non-null subject here
-        // made `spousalSummary`'s tie branch unreachable in print, so an
-        // equal-PIA household read "half of the higher earner's PIA does not
-        // exceed the lower earner's own benefit" — about a household with
-        // neither a higher nor a lower earner.
-        body: spousal
-          ? spousalSummary(spousal, spousal.lowerEarnerLabel === null ? null : 'the lower earner')
-          : isWidowed
-            ? WIDOWED_SURVIVOR_CARD
-            : SINGLE_CLAIMANT_BENEFIT_NOTE,
-      },
-      {
-        title: 'Data Sources',
-        body: `COLA: ${BLS_CPI_URL}. Life tables: ${SSA_LIFE_TABLE_URL}.`,
-      },
-    ],
-  ];
+function groupRun(run: readonly RunItem[]): RunGroup[] {
+  const groups: RunGroup[] = [];
+  let pendingSpaces = 0;
+  for (const item of run) {
+    if (item === SPACE) {
+      pendingSpaces += 1;
+      continue;
+    }
+    const scope = blockScope(item);
+    const last = groups[groups.length - 1];
+    if (scope === 'person' && last?.kind === 'blocks' && last.scope === 'person') {
+      last.ids.push(item);
+      pendingSpaces = 0;
+      continue;
+    }
+    for (let i = 0; i < pendingSpaces; i += 1) groups.push({ kind: 'space' });
+    pendingSpaces = 0;
+    groups.push({ kind: 'blocks', scope, ids: [item] });
+  }
+  return groups;
 }
 
-/**
- * Exported for `HouseholdSection.test.tsx`, which places it on the household
- * page exactly as `ReportDocument` does. That co-location is the whole point:
- * for a married report this block and the combined-income caption share one
- * physical `<Page>`, and testing them apart is how they came to contradict
- * each other about survivor benefits.
- */
-export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis }) {
-  // Exhaustive, and repeated here rather than left to `ReportDocument` alone
-  // because this block is exported and rendered on its own by
-  // `HouseholdSection.test.tsx`. See `householdDisplayShape`.
-  const appendixShape = householdDisplayShape(analysis.status);
-  const hasSpouse = appendixShape === 'twoClaimants';
-  const pairs = buildMethodPairs(analysis);
-
-  return (
-    <>
-      <Text style={styles.sectionTitle}>Methodology & Assumptions</Text>
-      {pairs.map((pair, i) => (
-        <MethodPair key={i} left={pair[0]} right={pair[1]} />
-      ))}
-      {/* `wrap={false}`: this is a bordered box, and react-pdf will happily
-          leave its text on one page and its bottom border on the next. That
-          printed a whole extra sheet carrying a single hairline and a footer
-          — 0.01% ink — the first time the terms and the appendix shared a
-          page group. A callout box should move as one thing regardless. */}
-      <View style={styles.disclaimer} wrap={false}>
-        <Text style={styles.disclaimerTitle}>Important Disclosures</Text>
-        <Text style={styles.disclaimerText}>
-          Prepared by {BRAND_NAME} for educational
-          planning only. Not affiliated with the SSA. Benefit amounts are in today&rsquo;s
-          dollars, before any future cost-of-living adjustment.{' '}
-          {appendixShape === 'widowed'
-            ? `${WIDOWED_MODELING_NOTE} `
-            : hasSpouse
-              ? `${coupleModelingNote(analysis.survivorGap)} `
-              : `${SINGLE_CLAIMANT_BENEFIT_NOTE} `}
-          Projections exclude taxation, earnings limits, and future rule changes. Data:{' '}
-          {BLS_CPI_URL}. Verify at ssa.gov before claiming.
-        </Text>
-      </View>
-    </>
-  );
-}
-
-/**
- * Composes the printable report. Print has no tabs, so this linearizes what
- * the app shows as tabs on screen: for a married household, the household
- * page first, then one page per person; for a single claimant, just their
- * page. The shared methodology/disclosures block attaches to whichever
- * section is last in that flow, so it appears exactly once regardless of
- * household shape; the cover `ReportHeader` attaches to whichever section is
- * first, for the same reason. Page numbers use react-pdf's own
- * `pageNumber`/`totalPages` (see `PageFooter`) rather than a pre-computed
- * count, so they stay correct even if a section's content wraps onto more
- * than one physical page.
- */
 export function ReportDocument({
   analysis,
   claimingRowsByPerson = {},
   gridTarget,
+  sensitivity,
+  layout = ADVISER_LAYOUT,
 }: {
   analysis: HouseholdAnalysis;
-  /**
-   * Each person's benefit-by-claiming-age rows, keyed by person id — the same
-   * arrays the screen renders. Defaulting to `{}` keeps every existing caller
-   * (and the report tests) on the whole-year rows `PersonSection` derives for
-   * itself.
-   */
-  claimingRowsByPerson?: Record<string, import('../../lib/claimingRows').ClaimingRow[]>;
-  /** The claiming grid's near-best region, as shown on screen. */
+  claimingRowsByPerson?: Record<string, ClaimingRow[]>;
   gridTarget?: { on: boolean; percent: number };
+  /**
+   * Every strategy priced at three lifespans. Computed by the caller because
+   * it needs the household and the assumptions, which the analysis does not
+   * carry — and it is async, which a render is not. Undefined simply omits
+   * the block.
+   */
+  sensitivity?: LongevitySensitivity | null;
+  /** What to include, in what order, and where the pages break. */
+  layout?: ReportLayout;
 }) {
-  // Exhaustive rather than `=== 'married'`: a widowed household used to fall
-  // through to the single-claimant layout, printing a report that never
-  // mentions the survivor benefit. See `householdDisplayShape`.
   const shape = householdDisplayShape(analysis.status);
-  const isMarried = shape === 'twoClaimants';
   const reportDate = formatReportDate();
   const footerText = `${BRAND_NAME} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
-  const appendix = <MethodologyAppendix analysis={analysis} />;
-  const leadingHeader = <ReportHeader dateLabel={reportDate} />;
+  const isWidowed = shape === 'widowed';
+
+  /**
+   * One block's content.
+   *
+   * Called rather than mounted, like the sections it draws on, so the tests
+   * that walk this document's element tree without a renderer can see inside
+   * each block.
+   */
+  /** Which part of a person's detail each person-scoped block prints. */
+  const PART_OF: Partial<Record<ReportBlockId, PersonPart>> = {
+    personDetails: 'details',
+    personComparison: 'comparison',
+    personCumulative: 'cumulative',
+    personBreakeven: 'breakeven',
+    personHeatmap: 'heatmap',
+    personOpportunity: 'opportunity',
+    personRamp: 'ramp',
+  };
+
+  /**
+   * One run of consecutive person blocks, printed for each claimant in turn.
+   *
+   * Grouped rather than rendered one block at a time so the report stays
+   * person-major: a couple gets the client's charts, then the spouse's, under
+   * one name each. Block-at-a-time would print every chart twice in a row
+   * under alternating names, and a break-even card under nobody's heading.
+   */
+  const renderPeople = (ids: ReportBlockId[]): React.ReactNode => {
+    const parts = ids.flatMap((id) => (PART_OF[id] ? [PART_OF[id] as PersonPart] : []));
+    if (parts.length === 0) return null;
+    return analysis.people.map((rep, i) => (
+      <View key={rep.person.id} break={i > 0}>
+        {PersonBlock({
+          analysis: rep,
+          index: i === 0 ? 0 : 1,
+          annualCola: analysis.assumptions.annualCola,
+          isBest: analysis.scenarioIsBest,
+          claimingRows: claimingRowsByPerson[rep.person.id],
+          parts,
+        })}
+      </View>
+    ));
+  };
+
+  const renderBlock = (id: ReportBlockId): React.ReactNode => {
+    switch (id) {
+      case 'cover':
+        return CoverBlock({ analysis, dateLabel: reportDate });
+      case 'intro':
+        return IntroBlock({ analysis });
+      case 'limits':
+        return LimitsBlock();
+      case 'answer':
+        return AnswerBlock({ analysis });
+      case 'changes':
+        return ChangesBlock({ analysis });
+      case 'survivor':
+        return SurvivorBlock({ analysis });
+      case 'longevity':
+        // The one block whose data the caller may not have computed.
+        return sensitivity ? LongevityBlock({ sensitivity }) : null;
+      case 'action':
+        return ActionBlock({ analysis });
+      case 'household':
+        return HouseholdBlock({ analysis });
+      case 'grid':
+        return ClaimingGridBlock({ analysis, gridTarget });
+      case 'terms':
+        return TermsBlock({ analysis });
+      case 'methodology':
+        return MethodologyBlock({ appendix: <MethodologyAppendix analysis={analysis} /> });
+      default:
+        return null;
+    }
+  };
+
+  const runs = layoutRuns(layout, shape);
+  // The document title goes on the first sheet that is not a cover: a cover
+  // already carries the title, and printing it twice on one page reads as a
+  // template nobody finished.
+  const headerRun = runs.findIndex((run) => run[0] !== 'cover');
 
   return (
     <Document
@@ -283,38 +205,42 @@ export function ReportDocument({
       author={BRAND_NAME}
       subject="Social Security Claiming Analysis"
     >
-      {shape === 'widowed' && (
+      {isWidowed ? (
         <WidowedSection
           analysis={analysis}
           footerText={footerText}
-          appendix={appendix}
-          leadingHeader={leadingHeader}
+          leadingHeader={<ReportHeader dateLabel={reportDate} />}
         />
-      )}
-      {isMarried && (
-        <HouseholdSection
-          analysis={analysis}
-          footerText={footerText}
-          appendix={appendix}
-          leadingHeader={leadingHeader}
-          gridTarget={gridTarget}
-        />
-      )}
-      {/* A widow(er)'s own page IS the widowed section — `PersonSection` is
-          built around `claimingOptions`, which is empty for them. */}
-      {shape !== 'widowed' &&
-        analysis.people.map((p, i) => (
-        <PersonSection
-          key={p.person.id}
-          analysis={p}
-          index={i as 0 | 1}
-          annualCola={analysis.assumptions.annualCola}
-          isBest={analysis.scenarioIsBest}
-          claimingRows={claimingRowsByPerson[p.person.id]}
-          footerText={footerText}
-          appendix={isMarried ? undefined : appendix}
-          leadingHeader={!isMarried && i === 0 ? leadingHeader : undefined}
-        />
+      ) : null}
+
+      {runs.map((run, runIndex) => (
+        <Page key={runIndex} size="LETTER" style={styles.page}>
+          {/* Called, not mounted, like every block: the tests walk this tree
+              without a renderer, and a mounted `<ReportHeader />` has no
+              children to walk — the title would be invisible to every
+              assertion about which page carries it. */}
+          {runIndex === headerRun && !isWidowed && ReportHeader({ dateLabel: reportDate })}
+          {groupRun(run).map((group, i) => {
+            // A space is padding on top of the gap the next block already
+            // gets, which is what makes one enough to see and two twice as
+            // much.
+            if (group.kind === 'space') return <View key={i} style={styles.spacer} />;
+            const content =
+              group.scope === 'person' ? renderPeople(group.ids) : renderBlock(group.ids[0]);
+            // The first group on a sheet sits against the top margin; every
+            // one after it needs the gap its own heading deliberately does
+            // not carry. A plain Fragment for the first, so nothing adds a
+            // layout box where no spacing is wanted.
+            return i === 0 ? (
+              <Fragment key={i}>{content}</Fragment>
+            ) : (
+              <View key={i} style={styles.blockGap}>
+                {content}
+              </View>
+            );
+          })}
+          <PageFooter text={footerText} />
+        </Page>
       ))}
     </Document>
   );

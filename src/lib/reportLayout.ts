@@ -1,7 +1,7 @@
 /**
  * What the report contains, in what order, and where its pages break.
  *
- * The beta report was a fixed sequence of sections, each of which rendered
+ * The report was a fixed sequence of sections, each of which rendered
  * its own physical page. That is why it printed at about 5% ink: a section
  * holding a third of a page still consumed a whole sheet, and four of the
  * client-facing pages ended less than 40% of the way down.
@@ -36,14 +36,32 @@ export type ReportBlockId =
   | 'methodology';
 
 /**
- * A block, or a forced page break.
+ * A block, a forced page break, or a space.
  *
- * Breaks are items in the same list rather than a property of the block that
- * follows, because that is how they are edited: dragged to a position, not
- * attached to a neighbour. It also lets two breaks sit together without
- * meaning something different from one.
+ * Breaks and spaces are items in the same list rather than properties of the
+ * block that follows, because that is how they are edited: dragged to a
+ * position, not attached to a neighbor.
+ *
+ * A space is the quiet half of the pair. Blocks flow, so two of them can land
+ * against each other and read as one — a chart under the heading of the block
+ * above it. A space pushes them apart without starting a sheet, and unlike a
+ * break, several in a row mean more of it.
  */
-export type LayoutItem = { kind: 'block'; id: ReportBlockId } | { kind: 'break' };
+export type LayoutItem =
+  | { kind: 'block'; id: ReportBlockId }
+  | { kind: 'break' }
+  | { kind: 'space' };
+
+/**
+ * A space, as it appears inside a run.
+ *
+ * Runs are block ids, so the marker is a string the ids cannot be — see the
+ * test that holds that apart.
+ */
+export const SPACE = 'space';
+
+/** What a run is made of: blocks to print, and the spaces between them. */
+export type RunItem = ReportBlockId | typeof SPACE;
 
 export interface ReportLayout {
   /** Stable id, used as the storage key. */
@@ -361,22 +379,73 @@ export function omittedBlocks(layout: ReportLayout): BlockMeta[] {
  * empty page. That was the failure mode of the old fixed sequence rendered
  * for a widowed household.
  */
-export function layoutRuns(
-  layout: ReportLayout,
-  shape: HouseholdDisplayShape,
-): ReportBlockId[][] {
-  const runs: ReportBlockId[][] = [];
-  let current: ReportBlockId[] = [];
+export function layoutRuns(layout: ReportLayout, shape: HouseholdDisplayShape): RunItem[][] {
+  const runs: RunItem[][] = [];
+  let current: RunItem[] = [];
+  const close = () => {
+    // A space at either end of a run is padding against the page margin,
+    // where there is already a margin. Trimming here rather than at the
+    // editor is what makes a stranded space harmless: dropping a block for
+    // this household can leave a space first or last in its run.
+    while (current.length > 0 && current[0] === SPACE) current.shift();
+    while (current.length > 0 && current[current.length - 1] === SPACE) current.pop();
+    // Blocks are what a page is for. A run of nothing but spaces would print
+    // a sheet carrying a footer and a gap.
+    if (current.some((item) => item !== SPACE)) runs.push(current);
+    current = [];
+  };
   for (const item of layout.items) {
     if (item.kind === 'break') {
-      if (current.length > 0) runs.push(current);
-      current = [];
+      close();
+      continue;
+    }
+    if (item.kind === 'space') {
+      current.push(SPACE);
       continue;
     }
     if (blockAppliesTo(item.id, shape)) current.push(item.id);
   }
-  if (current.length > 0) runs.push(current);
+  close();
   return runs;
+}
+
+/**
+ * Why a space in this position will not print, or null if it will.
+ *
+ * The editor says so rather than letting an adviser drag a space somewhere it
+ * quietly does nothing — the same courtesy the skipped-block row already
+ * extends. Both reasons are real positions someone will try.
+ */
+export function spaceIgnored(
+  items: readonly LayoutItem[],
+  index: number,
+  shape?: HouseholdDisplayShape,
+): 'edge' | 'person' | null {
+  if (items[index]?.kind !== 'space') return null;
+  const printing = (item: LayoutItem | undefined): ReportBlockId | null => {
+    if (item === undefined || item.kind !== 'block') return null;
+    if (shape !== undefined && !blockAppliesTo(item.id, shape)) return null;
+    return item.id;
+  };
+  /** The nearest block that prints, without crossing a page break. */
+  const neighbor = (step: -1 | 1): ReportBlockId | null => {
+    for (let i = index + step; i >= 0 && i < items.length; i += step) {
+      const item = items[i];
+      if (item.kind === 'break') return null;
+      const id = printing(item);
+      if (id !== null) return id;
+    }
+    return null;
+  };
+  const before = neighbor(-1);
+  const after = neighbor(1);
+  if (before === null || after === null) return 'edge';
+  // Consecutive person blocks are printed together, once per claimant, which
+  // is what keeps the report person-major. A space between two of them has
+  // nowhere to go: it would have to fall inside each person's section, and
+  // the parts there print in a fixed order.
+  if (blockScope(before) === 'person' && blockScope(after) === 'person') return 'person';
+  return null;
 }
 
 /* ------------------------------------------------------------------ *
@@ -420,8 +489,17 @@ export function parseLayout(raw: unknown): ReportLayout | null {
     const kind = (item as { kind?: unknown }).kind;
     if (kind === 'break') {
       // Two breaks in a row would print a blank page; a leading break would
-      // put one at the front of the report.
+      // put one at the front of the report. A space before one is padding
+      // against the bottom margin, so the break eats it.
+      while (items.length > 0 && items[items.length - 1].kind === 'space') items.pop();
       if (items.length > 0 && items[items.length - 1].kind !== 'break') items.push({ kind: 'break' });
+      continue;
+    }
+    if (kind === 'space') {
+      // Several spaces in a row are how a bigger gap is asked for, so they
+      // are kept as they came — but one at the top of a page has a margin
+      // above it already.
+      if (items.length > 0 && items[items.length - 1].kind !== 'break') items.push({ kind: 'space' });
       continue;
     }
     if (kind !== 'block') continue;
@@ -445,7 +523,7 @@ export function parseLayout(raw: unknown): ReportLayout | null {
     seen.add(id as ReportBlockId);
     items.push({ kind: 'block', id: id as ReportBlockId });
   }
-  while (items.length > 0 && items[items.length - 1].kind === 'break') items.pop();
+  while (items.length > 0 && items[items.length - 1].kind !== 'block') items.pop();
   if (items.length === 0) return null;
 
   const name = typeof source.name === 'string' && source.name.trim() ? source.name.trim() : 'Imported layout';

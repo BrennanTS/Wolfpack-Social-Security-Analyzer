@@ -76,9 +76,9 @@ export function ReportPreview({
           // the stylesheet is rebuilt here, and a section that had already
           // captured `styles` would render in the previous theme.
           setActiveReportTheme(reportTheme(themeId));
-          const { BetaReportDocument } = await import('./pdf/BetaReportDocument');
+          const { ReportDocument } = await import('./pdf/ReportDocument');
           const blob = await pdf(
-            <BetaReportDocument
+            <ReportDocument
               analysis={analysis}
               claimingRowsByPerson={claimingRowsByPerson}
               gridTarget={gridTarget}

@@ -269,12 +269,13 @@ test('toggles dark mode', async ({ page }) => {
 });
 
 /**
- * The original report's export, which now lives in the menu rather than the
- * header — it is on its way out, and the header carries only the beta.
+ * The legacy report's export, which now lives in the menu rather than the
+ * header — it is on its way out, and the header carries only the report the
+ * layout describes.
  */
-async function openOriginalExport(page: Page) {
+async function openLegacyExport(page: Page) {
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  return page.getByRole('button', { name: 'Export PDF', exact: true });
+  return page.getByRole('button', { name: 'Export legacy PDF', exact: true });
 }
 
 test('exports a PDF', async ({ page }) => {
@@ -282,7 +283,7 @@ test('exports a PDF', async ({ page }) => {
   await fillScenarioForm(page, single);
 
   const downloadPromise = page.waitForEvent('download');
-  await (await openOriginalExport(page)).click();
+  await (await openLegacyExport(page)).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-.*\.pdf$/);
 });
@@ -501,9 +502,9 @@ test('renders a widowed household, and never the single-claimant view', async ({
   await expect(page.getByTestId('deceased-filed')).toContainText('June 2022');
 
   // Both actions live, having been disabled dead ends until now.
-  await expect(page.getByTestId('export-beta')).toBeEnabled();
+  await expect(page.getByTestId('export-report')).toBeEnabled();
   await expect(page.getByRole('button', { name: /copy link/i })).toBeEnabled();
-  await expect(await openOriginalExport(page)).toBeEnabled();
+  await expect(await openLegacyExport(page)).toBeEnabled();
 });
 
 test('blocks the widowed dates SSA would not pay, instead of failing the analysis', async ({
@@ -637,30 +638,32 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   await expect(scenarioRow).toContainText(firstRow);
 });
 
-test('exports the beta report, named apart from the report it may replace', async ({ page }) => {
+test('exports the report, named apart from the legacy one it replaces', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, married);
   await expect(page.getByTestId('strategy-table')).toBeVisible();
 
   const downloadPromise = page.waitForEvent('download');
-  await page.getByTestId('export-beta').click();
+  await page.getByTestId('export-report').click();
   const download = await downloadPromise;
 
-  // A distinct filename, so an adviser holding both can tell them apart —
-  // and so exporting one cannot overwrite the other in a downloads folder.
-  expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-.*-beta\.pdf$/);
+  // The plain name belongs to the report an adviser sends.
+  expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-[\d-]+\.pdf$/);
 
-  // The original still works afterwards. Two exports sharing one analysis is
-  // the whole premise of shipping the beta alongside rather than instead.
-  const alsoOriginal = page.waitForEvent('download');
-  await (await openOriginalExport(page)).click();
-  expect((await alsoOriginal).suggestedFilename()).toMatch(/^Social-Security-Analysis-[\d-]+\.pdf$/);
+  // The legacy one still works afterwards, and is named apart — so an adviser
+  // holding both can tell them apart, and neither overwrites the other in a
+  // downloads folder.
+  const alsoLegacy = page.waitForEvent('download');
+  await (await openLegacyExport(page)).click();
+  expect((await alsoLegacy).suggestedFilename()).toMatch(
+    /^Social-Security-Analysis-.*-legacy\.pdf$/,
+  );
 });
 
 /**
  * Both export buttons, in both themes, at rest and on hover.
  *
- * One is in the header (the beta) and one is in the menu (the original), so
+ * One is in the header (the report) and one is in the menu (the legacy), so
  * this opens the drawer for the second — the defect below is about theme
  * tokens, not about where a button sits, and moving a button must not quietly
  * drop it from this guard.
@@ -681,7 +684,7 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
   await fillScenarioForm(page, single);
   await expect(page.getByTestId('benefit-table')).toBeVisible();
 
-  const contrast = (selector: 'primary' | 'beta') =>
+  const contrast = (selector: 'primary' | 'report') =>
     page.evaluate((which) => {
       const lum = (c: string) => {
         const [R, G, B] = c
@@ -712,10 +715,10 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
       };
       const pageBg = getComputedStyle(document.body).backgroundColor;
       const el =
-        which === 'beta'
-          ? document.querySelector<HTMLElement>('[data-testid="export-beta"]')!
+        which === 'report'
+          ? document.querySelector<HTMLElement>('[data-testid="export-report"]')!
           : [...document.querySelectorAll<HTMLElement>('.menu-action')].find((x) =>
-              /export pdf/i.test(x.textContent ?? ''),
+              /export legacy pdf/i.test(x.textContent ?? ''),
             )!;
       const cs = getComputedStyle(el);
       return ratio(over(cs.color, over(cs.backgroundColor, pageBg)), over(cs.backgroundColor, pageBg));
@@ -728,16 +731,16 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
       await themeToggle.click();
       await page.waitForTimeout(300);
     }
-    for (const which of ['primary', 'beta'] as const) {
-      // The original's button lives inside the menu drawer now.
+    for (const which of ['primary', 'report'] as const) {
+      // The legacy report's button lives inside the menu drawer now.
       if (which === 'primary') {
         await page.getByRole('button', { name: 'Menu', exact: true }).click();
         await page.waitForTimeout(300);
       }
       const button =
-        which === 'beta'
-          ? page.getByTestId('export-beta')
-          : page.getByRole('button', { name: 'Export PDF', exact: true });
+        which === 'report'
+          ? page.getByTestId('export-report')
+          : page.getByRole('button', { name: 'Export legacy PDF', exact: true });
 
       // At rest. 4.5 is the AA floor for body text; these are uppercase
       // small caps, so the real bar is higher, but a failure here is never

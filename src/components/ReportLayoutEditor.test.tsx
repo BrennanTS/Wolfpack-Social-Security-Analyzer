@@ -114,6 +114,70 @@ describe('ReportLayoutEditor', () => {
     expect(screen.getAllByText('Page break')).toHaveLength(before + 1);
   });
 
+  it('adds a space, and says what it will do there', async () => {
+    // A space is the answer to two blocks that read as one; the row has to
+    // say so, or it looks like a break that failed to break.
+    renderEditor();
+    await userEvent.click(screen.getByRole('button', { name: /\+ Space/ }));
+    expect(screen.getByText('Space')).toBeInTheDocument();
+    expect(screen.getByText(/nothing to separate here/i)).toBeInTheDocument();
+  });
+
+  it('says when a space sits somewhere it cannot print', async () => {
+    // Between two per-person sections there is nowhere for it to go: they
+    // print together, once per claimant.
+    const mine: ReportLayout = {
+      id: 'mine',
+      name: 'Mine',
+      items: [
+        { kind: 'block', id: 'personDetails' },
+        { kind: 'space' },
+        { kind: 'block', id: 'personRamp' },
+      ],
+    };
+    renderEditor(store({ layout: mine, selectedId: 'mine', layouts: [...PRESETS, mine] }), 'twoClaimants');
+    expect(screen.getByText(/not printed between two per-person sections/i)).toBeInTheDocument();
+  });
+
+  it('keeps a space that has a block on either side', async () => {
+    const mine: ReportLayout = {
+      id: 'mine',
+      name: 'Mine',
+      items: [
+        { kind: 'block', id: 'answer' },
+        { kind: 'space' },
+        { kind: 'block', id: 'terms' },
+      ],
+    };
+    renderEditor(store({ layout: mine, selectedId: 'mine', layouts: [...PRESETS, mine] }), 'twoClaimants');
+    expect(screen.getByText(/extra room before what follows/i)).toBeInTheDocument();
+  });
+
+  it('moves and removes a space by keyboard, like every other row', async () => {
+    const mine: ReportLayout = {
+      id: 'mine',
+      name: 'Mine',
+      items: [
+        { kind: 'block', id: 'answer' },
+        { kind: 'space' },
+        { kind: 'block', id: 'terms' },
+      ],
+    };
+    const s = store({ layout: mine, selectedId: 'mine', layouts: [...PRESETS, mine] });
+    renderEditor(s, 'twoClaimants');
+    await userEvent.click(screen.getByRole('button', { name: /move space up/i }));
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'space' },
+      { kind: 'block', id: 'answer' },
+      { kind: 'block', id: 'terms' },
+    ]);
+    await userEvent.click(screen.getByRole('button', { name: /remove space/i }));
+    expect(s.update).toHaveBeenLastCalledWith('mine', [
+      { kind: 'block', id: 'answer' },
+      { kind: 'block', id: 'terms' },
+    ]);
+  });
+
   it('will not write an edit back into a preset', async () => {
     // Presets are code. Editing one in place would fork what "Client" means
     // for this browser only, silently.

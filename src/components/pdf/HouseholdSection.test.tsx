@@ -5,7 +5,7 @@ import type { ClaimingGrid } from '../../lib/claimingGrid';
 import type { HouseholdAnalysis, MonthlyIncomePoint } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
 import { CombinedIncomeBars, HouseholdSection, StrategyTable } from './HouseholdSection';
-import { MethodologyAppendix } from './ReportDocument';
+import { MethodologyAppendix } from './reportChrome';
 import { benefitSeriesLabel } from '../methodologyCopy';
 
 /**

@@ -2873,6 +2873,15 @@ tbody tr:hover {
   padding: 5px 9px;
 }
 
+/* A space is a lighter mark than a break: it moves content, it does not
+   start a sheet. Dotted rather than dashed, and no rule across the row. */
+.layout-row-space {
+  background: transparent;
+  border: 1px dotted var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+}
+
 .layout-break-label {
   flex: 1;
   font-size: 0.6875rem;

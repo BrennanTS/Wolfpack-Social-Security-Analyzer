@@ -26,7 +26,7 @@ function save(blob: Blob, filename: string): void {
 }
 
 /**
- * Generate and download a PDF without using the browser print dialog.
+ * The report as it printed before layouts, kept while advisers move across.
  *
  * `claimingRowsByPerson` is the SAME array the screen renders, built once in
  * `Analyzer` — not rebuilt here. An adviser who hides a claiming age for a
@@ -36,7 +36,7 @@ function save(blob: Blob, filename: string): void {
  * `gridTarget` travels for the same reason: the printed claiming grid must
  * outline the near-best region the adviser had dialed in, not a default.
  */
-export async function downloadPdfReport(
+export async function downloadLegacyPdfReport(
   analysis: HouseholdAnalysis,
   claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
   gridTarget?: { on: boolean; percent: number },
@@ -47,22 +47,24 @@ export async function downloadPdfReport(
   // Before the document is imported OR built: the stylesheet is rebuilt here,
   // and a section that had already captured `styles` would print the old one.
   setActiveReportTheme(reportTheme(themeId));
-  const { ReportDocument } = await import('../components/pdf/ReportDocument');
+  const { LegacyReportDocument } = await import('../components/pdf/LegacyReportDocument');
 
   const blob = await pdf(
-    <ReportDocument
+    <LegacyReportDocument
       analysis={analysis}
       claimingRowsByPerson={claimingRowsByPerson}
       gridTarget={gridTarget}
     />,
   ).toBlob();
 
-  save(blob, reportFilename());
+  save(blob, reportFilename('-legacy'));
 }
 
 /**
- * The beta report. Same analysis and the same engine as
- * `downloadPdfReport` — a different document composed from it.
+ * The report, composed from the adviser's layout.
+ *
+ * Same analysis and the same engine as `downloadLegacyPdfReport`, arranged by
+ * whichever layout is selected rather than by a fixed order in the code.
  *
  * `sensitivity` is computed by the caller and passed in rather than derived
  * here: it needs the household and the assumptions, which a
@@ -70,7 +72,7 @@ export async function downloadPdfReport(
  * is not. Passing null simply omits the longevity page rather than failing
  * the export.
  */
-export async function downloadBetaPdfReport(
+export async function downloadPdfReport(
   analysis: HouseholdAnalysis,
   claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
   gridTarget?: { on: boolean; percent: number },
@@ -81,10 +83,10 @@ export async function downloadBetaPdfReport(
   const { pdf } = await import('@react-pdf/renderer');
   const { setActiveReportTheme } = await import('../components/pdf/theme');
   setActiveReportTheme(reportTheme(themeId));
-  const { BetaReportDocument } = await import('../components/pdf/BetaReportDocument');
+  const { ReportDocument } = await import('../components/pdf/ReportDocument');
 
   const blob = await pdf(
-    <BetaReportDocument
+    <ReportDocument
       analysis={analysis}
       claimingRowsByPerson={claimingRowsByPerson}
       gridTarget={gridTarget}
@@ -93,5 +95,5 @@ export async function downloadBetaPdfReport(
     />,
   ).toBlob();
 
-  save(blob, reportFilename('-beta'));
+  save(blob, reportFilename());
 }

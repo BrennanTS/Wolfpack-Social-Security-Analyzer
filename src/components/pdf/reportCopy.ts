@@ -1,8 +1,8 @@
 /**
- * Copy for the beta report's client-facing half.
+ * Copy for the report's client-facing half.
  *
  * Separate from `methodologyCopy` because the two are written to different
- * readers and the difference is the point of the beta. Four rules produced
+ * readers and the difference is the whole point. Four rules produced
  * every sentence here:
  *
  *  - Second person. "You file at 70", not "Client files at age 70".
@@ -18,7 +18,6 @@
  * here, because it is the one that erodes silently.
  */
 
-export const BETA_LABEL = 'Beta';
 
 /* ------------------------------------------------------------------ *
  * Page 1 — the answer

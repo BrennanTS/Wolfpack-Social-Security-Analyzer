@@ -15,7 +15,7 @@ import { soloVsHouseholdNote } from '../methodologyCopy';
 import { nearestWholeClaimAge } from '../../lib/ssaTools';
 import { PdfChart, PdfHeatmap, PdfMonthlyRamp, PdfOpportunityCost } from './charts';
 import { COL, MONTHS, styles } from './theme';
-import { PageFooter } from './ReportDocument';
+import { PageFooter } from './reportChrome';
 
 interface Props {
   analysis: PersonAnalysis;
