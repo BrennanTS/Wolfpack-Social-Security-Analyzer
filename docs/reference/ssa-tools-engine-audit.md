@@ -782,13 +782,13 @@ The dependent slot is the only one that can hold a Spousal or Survivor period at
 `rankedCoupleStrategies` (via `expectedNPVCoupleOptimized`) and `strategySumPeriodsCouple`. So on a
 tie the argument order decides the recommended filing ages, not only who is labeled what.
 
-Measured on a two-PIA-2200 household (Dan b. 1962-04 plan-to 85, Sarah b. 1964-02 plan-to 88,
+Measured on a two-PIA-2200 household (John b. 1962-04 plan-to 85, Jane b. 1964-02 plan-to 88,
 `asOf` 2026-01-15):
 
-| | passed as `[Dan, Sarah]` | passed as `[Sarah, Dan]` |
+| | passed as `[John, Jane]` | passed as `[Jane, John]` |
 |---|---|---|
-| Recommended ages | Dan 63y9m, Sarah 70 | Dan 70, Sarah 62y1m |
-| Survivor period | none emitted | `survivor: $1,179/mo` to Sarah |
+| Recommended ages | John 63y9m, Jane 70 | John 70, Jane 62y1m |
+| Survivor period | none emitted | `survivor: $1,179/mo` to Jane |
 | Income cliff | $53,520 → $32,736 (−38.8%) | $51,324 → $32,736 (−36.2%) |
 
 Two recommendations, two charts, two cliff percentages, for one household — and no disclosure,

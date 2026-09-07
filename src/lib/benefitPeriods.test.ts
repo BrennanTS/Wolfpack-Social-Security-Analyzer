@@ -396,7 +396,7 @@ describe('householdPeriods — the widow(er)’s limit', () => {
   // survivor benefit at 82.5% of the worker's PIA when the worker filed
   // early. The chart draws the survivor block standing above his own band,
   // which reads as an over-count until something on screen names the rule.
-  const client = person('a', 1978, 12, 3962, 'male', 79);
+  const client = person('a', 1980, 12, 3962, 'male', 79);
   const spouse = person('b', 1974, 2, 2000, 'female', 95);
 
   const run = (clientFilingAge: MonthDuration) =>

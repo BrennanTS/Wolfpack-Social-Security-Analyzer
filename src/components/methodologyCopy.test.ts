@@ -59,12 +59,12 @@ describe('spousalMethodologyCopy', () => {
         atFra: 1200,
         atRecommendedFilingAge: 790,
         startsAtSpouseAge: '67',
-        lowerEarnerLabel: 'Sarah',
+        lowerEarnerLabel: 'Jane',
       }),
     );
-    expect(copy).toContain("Sarah's spousal top-up is $790.00/mo under the recommended strategy");
-    expect(copy).toContain("beginning at Sarah's age 67");
-    expect(copy).toContain("The unreduced amount at Sarah's own FRA is $1,200.00/mo");
+    expect(copy).toContain("Jane's spousal top-up is $790.00/mo under the recommended strategy");
+    expect(copy).toContain("beginning at Jane's age 67");
+    expect(copy).toContain("The unreduced amount at Jane's own FRA is $1,200.00/mo");
   });
 
   it('never describes the top-up as 50% of the other person PIA', () => {
@@ -120,11 +120,11 @@ describe('spousalMethodologyCopy', () => {
         atFra: 1250,
         atRecommendedFilingAge: 1250,
         startsAtSpouseAge: '68 years, 3 months',
-        lowerEarnerLabel: 'Sarah',
+        lowerEarnerLabel: 'Jane',
       }),
     );
     expect(copy).toMatch(/68 years, 3 months/);
-    expect(copy).toMatch(/Sarah/);
+    expect(copy).toMatch(/Jane/);
   });
 
   it('no longer claims survivor benefits are unmodeled, because they are modeled', () => {
@@ -152,7 +152,7 @@ describe('spousalMethodologyCopy', () => {
  * printed an unguarded absence marker for the common case.
  */
 describe('spousalSummary', () => {
-  const base = { atFra: 1000, atRecommendedFilingAge: 800, lowerEarnerLabel: 'Sarah' };
+  const base = { atFra: 1000, atRecommendedFilingAge: 800, lowerEarnerLabel: 'Jane' };
 
   it('capitalizes a non-proper-noun subject at the start of the sentence', () => {
     const copy = spousalSummary({ ...base, startsAtSpouseAge: '67' }, 'the lower earner');
@@ -272,20 +272,20 @@ describe('the printed spousal sentence, over real households', () => {
     return spousalSummary(analysis.spousalTopUp!, 'the lower earner');
   };
 
-  const dan: Person = {
-    id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+  const john: Person = {
+    id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
     gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
   };
-  const sarah: Person = {
-    id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+  const jane: Person = {
+    id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
     gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
   };
 
   it('prints no placeholder for a household with no entitlement', async () => {
-    // Two substantial records: half of Dan's PIA never exceeds Sarah's own,
+    // Two substantial records: half of John's PIA never exceeds Jane's own,
     // so the engine emits no Spousal band and there is no start date. This is
     // the shape of six of the eleven married golden scenarios.
-    const copy = await printed([dan, sarah]);
+    const copy = await printed([john, jane]);
     expect(copy).toContain('No top-up applies');
     expect(copy).not.toContain('beginning at');
     expect(copy).not.toMatch(/—\s*—/);
@@ -358,8 +358,8 @@ describe('the printed spousal sentence, over real households', () => {
   });
 
   it('prints the real start date when there is one', async () => {
-    const noRecord: Person = { ...sarah, piaMonthly: 0 };
-    const copy = await printed([dan, noRecord]);
+    const noRecord: Person = { ...jane, piaMonthly: 0 };
+    const copy = await printed([john, noRecord]);
     expect(copy).toMatch(/beginning at the lower earner's age \d+/);
     expect(copy).not.toMatch(/age\s*—/);
   });
@@ -395,11 +395,11 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
   const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
   const equalA: Person = {
-    id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+    id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
     gender: 'male', piaMonthly: 2200, lifeExpectancy: 85,
   };
   const equalB: Person = {
-    id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+    id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
     gender: 'female', piaMonthly: 2200, lifeExpectancy: 88,
   };
 
@@ -422,8 +422,8 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
     const forwardCopy = spousalMethodologyCopy(forward);
     const swappedCopy = spousalMethodologyCopy(swapped);
     expect(swappedCopy).toBe(forwardCopy);
-    expect(forwardCopy).not.toContain('Dan');
-    expect(forwardCopy).not.toContain('Sarah');
+    expect(forwardCopy).not.toContain('John');
+    expect(forwardCopy).not.toContain('Jane');
     // The exact null-subject sentence, not a substring check on "Primary
     // Insurance Amount" or "the lower earner" alone: either would also pass
     // for a `subject ?? 'the lower earner'`-style fallback that silently
@@ -555,9 +555,9 @@ function rowsWith(...entries: [ages: number[], income: number | null][]): Househ
 const RISING = rowsWith([[67, 67], 44000], [[70, 70], 52000], [[70, 64], 48000]);
 
 /**
- * The household that falsified the old unbranched claim, in row form: Dan
- * b. 1958 PIA 2400 plan-to 78 with Sarah b. 1968 PIA 1200 plan-to 90. The
- * optimum (Dan 70, Sarah 62y1m) leaves the survivor $36,480; delaying both to
+ * The household that falsified the old unbranched claim, in row form: John
+ * b. 1958 PIA 2400 plan-to 78 with Jane b. 1968 PIA 1200 plan-to 90. The
+ * optimum (John 70, Jane 62y1m) leaves the survivor $36,480; delaying both to
  * 70 leaves her $0, because she has not filed by the year after his death.
  * `survivorGap` is null for it — no gap branch ever covered this.
  */
@@ -928,7 +928,7 @@ describe('incomeCliffSentence', () => {
     before: 60000,
     after: 38000,
     dropPercent: 36.666666666666664,
-    survivorLabel: 'Sarah',
+    survivorLabel: 'Jane',
   };
 
   it('states the year, both full-year totals, and the survivor', () => {
@@ -936,7 +936,7 @@ describe('incomeCliffSentence', () => {
     expect(sentence).toContain('2047');
     expect(sentence).toContain('$60,000');
     expect(sentence).toContain('$38,000');
-    expect(sentence).toContain('Sarah');
+    expect(sentence).toContain('Jane');
     expect(sentence).toMatch(/falls 36\.7%/);
   });
 
@@ -964,7 +964,7 @@ describe('incomeCliffSentence', () => {
     });
     expect(sentence).toContain('$0');
     expect(sentence).not.toMatch(/collecting/i);
-    expect(sentence).toContain("Sarah is the household's only remaining member");
+    expect(sentence).toContain("Jane is the household's only remaining member");
   });
 
   it('never asserts how the survivor benefit is determined, only that they are the last one left', () => {
@@ -1021,7 +1021,7 @@ describe('nominalFirstDeathNote', () => {
     before: 60000,
     after: 38000,
     dropPercent: 36.666666666666664,
-    survivorLabel: 'Sarah',
+    survivorLabel: 'Jane',
   };
 
   it('states the year after the death, the nominal figure, and the COLA assumed', () => {
@@ -1191,13 +1191,13 @@ describe('survivorClaimNote', () => {
     const note = survivorClaimNote({
       claimIndex: 2036 * 12 + 4,
       claimAge: '68 years, 0 months',
-      survivorLabel: 'Sarah',
+      survivorLabel: 'Jane',
       baselineTotal: 300_000,
       bestTotal: 435_700,
       gain: 135_700,
       baselineHasSurvivorBand: true,
     })!;
-    expect(note).toMatch(/Sarah/);
+    expect(note).toMatch(/Jane/);
     expect(note).toMatch(/68 years, 0 months/);
     expect(note).toMatch(/\$135,700/);
     expect(note).toMatch(/optimizer/i);
@@ -1211,7 +1211,7 @@ describe('survivorClaimNote', () => {
     const note = survivorClaimNote({
       claimIndex: 2036 * 12 + 4,
       claimAge: '67 years, 10 months',
-      survivorLabel: 'Sarah',
+      survivorLabel: 'Jane',
       baselineTotal: 732_640,
       bestTotal: 811_680,
       gain: 79_040,
@@ -1259,7 +1259,7 @@ describe('survivorClaimNote', () => {
         {
           claimIndex: 2036 * 12 + 4,
           claimAge: '68 years, 0 months',
-          survivorLabel: 'Sarah',
+          survivorLabel: 'Jane',
           baselineTotal: 300_000,
           bestTotal: 435_700,
           gain: 135_700,
@@ -1278,7 +1278,7 @@ describe('survivorClaimNote', () => {
     const alt = {
       claimIndex: 2036 * 12 + 4,
       claimAge: '68 years, 0 months',
-      survivorLabel: 'Sarah',
+      survivorLabel: 'Jane',
       baselineTotal: 300_000,
       bestTotal: 435_700,
       gain: 135_700,
@@ -1323,7 +1323,7 @@ describe('survivorClaimNote', () => {
       {
         claimIndex: 2036 * 12 + 4,
         claimAge: '68 years, 0 months',
-        survivorLabel: 'Sarah',
+        survivorLabel: 'Jane',
         baselineTotal: 300_000,
         bestTotal: 435_700,
         gain: 135_700,
@@ -1389,7 +1389,7 @@ describe('survivorClaimNote', () => {
     const note = survivorClaimNote({
       claimIndex: 2038 * 12 + 4,
       claimAge: '60',
-      survivorLabel: 'Sarah',
+      survivorLabel: 'Jane',
       baselineTotal: 732_640,
       bestTotal: 858_440,
       gain: 125_800,

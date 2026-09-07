@@ -25,11 +25,11 @@ import { BLANK_ALREADY_CLAIMED, BLANK_DECEASED } from './widowedForm';
 const married: AnalyzerFormState = {
   ...BLANK_FORM,
   personA: {
-    name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male',
+    name: 'John', birthYear: 1962, birthMonth: 4, gender: 'male',
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
   personB: {
-    name: 'Sarah', birthYear: 1964, birthMonth: 2, gender: 'female',
+    name: 'Jane', birthYear: 1964, birthMonth: 2, gender: 'female',
     // Was null. A person with no plan-to age set now carries the default
     // rather than nothing, so a round trip returns the default rather than
     // the null this fixture used to assert — the field never travels as
@@ -48,7 +48,7 @@ const married: AnalyzerFormState = {
 const single: AnalyzerFormState = {
   ...BLANK_FORM,
   personA: {
-    name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male',
+    name: 'John', birthYear: 1962, birthMonth: 4, gender: 'male',
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
   maritalStatus: 'single',
@@ -77,8 +77,8 @@ describe('round trip', () => {
 describe('first names', () => {
   it('travel, so a link opens on the household it was sent about', () => {
     const query = toShareParams(married).toString();
-    expect(query).toContain('an=Dan');
-    expect(query).toContain('bn=Sarah');
+    expect(query).toContain('an=John');
+    expect(query).toContain('bn=Jane');
   });
 
   it('are omitted when there are none, rather than sent empty', () => {

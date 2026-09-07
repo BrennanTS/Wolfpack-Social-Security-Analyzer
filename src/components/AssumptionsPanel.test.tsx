@@ -12,7 +12,7 @@ function renderPanel(overrides: Partial<Parameters<typeof AssumptionsPanel>[0]> 
   render(
     <AssumptionsPanel
       lifeExpectancies={[
-        { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 82, gender: 'male' },
+        { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 82, gender: 'male' },
       ]}
       annualCola={2.5}
       onAnnualColaChange={onAnnualColaChange}
@@ -40,7 +40,7 @@ function renderStateful(initial: number) {
     return (
       <AssumptionsPanel
         lifeExpectancies={[
-          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 82, gender: 'male' },
+          { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 82, gender: 'male' },
         ]}
         annualCola={cola}
         onAnnualColaChange={(v) => {
@@ -137,7 +137,7 @@ describe('AssumptionsPanel per-person life expectancy', () => {
     render(
       <AssumptionsPanel
         lifeExpectancies={[
-          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
+          { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
         ]}
         annualCola={2.5}
         onAnnualColaChange={vi.fn()}
@@ -161,8 +161,8 @@ describe('AssumptionsPanel per-person life expectancy', () => {
     render(
       <AssumptionsPanel
         lifeExpectancies={[
-          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
-          { label: 'Sarah', value: 92, onChange: vi.fn(), ssaSuggested: 86, gender: 'female' },
+          { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
+          { label: 'Jane', value: 92, onChange: vi.fn(), ssaSuggested: 86, gender: 'female' },
         ]}
         annualCola={2.5}
         onAnnualColaChange={vi.fn()}
@@ -172,21 +172,21 @@ describe('AssumptionsPanel per-person life expectancy', () => {
         onToggle={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText(/Dan/)).toHaveValue('85');
-    expect(screen.getByLabelText(/Sarah/)).toHaveValue('92');
+    expect(screen.getByLabelText(/John/)).toHaveValue('85');
+    expect(screen.getByLabelText(/Jane/)).toHaveValue('92');
     // Each hint reads its own person's gender and SSA-suggested age, not person
     // A's. A bare /86/ match could hit unrelated text on the panel and
     // getByText throws if more than one node matches, so this pins the claim
     // to the one field-hint span whose own text mentions both "86" and
-    // "female" — i.e. Sarah's hint, not Dan's (83, male).
-    const sarahHint = screen.getByText(
+    // "female" — i.e. Jane's hint, not John's (83, male).
+    const janeHint = screen.getByText(
       (_, element) =>
         element?.tagName === 'SPAN' &&
         element.className === 'field-hint' &&
         /86/.test(element.textContent ?? '') &&
         /female/i.test(element.textContent ?? ''),
     );
-    expect(sarahHint).toBeInTheDocument();
+    expect(janeHint).toBeInTheDocument();
   });
 
   it('calls the right person handler', async () => {
@@ -194,8 +194,8 @@ describe('AssumptionsPanel per-person life expectancy', () => {
     render(
       <AssumptionsPanel
         lifeExpectancies={[
-          { label: 'Dan', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
-          { label: 'Sarah', value: 92, onChange: onChangeB, ssaSuggested: 86, gender: 'female' },
+          { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
+          { label: 'Jane', value: 92, onChange: onChangeB, ssaSuggested: 86, gender: 'female' },
         ]}
         annualCola={2.5}
         onAnnualColaChange={vi.fn()}

@@ -40,7 +40,7 @@ function buildPersonAnalysis(id: 'a' | 'b', name: string): PersonAnalysis {
 }
 
 function buildAnalysis(): HouseholdAnalysis {
-  const personA = buildPersonAnalysis('a', 'Dan');
+  const personA = buildPersonAnalysis('a', 'John');
   const age = (years: number) => ({ years, months: 0, label: String(years),
     decimalYears: years, monthDuration: null as never });
   const optimal = {
@@ -127,7 +127,7 @@ describe('HouseholdPanel', () => {
   it('attributes the break-even section to the person it is actually computed for', () => {
     const { getByTestId } = render(<HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
     const attribution = getByTestId('break-even-attribution');
-    expect(attribution.textContent).toContain('Break-even for Dan');
+    expect(attribution.textContent).toContain('Break-even for John');
     expect(attribution.textContent).toContain('age 85');
     expect(attribution.textContent).toContain('not modeled');
   });
@@ -140,14 +140,14 @@ describe('HouseholdPanel', () => {
     const analysis = {
       ...buildAnalysis(),
       survivorGap: {
-        survivorLabel: 'Dan',
+        survivorLabel: 'John',
         deceasedMonthly: 1780,
         survivorOwnMonthly: 1760,
         survivorUnder60: false,
       },
     } as HouseholdAnalysis;
     const { getByTestId } = render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
-    expect(getByTestId('survivor-gap-note').textContent).toContain('no step-up is shown for Dan');
+    expect(getByTestId('survivor-gap-note').textContent).toContain('no step-up is shown for John');
   });
 
   it('renders no survivor-gap note when the analysis has none', () => {
@@ -170,8 +170,8 @@ describe('HouseholdPanel', () => {
   // are actually on screen together, and the fix (the callout no longer
   // renders its own copy) is pinned here rather than only at the unit level.
   it('prints the survivor-gap note exactly once, even though both the chart and the callout are on screen', () => {
-    const personA = buildPersonAnalysis('a', 'Dan');
-    const personB = buildPersonAnalysis('b', 'Sarah');
+    const personA = buildPersonAnalysis('a', 'John');
+    const personB = buildPersonAnalysis('b', 'Jane');
     const analysis = {
       ...buildAnalysis(),
       status: 'married',
@@ -183,7 +183,7 @@ describe('HouseholdPanel', () => {
         { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
       ],
       survivorGap: {
-        survivorLabel: 'Sarah',
+        survivorLabel: 'Jane',
         deceasedMonthly: 1780,
         survivorOwnMonthly: 1760,
         survivorUnder60: false,
@@ -194,7 +194,7 @@ describe('HouseholdPanel', () => {
 
     // The callout really is on screen (guards against this passing
     // vacuously because `incomeCliff` returned null).
-    expect(screen.getByTestId('income-cliff-sentence').textContent).toContain('Sarah');
+    expect(screen.getByTestId('income-cliff-sentence').textContent).toContain('Jane');
     // Exactly one copy of the disclosure — not zero (it must still say so
     // somewhere) and not two (it must not say so twice).
     expect(screen.getAllByTestId('survivor-gap-note')).toHaveLength(1);
@@ -207,8 +207,8 @@ describe('HouseholdPanel', () => {
   // calls alone would pass even if the note rendered above the callout, or
   // anywhere else on the page.
   it('renders the survivor-claim note after the income-cliff callout, in document order', () => {
-    const personA = buildPersonAnalysis('a', 'Dan');
-    const personB = buildPersonAnalysis('b', 'Sarah');
+    const personA = buildPersonAnalysis('a', 'John');
+    const personB = buildPersonAnalysis('b', 'Jane');
     const analysis = {
       ...buildAnalysis(),
       status: 'married',
@@ -222,7 +222,7 @@ describe('HouseholdPanel', () => {
       survivorClaim: {
         claimIndex: 2047 * 12 + 5,
         claimAge: '68 years, 0 months',
-        survivorLabel: 'Sarah',
+        survivorLabel: 'Jane',
         baselineTotal: 300_000,
         bestTotal: 435_700,
         gain: 135_700,
@@ -255,8 +255,8 @@ describe('HouseholdPanel', () => {
   // so); nominal mode must include it (the one case the two figures can be
   // mistaken for the same basis).
   it('passes dollarsMode through to the survivor-claim note without transforming the figure', () => {
-    const personA = buildPersonAnalysis('a', 'Dan');
-    const personB = buildPersonAnalysis('b', 'Sarah');
+    const personA = buildPersonAnalysis('a', 'John');
+    const personB = buildPersonAnalysis('b', 'Jane');
     const married = {
       ...buildAnalysis(),
       status: 'married',
@@ -270,7 +270,7 @@ describe('HouseholdPanel', () => {
       survivorClaim: {
         claimIndex: 2047 * 12 + 5,
         claimAge: '68 years, 0 months',
-        survivorLabel: 'Sarah',
+        survivorLabel: 'Jane',
         baselineTotal: 300_000,
         bestTotal: 435_700,
         gain: 135_700,

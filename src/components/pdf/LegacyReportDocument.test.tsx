@@ -20,7 +20,7 @@ import { unprintableInPdf } from '../../lib/pdfSafeText';
  * `oxlint` would catch. This exercises both report shapes end to end so a
  * regression here fails `npm run test`, not just a one-off manual check.
  *
- * Fixture values (`dan`/`sarah`, `asOf`, `assumptions`) mirror
+ * Fixture values (`john`/`jane`, `asOf`, `assumptions`) mirror
  * `household.test.ts` exactly, rather than inventing new ones.
  */
 
@@ -37,12 +37,12 @@ afterAll(() => vi.unstubAllGlobals());
 const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
-const dan: Person = {
-  id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+const john: Person = {
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
-const sarah: Person = {
-  id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+const jane: Person = {
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
   gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
 };
 
@@ -75,7 +75,7 @@ function pdfPageCount(text: string): number {
 
 describe('LegacyReportDocument renders', () => {
   it('renders a single-claimant report without throwing, as one growing section', async () => {
-    const household: Household = { status: 'single', people: [dan] };
+    const household: Household = { status: 'single', people: [john] };
     const analysis = await analyzeHousehold(household, assumptions, asOf);
 
     const blob = await pdf(<LegacyReportDocument analysis={analysis} />).toBlob();
@@ -90,7 +90,7 @@ describe('LegacyReportDocument renders', () => {
   });
 
   it('renders a married-household report without throwing, with more pages than a single', async () => {
-    const household: Household = { status: 'married', people: [dan, sarah] };
+    const household: Household = { status: 'married', people: [john, jane] };
     const analysis = await analyzeHousehold(household, assumptions, asOf);
 
     const blob = await pdf(<LegacyReportDocument analysis={analysis} />).toBlob();
@@ -104,7 +104,7 @@ describe('LegacyReportDocument renders', () => {
     // table, combined income chart) on top of two full person sections, so
     // it should always page out longer than the single-claimant report.
     const singleAnalysis = await analyzeHousehold(
-      { status: 'single', people: [dan] },
+      { status: 'single', people: [john] },
       assumptions,
       asOf,
     );
@@ -131,7 +131,7 @@ describe('LegacyReportDocument renders', () => {
 
   const widowedHousehold: Household = {
     status: 'widowed',
-    people: [sarah],
+    people: [jane],
     deceased: {
       birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
       record: { kind: 'pia', piaMonthly: 3000, filed: null },
@@ -159,7 +159,7 @@ describe('LegacyReportDocument renders', () => {
    */
   it('keeps the client-facing pages free of terms that need teaching', async () => {
     const married = await analyzeHousehold(
-      { status: 'married', people: [dan, sarah] },
+      { status: 'married', people: [john, jane] },
       assumptions,
       asOf,
     );
@@ -199,7 +199,7 @@ describe('LegacyReportDocument renders', () => {
 
   it('prints no character the standard-14 fonts cannot render', async () => {
     const married = await analyzeHousehold(
-      { status: 'married', people: [dan, sarah] },
+      { status: 'married', people: [john, jane] },
       assumptions,
       asOf,
     );

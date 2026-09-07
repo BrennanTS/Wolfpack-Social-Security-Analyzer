@@ -2,7 +2,6 @@
 
 - **Date:** 2026-08-17
 - **Branch:** `chore/invariant-sweep`
-- **Spec:** `docs/superpowers/specs/2026-08-17-invariant-sweep-design.md`
 - **Harness:** `validation/sweep/`
 
 ## Why this exists

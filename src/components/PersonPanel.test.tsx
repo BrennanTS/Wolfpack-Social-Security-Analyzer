@@ -13,7 +13,7 @@ import type { FilingAgeChoice } from '../lib/scenario';
 // real row to land on, matching what `analyzePerson` actually produces.
 function buildAnalysis(filingAge: PersonAnalysis['filingAge']): PersonAnalysis {
   return {
-    person: { id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+    person: { id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
               gender: 'male', piaMonthly: 2400, lifeExpectancy: 85 },
     fra: { years: 67, months: 0 },
     currentAge: { years: 63, months: 9 },
@@ -103,7 +103,7 @@ describe('PersonPanel', () => {
 
   it('uses the person name in the heading', () => {
     render(<PersonPanel analysis={wholeYearAnalysis} index={0} annualCola={2.5} />);
-    expect(screen.getByRole('heading', { name: /Dan/ })).toBeDefined();
+    expect(screen.getByRole('heading', { name: /John/ })).toBeDefined();
   });
 
   it('marks exactly one row Best for a whole-year recommended filing age', () => {

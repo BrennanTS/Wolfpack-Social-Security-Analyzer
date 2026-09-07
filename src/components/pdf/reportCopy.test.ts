@@ -37,7 +37,7 @@ function allCopy(): string[] {
     copy.longevityVerdict(null),
     copy.longevityVerdict(null, true),
     copy.longevityDroppedNote(['Both wait until 70']) ?? '',
-    copy.planToNote(['Dan', 'Sarah'], [79, 95]),
+    copy.planToNote(['John', 'Jane'], [79, 95]),
     copy.coverSubtitle(true),
     copy.coverSubtitle(false),
     ...copy.introQuestions(true),
@@ -107,9 +107,9 @@ describe('report copy', () => {
   });
 
   it('names each person and their own plan-to age', () => {
-    const note = copy.planToNote(['Dan', 'Sarah'], [79, 95]);
-    expect(note).toContain('Dan to 79');
-    expect(note).toContain('Sarah to 95');
+    const note = copy.planToNote(['John', 'Jane'], [79, 95]);
+    expect(note).toContain('John to 79');
+    expect(note).toContain('Jane to 95');
   });
 });
 

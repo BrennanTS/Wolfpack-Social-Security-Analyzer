@@ -27,8 +27,8 @@ describe('PersonFields', () => {
   });
 
   it('prefers a supplied name in the group label', () => {
-    render(<PersonFields person={{ ...blank, name: 'Sarah' }} index={1} onChange={vi.fn()} />);
-    expect(screen.getByRole('group', { name: 'Sarah' })).toBeDefined();
+    render(<PersonFields person={{ ...blank, name: 'Jane' }} index={1} onChange={vi.fn()} />);
+    expect(screen.getByRole('group', { name: 'Jane' })).toBeDefined();
   });
 
   it('reports gender selection to the parent', async () => {

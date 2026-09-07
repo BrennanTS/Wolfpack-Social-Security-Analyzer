@@ -47,8 +47,8 @@ const BAND_TYPE_LABEL: Record<BandType, string> = {
 };
 
 /**
- * The legend label for one person's one benefit-type band — "Sarah —
- * spousal", "Dan — own benefit". Shared by the on-screen chart legend
+ * The legend label for one person's one benefit-type band — "Jane —
+ * spousal", "John — own benefit". Shared by the on-screen chart legend
  * (`CombinedIncomeChart`) and the PDF's combined-income bars
  * (`pdf/HouseholdSection`) so the two cannot drift, for the same reason
  * `combinedIncomeCaption` and `survivorGapNote` are centralized here: three
@@ -738,9 +738,9 @@ export function householdValueCaption(discountRatePercent: string): string {
  * The delay claim is CHECKED, not asserted. It used to read "Delaying raises
  * this every year the survivor lives through it" with no branch at all in the
  * no-gap case — the common case — and it is false for an ordinary household:
- * Dan b. 1958 PIA 2400 plan-to 78 with Sarah b. 1968 PIA 1200 plan-to 90 pays
+ * John b. 1958 PIA 2400 plan-to 78 with Jane b. 1968 PIA 1200 plan-to 90 pays
  * the survivor $36,480 under the optimum and $0 under "both delay to 70",
- * because under that row Sarah has not filed by the year after Dan's death.
+ * because under that row Jane has not filed by the year after John's death.
  * `survivorGap` is null for that household, so no gap branch covered it. An
  * older higher earner with a much younger spouse is the archetype this
  * analysis exists for, so the sentence now reads the rows it sits under
@@ -753,7 +753,7 @@ export function householdValueCaption(discountRatePercent: string): string {
  * `max(month after the death, the survivor's OWN filing date)`, so a survivor
  * who has not filed is paid nothing; SSA pays a widow(er) from age 60
  * regardless of whether they have filed on their own record. In the household
- * above, Sarah is 69 in the year that reads $0. The composition sentence this
+ * above, Jane is 69 in the year that reads $0. The composition sentence this
  * function emits ("a strategy under which the survivor's own benefit has not
  * started by then shows $0") is therefore an accurate description of THE
  * MODEL and is not a statement of SSA's rule — deliberately, since this module

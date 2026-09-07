@@ -6,8 +6,8 @@ import type { ClientRecord } from '../lib/clientRecord';
 
 const saved = (over: Partial<ClientRecord> = {}): ClientRecord => ({
   id: 'client-1',
-  label: 'Dan and Sarah',
-  names: { a: 'Dan', b: 'Sarah' },
+  label: 'John and Jane',
+  names: { a: 'John', b: 'Jane' },
   params: 'ay=1962&am=4&ag=m&ab=2400',
   savedAt: Date.parse('2026-09-01T12:00:00Z'),
   ...over,
@@ -31,8 +31,8 @@ function renderDialog(over: Partial<Parameters<typeof ClientsDialog>[0]> = {}) {
     clients: store(),
     openClientId: null,
     currentView: {
-      params: 'an=Dan&ay=1962&am=4&ag=m&ab=2400&th=midnight&ly=preset-adviser',
-      suggestedLabel: 'Dan',
+      params: 'an=John&ay=1962&am=4&ag=m&ab=2400&th=midnight&ly=preset-adviser',
+      suggestedLabel: 'John',
       complete: true,
     },
     onOpenClient: vi.fn(),
@@ -64,14 +64,14 @@ describe('ClientsDialog', () => {
 
   it('saves what is on screen under a suggested name', async () => {
     const props = renderDialog();
-    expect(screen.getByLabelText(/save what is on screen/i)).toHaveValue('Dan');
+    expect(screen.getByLabelText(/save what is on screen/i)).toHaveValue('John');
     await userEvent.click(screen.getByRole('button', { name: /save as new/i }));
     expect(props.clients.save).toHaveBeenCalledWith(
       expect.objectContaining({
-        label: 'Dan',
-        params: 'an=Dan&ay=1962&am=4&ag=m&ab=2400&th=midnight&ly=preset-adviser',
+        label: 'John',
+        params: 'an=John&ay=1962&am=4&ag=m&ab=2400&th=midnight&ly=preset-adviser',
         // Read back out of the view rather than passed in beside it.
-        names: { a: 'Dan' },
+        names: { a: 'John' },
       }),
     );
     expect(props.onSaved).toHaveBeenCalledWith('new-id');
@@ -98,8 +98,8 @@ describe('ClientsDialog', () => {
   it('lists what is saved, with who is in it and when', () => {
     renderDialog({ clients: store([saved()]) });
     const row = screen.getByRole('listitem');
-    expect(within(row).getByText('Dan and Sarah')).toBeInTheDocument();
-    expect(within(row).getByText(/Dan and Sarah · saved/)).toBeInTheDocument();
+    expect(within(row).getByText('John and Jane')).toBeInTheDocument();
+    expect(within(row).getByText(/John and Jane · saved/)).toBeInTheDocument();
   });
 
   it('opens a saved client', async () => {

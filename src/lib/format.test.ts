@@ -73,8 +73,8 @@ describe('yearsMonthsLabel', () => {
 
 describe('personLabel', () => {
   it('prefers a supplied name', () => {
-    expect(personLabel('Dan', 0)).toBe('Dan');
-    expect(personLabel('Sarah', 1)).toBe('Sarah');
+    expect(personLabel('John', 0)).toBe('John');
+    expect(personLabel('Jane', 1)).toBe('Jane');
   });
 
   it('falls back to Client and Spouse by position', () => {

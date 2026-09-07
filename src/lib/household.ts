@@ -642,7 +642,7 @@ function buildComparisons(
   //
   // Sorted on a SYMMETRIC key — the earliest filing age in the row, then the
   // latest — rather than on `filingAges[0]`, one particular person's slot.
-  // Person A's slot is not a property of the strategy: for Dan/Sarah the rows
+  // Person A's slot is not a property of the strategy: for John/Jane the rows
   // came back `fra, latest, optimal` entered one way and `optimal, fra,
   // latest` entered the other, moving the row that carries the "Best" badge.
   // Both keys are order-independent by construction (min and max over the
@@ -759,8 +759,8 @@ function projectedFinalMonth(person: Person): number {
  * `rankedCoupleStrategies` and `strategySumPeriodsCouple`, so on a tie the
  * typing order decided the recommended filing ages, whether a Survivor
  * period existed at all, and therefore the chart and the income cliff. The
- * measured case: two PIA-2200 spouses came back "Dan 63y9m / Sarah 70" one
- * way round and "Dan 70 / Sarah 62y1m" the other, with a $1,179/mo survivor
+ * measured case: two PIA-2200 spouses came back "John 63y9m / Jane 70" one
+ * way round and "John 70 / Jane 62y1m" the other, with a $1,179/mo survivor
  * band in one and none in the other.
  *
  * So the pair is canonicalized once, here, before it enters the engine, and
@@ -828,7 +828,7 @@ export function showSurvivorIncomeColumn(
  * household — the claim the column's caption used to assert unconditionally.
  *
  * It is false for an ordinary household, not a contrived one: an older higher
- * earner with a much younger spouse (Dan b. 1958 PIA 2400 plan-to 78, Sarah
+ * earner with a much younger spouse (John b. 1958 PIA 2400 plan-to 78, Jane
  * b. 1968 PIA 1200 plan-to 90) is paid $36,480 to the survivor under the
  * optimal strategy and **$0** under "both delay to 70", because under that
  * row the survivor has not filed by the year after the death and nothing has
@@ -838,7 +838,7 @@ export function showSurvivorIncomeColumn(
  * files at least as late in R as in S. That is the only reading under which
  * the claim is well defined. A single "total delay" number (the two ages
  * summed) mixes the two people and ranks strategies that are not comparable
- * at all — Dan and Sarah's own optimum (Dan 70 / Sarah 62y1m, $35,712) sums
+ * at all — John and Jane's own optimum (John 70 / Jane 62y1m, $35,712) sums
  * to LESS than their FRA row (67/67, $28,800) while paying the survivor more,
  * because this figure tracks the first-to-die's filing age rather than the
  * household's total delay. Component-wise those two rows are simply

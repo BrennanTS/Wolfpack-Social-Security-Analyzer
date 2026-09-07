@@ -204,7 +204,7 @@ describe('ranked strategies', () => {
    * and the same present value to the cent.
    */
   describe('the plan-to age reaches the recommendation', () => {
-    const r = () => createPiaRecipient(1978, 12, 3962, 'male');
+    const r = () => createPiaRecipient(1965, 12, 3962, 'male');
 
     it('moves the recommended filing age', () => {
       const short = rankedSingleStrategies(r(), 0.025, 70, asOf)[0];

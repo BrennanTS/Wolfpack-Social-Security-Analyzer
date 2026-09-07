@@ -27,17 +27,17 @@ afterAll(() => vi.unstubAllGlobals());
 const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
-const dan: Person = {
-  id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+const john: Person = {
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
-const sarah: Person = {
-  id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 9,
+const jane: Person = {
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 9,
   gender: 'female', piaMonthly: 1200, lifeExpectancy: 90,
 };
 
-const married: Household = { status: 'married', people: [dan, sarah] };
-const single: Household = { status: 'single', people: [dan] };
+const married: Household = { status: 'married', people: [john, jane] };
+const single: Household = { status: 'single', people: [john] };
 
 const run = (household: Household, scenarios: ScenarioSet = DEFAULT_SCENARIO_SET) =>
   analyzeHousehold(household, assumptions, asOf, scenarios);
@@ -85,7 +85,7 @@ describe('no scenario', () => {
 
 describe('a chosen scenario', () => {
   // Deliberately not the optimum for this household, and reachable by both
-  // people: Dan is 63 and Sarah 61 as of `asOf`.
+  // people: John is 63 and Jane 61 as of `asOf`.
   const both65 = withCustom({ years: 65, months: 0 }, { years: 65, months: 0 });
 
   it('drives the filing ages the analysis is built on', async () => {
@@ -129,7 +129,7 @@ describe('a chosen scenario', () => {
 
   it('names the chosen ages in the headline, not the optimum’s', async () => {
     const chosen = await run(married, both65);
-    expect(chosen.recommendation).toBe('Dan files at 65 · Sarah files at 65');
+    expect(chosen.recommendation).toBe('John files at 65 · Jane files at 65');
   });
 
   it('adds exactly one row for itself, marked shown and not best', async () => {
@@ -176,8 +176,8 @@ describe('selecting one of the built-in rows', () => {
     const late = await run({
       status: 'married',
       people: [
-        { ...dan, lifeExpectancy: 100 },
-        { ...sarah, lifeExpectancy: 100 },
+        { ...john, lifeExpectancy: 100 },
+        { ...jane, lifeExpectancy: 100 },
       ],
     });
     const at70 = late.comparisons.filter((c) =>
@@ -213,15 +213,15 @@ describe('selecting one of the built-in rows', () => {
 
 describe('a scenario that has gone stale', () => {
   it('clamps an age below the floor and shows the clamped value', async () => {
-    // Dan is 63 as of `asOf`; 62 is no longer his to choose.
+    // John is 63 as of `asOf`; 62 is no longer his to choose.
     const result = await run(
       married,
       withCustom({ years: 62, months: 0 }, { years: 62, months: 0 }),
     );
-    const [danAge] = agesOf(result.selected);
-    expect(filingAgeMonths(danAge)).toBeGreaterThan(filingAgeMonths({ years: 62, months: 0 }));
+    const [johnAge] = agesOf(result.selected);
+    expect(filingAgeMonths(johnAge)).toBeGreaterThan(filingAgeMonths({ years: 62, months: 0 }));
     // And it is the FLOOR, not a fallback to the optimum.
-    expect(danAge).toEqual(result.filingAgeOptions[0][0]);
+    expect(johnAge).toEqual(result.filingAgeOptions[0][0]);
   });
 
   it('clamps an age above the ceiling to 70', async () => {
@@ -246,7 +246,7 @@ describe('a scenario that has gone stale', () => {
   });
 
   it('resolves “as early as you can” to each person’s own floor', async () => {
-    // Dan is 63 as of `asOf`, so his earliest is not 62 — and it is not
+    // John is 63 as of `asOf`, so his earliest is not 62 — and it is not
     // nothing either, which is what asking the engine for a literal 62 years
     // 0 months used to produce for every household alive.
     const result = await run(married, selectScenario(resetScenarios(), 'earliest'));
@@ -286,9 +286,9 @@ describe('filingAgeOptions', () => {
   });
 
   it('is in display order — person A’s list first', async () => {
-    const forward = await run({ status: 'married', people: [dan, sarah] });
-    const swapped = await run({ status: 'married', people: [{ ...sarah, id: 'a' }, { ...dan, id: 'b' }] });
-    // Dan is older, so his floor is later. Whichever slot he is typed into,
+    const forward = await run({ status: 'married', people: [john, jane] });
+    const swapped = await run({ status: 'married', people: [{ ...jane, id: 'a' }, { ...john, id: 'b' }] });
+    // John is older, so his floor is later. Whichever slot he is typed into,
     // his options must come back in that slot.
     expect(forward.filingAgeOptions[0][0]).toEqual(swapped.filingAgeOptions[1][0]);
   });

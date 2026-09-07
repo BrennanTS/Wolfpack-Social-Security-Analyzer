@@ -25,7 +25,7 @@ function useStorage(seed: Record<string, string> = {}): void {
 
 const view = (label: string) => ({
   label,
-  names: { a: 'Dan' },
+  names: { a: 'John' },
   params: 'ay=1962&am=4&ag=m&ab=2400',
 });
 

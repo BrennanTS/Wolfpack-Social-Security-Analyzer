@@ -38,9 +38,9 @@ describe('addMonths', () => {
 
 describe('filingMonth', () => {
   it('lands on the birthday month of the filing age', () => {
-    // Born December 1978, filing at 70 → December 2048.
-    expect(filingMonth(person(1978, 12), { years: 70, months: 0 })).toEqual({
-      year: 2048,
+    // Born December 1965, filing at 70 → December 2035.
+    expect(filingMonth(person(1965, 12), { years: 70, months: 0 })).toEqual({
+      year: 2035,
       month: 12,
     });
   });
@@ -48,8 +48,8 @@ describe('filingMonth', () => {
   it('carries the months of a part-year filing age', () => {
     // 62 years 1 month is the earliest anyone can claim, and it is one of the
     // most frequently shown ages in this app — it must not round to 62y0m.
-    expect(filingMonth(person(1978, 12), { years: 62, months: 1 })).toEqual({
-      year: 2041,
+    expect(filingMonth(person(1965, 12), { years: 62, months: 1 })).toEqual({
+      year: 2028,
       month: 1,
     });
   });
@@ -69,13 +69,13 @@ describe('labels', () => {
   });
 
   it('puts the age and its date together', () => {
-    const label = ageAndDateLabel(person(1978, 12), {
+    const label = ageAndDateLabel(person(1965, 12), {
       years: 70,
       months: 0,
       label: '70',
       decimalYears: 70,
       monthDuration: null as never,
     });
-    expect(label).toBe('70 — Dec 2048');
+    expect(label).toBe('70 — Dec 2035');
   });
 });

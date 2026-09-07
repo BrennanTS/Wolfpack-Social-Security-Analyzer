@@ -10,9 +10,9 @@ import {
 
 const record = (over: Partial<ClientRecord> = {}): ClientRecord => ({
   id: 'client-1',
-  label: 'Dan and Sarah',
-  names: { a: 'Dan', b: 'Sarah' },
-  params: 'an=Dan&ay=1962&am=4&ag=m&ab=2400&bn=Sarah',
+  label: 'John and Jane',
+  names: { a: 'John', b: 'Jane' },
+  params: 'an=John&ay=1962&am=4&ag=m&ab=2400&bn=Jane',
   savedAt: 1_757_000_000_000,
   ...over,
 });
@@ -25,8 +25,8 @@ describe('saved clients', () => {
 
   it('read a bare list, and a single record, as well as a file', () => {
     // A colleague pasting one record out of a file should still work.
-    expect(parseClientsFile(JSON.stringify([record()]))?.[0].label).toBe('Dan and Sarah');
-    expect(parseClientsFile(JSON.stringify(record()))?.[0].label).toBe('Dan and Sarah');
+    expect(parseClientsFile(JSON.stringify([record()]))?.[0].label).toBe('John and Jane');
+    expect(parseClientsFile(JSON.stringify(record()))?.[0].label).toBe('John and Jane');
   });
 
   it('keep the rest of a file when one record is unreadable', () => {
@@ -37,7 +37,7 @@ describe('saved clients', () => {
   it('refuse a record with no view to restore', () => {
     // The parameters are the record. A name with nothing behind it would
     // open a blank form and look like data loss.
-    expect(parseClient({ label: 'Dan', names: {} })).toBeNull();
+    expect(parseClient({ label: 'John', names: {} })).toBeNull();
     expect(parseClient({ params: '   ' })).toBeNull();
     expect(parseClient(null)).toBeNull();
     expect(parseClient('client')).toBeNull();
@@ -62,8 +62,8 @@ describe('saved clients', () => {
   });
 
   it('drop an empty name rather than storing a blank one', () => {
-    expect(parseClient({ params: 'ay=1962', names: { a: '  ', b: 'Sarah' } })?.names).toEqual({
-      b: 'Sarah',
+    expect(parseClient({ params: 'ay=1962', names: { a: '  ', b: 'Jane' } })?.names).toEqual({
+      b: 'Jane',
     });
   });
 
@@ -71,21 +71,21 @@ describe('saved clients', () => {
     // The parameters are the record; the `names` field beside them is a copy
     // kept for the list, and a hand-edited file could have them disagree.
     const parsed = parseClient({
-      params: 'an=Dan&bn=Sarah&ay=1962',
+      params: 'an=John&bn=Jane&ay=1962',
       names: { a: 'Someone', b: 'Else' },
     });
-    expect(parsed?.names).toEqual({ a: 'Dan', b: 'Sarah' });
+    expect(parsed?.names).toEqual({ a: 'John', b: 'Jane' });
   });
 
   it('fall back to the stored names for a record written before names traveled', () => {
-    expect(parseClient({ params: 'ay=1962', names: { a: 'Dan' } })?.names).toEqual({ a: 'Dan' });
+    expect(parseClient({ params: 'ay=1962', names: { a: 'John' } })?.names).toEqual({ a: 'John' });
   });
 });
 
 describe('namesFromParams', () => {
   it('reads both names, with or without a leading question mark', () => {
-    expect(namesFromParams('?an=Dan&bn=Sarah')).toEqual({ a: 'Dan', b: 'Sarah' });
-    expect(namesFromParams('an=Dan')).toEqual({ a: 'Dan' });
+    expect(namesFromParams('?an=John&bn=Jane')).toEqual({ a: 'John', b: 'Jane' });
+    expect(namesFromParams('an=John')).toEqual({ a: 'John' });
   });
 
   it('is empty for a view that carries no names', () => {
@@ -110,8 +110,8 @@ describe('namesFromParams', () => {
 
 describe('suggestedClientLabel', () => {
   it('uses the names, which is what an adviser writes on the folder', () => {
-    expect(suggestedClientLabel({ a: 'Dan', b: 'Sarah' })).toBe('Dan and Sarah');
-    expect(suggestedClientLabel({ a: 'Dan' })).toBe('Dan');
+    expect(suggestedClientLabel({ a: 'John', b: 'Jane' })).toBe('John and Jane');
+    expect(suggestedClientLabel({ a: 'John' })).toBe('John');
   });
 
   it('falls back to the date when the household is unnamed', () => {

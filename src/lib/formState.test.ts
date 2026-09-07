@@ -17,7 +17,7 @@ import {
 import { BLANK_DECEASED } from './widowedForm';
 
 const completeA = {
-  name: 'Dan',
+  name: 'John',
   birthYear: 1962,
   birthMonth: 4,
   gender: 'male' as const,
@@ -189,7 +189,7 @@ describe('toHousehold', () => {
     expect(h.status).toBe('single');
     expect(h.people).toHaveLength(1);
     expect(h.people[0].id).toBe('a');
-    expect(h.people[0].name).toBe('Dan');
+    expect(h.people[0].name).toBe('John');
   });
 
   it('builds a married household preserving order and ids', () => {
@@ -268,7 +268,7 @@ describe('per-person life expectancy', () => {
 describe('reseedLifeExpectancy', () => {
   // Both born 1960 — see the note above on why absolute ages are not asserted.
   const person: PersonFormFields = {
-    name: 'Sarah', birthYear: 1960, birthMonth: 6, gender: 'female',
+    name: 'Jane', birthYear: 1960, birthMonth: 6, gender: 'female',
     monthlyBenefit: 2100, lifeExpectancy: 95,
   };
 
@@ -281,7 +281,7 @@ describe('reseedLifeExpectancy', () => {
   });
 
   it('survives a name correction too', () => {
-    const next = { ...person, name: 'Sarah Smith' };
+    const next = { ...person, name: 'Jane Smith' };
     expect(reseedLifeExpectancy(person, next)).toEqual(next);
   });
 
@@ -309,7 +309,7 @@ describe('reseedLifeExpectancy', () => {
 describe('reseedLifeExpectancy', () => {
   // Both born 1960 — see the note above on why absolute ages are not asserted.
   const person: PersonFormFields = {
-    name: 'Sarah', birthYear: 1960, birthMonth: 6, gender: 'female',
+    name: 'Jane', birthYear: 1960, birthMonth: 6, gender: 'female',
     monthlyBenefit: 2100, lifeExpectancy: 95,
   };
 
@@ -322,7 +322,7 @@ describe('reseedLifeExpectancy', () => {
   });
 
   it('survives a name correction too', () => {
-    const next = { ...person, name: 'Sarah Smith' };
+    const next = { ...person, name: 'Jane Smith' };
     expect(reseedLifeExpectancy(person, next)).toEqual(next);
   });
 

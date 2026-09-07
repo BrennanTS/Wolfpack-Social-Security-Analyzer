@@ -15,8 +15,8 @@ import {
 import { SURVIVOR_INCOME_COLUMN_HEADER } from './methodologyCopy';
 
 const people = [
-  { id: 'a', name: 'Dan' },
-  { id: 'b', name: 'Sarah' },
+  { id: 'a', name: 'John' },
+  { id: 'b', name: 'Jane' },
 ] as Person[];
 
 const age = (years: number) => ({ years, months: 0, label: String(years),
@@ -59,8 +59,8 @@ describe('StrategyComparisonTable', () => {
 
   it('names the columns after the people', () => {
     render(<StrategyComparisonTable comparisons={comparisons} people={people} />);
-    expect(screen.getByRole('columnheader', { name: 'Dan' })).toBeDefined();
-    expect(screen.getByRole('columnheader', { name: 'Sarah' })).toBeDefined();
+    expect(screen.getByRole('columnheader', { name: 'John' })).toBeDefined();
+    expect(screen.getByRole('columnheader', { name: 'Jane' })).toBeDefined();
   });
 
   it('renders a single age column for a one-person household', () => {
@@ -108,7 +108,7 @@ describe('StrategyComparisonTable', () => {
   });
 
   it('drops the delay claim when the column falls with later filing', () => {
-    // The measured household: Dan b. 1958 PIA 2400 plan-to 78, Sarah b. 1968
+    // The measured household: John b. 1958 PIA 2400 plan-to 78, Jane b. 1968
     // PIA 1200 plan-to 90. `survivorGap` is null, so nothing else in the
     // caption would have caught the claim being false.
     const falling: HouseholdStrategy[] = [
@@ -143,7 +143,7 @@ describe('StrategyComparisonTable', () => {
 
   it("points at the existing gap note, rather than repeating it, when survivorGap is set", () => {
     const gap: SurvivorGap = {
-      survivorLabel: 'Sarah',
+      survivorLabel: 'Jane',
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
@@ -154,7 +154,7 @@ describe('StrategyComparisonTable', () => {
     // The gap note's own figures belong to `survivorGapNote` alone — this
     // caption must not repeat them.
     expect(caption.textContent).not.toContain('1,780');
-    expect(caption.textContent).not.toContain('Sarah');
+    expect(caption.textContent).not.toContain('Jane');
   });
 
   // The column sits directly beside "Household value", which always stays in

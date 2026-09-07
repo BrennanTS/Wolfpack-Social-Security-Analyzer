@@ -22,12 +22,12 @@ const recipientFor = (p: Person) =>
 /**
  * An older higher earner with a much younger spouse — the shape the engine's
  * survivor-start rule mishandles, and the one the impact measurement found
- * the false $0 in. Dan dies at 78 (Feb 2036); Sarah is 67 then but does not
+ * the false $0 in. John dies at 78 (Feb 2036); Jane is 67 then but does not
  * file until 70 under a delay strategy, so the engine pays her nothing for
  * those years.
  */
-const dan = person('a', 1958, 2, 2400, 'male', 78);
-const sarah = person('b', 1968, 5, 1200, 'female', 90);
+const john = person('a', 1958, 2, 2400, 'male', 78);
+const jane = person('b', 1968, 5, 1200, 'female', 90);
 
 function alternativeFor(people: Person[], filingAges: MonthDuration[], labels: string[]) {
   const recipients = people.map(recipientFor);
@@ -49,7 +49,7 @@ function alternativeFor(people: Person[], filingAges: MonthDuration[], labels: s
 }
 
 function run(filingAges: [MonthDuration, MonthDuration]) {
-  return alternativeFor([dan, sarah], filingAges, ['Dan', 'Sarah']);
+  return alternativeFor([john, jane], filingAges, ['John', 'Jane']);
 }
 
 describe('survivorClaimAlternative', () => {
@@ -61,43 +61,43 @@ describe('survivorClaimAlternative', () => {
     // exactly that difference (`survivorClaim.ts:241-243`), so it reads as an
     // assertion but cannot fail. The three totals for this exact run are
     // pinned individually in 'pins the headline household, hand-derived'.
-    expect(result!.survivorLabel).toBe('Sarah');
+    expect(result!.survivorLabel).toBe('Jane');
   });
 
   it('never claims before the death or before SSA age 60', () => {
     const result = run([age(70), age(70)])!;
-    // Dan dies Feb 2036; Sarah reaches SSA age 60 in May 2028. The death is
+    // John dies Feb 2036; Jane reaches SSA age 60 in May 2028. The death is
     // later, so the floor here is the death month + 1.
     const deathIndex = 2036 * 12 + 1; // Feb 2036
     expect(result.claimIndex).toBeGreaterThan(deathIndex);
   });
 
   it('returns null for a single claimant', () => {
-    const recipients = [recipientFor(dan)];
+    const recipients = [recipientFor(john)];
     const { bands, survivorGap, finalIndexByPersonId } = householdPeriods(
-      [dan],
+      [john],
       recipients,
       [age(67)],
-      ['Dan'],
+      ['John'],
     );
     expect(
       survivorClaimAlternative(
-        [dan],
+        [john],
         recipients,
         [age(67)],
         bands,
         finalIndexByPersonId,
         survivorGap,
-        ['Dan'],
+        ['John'],
       ),
     ).toBeNull();
   });
 
   it('pins the headline household, hand-derived', () => {
     const result = run([age(70), age(70)])!;
-    // Dan files at 70 (Feb 2028) and dies Feb 2036, so the survivor base is
-    // max(0.825 x 2400, his own $3,040) = $3,040. Sarah's survivor-FRA is 67
-    // (May 2035), already past when Dan dies, so there is no reduction at any
+    // John files at 70 (Feb 2028) and dies Feb 2036, so the survivor base is
+    // max(0.825 x 2400, his own $3,040) = $3,040. Jane's survivor-FRA is 67
+    // (May 2035), already past when John dies, so there is no reduction at any
     // claim month in range and the best month is the earliest: Mar 2036.
     // The engine instead starts her survivor benefit at her own filing date,
     // May 2038 — 26 months later. 26 x $3,040 = $79,040.
@@ -110,7 +110,7 @@ describe('survivorClaimAlternative', () => {
   });
 
   it('claims at survivor-FRA when that beats every month up to the own filing date', () => {
-    // THE test for the `hi = survivor-FRA` decision. Sarah here is born May
+    // THE test for the `hi = survivor-FRA` decision. Jane here is born May
     // 1974 and files at 63 (May 2037, index 24448); her survivor-FRA is 67
     // (May 2041, index 24496), four years LATER than her own filing. The
     // engine starts her survivor benefit at her filing date and permanently
@@ -126,7 +126,7 @@ describe('survivorClaimAlternative', () => {
     // have been that very month, worth exactly the baseline, and this whole
     // household would have returned null.
     const younger = person('b', 1974, 5, 1200, 'female', 92);
-    const result = alternativeFor([dan, younger], [age(70), age(63)], ['Dan', 'Sarah'])!;
+    const result = alternativeFor([john, younger], [age(70), age(63)], ['John', 'Jane'])!;
     expect(result.claimIndex).toBe(2041 * 12 + 4); // May 2041, survivor-FRA
     expect(result.claimIndex).toBeGreaterThan(2037 * 12 + 4); // beyond her own filing
     expect(result.claimAge).toBe('67');
@@ -141,9 +141,9 @@ describe('survivorClaimAlternative', () => {
     // survivor's own retirement benefit still has to be counted in those
     // months, or an early reduced widow(er) benefit looks better than it is.
     //
-    // Here Sarah (b. May 1978, PIA $2,000) files at 70 — $2,480/mo from May
-    // 2048 — and holds no personal band at all. Claiming the survivor benefit
-    // at 60 (May 2038) takes 0.715 x $3,040 = $2,173 for the 120 months to her
+    // Here Jane (b. May 1980, PIA $2,000) files at 70 — $2,480/mo from May
+    // 2050 — and holds no personal band at all. Claiming the survivor benefit
+    // at 60 (May 2040) takes 0.715 x $3,040 = $2,173 for the 120 months to her
     // own filing, then her own larger $2,480 for the remaining 241:
     //   120 x $2,173 + 241 x $2,480 = $260,760 + $597,680 = $858,440,
     // against a baseline of 241 x $3,040 = $732,640. Gain $125,800.
@@ -151,9 +151,9 @@ describe('survivorClaimAlternative', () => {
     // Blind to her own benefit those last 241 months score $2,173 rather than
     // $2,480, which makes waiting look better than claiming at 60 and moves
     // the answer 75 months later.
-    const younger = person('b', 1978, 5, 2000, 'female', 90);
-    const result = alternativeFor([dan, younger], [age(70), age(70)], ['Dan', 'Sarah'])!;
-    expect(result.claimIndex).toBe(2038 * 12 + 4); // May 2038, SSA age 60
+    const younger = person('b', 1980, 5, 2000, 'female', 90);
+    const result = alternativeFor([john, younger], [age(70), age(70)], ['John', 'Jane'])!;
+    expect(result.claimIndex).toBe(2040 * 12 + 4); // May 2040, SSA age 60
     expect(result.claimAge).toBe('60');
     expect(result.baselineTotal).toBe(732640);
     expect(result.bestTotal).toBe(858440);
@@ -163,22 +163,22 @@ describe('survivorClaimAlternative', () => {
   it('picks a strictly interior claim month, on neither end of the range', () => {
     // The only fixture in this file whose optimum is neither `lo` nor `hi`, so
     // the only one that can catch a search that merely compares the two ends.
-    // Sarah b. May 1978, PIA $1,200, files at 70 — SSA age 60 is May 2038
-    // (24460), survivor-FRA May 2045 (24544), optimum Aug 2044 (24535).
+    // Jane b. May 1980, PIA $1,200, files at 70 — SSA age 60 is May 2040
+    // (24484), survivor-FRA May 2047 (24568), optimum Aug 2046 (24559).
     //
     // She holds no personal band, and her own $1,488 at 70 never beats the
     // widow's benefit, so the trade is purely months-against-reduction:
     // claiming at c pays 0.715 + 0.285 x (c - 24460)/84 of the $3,040 base for
-    // every month from c to her death in May 2068.
-    //   at 24460 (lo):  120 x $2,173 + 241 x $2,173 = $784,453
-    //   at 24535:        45 x $2,947 + 241 x $2,947 = $842,842  <- best
-    //   at 24544 (hi):   36 x $3,040 + 241 x $3,040 = $842,080
+    // every month from c to her death in May 2070.
+    //   at 24484 (lo):  120 x $2,173 + 241 x $2,173 = $784,453
+    //   at 24559:        45 x $2,947 + 241 x $2,947 = $842,842  <- best
+    //   at 24568 (hi):   36 x $3,040 + 241 x $3,040 = $842,080
     // Against a baseline of 241 x $3,040 = $732,640, the gain is $110,202.
-    const younger = person('b', 1978, 5, 1200, 'female', 90);
-    const result = alternativeFor([dan, younger], [age(70), age(70)], ['Dan', 'Sarah'])!;
-    expect(result.claimIndex).toBe(2044 * 12 + 7); // Aug 2044
-    expect(result.claimIndex).toBeGreaterThan(2038 * 12 + 4); // strictly above lo
-    expect(result.claimIndex).toBeLessThan(2045 * 12 + 4); // strictly below hi
+    const younger = person('b', 1980, 5, 1200, 'female', 90);
+    const result = alternativeFor([john, younger], [age(70), age(70)], ['John', 'Jane'])!;
+    expect(result.claimIndex).toBe(2046 * 12 + 7); // Aug 2046
+    expect(result.claimIndex).toBeGreaterThan(2040 * 12 + 4); // strictly above lo
+    expect(result.claimIndex).toBeLessThan(2047 * 12 + 4); // strictly below hi
     expect(result.claimAge).toBe('66 years, 3 months');
     expect(result.baselineTotal).toBe(732640);
     expect(result.bestTotal).toBe(842842);
@@ -245,7 +245,7 @@ describe('survivorClaimAlternative', () => {
   });
 
   it('returns null when the survivor already claims early enough to gain nothing', () => {
-    // Sarah files at 62y1m, well before Dan's death, so the engine already
+    // Jane files at 62y1m, well before John's death, so the engine already
     // starts her survivor benefit at the death and there is nothing to move.
     expect(run([age(70), age(62, 1)])).toBeNull();
   });

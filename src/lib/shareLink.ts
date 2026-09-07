@@ -37,7 +37,7 @@ import {
  *
  * Two rules shape everything here.
  *
- * FIRST NAMES ARE ENCODED, since 2026-09-07, at Dan's direction. They were
+ * FIRST NAMES ARE ENCODED, since 2026-09-07, by product decision. They were
  * not, and the reasoning still stands on its own terms: a date of birth and a
  * dollar figure with no name attached is weaker as identifying information,
  * and links leak into history, chat logs, screenshots and Referer headers.
@@ -445,7 +445,7 @@ export interface ViewExtras {
   /**
    * Which theme and layout the report is built with.
    *
-   * Carried since 2026-09-07, at Dan's direction: a saved client remembers
+   * Carried since 2026-09-07, by product decision: a saved client remembers
    * the look it is presented in, so a household that gets the short client
    * report in one firm's colors opens that way next time rather than in
    * whatever was last used for someone else.

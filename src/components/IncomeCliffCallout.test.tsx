@@ -19,7 +19,7 @@ function analysisWith(
 ): HouseholdAnalysis {
   return {
     status: 'married',
-    people: [{ person: { id: 'a', name: 'Dan' } }, { person: { id: 'b', name: 'Sarah' } }],
+    people: [{ person: { id: 'a', name: 'John' } }, { person: { id: 'b', name: 'Jane' } }],
     finalIndexByPersonId: { a: 2047 * 12 + 3, b: 2052 * 12 + 1 },
     combinedTimeline: [
       { year: 2046, bySeries: {}, byPersonId: {}, total: 60000 },
@@ -39,7 +39,7 @@ describe('IncomeCliffCallout', () => {
     expect(sentence).toContain('2047');
     expect(sentence).toContain('$60,000');
     expect(sentence).toContain('$38,000');
-    expect(sentence).toContain('Sarah');
+    expect(sentence).toContain('Jane');
     expect(sentence).toMatch(/falls 36\.7%/);
   });
 
@@ -47,7 +47,7 @@ describe('IncomeCliffCallout', () => {
     const { container } = render(
       <IncomeCliffCallout
         analysis={analysisWith({
-          people: [{ person: { id: 'a', name: 'Dan' } }] as HouseholdAnalysis['people'],
+          people: [{ person: { id: 'a', name: 'John' } }] as HouseholdAnalysis['people'],
           finalIndexByPersonId: { a: 2047 * 12 + 3 },
         })}
       />,
@@ -109,7 +109,7 @@ describe('IncomeCliffCallout', () => {
     const sentence = getByTestId('income-cliff-sentence').textContent!;
     expect(sentence).toContain('$0');
     expect(sentence).not.toMatch(/collecting/i);
-    expect(sentence).toContain("Sarah is the household's only remaining member");
+    expect(sentence).toContain("Jane is the household's only remaining member");
   });
 
   // Code-review finding: `CombinedIncomeChart` already prints
@@ -121,7 +121,7 @@ describe('IncomeCliffCallout', () => {
   // composition level.
   it('renders no survivor-gap paragraph of its own, even when the gap is set', () => {
     const gap: SurvivorGap = {
-      survivorLabel: 'Sarah',
+      survivorLabel: 'Jane',
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,

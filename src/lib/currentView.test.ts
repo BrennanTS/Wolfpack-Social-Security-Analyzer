@@ -30,21 +30,21 @@ describe('the household on screen', () => {
   });
 
   it('survives being written and read back', () => {
-    writeCurrentView({ params: 'an=Dan&ay=1962', openClientId: 'client-1' });
-    expect(readCurrentView()).toEqual({ params: 'an=Dan&ay=1962', openClientId: 'client-1' });
+    writeCurrentView({ params: 'an=John&ay=1962', openClientId: 'client-1' });
+    expect(readCurrentView()).toEqual({ params: 'an=John&ay=1962', openClientId: 'client-1' });
   });
 
   it('is cleared on request, which is how an adviser starts a new household', () => {
     // The refresh used to be that escape hatch; keeping the view across one
     // takes it away, so this replaces it.
-    writeCurrentView({ params: 'an=Dan', openClientId: null });
+    writeCurrentView({ params: 'an=John', openClientId: null });
     clearCurrentView();
     expect(readCurrentView()).toBeNull();
   });
 
   it('tolerates a leading question mark', () => {
-    writeCurrentView({ params: '?an=Dan', openClientId: null });
-    expect(readCurrentView()?.params).toBe('an=Dan');
+    writeCurrentView({ params: '?an=John', openClientId: null });
+    expect(readCurrentView()?.params).toBe('an=John');
   });
 
   it('treats an empty view as nothing to restore', () => {
@@ -62,7 +62,7 @@ describe('the household on screen', () => {
   });
 
   it('drops an open client id that is not one', () => {
-    useStorage({ [KEY]: JSON.stringify({ params: 'an=Dan', openClientId: { nope: true } }) });
+    useStorage({ [KEY]: JSON.stringify({ params: 'an=John', openClientId: { nope: true } }) });
     expect(readCurrentView()?.openClientId).toBeNull();
   });
 

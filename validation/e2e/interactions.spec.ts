@@ -9,16 +9,16 @@
 import type { Page } from '@playwright/test';
 import { expect, fillScenarioForm, test } from './helpers/app';
 
-const dan = {
-  name: 'Dan',
+const john = {
+  name: 'John',
   birthYear: 1962,
   birthMonth: 4,
   gender: 'male' as const,
   piaMonthly: 2400,
   lifeExpectancy: 85,
 };
-const sarah = {
-  name: 'Sarah',
+const jane = {
+  name: 'Jane',
   birthYear: 1964,
   birthMonth: 2,
   gender: 'female' as const,
@@ -31,7 +31,7 @@ const single = {
   status: 'single' as const,
   annualCola: 2.5,
   discountRate: 0.025,
-  people: [dan],
+  people: [john],
 };
 
 const married = {
@@ -39,7 +39,7 @@ const married = {
   status: 'married' as const,
   annualCola: 2.5,
   discountRate: 0.025,
-  people: [dan, sarah],
+  people: [john, jane],
 };
 
 test('shows no tab strip for a single claimant', async ({ page }) => {
@@ -92,7 +92,7 @@ test('switches between household and person tabs', async ({ page }) => {
   await fillScenarioForm(page, married);
   await expect(page.getByTestId('strategy-table')).toBeVisible();
 
-  await page.getByRole('tab', { name: 'Sarah' }).click();
+  await page.getByRole('tab', { name: 'Jane' }).click();
   await expect(page.getByTestId('benefit-table')).toBeVisible();
   await expect(page.getByTestId('strategy-table')).toHaveCount(0);
 
@@ -117,7 +117,7 @@ test('keeps the "vs. best" column on a phone-sized viewport', async ({ page }) =
   await expect(strategyTable.getByTestId('cell-delta').first()).toBeVisible();
 
   // The narrow-screen trim is still in force where it was intended.
-  await page.getByRole('tab', { name: 'Sarah' }).click();
+  await page.getByRole('tab', { name: 'Jane' }).click();
   const benefitTable = page.getByTestId('benefit-table');
   await expect(benefitTable).toBeVisible();
   await expect(benefitTable.getByRole('columnheader', { name: 'Status' })).toBeHidden();
@@ -313,7 +313,7 @@ test('keeps the household on screen across a reload of the app shell', async ({ 
   const context = await browser.newContext();
   const page = await context.newPage();
   try {
-    await page.goto('/?an=Dan&ay=1962&am=4&ag=m&ab=2400&m=0&le=85');
+    await page.goto('/?an=John&ay=1962&am=4&ag=m&ab=2400&m=0&le=85');
     await expect(page.getByTestId('benefit-table')).toBeVisible();
     await expect(page.locator('#a-benefit')).toHaveValue('2400');
 
@@ -322,7 +322,7 @@ test('keeps the household on screen across a reload of the app shell', async ({ 
     // longer costs an adviser their work. It used to.
     await page.reload();
     await expect(page.locator('#a-benefit')).toHaveValue('2400');
-    await expect(page.locator('#a-name')).toHaveValue('Dan');
+    await expect(page.locator('#a-name')).toHaveValue('John');
     expect(new URL(page.url()).search).toBe('');
 
     // And there is a way back to an empty form, since the reload no longer is
@@ -331,7 +331,7 @@ test('keeps the household on screen across a reload of the app shell', async ({ 
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await page.getByRole('button', { name: /open clients/i }).click();
     await page.getByRole('button', { name: /start a new one/i }).click();
-    await expect(page.getByRole('alertdialog')).toContainText('Dan has not been saved');
+    await expect(page.getByRole('alertdialog')).toContainText('John has not been saved');
     await page.getByRole('button', { name: /discard and start new/i }).click();
     await expect(page.locator('#a-benefit')).toHaveValue('');
 
@@ -458,7 +458,7 @@ test('edits which claiming ages a person’s table shows, without moving the ana
 }) => {
   await page.goto('/');
   await fillScenarioForm(page, married);
-  await page.getByRole('tab', { name: 'Dan' }).click();
+  await page.getByRole('tab', { name: 'John' }).click();
 
   // The household recommendation must not move for any of this — these rows
   // are a display choice, not a strategy the analysis runs on.

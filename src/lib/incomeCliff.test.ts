@@ -20,24 +20,24 @@ const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
 // Mirrors `household.test.ts` exactly rather than inventing new figures.
-// Dan (b. Apr 1962, plan-to 85) dies in 2047; Sarah (b. Feb 1964, plan-to 88)
+// John (b. Apr 1962, plan-to 85) dies in 2047; Jane (b. Feb 1964, plan-to 88)
 // outlives him into 2052. The married timeline for this pairing starts at
-// Dan's earliest realistic filing year (well before 2047) and runs to 2052,
+// John's earliest realistic filing year (well before 2047) and runs to 2052,
 // so 2047 sits inside it with full years on both sides — 2046 and 2048 are
 // both real timeline years, not the first or last.
-const dan: Person = {
-  id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+const john: Person = {
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
-const sarah: Person = {
-  id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+const jane: Person = {
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
   gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
 };
 
 describe('incomeCliff', () => {
   it('measures the drop across the first death', async () => {
     const result = await analyzeHousehold(
-      { status: 'married', people: [dan, sarah] },
+      { status: 'married', people: [john, jane] },
       assumptions,
       asOf,
     );
@@ -56,23 +56,23 @@ describe('incomeCliff', () => {
   });
 
   it('returns null for a single claimant', async () => {
-    const result = await analyzeHousehold({ status: 'single', people: [dan] }, assumptions, asOf);
+    const result = await analyzeHousehold({ status: 'single', people: [john] }, assumptions, asOf);
     expect(incomeCliff(result)).toBeNull();
   });
 
   it('names the survivor — the person who does NOT die first', async () => {
     const result = await analyzeHousehold(
-      { status: 'married', people: [dan, sarah] },
+      { status: 'married', people: [john, jane] },
       assumptions,
       asOf,
     );
-    // Dan dies first (see the fixture comment above), so Sarah is the
+    // John dies first (see the fixture comment above), so Jane is the
     // survivor named in the callout.
     const firstDeathPersonId = Object.entries(result.finalIndexByPersonId).reduce((a, b) =>
       a[1] <= b[1] ? a : b,
     )[0];
-    expect(firstDeathPersonId).toBe('a'); // Dan
-    expect(incomeCliff(result)!.survivorLabel).toBe('Sarah');
+    expect(firstDeathPersonId).toBe('a'); // John
+    expect(incomeCliff(result)!.survivorLabel).toBe('Jane');
   });
 
   // `incomeCliff` reads only `people`, `finalIndexByPersonId` and
@@ -85,7 +85,7 @@ describe('incomeCliff', () => {
   ): HouseholdAnalysis {
     return {
       status: 'married',
-      people: [{ person: { id: 'a', name: 'Dan' } }, { person: { id: 'b', name: 'Sarah' } }],
+      people: [{ person: { id: 'a', name: 'John' } }, { person: { id: 'b', name: 'Jane' } }],
       finalIndexByPersonId,
       combinedTimeline,
     } as unknown as HouseholdAnalysis;

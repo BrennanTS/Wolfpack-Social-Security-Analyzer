@@ -10,8 +10,8 @@ const assumptions = { annualCola: 2.54, discountRate: 0.025 };
 const married: Household = {
   status: 'married',
   people: [
-    { id: 'a', name: 'Dan', birthYear: 1978, birthMonth: 12, gender: 'male', piaMonthly: 3962, lifeExpectancy: 79 },
-    { id: 'b', name: 'Sarah', birthYear: 1974, birthMonth: 2, gender: 'female', piaMonthly: 2000, lifeExpectancy: 95 },
+    { id: 'a', name: 'John', birthYear: 1980, birthMonth: 12, gender: 'male', piaMonthly: 3962, lifeExpectancy: 79 },
+    { id: 'b', name: 'Jane', birthYear: 1974, birthMonth: 2, gender: 'female', piaMonthly: 2000, lifeExpectancy: 95 },
   ],
 };
 
@@ -105,10 +105,10 @@ describe('naming the person a change belongs to', () => {
    */
   it('never disagrees with its own verb, whatever the household is called', async () => {
     for (const names of [
-      ['Dan', 'Sarah'],
+      ['John', 'Jane'],
       ['', ''],
       [undefined, undefined],
-      ['Dan', ''],
+      ['John', ''],
     ] as [string | undefined, string | undefined][]) {
       const analysis = await marriedAnalysis(names);
       for (const change of incomeChanges(analysis)) {
@@ -128,8 +128,8 @@ describe('naming the person a change belongs to', () => {
   });
 
   it('uses the typed name when there is one', async () => {
-    const analysis = await marriedAnalysis(['Dan', 'Sarah']);
+    const analysis = await marriedAnalysis(['John', 'Jane']);
     const reasons = incomeChanges(analysis).map((c) => c.reason);
-    expect(reasons.some((r) => r.startsWith('Dan ') || r.startsWith('Sarah '))).toBe(true);
+    expect(reasons.some((r) => r.startsWith('John ') || r.startsWith('Jane '))).toBe(true);
   });
 });

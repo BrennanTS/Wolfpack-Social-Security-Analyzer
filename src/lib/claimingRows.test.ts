@@ -31,13 +31,13 @@ beforeAll(() => {
 afterAll(() => vi.unstubAllGlobals());
 
 const asOf = new Date(2026, 0, 15);
-const dan: Person = {
-  id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+const john: Person = {
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
 
 const analysis = analyzePerson(
-  dan,
+  john,
   formatFilingAge(MonthDuration.initFromYearsMonths({ years: 70, months: 0 })),
   2.5,
   asOf,
@@ -59,7 +59,7 @@ describe('claimingRowId / claimingRowLabel', () => {
 
 describe('buildClaimingRows', () => {
   it('shows the decision still available, not the ages already gone by', () => {
-    // Dan is 63 as of `asOf`.
+    // John is 63 as of `asOf`.
     const rows = buildClaimingRows(analysis, prefs(), asOf);
     expect(rows.map((r) => r.years)).toEqual([63, 64, 65, 66, 67, 68, 69, 70]);
   });
@@ -108,7 +108,7 @@ describe('buildClaimingRows', () => {
 
   it('marks eligibility by whole months, not whole years', () => {
     const rows = buildClaimingRows(analysis, prefs({ added: [{ years: 63, months: 11 }] }), asOf);
-    // Dan is 63 years 9 months at `asOf`: 63y0m is behind him, 63y11m is not.
+    // John is 63 years 9 months at `asOf`: 63y0m is behind him, 63y11m is not.
     expect(rows.find((r) => r.id === '63')?.isEligible).toBe(true);
     expect(rows.find((r) => r.id === '63-11')?.isEligible).toBe(false);
   });
@@ -183,7 +183,7 @@ describe('the recipient the added row is priced with', () => {
     // itself: someone born in 1958 has an FRA of 66 years 8 months, and a
     // benefit taken exactly at FRA is 100% of PIA by definition. A recipient
     // built with a different birth day, month or gender would not land on it.
-    const born1958: Person = { ...dan, birthYear: 1958, birthMonth: 3 };
+    const born1958: Person = { ...john, birthYear: 1958, birthMonth: 3 };
     const own = analyzePerson(
       born1958,
       formatFilingAge(MonthDuration.initFromYearsMonths({ years: 70, months: 0 })),

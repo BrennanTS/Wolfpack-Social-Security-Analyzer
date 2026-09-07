@@ -8,9 +8,9 @@ import {
   type Person,
 } from './personAnalysis';
 
-const dan: Person = {
+const john: Person = {
   id: 'a',
-  name: 'Dan',
+  name: 'John',
   birthYear: 1962,
   birthMonth: 4,
   gender: 'male',
@@ -50,12 +50,12 @@ describe('getCurrentAge', () => {
 
 describe('analyzePerson', () => {
   it('produces one claiming option per age from 62 through 70', () => {
-    const a = analyzePerson(dan, at70, 2.5, asOf);
+    const a = analyzePerson(john, at70, 2.5, asOf);
     expect(a.claimingOptions.map((o) => o.age)).toEqual([62, 63, 64, 65, 66, 67, 68, 69, 70]);
   });
 
   it('applies the SSA reduction and delayed credits around FRA 67', () => {
-    const a = analyzePerson(dan, at70, 2.5, asOf);
+    const a = analyzePerson(john, at70, 2.5, asOf);
     const at62 = a.claimingOptions.find((o) => o.age === 62)!;
     const atSeventy = a.claimingOptions.find((o) => o.age === 70)!;
     expect(at62.percentOfPia).toBeCloseTo(70, 1);
@@ -64,7 +64,7 @@ describe('analyzePerson', () => {
   });
 
   it('increases monthly benefit monotonically with claim age', () => {
-    const monthlies = analyzePerson(dan, at70, 2.5, asOf).claimingOptions.map(
+    const monthlies = analyzePerson(john, at70, 2.5, asOf).claimingOptions.map(
       (o) => o.monthlyBenefit,
     );
     for (let i = 1; i < monthlies.length; i++) {
@@ -76,11 +76,11 @@ describe('analyzePerson', () => {
     // Two different inputs must produce two distinctly different outputs —
     // otherwise this could pass by coincidentally recomputing an optimum
     // that happens to match whatever age was passed in.
-    const early = analyzePerson(dan, at62, 2.5, asOf);
+    const early = analyzePerson(john, at62, 2.5, asOf);
     expect(early.filingAge.years).toBe(62);
     expect(early.monthlyAtFilingAge).toBeCloseTo(1680, 0); // 2400 * 0.70
 
-    const late = analyzePerson(dan, at70, 2.5, asOf);
+    const late = analyzePerson(john, at70, 2.5, asOf);
     expect(late.filingAge.years).toBe(70);
     expect(late.monthlyAtFilingAge).toBeCloseTo(2976, 0); // 2400 * 1.24
   });

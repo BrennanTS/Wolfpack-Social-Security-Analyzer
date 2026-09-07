@@ -7,7 +7,7 @@ import { BLANK_FORM } from '../lib/formState';
 const form = {
   ...BLANK_FORM,
   personA: {
-    name: 'Dan', birthYear: 1962, birthMonth: 4, gender: 'male' as const,
+    name: 'John', birthYear: 1962, birthMonth: 4, gender: 'male' as const,
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
   maritalStatus: 'single' as const,
@@ -40,7 +40,7 @@ describe('CopyLinkButton', () => {
     render(<CopyLinkButton form={form} disabled={false} />);
 
     await userEvent.click(screen.getByRole('button', { name: /copy link/i }));
-    expect(writeText.mock.calls[0][0]).toMatch(/an=Dan/);
+    expect(writeText.mock.calls[0][0]).toMatch(/an=John/);
   });
 
   it('falls back to a selectable field when the clipboard is unavailable', async () => {

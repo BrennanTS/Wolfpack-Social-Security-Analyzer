@@ -251,8 +251,8 @@ they ever file — so their own filing age becomes very nearly irrelevant to the
 collapses to the earliest age. That collapse is an artifact of keeping the single-evaluation
 replacement semantics, and it is the same defect §4 is about.
 
-The app's own archetype household (`src/lib/household.test.ts:833-841` — Dan b. 1958-04 PIA $2,400
-plan-to 78, Sarah b. 1968-02 PIA $1,200 plan-to 90) does **not** reorder under either proxy: both
+The app's own archetype household (`src/lib/household.test.ts:833-841` — John b. 1958-04 PIA $2,400
+plan-to 78, Jane b. 1968-02 PIA $1,200 plan-to 90) does **not** reorder under either proxy: both
 argmaxes stay at 70y0m / 62y1m. Its displayed figures do change; see §3.3.
 
 ---
@@ -306,7 +306,7 @@ suite blind here.
 
 Outside `validation/`, three assertions pin the defect's output directly and would need re-deriving:
 
-- `src/lib/household.test.ts:842-858` asserts the Dan/Sarah household pays the survivor **$0** under
+- `src/lib/household.test.ts:842-858` asserts the John/Jane household pays the survivor **$0** under
   "both delay to 70" and $36,480 under the optimum. Under the correction that $0 becomes
   **$36,480** — measured, and derived below.
 - `src/components/methodologyCopy.ts:542` and `src/components/methodologyCopy.test.ts:558-562`
@@ -314,19 +314,19 @@ Outside `validation/`, three assertions pin the defect's output directly and wou
 - `src/lib/household.ts:372-402` (`survivorIncomeRisesWithDelay`) documents that household as the
   permanent counter-example to a caption claiming survivor income rises with delay.
 
-Hand-derivation for Dan/Sarah under "both delay to 70", confirmed against the engine:
+Hand-derivation for John/Jane under "both delay to 70", confirmed against the engine:
 
-- Dan b. 1958-04 → SSA birth month 1958-04; retirement FRA 66y8m; files at 70 → 2028-04; plan-to 78
+- John b. 1958-04 → SSA birth month 1958-04; retirement FRA 66y8m; files at 70 → 2028-04; plan-to 78
   → dies 2036-04.
 - Delayed credits: 40 months × 2/3%/mo = 26.667% → own benefit `2400 × 1.26667 = $3,040`.
 - He filed before death, so RIB-LIM: base = `max(0.825 × 2400 = 1980, 3040) = $3,040`.
-- Sarah b. 1968-02 → survivor FRA **67** (`constants.ts:702-707`); SSA age 60 in 2028-02; files at 70
+- Jane b. 1968-02 → survivor FRA **67** (`constants.ts:702-707`); SSA age 60 in 2028-02; files at 70
   → 2038-02; plan-to 90 → dies 2058-02.
-- Current survivor start = `max(2036-05, 2038-02) = 2038-02`. Sarah is 70 — past her survivor FRA —
+- Current survivor start = `max(2036-05, 2038-02) = 2038-02`. Jane is 70 — past her survivor FRA —
   so the base is paid in full: **$3,040** (`benefit-calculator.ts:512-517`).
-- Corrected survivor start = `max(2036-05, 2028-02) = 2036-05`. Sarah is 68y3m — **also past her
+- Corrected survivor start = `max(2036-05, 2028-02) = 2036-05`. Jane is 68y3m — **also past her
   survivor FRA** — so the base is *still* paid in full: **$3,040**. No reduction, because she was
-  already past 67 when Dan died.
+  already past 67 when John died.
 - Gap: 21 months × $3,040 = **+$63,840** lifetime, with no offsetting permanent cut. Engine
   confirms: `T0 = $1,027,520`, `T1 = $1,091,360`, difference $63,840 exactly.
 - The survivor-income column reads calendar year 2037 (`src/lib/household.ts:266-278`): currently

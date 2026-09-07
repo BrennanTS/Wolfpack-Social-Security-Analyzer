@@ -25,20 +25,20 @@ const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
 // Mirrors `household.test.ts` exactly rather than inventing new figures.
-const dan: Person = {
-  id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+const john: Person = {
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
-const sarah: Person = {
-  id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+const jane: Person = {
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
   gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
 };
-// dan/sarah both have substantial records and produce no spousal band (see
+// john/jane both have substantial records and produce no spousal band (see
 // `household.test.ts` — "reports no spousal start when there is no
 // entitlement at all"), so the spousal fixture needs the pairing that
-// genuinely has one: sarah with no record of her own draws a real spousal
-// band on dan's record.
-const noRecordSarah: Person = { ...sarah, piaMonthly: 0 };
+// genuinely has one: jane with no record of her own draws a real spousal
+// band on john's record.
+const noRecordSarah: Person = { ...jane, piaMonthly: 0 };
 
 // The $0.00 spousal-band fixture, reused verbatim from `household.test.ts`
 // ("keeps the start date of a spousal entitlement that is fully absorbed")
@@ -65,21 +65,21 @@ let monthlySeriesWithZeroSpousal: MonthlyIncomePoint[];
 
 beforeAll(async () => {
   const spousalResult = await analyzeHousehold(
-    { status: 'married', people: [dan, noRecordSarah] },
+    { status: 'married', people: [john, noRecordSarah] },
     assumptions,
     asOf,
   );
-  monthlySeriesWithSpousal = buildMonthlyIncomeSeries(spousalResult.periods, [dan, noRecordSarah]);
+  monthlySeriesWithSpousal = buildMonthlyIncomeSeries(spousalResult.periods, [john, noRecordSarah]);
 
-  // dan/sarah (real figures both ways) — confirmed by `household.test.ts`
+  // john/jane (real figures both ways) — confirmed by `household.test.ts`
   // ("exposes the engine periods on the analysis") to produce a genuine
-  // Survivor band for Sarah under the engine's one modeled direction.
+  // Survivor band for Jane under the engine's one modeled direction.
   const survivorResult = await analyzeHousehold(
-    { status: 'married', people: [dan, sarah] },
+    { status: 'married', people: [john, jane] },
     assumptions,
     asOf,
   );
-  monthlySeriesWithSurvivor = buildMonthlyIncomeSeries(survivorResult.periods, [dan, sarah]);
+  monthlySeriesWithSurvivor = buildMonthlyIncomeSeries(survivorResult.periods, [john, jane]);
 
   const zeroResult = await analyzeHousehold(
     { status: 'married', people: [avery, blythe] },
@@ -99,7 +99,7 @@ beforeAll(async () => {
   }
 });
 
-const people = [dan, sarah];
+const people = [john, jane];
 
 // `bySeries` added so this fixture still satisfies `MonthlyIncomePoint`;
 // the exact composition doesn't matter for the caption/note tests below,
@@ -169,8 +169,8 @@ describe('CombinedIncomeChart', () => {
 
   it('labels the legend with personLabel names, not raw ids', () => {
     render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
-    expect(screen.getByText(/Dan/)).toBeDefined();
-    expect(screen.getByText(/Sarah/)).toBeDefined();
+    expect(screen.getByText(/John/)).toBeDefined();
+    expect(screen.getByText(/Jane/)).toBeDefined();
   });
 
   it('falls back to Client/Spouse when a person has no name', () => {
@@ -247,19 +247,19 @@ describe('CombinedIncomeChart', () => {
   // The three survivor-gap shapes, carrying the exact figures
   // `methodologyCopy.test.ts` pins against real `analyzeHousehold` output.
   const contemporaneous: SurvivorGap = {
-    survivorLabel: 'Sarah',
+    survivorLabel: 'Jane',
     deceasedMonthly: 1780,
     survivorOwnMonthly: 1760,
     survivorUnder60: false,
   };
   const notFiled: SurvivorGap = {
-    survivorLabel: 'Sarah',
+    survivorLabel: 'Jane',
     deceasedMonthly: 1780,
     survivorOwnMonthly: null,
     survivorUnder60: false,
   };
   const under60: SurvivorGap = {
-    survivorLabel: 'Sarah',
+    survivorLabel: 'Jane',
     deceasedMonthly: 2016,
     survivorOwnMonthly: null,
     survivorUnder60: true,
@@ -274,7 +274,7 @@ describe('CombinedIncomeChart', () => {
       <CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={contemporaneous} />,
     );
     const note = screen.getByTestId('survivor-gap-note');
-    expect(note.textContent).toMatch(/no step-up is shown for Sarah/i);
+    expect(note.textContent).toMatch(/no step-up is shown for Jane/i);
     expect(note.textContent).toMatch(/lower than SSA would pay/i);
     expect(note.textContent).toContain('$1,780.00/mo');
     expect(note.textContent).toContain('$1,760.00/mo');
@@ -322,10 +322,10 @@ describe('CombinedIncomeChart', () => {
   describe('one legend entry per benefit type', () => {
     it('renders a legend entry per benefit type, not per person', () => {
       render(
-        <CombinedIncomeChart monthlySeries={monthlySeriesWithSpousal} people={[dan, noRecordSarah]} />,
+        <CombinedIncomeChart monthlySeries={monthlySeriesWithSpousal} people={[john, noRecordSarah]} />,
       );
-      expect(screen.getByText(/Sarah — spousal/)).toBeInTheDocument();
-      expect(screen.getByText(/Dan — own benefit/)).toBeInTheDocument();
+      expect(screen.getByText(/Jane — spousal/)).toBeInTheDocument();
+      expect(screen.getByText(/John — own benefit/)).toBeInTheDocument();
     });
 
     it('omits a band and its legend entry when every month of it is zero', () => {
@@ -416,7 +416,7 @@ describe('CombinedIncomeChart', () => {
       const finalIndexByPersonId = { a: 2046 * 12 + 2, b: 2040 * 12 + 8 };
       const tree = CombinedIncomeChart({
         monthlySeries: monthlySeriesWithSurvivor,
-        people: [dan, sarah],
+        people: [john, jane],
         finalIndexByPersonId,
       });
       const lines = collectReferenceLines(tree);
@@ -433,27 +433,27 @@ describe('CombinedIncomeChart', () => {
       // The filing months read off the same `byPersonId` roll-up the
       // tooltip uses — "when the benefit was claimed" is the real data
       // already on screen, not a second computation of a benefit rule.
-      const danFilingMonth = monthlySeriesWithSurvivor.find((p) => (p.byPersonId.a ?? 0) > 0)!
+      const johnFilingMonth = monthlySeriesWithSurvivor.find((p) => (p.byPersonId.a ?? 0) > 0)!
         .monthIndex;
-      const sarahFilingMonth = monthlySeriesWithSurvivor.find((p) => (p.byPersonId.b ?? 0) > 0)!
+      const janeFilingMonth = monthlySeriesWithSurvivor.find((p) => (p.byPersonId.b ?? 0) > 0)!
         .monthIndex;
       expect(
-        lines.some((rl) => rl.props.x === danFilingMonth && labelText(rl) === 'Dan files'),
+        lines.some((rl) => rl.props.x === johnFilingMonth && labelText(rl) === 'John files'),
       ).toBe(true);
       expect(
-        lines.some((rl) => rl.props.x === sarahFilingMonth && labelText(rl) === 'Sarah files'),
+        lines.some((rl) => rl.props.x === janeFilingMonth && labelText(rl) === 'Jane files'),
       ).toBe(true);
     });
 
     it('omits the death marker for a single claimant', () => {
-      // `monthlySeriesWithSurvivor` is dan/sarah's real 2-person series,
+      // `monthlySeriesWithSurvivor` is john/jane's real 2-person series,
       // whose `bySeries` names both `a` and `b` — inconsistent with a
       // single-person `people` array now that `visibleBenefitSeries` throws
       // on that mismatch (see household.ts). `singleMonthlySeries` names
       // only `a`.
       const tree = CombinedIncomeChart({
         monthlySeries: singleMonthlySeries,
-        people: [dan],
+        people: [john],
         finalIndexByPersonId: { a: 2046 * 12 + 2 },
       });
       const lines = collectReferenceLines(tree);
@@ -471,13 +471,13 @@ describe('CombinedIncomeChart', () => {
       const tied = 2046 * 12 + 2;
       const tree = CombinedIncomeChart({
         monthlySeries: monthlySeriesWithSurvivor,
-        people: [dan, sarah],
+        people: [john, jane],
         finalIndexByPersonId: { a: tied, b: tied },
       });
       const lines = collectReferenceLines(tree);
       expect(lines.some((rl) => labelText(rl) === 'First death')).toBe(false);
       // Not vacuous: the other markers are still built for this household.
-      expect(lines.some((rl) => labelText(rl) === 'Dan files')).toBe(true);
+      expect(lines.some((rl) => labelText(rl) === 'John files')).toBe(true);
     });
 
     // `XAxis` is a numeric month-index axis: a `ReferenceLine` whose `x`
@@ -498,7 +498,7 @@ describe('CombinedIncomeChart', () => {
       ];
       const tree = CombinedIncomeChart({
         monthlySeries: isolatedMonthlySeries,
-        people: [dan, sarah],
+        people: [john, jane],
         // a's death (2010) precedes the series' first month (2030).
         finalIndexByPersonId: { a: 2010 * 12 + 2, b: 2040 * 12 + 8 },
       });
@@ -509,8 +509,8 @@ describe('CombinedIncomeChart', () => {
     // The axis collision (a label sitting on top of the y-axis tick labels)
     // is fixed by `position: 'insideTopLeft'`; this is the OTHER collision —
     // two markers close enough in time that their labels, both anchored at
-    // the same fixed height, would overlap each other. Dan files in January
-    // 2030 and Sarah three months later, well inside the proximity window
+    // the same fixed height, would overlap each other. John files in January
+    // 2030 and Jane three months later, well inside the proximity window
     // (floored at 24 months) — the two filing labels must render at
     // DIFFERENT vertical rows rather than both at row 0.
     it('staggers two filing markers that land close together in time', () => {
@@ -530,16 +530,16 @@ describe('CombinedIncomeChart', () => {
           total: 42000,
         },
       ];
-      const tree = CombinedIncomeChart({ monthlySeries: closeFilingSeries, people: [dan, sarah] });
+      const tree = CombinedIncomeChart({ monthlySeries: closeFilingSeries, people: [john, jane] });
       const lines = collectReferenceLines(tree);
-      const danLine = lines.find((rl) => labelText(rl) === 'Dan files')!;
-      const sarahLine = lines.find((rl) => labelText(rl) === 'Sarah files')!;
-      expect(danLine).toBeDefined();
-      expect(sarahLine).toBeDefined();
+      const johnLine = lines.find((rl) => labelText(rl) === 'John files')!;
+      const janeLine = lines.find((rl) => labelText(rl) === 'Jane files')!;
+      expect(johnLine).toBeDefined();
+      expect(janeLine).toBeDefined();
       // Same `viewBox.y` for both (as they'd actually get from Recharts,
       // since both lines span the same plot height) — if the two labels
       // still landed on the same row, these would be equal.
-      expect(labelY(danLine, 8)).not.toBe(labelY(sarahLine, 8));
+      expect(labelY(johnLine, 8)).not.toBe(labelY(janeLine, 8));
     });
 
     // The counterpart: two markers far enough apart must NOT be pushed onto
@@ -547,15 +547,15 @@ describe('CombinedIncomeChart', () => {
     // (the common case) should keep every label at the same, familiar
     // height rather than descending a step for no reason.
     it('does not stagger markers that are already far apart', async () => {
-      // Its OWN household, not the shared `dan`/`sarah` fixture. Once the
+      // Its OWN household, not the shared `john`/`jane` fixture. Once the
       // optimizer began honouring the plan-to age, that pair's two filing
       // ages moved close enough together to stagger — so this test, which
       // exists to prove the unstaggered case, was asserting the staggered
       // one. A short-lived lower earner files at the floor while the higher
       // earner delays, which is about as far apart as the two can be.
-      const shortLived = { ...sarah, lifeExpectancy: 72 };
+      const shortLived = { ...jane, lifeExpectancy: 72 };
       const result = await analyzeHousehold(
-        { status: 'married', people: [dan, shortLived] },
+        { status: 'married', people: [john, shortLived] },
         assumptions,
         asOf,
       );
@@ -563,17 +563,17 @@ describe('CombinedIncomeChart', () => {
       // Guard, so this cannot quietly become the staggered case again: the
       // two filings must be years apart for the assertion below to mean
       // anything at all.
-      const [danAge, sarahAge] = result.optimal.filingAges.map((f) => f.decimalYears);
-      expect(Math.abs(danAge - sarahAge)).toBeGreaterThan(5);
+      const [johnAge, janeAge] = result.optimal.filingAges.map((f) => f.decimalYears);
+      expect(Math.abs(johnAge - janeAge)).toBeGreaterThan(5);
 
       const tree = CombinedIncomeChart({
-        monthlySeries: buildMonthlyIncomeSeries(result.periods, [dan, shortLived]),
-        people: [dan, shortLived],
+        monthlySeries: buildMonthlyIncomeSeries(result.periods, [john, shortLived]),
+        people: [john, shortLived],
       });
       const lines = collectReferenceLines(tree);
-      const danLine = lines.find((rl) => labelText(rl) === 'Dan files')!;
-      const sarahLine = lines.find((rl) => labelText(rl) === 'Sarah files')!;
-      expect(labelY(danLine, 8)).toBe(labelY(sarahLine, 8));
+      const johnLine = lines.find((rl) => labelText(rl) === 'John files')!;
+      const janeLine = lines.find((rl) => labelText(rl) === 'Jane files')!;
+      expect(labelY(johnLine, 8)).toBe(labelY(janeLine, 8));
     });
   });
 });

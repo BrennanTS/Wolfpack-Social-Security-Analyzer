@@ -50,9 +50,9 @@ const age = (years: number) => ({ years, months: 0, label: String(years),
 
 // Build via a helper so both the single and married cases stay readable.
 function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnalysis {
-  const dan = buildPersonAnalysis('a', 'Dan');
-  const sarah = buildPersonAnalysis('b', 'Sarah');
-  const people = status === 'married' ? [dan, sarah] : [dan];
+  const john = buildPersonAnalysis('a', 'John');
+  const jane = buildPersonAnalysis('b', 'Jane');
+  const people = status === 'married' ? [john, jane] : [john];
 
   const optimal = {
     key: 'optimal' as const,
@@ -121,7 +121,7 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     survivorClaim: null,
     finalIndexByPersonId: { a: 24_653, ...(status === 'married' ? { b: 24_700 } : {}) },
     recommendation: status === 'married'
-      ? 'Dan files at 70 · Sarah files at 64'
+      ? 'John files at 70 · Jane files at 64'
       : 'Claim at age 70',
     recommendationDetail: 'The ssa.tools optimizer maximizes combined expected present value.',
     assumptions: { annualCola: 2.5, discountRate: 3 },
@@ -173,15 +173,15 @@ describe('HouseholdView', () => {
   it('renders three tabs for a married household, household selected first', () => {
     render(<HouseholdView analysis={buildAnalysis('married')} annualCola={2.5} />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Household', 'Dan', 'Sarah']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Household', 'John', 'Jane']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByTestId('strategy-table')).toBeDefined();
   });
 
   it('switches panels on click', async () => {
     render(<HouseholdView analysis={buildAnalysis('married')} annualCola={2.5} />);
-    await userEvent.click(screen.getByRole('tab', { name: 'Sarah' }));
-    expect(screen.getByRole('tab', { name: 'Sarah' })).toHaveAttribute('aria-selected', 'true');
+    await userEvent.click(screen.getByRole('tab', { name: 'Jane' }));
+    expect(screen.getByRole('tab', { name: 'Jane' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByTestId('strategy-table')).toBeNull();
     expect(screen.getByTestId('benefit-table')).toBeDefined();
   });
@@ -190,17 +190,17 @@ describe('HouseholdView', () => {
     render(<HouseholdView analysis={buildAnalysis('married')} annualCola={2.5} />);
     screen.getByRole('tab', { name: 'Household' }).focus();
     await userEvent.keyboard('{ArrowRight}');
-    expect(screen.getByRole('tab', { name: 'Dan' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'John' })).toHaveAttribute('aria-selected', 'true');
     await userEvent.keyboard('{ArrowLeft}');
     expect(screen.getByRole('tab', { name: 'Household' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('wraps from the last tab to the first on ArrowRight', async () => {
     render(<HouseholdView analysis={buildAnalysis('married')} annualCola={2.5} />);
-    // Click (rather than a bare .focus()) both selects and focuses Sarah's
+    // Click (rather than a bare .focus()) both selects and focuses Jane's
     // tab, keeping selection and DOM focus in sync the way a real user's
     // click-then-arrow-key sequence would.
-    await userEvent.click(screen.getByRole('tab', { name: 'Sarah' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Jane' }));
     await userEvent.keyboard('{ArrowRight}');
     expect(screen.getByRole('tab', { name: 'Household' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Household' })).toHaveFocus();
@@ -210,8 +210,8 @@ describe('HouseholdView', () => {
     render(<HouseholdView analysis={buildAnalysis('married')} annualCola={2.5} />);
     screen.getByRole('tab', { name: 'Household' }).focus();
     await userEvent.keyboard('{ArrowLeft}');
-    expect(screen.getByRole('tab', { name: 'Sarah' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Sarah' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Jane' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Jane' })).toHaveFocus();
   });
 
   it('gives every tab a roving tabIndex', () => {

@@ -26,17 +26,17 @@ afterAll(() => vi.unstubAllGlobals());
 
 const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
-const dan: Person = {
-  id: 'a', name: 'Dan', birthYear: 1962, birthMonth: 4,
+const john: Person = {
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
-const sarah: Person = {
-  id: 'b', name: 'Sarah', birthYear: 1964, birthMonth: 2,
+const jane: Person = {
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
   gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
 };
 const widowedHousehold: Household = {
   status: 'widowed',
-  people: [sarah],
+  people: [jane],
   deceased: {
     birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
     record: { kind: 'pia', piaMonthly: 3000, filed: null },
@@ -118,7 +118,7 @@ describe('ReportDocument composition', () => {
   let widowed: HouseholdAnalysis;
 
   beforeAll(async () => {
-    married = await analyzeHousehold({ status: 'married', people: [dan, sarah] }, assumptions, asOf);
+    married = await analyzeHousehold({ status: 'married', people: [john, jane] }, assumptions, asOf);
     widowed = await analyzeHousehold(widowedHousehold, assumptions, asOf);
   });
 
@@ -152,7 +152,7 @@ describe('ReportDocument composition', () => {
   it('opens on a cover that names the household and the firm', () => {
     const text = collectText(build(married, CLIENT_LAYOUT)).join(' ');
     expect(text).toContain('Prepared for');
-    expect(text).toContain('Dan and Sarah');
+    expect(text).toContain('John and Jane');
     expect(text).toContain('Prepared by');
   });
 
@@ -221,7 +221,7 @@ describe('ReportDocument composition', () => {
   });
 
   it('keeps the report person-major when several person blocks are chosen', () => {
-    // Grouped, a couple reads "Dan: these charts, then Sarah: these charts".
+    // Grouped, a couple reads "John: these charts, then Jane: these charts".
     // Rendered a block at a time it would be every chart twice in a row under
     // alternating names, with cards sitting under nobody's heading.
     const twoParts: ReportLayout = {
@@ -232,15 +232,15 @@ describe('ReportDocument composition', () => {
       ],
     };
     const text = collectText(build(married, twoParts)).join(' ');
-    const dan = text.indexOf('Dan');
-    const sarah = text.indexOf('Sarah');
+    const john = text.indexOf('John');
+    const jane = text.indexOf('Jane');
     const firstBreakEven = text.indexOf('Break-Even Analysis');
     const lastBreakEven = text.lastIndexOf('Break-Even Analysis');
-    expect(dan).toBeLessThan(sarah);
-    // Dan's break-even falls between the two names; Sarah's after hers.
-    expect(firstBreakEven).toBeGreaterThan(dan);
-    expect(firstBreakEven).toBeLessThan(sarah);
-    expect(lastBreakEven).toBeGreaterThan(sarah);
+    expect(john).toBeLessThan(jane);
+    // John's break-even falls between the two names; Jane's after hers.
+    expect(firstBreakEven).toBeGreaterThan(john);
+    expect(firstBreakEven).toBeLessThan(jane);
+    expect(lastBreakEven).toBeGreaterThan(jane);
   });
 
   it('prints a gap where the layout asks for a space', () => {
@@ -282,7 +282,7 @@ describe('ReportDocument composition', () => {
     const doc = build(married, spaced);
     expect(spacers(doc)).toHaveLength(0);
     const text = collectText(doc).join(' ');
-    expect(text.indexOf('Break-Even Analysis')).toBeLessThan(text.indexOf('Sarah'));
+    expect(text.indexOf('Break-Even Analysis')).toBeLessThan(text.indexOf('Jane'));
   });
 
   it('never lets a space alone hold a page', () => {
