@@ -19,21 +19,18 @@ import { addScenario, filingAgeLabel, selectScenario, type ScenarioSet } from '.
 /** How long the button holds its confirmation before returning to its label. */
 const APPLIED_MS = 2200;
 
-/** Default tolerance for the near-best region, in percent. */
-export const DEFAULT_TARGET_PERCENT = 1;
-
 /**
- * The near-best region as both surfaces need it: whether it is drawn, and how
- * wide. Lifted out of this component so the PDF prints the region the adviser
- * was actually looking at rather than a fixed default — the same reason
- * `claimingRowsByPerson` is built once in `Analyzer` and threaded down.
+ * The near-best region lives in `lib/gridTarget` — the PDF, the share link
+ * and a saved client all need it, and none of them should be importing from a
+ * component. Re-exported here because this is where it is drawn, and every
+ * existing caller reaches for it through this file.
  */
-export interface TargetRange {
-  on: boolean;
-  percent: number;
-}
-
-export const DEFAULT_TARGET_RANGE: TargetRange = { on: true, percent: DEFAULT_TARGET_PERCENT };
+export {
+  DEFAULT_TARGET_PERCENT,
+  DEFAULT_TARGET_RANGE,
+  type TargetRange,
+} from '../lib/gridTarget';
+import { DEFAULT_TARGET_RANGE, type TargetRange } from '../lib/gridTarget';
 
 interface Props {
   analysis: HouseholdAnalysis;

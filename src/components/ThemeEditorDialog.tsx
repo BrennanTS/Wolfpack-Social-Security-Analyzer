@@ -1,54 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
-import { ReportLayoutEditor } from './ReportLayoutEditor';
+import { useEffect, useRef } from 'react';
+import { ReportThemeEditor } from './ReportThemeEditor';
 import { ReportPreview } from './ReportPreview';
-import type { HouseholdAnalysis, HouseholdDisplayShape } from '../lib/household';
+import type { HouseholdAnalysis } from '../lib/household';
 import type { ClaimingRow } from '../lib/claimingRows';
 import type { LongevitySensitivity } from '../lib/longevity';
-import type { useReportLayouts } from '../hooks/useReportLayouts';
-import type { ReportBlockId } from '../lib/reportLayout';
-import type { ReportTheme } from '../lib/reportTheme';
+import type { ReportLayout } from '../lib/reportLayout';
+import type { useReportThemes } from '../hooks/useReportThemes';
 
 /**
- * The layout editor, with room to work.
+ * The theme editor, beside the report it changes.
  *
- * In the menu the editor shared a 420px drawer with the theme picker, which
- * left fifteen blocks stacked in a column and the palette of what to add
- * pushed below the fold. A dialog gives it the width to put the report on one
- * side and everything not in it on the other — which is how the two lists are
- * actually used, one dragging into the other.
- *
- * Rendered above everything rather than inside the drawer: it is a task an
- * adviser finishes and leaves, not a setting they flick.
+ * The same shape as the layout dialog on purpose: an adviser who has arranged
+ * one report should not have to learn a second set of habits to color it. The
+ * preview is the point — a hex in a text box tells you nothing about what a
+ * client will be holding, and the two decisions people actually get wrong,
+ * brand color on white and the heat ramp, are only visible on the page.
  */
-export function LayoutEditorDialog({
+export function ThemeEditorDialog({
   open,
   onClose,
-  layouts,
-  shape,
+  themes,
   preview,
 }: {
   open: boolean;
   onClose: () => void;
-  layouts: ReturnType<typeof useReportLayouts>;
-  shape?: HouseholdDisplayShape;
-  /**
-   * Everything the report is built from. Absent until the inputs are
-   * complete, in which case the layout is still editable — there is simply
-   * nothing to preview yet.
-   */
+  themes: ReturnType<typeof useReportThemes>;
+  /** Everything the report is built from, absent until the inputs are complete. */
   preview?: {
     analysis: HouseholdAnalysis;
     claimingRowsByPerson: Record<string, ClaimingRow[]>;
     gridTarget?: { on: boolean; percent: number };
     sensitivity?: LongevitySensitivity | null;
-    theme: ReportTheme;
+    layout: ReportLayout;
   };
 }) {
   const panel = useRef<HTMLDivElement>(null);
-  // Which page each block starts on, measured by the preview as it renders
-  // and handed to the editor for its row labels. Held here because it
-  // travels between the two halves of the dialog.
-  const [pages, setPages] = useState<ReadonlyMap<ReportBlockId, number>>(new Map());
 
   useEffect(() => {
     if (!open) return;
@@ -60,19 +46,12 @@ export function LayoutEditorDialog({
   }, [open, onClose]);
 
   useEffect(() => {
-    // Focus moves into the dialog, so the next Tab lands inside it rather
-    // than back on the page behind.
     if (open) panel.current?.focus();
   }, [open]);
 
   useEffect(() => {
-    // The page behind is held still while the dialog is up.
-    //
-    // Without this the wheel goes to whatever is under the pointer, and the
-    // report scrolls away behind the dialog — most obviously once the block
-    // list has reached its own end, since that is when the wheel starts
-    // being handed on. Padding replaces the width the scrollbar was holding,
-    // where the platform draws one, so nothing shifts sideways as it goes.
+    // The page behind is held still while the dialog is up — see
+    // `LayoutEditorDialog` for what happens without it.
     if (!open) return;
     const root = document.documentElement;
     const previousOverflow = root.style.overflow;
@@ -94,23 +73,22 @@ export function LayoutEditorDialog({
         type="button"
         className="drawer-backdrop drawer-backdrop-dialog"
         onClick={onClose}
-        aria-label="Close layout editor"
+        aria-label="Close theme editor"
       />
       <div
         className="layout-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="layout-dialog-title"
+        aria-labelledby="theme-dialog-title"
         ref={panel}
         tabIndex={-1}
       >
         <header className="layout-dialog-header">
           <div>
-            <h2 id="layout-dialog-title">Report layout</h2>
+            <h2 id="theme-dialog-title">Report theme</h2>
             <p>
-              What the exported PDF contains, in what order, and where its pages break. Drag a
-              block to move it, or in from the right to add it. Each block says which page it
-              starts on.
+              The colors and the name the exported PDF is printed with. Changes show in the
+              preview as you make them.
             </p>
           </div>
           <button type="button" className="btn-panel-close" onClick={onClose} aria-label="Close">
@@ -126,9 +104,9 @@ export function LayoutEditorDialog({
         </header>
 
         <div className="layout-dialog-body">
-          <ReportLayoutEditor {...layouts} shape={shape} wide blockPages={pages} />
+          <ReportThemeEditor {...themes} />
           {preview ? (
-            <ReportPreview {...preview} layout={layouts.layout} onPages={setPages} />
+            <ReportPreview {...preview} theme={themes.theme} />
           ) : (
             <div className="report-preview">
               <div className="report-preview-head">

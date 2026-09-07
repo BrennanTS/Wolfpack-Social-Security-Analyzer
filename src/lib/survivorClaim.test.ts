@@ -226,7 +226,7 @@ describe('survivorClaimAlternative', () => {
     expect(result.gain).toBe(102960);
   });
 
-  it("returns null when the engine's unmodelled survivor direction is already disclosed", () => {
+  it("returns null when the engine's unmodeled survivor direction is already disclosed", () => {
     // The higher earner outlives the dependent, and the dependent HAS filed,
     // so `detectSurvivorGap` fires. That disclosure is the app's answer for
     // this household; a claim-month search alongside it would answer the same

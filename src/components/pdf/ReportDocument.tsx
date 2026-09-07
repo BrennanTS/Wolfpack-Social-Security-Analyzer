@@ -1,6 +1,5 @@
 import { Fragment } from 'react';
 import { Document, Page, Text, View } from '@react-pdf/renderer';
-import { BRAND_NAME } from '../../lib/brand';
 import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
 import type { ClaimingRow } from '../../lib/claimingRows';
 import type { LongevitySensitivity } from '../../lib/longevity';
@@ -14,7 +13,7 @@ import {
   type RunItem,
 } from '../../lib/reportLayout';
 import { formatVersionLabel } from '../../lib/version';
-import { styles } from './theme';
+import { FIRM, styles } from './theme';
 import {
   formatReportDate,
   MethodologyAppendix,
@@ -128,7 +127,7 @@ export function ReportDocument({
 }) {
   const shape = householdDisplayShape(analysis.status);
   const reportDate = formatReportDate();
-  const footerText = `${BRAND_NAME} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
+  const footerText = `${FIRM} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
   const isWidowed = shape === 'widowed';
 
   /**
@@ -215,7 +214,7 @@ export function ReportDocument({
   return (
     <Document
       title="Social Security Claiming Analysis"
-      author={BRAND_NAME}
+      author={FIRM}
       subject="Social Security Claiming Analysis"
     >
       {isWidowed ? (

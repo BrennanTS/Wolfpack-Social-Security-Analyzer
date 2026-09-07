@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
 import type { LongevitySensitivity } from '../lib/longevity';
-import { BRAND_NAME } from '../lib/brand';
 import {
   analyzeIfComplete,
   longevityIfComplete,
@@ -25,7 +24,7 @@ import {
   type ClaimingRow,
 } from '../lib/claimingRows';
 import type { ScenarioSet } from '../lib/scenario';
-import { fromShareParams } from '../lib/shareLink';
+import { fromShareParams, readViewExtras, toViewParams } from '../lib/shareLink';
 import {
   widowedErrors,
   type AlreadyClaimedFormFields,
@@ -34,8 +33,12 @@ import {
 import { AboutPanel } from './AboutPanel';
 import { MenuPanel } from './MenuPanel';
 import { LayoutEditorDialog } from './LayoutEditorDialog';
-import { useReportTheme } from '../hooks/useReportTheme';
+import { ThemeEditorDialog } from './ThemeEditorDialog';
+import { useReportThemes } from '../hooks/useReportThemes';
 import { useReportLayouts } from '../hooks/useReportLayouts';
+import { useSavedClients } from '../hooks/useSavedClients';
+import { ClientsDialog } from './ClientsDialog';
+import { suggestedClientLabel } from '../lib/clientRecord';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
@@ -57,6 +60,9 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // an effect would paint the blank form first and then replace it, flickering
   // and briefly running an analysis on empty inputs. Reading `location.search`
   // is a read, so it's safe under StrictMode's double-invocation.
+  const [initialParams] = useState(() =>
+    typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search),
+  );
   const [initialForm] = useState(() => {
     if (typeof window === 'undefined') return BLANK_FORM;
     const params = new URLSearchParams(window.location.search);
@@ -95,6 +101,16 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // near-best region the adviser was looking at rather than the default.
   const [gridTarget, setGridTarget] = useState<TargetRange>(DEFAULT_TARGET_RANGE);
   const [exportingReport, setExportingReport] = useState(false);
+  const savedClients = useSavedClients();
+  const [clientsOpen, setClientsOpen] = useState(false);
+  /**
+   * The saved client on screen, if the view came from one.
+   *
+   * Held so "Save" can overwrite the record an adviser opened rather than
+   * leaving them with two of the same household and no way to tell which is
+   * current.
+   */
+  const [openClientId, setOpenClientId] = useState<string | null>(null);
 
   // Strip the query string separately, because this is a side effect and
   // StrictMode double-invokes state initializers. replaceState is idempotent,
@@ -111,6 +127,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     }
   }, []);
 
+
   const [analysis, setAnalysis] = useState<HouseholdAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -119,6 +136,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
+  const [themeEditorOpen, setThemeEditorOpen] = useState(false);
   /**
    * The longevity block's data, for the preview.
    *
@@ -128,11 +146,69 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
    * block the export will rather than silently omitting it.
    */
   const [previewSensitivity, setPreviewSensitivity] = useState<LongevitySensitivity | null>(null);
-  const { themeId, chooseTheme } = useReportTheme();
+  const reportThemes = useReportThemes();
   const reportLayouts = useReportLayouts();
   const [showAssumptions, setShowAssumptions] = useState(true);
   const [exportingLegacy, setExportingLegacy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+
+  /**
+   * The theme and layout a view was built with, if this browser has them.
+   *
+   * Checked rather than selected blind: an id minted for a custom theme in
+   * one browser names nothing in another, and selecting it would leave the
+   * picker showing a name for something that is not there.
+   */
+  const applySelections = useCallback(
+    (extras: { themeId?: string; layoutId?: string }) => {
+      if (extras.themeId !== undefined && reportThemes.themes.some((t) => t.id === extras.themeId)) {
+        reportThemes.select(extras.themeId);
+      }
+      if (
+        extras.layoutId !== undefined &&
+        reportLayouts.layouts.some((l) => l.id === extras.layoutId)
+      ) {
+        reportLayouts.select(extras.layoutId);
+      }
+    },
+    [reportThemes, reportLayouts],
+  );
+
+  // A link carries the theme and layout it was built with, the same as a
+  // saved client does. Applied once, from the parameters captured before the
+  // query string above was stripped.
+  const applied = useRef(false);
+  useEffect(() => {
+    if (applied.current) return;
+    applied.current = true;
+    applySelections(readViewExtras(initialParams));
+  }, [applySelections, initialParams]);
+
+  /**
+   * Put a saved view back on screen.
+   *
+   * Through the same parser a shared link goes through, so a stored record
+   * written by an older version — or edited by hand — is validated on the way
+   * in rather than trusted. Names are set separately: they are deliberately
+   * absent from the query string, and they are the reason a saved client is
+   * more than a link.
+   */
+  const applyView = useCallback((params: URLSearchParams) => {
+    const next = fromShareParams(params);
+    const extras = readViewExtras(params);
+    setPersonA(next.personA);
+    setPersonB(next.personB);
+    setMaritalStatus(next.maritalStatus);
+    setDeceased(next.deceased);
+    setAlreadyClaimed(next.alreadyClaimed);
+    setAnnualCola(next.annualCola);
+    setDiscountRate(next.discountRate);
+    setDollarsMode(next.dollarsMode);
+    setScenarios(next.scenarios);
+    setClaimingPrefs(extras.claimingPrefs);
+    setGridTarget(extras.gridTarget);
+    applySelections(extras);
+  }, [applySelections]);
 
   const form = useMemo<AnalyzerFormState>(
     () => ({
@@ -169,6 +245,21 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const asOf = useMemo(() => new Date(), []);
 
   const inputsComplete = isFormComplete(form, asOf);
+  /**
+   * Everything on screen that is not the form — shared and saved with it.
+   *
+   * The theme and layout ride along so a saved client reopens looking the way
+   * it was presented, rather than in whatever was last used for someone else.
+   */
+  const viewExtras = useMemo(
+    () => ({
+      claimingPrefs,
+      gridTarget,
+      themeId: reportThemes.selectedId,
+      layoutId: reportLayouts.selectedId,
+    }),
+    [claimingPrefs, gridTarget, reportThemes.selectedId, reportLayouts.selectedId],
+  );
 
   // The ssa.tools engine (benefits, optimal filing, expected PV) does not depend
   // on the chart-only COLA slider, so we intentionally exclude `annualCola` from
@@ -297,7 +388,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setExportError(null);
     setExportingLegacy(true);
     try {
-      await downloadLegacyPdfReport(analysis, claimingRowsByPerson, gridTarget, themeId);
+      await downloadLegacyPdfReport(analysis, claimingRowsByPerson, gridTarget, reportThemes.theme);
     } catch {
       setExportError('Legacy PDF export failed. Please try again.');
     } finally {
@@ -322,7 +413,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         claimingRowsByPerson,
         gridTarget,
         sensitivity,
-        themeId,
+        reportThemes.theme,
         reportLayouts.layout,
       );
     } catch {
@@ -342,7 +433,10 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
           </div>
           <div>
             <h1>Social Security Analyzer</h1>
-            <span className="brand-sub">{BRAND_NAME}</span>
+            {/* The firm's own name, which is part of the theme — an adviser
+                who has set theirs should see it here as well as on the
+                report they hand over. */}
+            <span className="brand-sub">{reportThemes.theme.firm}</span>
           </div>
         </div>
         <div className="header-actions">
@@ -360,7 +454,11 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
           >
             {exportingReport ? 'Generating…' : 'Export PDF'}
           </button>
-          <CopyLinkButton form={form} disabled={!inputsComplete} />
+          <CopyLinkButton
+            form={form}
+            extras={viewExtras}
+            disabled={!inputsComplete}
+          />
           {exportError && <span className="export-error">{exportError}</span>}
           <button
             type="button"
@@ -552,8 +650,20 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
       <MenuPanel
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        themeId={themeId}
-        onThemeChange={chooseTheme}
+        clientCount={savedClients.clients.length}
+        onOpenClients={() => {
+          setMenuOpen(false);
+          setClientsOpen(true);
+        }}
+        themes={reportThemes}
+        onEditTheme={() => {
+          // The drawer steps aside, as it does for the layout editor: the
+          // dialog is the same task with more room, not a second thing open
+          // on top of the first.
+          setMenuOpen(false);
+          setThemeEditorOpen(true);
+          void longevityIfComplete(form, asOf).then(setPreviewSensitivity);
+        }}
         onOpenAbout={() => setAboutOpen(true)}
         onOpenResources={() => setResourcesOpen(true)}
         layouts={reportLayouts}
@@ -569,6 +679,42 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         exportingLegacy={exportingLegacy}
         canExport={inputsComplete}
       />
+      <ClientsDialog
+        open={clientsOpen}
+        onClose={() => setClientsOpen(false)}
+        clients={savedClients}
+        openClientId={openClientId}
+        currentView={{
+          params: toViewParams(form, viewExtras).toString(),
+          suggestedLabel: suggestedClientLabel({
+            a: personA.name.trim() || undefined,
+            b: maritalStatus === 'married' ? personB.name.trim() || undefined : undefined,
+          }),
+          complete: inputsComplete,
+        }}
+        onOpenClient={(client) => {
+          applyView(new URLSearchParams(client.params));
+          setOpenClientId(client.id);
+          setClientsOpen(false);
+        }}
+        onSaved={setOpenClientId}
+      />
+      <ThemeEditorDialog
+        open={themeEditorOpen}
+        onClose={() => setThemeEditorOpen(false)}
+        themes={reportThemes}
+        preview={
+          analysis
+            ? {
+                analysis,
+                claimingRowsByPerson,
+                gridTarget,
+                sensitivity: previewSensitivity,
+                layout: reportLayouts.layout,
+              }
+            : undefined
+        }
+      />
       <LayoutEditorDialog
         open={layoutEditorOpen}
         onClose={() => setLayoutEditorOpen(false)}
@@ -581,7 +727,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 claimingRowsByPerson,
                 gridTarget,
                 sensitivity: previewSensitivity,
-                themeId,
+                theme: reportThemes.theme,
               }
             : undefined
         }

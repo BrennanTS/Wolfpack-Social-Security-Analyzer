@@ -11,7 +11,8 @@ import {
   type LayoutItem,
   type ReportLayout,
 } from '../../lib/reportLayout';
-import { styles } from './theme';
+import { setActiveReportTheme, styles } from './theme';
+import { DEFAULT_REPORT_THEME_ID, reportTheme } from '../../lib/reportTheme';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../public');
 
@@ -337,6 +338,41 @@ describe('ReportDocument composition', () => {
     expect(
       markers(ReportDocument({ analysis: married, layout: CLIENT_LAYOUT, onBlockPage: () => {} })),
     ).not.toHaveLength(0);
+  });
+
+  it('prints the firm from the active theme, not a constant', () => {
+    // The firm is part of the theme so that one install can serve two
+    // advisers. It has to reach the cover, the running footer and the
+    // disclosures, which are three different files.
+    setActiveReportTheme({
+      ...reportTheme(DEFAULT_REPORT_THEME_ID),
+      firm: 'Northgate Wealth',
+      adviser: 'Dana Whitfield',
+    });
+    try {
+      const full: ReportLayout = {
+        id: 'x', name: 'Full',
+        items: [
+          { kind: 'block', id: 'cover' },
+          { kind: 'block', id: 'terms' },
+          { kind: 'block', id: 'methodology' },
+        ],
+      };
+      const text = collectText(build(married, full)).join(' ');
+      expect(text).toContain('Northgate Wealth');
+      expect(text).toContain('Dana Whitfield');
+      expect(text).not.toContain('Wolfpack');
+    } finally {
+      setActiveReportTheme(reportTheme(DEFAULT_REPORT_THEME_ID));
+    }
+  });
+
+  it('leaves the adviser line off the cover when there is none', () => {
+    const cover: ReportLayout = { id: 'x', name: 'Cover', items: [{ kind: 'block', id: 'cover' }] };
+    const text = collectText(build(married, cover)).join(' ');
+    expect(text).toContain('Wolfpack | Planning Team');
+    // Nothing between the firm and the end but the firm itself.
+    expect(text.trim().endsWith('Wolfpack | Planning Team')).toBe(true);
   });
 
   it('omits the longevity block when the caller did not price it', () => {

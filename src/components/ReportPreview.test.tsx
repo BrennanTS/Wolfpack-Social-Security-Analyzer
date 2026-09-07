@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ReportPreview } from './ReportPreview';
 import { CLIENT_LAYOUT } from '../lib/reportLayout';
+import { reportTheme } from '../lib/reportTheme';
 import type { HouseholdAnalysis } from '../lib/household';
 
 /**
@@ -21,7 +22,7 @@ function setPdfViewer(enabled: boolean | undefined) {
 const props = {
   analysis: {} as HouseholdAnalysis,
   claimingRowsByPerson: {},
-  themeId: 'wolfpack',
+  theme: reportTheme('wolfpack'),
   layout: CLIENT_LAYOUT,
 };
 

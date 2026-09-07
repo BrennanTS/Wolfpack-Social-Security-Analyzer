@@ -31,13 +31,16 @@ describe('CopyLinkButton', () => {
     expect(writeText.mock.calls[0][0]).toMatch(/ay=1962/);
   });
 
-  it('never puts a name in the copied link', async () => {
+  it('puts the first name in the copied link, so it opens on the right household', async () => {
+    // It did not until 2026-09-07 — see `shareLink`'s module comment for what
+    // changed and what did not. Surnames are still impossible: the app has
+    // nowhere to type one.
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     render(<CopyLinkButton form={form} disabled={false} />);
 
     await userEvent.click(screen.getByRole('button', { name: /copy link/i }));
-    expect(writeText.mock.calls[0][0]).not.toMatch(/Dan/i);
+    expect(writeText.mock.calls[0][0]).toMatch(/an=Dan/);
   });
 
   it('falls back to a selectable field when the clipboard is unavailable', async () => {

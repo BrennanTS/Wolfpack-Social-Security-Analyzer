@@ -3,6 +3,7 @@ import type { HouseholdAnalysis } from '../lib/household';
 import type { ClaimingRow } from '../lib/claimingRows';
 import type { LongevitySensitivity } from '../lib/longevity';
 import type { ReportBlockId, ReportLayout } from '../lib/reportLayout';
+import type { ReportTheme } from '../lib/reportTheme';
 
 /** How long to wait after the last edit before rendering. */
 const SETTLE_MS = 250;
@@ -27,7 +28,7 @@ interface Props {
   claimingRowsByPerson: Record<string, ClaimingRow[]>;
   gridTarget?: { on: boolean; percent: number };
   sensitivity?: LongevitySensitivity | null;
-  themeId: string;
+  theme: ReportTheme;
   layout: ReportLayout;
   /**
    * Called with the page each block starts on, after every render.
@@ -57,7 +58,7 @@ export function ReportPreview({
   claimingRowsByPerson,
   gridTarget,
   sensitivity,
-  themeId,
+  theme,
   layout,
   onPages,
 }: Props) {
@@ -72,7 +73,7 @@ export function ReportPreview({
     // Nothing to build if it could not be shown — rendering a PDF every
     // keystroke to paint a white rectangle is worse than saying so.
     if (!inlineOk) return;
-    let cancelled = false;
+    let canceled = false;
     setRendering(true);
 
     const timer = setTimeout(() => {
@@ -80,11 +81,10 @@ export function ReportPreview({
         try {
           const { pdf } = await import('@react-pdf/renderer');
           const { setActiveReportTheme } = await import('./pdf/theme');
-          const { reportTheme } = await import('../lib/reportTheme');
           // Before the document is built, exactly as `printReport` does it:
           // the stylesheet is rebuilt here, and a section that had already
           // captured `styles` would render in the previous theme.
-          setActiveReportTheme(reportTheme(themeId));
+          setActiveReportTheme(theme);
           const { ReportDocument } = await import('./pdf/ReportDocument');
           // Filled as the document renders, and only then complete: which
           // sheet a block lands on is decided by the layout pass, not by the
@@ -101,7 +101,7 @@ export function ReportPreview({
               onBlockPage={(id, page) => landed.set(id, page)}
             />,
           ).toBlob();
-          if (cancelled) return;
+          if (canceled) return;
           report.current?.(landed);
           const next = URL.createObjectURL(blob);
           // Revoked only once the new one is in hand, so the frame never
@@ -111,18 +111,18 @@ export function ReportPreview({
           setUrl(next);
           setFailed(false);
         } catch {
-          if (!cancelled) setFailed(true);
+          if (!canceled) setFailed(true);
         } finally {
-          if (!cancelled) setRendering(false);
+          if (!canceled) setRendering(false);
         }
       })();
     }, SETTLE_MS);
 
     return () => {
-      cancelled = true;
+      canceled = true;
       clearTimeout(timer);
     };
-  }, [analysis, claimingRowsByPerson, gridTarget, sensitivity, themeId, layout, inlineOk]);
+  }, [analysis, claimingRowsByPerson, gridTarget, sensitivity, theme, layout, inlineOk]);
 
   // Held in a ref so a caller passing an inline function does not re-render
   // the whole report on every keystroke somewhere else in the dialog.

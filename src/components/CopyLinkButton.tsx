@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
-import { buildShareUrl } from '../lib/shareLink';
+import { buildShareUrl, BLANK_VIEW_EXTRAS, type ViewExtras } from '../lib/shareLink';
 import type { AnalyzerFormState } from '../lib/formState';
 
 interface CopyLinkButtonProps {
   form: AnalyzerFormState;
+  /**
+   * The rest of what is on screen — hidden claiming rows, the grid's
+   * near-best region. A link exists to reproduce what its sender was looking
+   * at, and those are part of it.
+   */
+  extras?: ViewExtras;
   disabled: boolean;
 }
 
@@ -23,7 +29,7 @@ interface CopyLinkButtonProps {
  * in the header for the rest of the session, and goes stale the moment the
  * adviser edits anything, showing a scenario that no longer exists.
  */
-export function CopyLinkButton({ form, disabled }: CopyLinkButtonProps) {
+export function CopyLinkButton({ form, extras = BLANK_VIEW_EXTRAS, disabled }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
 
@@ -33,10 +39,10 @@ export function CopyLinkButton({ form, disabled }: CopyLinkButtonProps) {
   useEffect(() => {
     setFallbackUrl(null);
     setCopied(false);
-  }, [form]);
+  }, [form, extras]);
 
   async function handleCopy() {
-    const url = buildShareUrl(form, window.location.origin, window.location.pathname);
+    const url = buildShareUrl(form, window.location.origin, window.location.pathname, extras);
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);

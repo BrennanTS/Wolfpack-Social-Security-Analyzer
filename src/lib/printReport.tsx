@@ -1,5 +1,5 @@
 import type { ClaimingRow } from './claimingRows';
-import { reportTheme } from './reportTheme';
+import { reportTheme, type ReportTheme } from './reportTheme';
 import type { ReportLayout } from './reportLayout';
 import type { HouseholdAnalysis } from './household';
 import type { LongevitySensitivity } from './longevity';
@@ -40,13 +40,16 @@ export async function downloadLegacyPdfReport(
   analysis: HouseholdAnalysis,
   claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
   gridTarget?: { on: boolean; percent: number },
-  themeId?: string,
+  theme?: ReportTheme,
 ): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
   const { setActiveReportTheme } = await import('../components/pdf/theme');
   // Before the document is imported OR built: the stylesheet is rebuilt here,
   // and a section that had already captured `styles` would print the old one.
-  setActiveReportTheme(reportTheme(themeId));
+  // A whole theme rather than an id: the editor previews and exports drafts
+  // that are not in the registry at all, and `reportTheme` could only ever
+  // hand back a preset.
+  setActiveReportTheme(theme ?? reportTheme(undefined));
   const { LegacyReportDocument } = await import('../components/pdf/LegacyReportDocument');
 
   const blob = await pdf(
@@ -77,12 +80,15 @@ export async function downloadPdfReport(
   claimingRowsByPerson: Record<string, ClaimingRow[]> = {},
   gridTarget?: { on: boolean; percent: number },
   sensitivity?: LongevitySensitivity | null,
-  themeId?: string,
+  theme?: ReportTheme,
   layout?: ReportLayout,
 ): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
   const { setActiveReportTheme } = await import('../components/pdf/theme');
-  setActiveReportTheme(reportTheme(themeId));
+  // A whole theme rather than an id: the editor previews and exports drafts
+  // that are not in the registry at all, and `reportTheme` could only ever
+  // hand back a preset.
+  setActiveReportTheme(theme ?? reportTheme(undefined));
   const { ReportDocument } = await import('../components/pdf/ReportDocument');
 
   const blob = await pdf(

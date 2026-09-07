@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_REPORT_THEME_ID, REPORT_THEMES, reportTheme } from './reportTheme';
+import {
+  DEFAULT_REPORT_THEME_ID,
+  MAX_LOGO_CHARS,
+  REPORT_THEMES,
+  THEME_COLORS,
+  parseTheme,
+  parseThemeFile,
+  reportTheme,
+  serializeTheme,
+  themeColorWarning,
+} from './reportTheme';
+import { BRAND_NAME } from './brand';
 
 /** WCAG relative luminance. */
 function luminance(hex: string): number {
@@ -79,4 +90,112 @@ describe('report themes', () => {
       });
     });
   }
+});
+
+
+describe('branding', () => {
+  it('gives every preset the house firm to start from', () => {
+    // A theme is a whole identity now, so a preset with no firm would print a
+    // cover that says "Prepared by" and then nothing.
+    for (const theme of REPORT_THEMES) expect(theme.firm).toBe(BRAND_NAME);
+  });
+
+  it('names every color the editor offers, and offers every color a theme has', () => {
+    // A color added to the theme and forgotten in `THEME_COLORS` would be
+    // uneditable; one listed but absent would render an empty well.
+    const house = reportTheme(DEFAULT_REPORT_THEME_ID) as unknown as Record<string, unknown>;
+    for (const field of THEME_COLORS) expect(typeof house[field.key]).toBe('string');
+    const listed = new Set(THEME_COLORS.map((f) => f.key));
+    const colorish = Object.entries(house)
+      .filter(([, v]) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v as string))
+      .map(([k]) => k);
+    for (const key of colorish) expect(listed).toContain(key);
+  });
+});
+
+describe('contrast warnings', () => {
+  const field = (key: string) => THEME_COLORS.find((f) => f.key === key)!;
+
+  it('says nothing about a preset color', () => {
+    const house = reportTheme(DEFAULT_REPORT_THEME_ID);
+    for (const f of THEME_COLORS) {
+      expect(themeColorWarning(f, house[f.key])).toBeNull();
+    }
+  });
+
+  it('warns about text that will print faint, with the ratio in it', () => {
+    const warning = themeColorWarning(field('muted'), '#cccccc');
+    expect(warning).toMatch(/1\.6:1/);
+    expect(warning).toMatch(/4\.5:1/);
+  });
+
+  it('says nothing about a border or a heat ramp, which are meant to be pale', () => {
+    // Holding these to a text floor would warn about the two colors that are
+    // correct, which teaches an adviser to ignore the warnings.
+    expect(themeColorWarning(field('border'), '#f4f4f4')).toBeNull();
+    expect(themeColorWarning(field('heatLo'), '#fafafa')).toBeNull();
+  });
+});
+
+describe('parseTheme repairs rather than trusts', () => {
+  const house = reportTheme(DEFAULT_REPORT_THEME_ID);
+
+  it('survives export and import unchanged', () => {
+    expect(parseThemeFile(serializeTheme(house))).toEqual(house);
+  });
+
+  it('returns null for things that are not themes at all', () => {
+    for (const junk of [null, undefined, 42, 'theme', {}, [], { items: [] }]) {
+      expect(parseTheme(junk)).toBeNull();
+    }
+  });
+
+  it('falls back to the house color for one that is missing or malformed', () => {
+    const theme = parseTheme({ name: 'Half written', ink: 'rebeccapurple', brand: '#1f4e79' });
+    expect(theme?.ink).toBe(house.ink);
+    expect(theme?.brand).toBe('#1f4e79');
+  });
+
+  it('expands a three-digit hex, so everything downstream sees one shape', () => {
+    expect(parseTheme({ name: 'Short', ink: '#ABC' })?.ink).toBe('#aabbcc');
+  });
+
+  it('supplies the house firm when a file carries none', () => {
+    expect(parseTheme({ name: 'No firm', ink: '#111111' })?.firm).toBe(BRAND_NAME);
+  });
+
+  it('drops an empty adviser line rather than printing a blank one', () => {
+    expect(parseTheme({ name: 'x', ink: '#111111', adviser: '   ' })?.adviser).toBeUndefined();
+  });
+
+  it('accepts an embedded logo and refuses a linked one', () => {
+    // A remote URL would make the cover depend on someone else's server while
+    // a client watches, and `javascript:` has no business in an image source.
+    const data = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(parseTheme({ name: 'x', ink: '#111111', logo: data })?.logo).toBe(data);
+    for (const bad of [
+      'https://example.com/logo.png',
+      'javascript:alert(1)',
+      'data:text/html;base64,PHN2Zz4=',
+      42,
+    ]) {
+      expect(parseTheme({ name: 'x', ink: '#111111', logo: bad })?.logo).toBeUndefined();
+    }
+  });
+
+  it('refuses a logo too large to store', () => {
+    // Every theme is written to storage on every change and carried in an
+    // exported file; one unbounded logo would take the layouts with it.
+    const huge = `data:image/png;base64,${'A'.repeat(MAX_LOGO_CHARS)}`;
+    expect(parseTheme({ name: 'x', ink: '#111111', logo: huge })?.logo).toBeUndefined();
+  });
+
+  it('caps a pathological name rather than letting it into the picker', () => {
+    expect(parseTheme({ name: 'x'.repeat(500), ink: '#111111' })?.name.length).toBeLessThanOrEqual(60);
+  });
+
+  it('does not throw on malformed json', () => {
+    expect(parseThemeFile('{not json')).toBeNull();
+    expect(parseThemeFile('')).toBeNull();
+  });
 });

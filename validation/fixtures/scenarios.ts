@@ -97,7 +97,7 @@ export interface ScenarioExpected {
   /**
    * The survivor's age at the best survivor-claim month, and the lifetime
    * gain over what the app displays — null where no alternative applies
-   * (single claimant, a tie in plan-to months, the engine's unmodelled
+   * (single claimant, a tie in plan-to months, the engine's unmodeled
    * survivor direction already disclosed via `survivorGap`, or the survivor
    * already claims early enough that no month improves on the baseline).
    *

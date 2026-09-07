@@ -3316,6 +3316,315 @@ tbody tr:hover {
   overscroll-behavior: contain;
 }
 
+/* ─── Saved clients ─── */
+
+/* Narrower than the layout and theme dialogs: this is a list, not a workbench
+   with a preview beside it. */
+.clients-dialog {
+  width: min(680px, calc(100vw - 48px));
+}
+
+.clients-body {
+  display: grid;
+  gap: 14px;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  min-height: 0;
+  padding: 18px 22px 20px;
+  overflow: hidden;
+}
+
+.clients-save {
+  display: grid;
+  gap: 6px;
+}
+
+.clients-save-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.clients-save-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.clients-save-row button,
+.clients-row-actions button {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+.clients-save-row button:hover:not(:disabled),
+.clients-row-actions button:hover {
+  color: var(--text);
+  border-color: var(--gold);
+}
+
+.clients-save-row button:disabled,
+.clients-save-row input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.clients-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
+.clients-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* The record the view came from, so "Update open" is unambiguous. */
+.clients-row.is-open {
+  border-color: var(--gold);
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+
+.clients-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.clients-row-name {
+  font-size: 0.8125rem;
+  color: var(--text);
+}
+
+.clients-row-meta {
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+}
+
+.clients-row-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.clients-empty {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+}
+
+/* ─── Report theme editor ─── */
+
+/* The same bones as the layout editor: a picker on top, a working area that
+   scrolls, and the CRUD row held at the bottom. */
+.theme-editor {
+  display: grid;
+  gap: 14px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.theme-fields {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.theme-group-heading {
+  margin: 0 0 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.theme-group-heading + .theme-field,
+.theme-fields > .theme-field + .theme-group-heading {
+  margin-top: 0;
+}
+
+.theme-fields > .theme-group-heading:not(:first-child) {
+  margin-top: 18px;
+}
+
+.theme-field {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.theme-field-label {
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.theme-field-hint {
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+  line-height: 1.35;
+}
+
+.theme-field input[type='text'] {
+  width: 100%;
+  padding: 7px 9px;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.theme-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.theme-logo-row button {
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.theme-logo-row button:hover {
+  color: var(--text);
+  border-color: var(--gold);
+}
+
+/* A checkerboard, because a logo is usually transparent and a white mark on
+   a white card looks like a broken image. */
+.theme-logo-preview {
+  height: 34px;
+  max-width: 160px;
+  object-fit: contain;
+  padding: 3px 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(45deg, var(--fill) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--fill) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--fill) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--fill) 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+}
+
+.theme-colors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px 14px;
+}
+
+.theme-color {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.theme-color-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+/* The well itself: browsers draw their own chrome, so it is trimmed back to
+   a swatch rather than left as a button-shaped control. */
+.theme-color input[type='color'] {
+  flex-shrink: 0;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.theme-color input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.theme-color input[type='color']::-webkit-color-swatch {
+  border: 0;
+  border-radius: 2px;
+}
+
+.theme-color-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.theme-color-name {
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.theme-color-blurb {
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+  line-height: 1.3;
+}
+
+.theme-color-hex {
+  width: 82px;
+  padding: 5px 7px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* Advice, not a refusal — a firm's own brand color is not ours to reject. */
+.theme-color-warning {
+  grid-column: 1 / -1;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--gold-dark);
+}
+
+.theme-swatches-inline {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
 /* ─── Live report preview ─── */
 .report-preview {
   display: flex;

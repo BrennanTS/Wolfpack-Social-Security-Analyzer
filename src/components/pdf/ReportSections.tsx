@@ -1,6 +1,5 @@
-import { Text, View } from '@react-pdf/renderer';
+import { Image, Text, View } from '@react-pdf/renderer';
 import type { HouseholdAnalysis } from '../../lib/household';
-import { BRAND_NAME } from '../../lib/brand';
 import type { LongevitySensitivity } from '../../lib/longevity';
 import { incomeChanges } from '../../lib/incomeChanges';
 import { monthDateAt } from '../../lib/benefitPeriods';
@@ -19,7 +18,7 @@ import {
   personLabel,
 } from '../../lib/format';
 import { firstDeath } from '../../lib/incomeCliff';
-import { styles } from './theme';
+import { ADVISER, FIRM, LOGO, styles } from './theme';
 import * as copy from './reportCopy';
 
 /** A month index on the band convention, as a calendar month. */
@@ -481,7 +480,9 @@ export function CoverBlock({
       <Text style={styles.coverName}>{names.join(' and ')}</Text>
       <Text style={styles.coverDate}>{dateLabel}</Text>
       <Text style={styles.coverLabel}>{copy.COVER_PREPARED_BY}</Text>
-      <Text style={styles.coverFirm}>{BRAND_NAME}</Text>
+      {LOGO !== undefined && <Image style={styles.coverLogo} src={LOGO} />}
+      <Text style={styles.coverFirm}>{FIRM}</Text>
+      {ADVISER !== undefined && <Text style={styles.coverAdviser}>{ADVISER}</Text>}
     </>
   );
 }

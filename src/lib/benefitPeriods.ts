@@ -332,7 +332,7 @@ function detectSurvivorGap(
   const deceasedIdx = 1 - survivorIdx;
   if (finalIndexes[survivorIdx] === finalIndexes[deceasedIdx]) return null;
 
-  // The unmodelled direction is specifically the earner outliving the
+  // The unmodeled direction is specifically the earner outliving the
   // dependent. The other no-survivor-band case is a modeled decision.
   const { earnerIndex } = classifyEarnerDependent([recipients[0], recipients[1]]);
   if (survivorIdx !== earnerIndex) return null;

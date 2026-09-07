@@ -35,6 +35,18 @@ export let RED = DEFAULT_THEME.red;
 export let HEAT_LO = DEFAULT_THEME.heatLo;
 export let HEAT_HI = DEFAULT_THEME.heatHi;
 
+/**
+ * Who the report is from, and their mark.
+ *
+ * Live bindings like the colors above, and for the same reason: the firm name
+ * prints on the cover, in the footer of every page and in the disclosures,
+ * and threading it through every section for a value that is constant across
+ * a render would touch a dozen components to no end.
+ */
+export let FIRM = DEFAULT_THEME.firm;
+export let ADVISER: string | undefined = DEFAULT_THEME.adviser;
+export let LOGO: string | undefined = DEFAULT_THEME.logo;
+
 /** Letter page content width: 612pt − left/right padding */
 export const CONTENT_W = 516;
 /**
@@ -275,7 +287,7 @@ function buildStyles() {
     borderColor: SUBTLE,
     borderRadius: 1.5,
   },
-  /* Cover page. A band of brand colour with the title in it — the one place
+  /* Cover page. A band of brand color with the title in it — the one place
      the report is allowed to look like a document rather than a page — then
      the names with room around them. Nothing absolute-positioned: react-pdf
      places these in flow, so a long firm name simply takes another line. */
@@ -299,6 +311,15 @@ function buildStyles() {
   coverName: { fontSize: 18, color: INK, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
   coverDate: { fontSize: 10, color: MUTED, marginBottom: 36 },
   coverFirm: { fontSize: 11, color: INK },
+  coverAdviser: { fontSize: 10, color: MUTED, marginTop: 2 },
+  /**
+   * The optional logo on the cover.
+   *
+   * Height is fixed and width is left to the image, so a wide wordmark and a
+   * square badge both sit on the same baseline instead of one of them being
+   * stretched to the other's shape.
+   */
+  coverLogo: { height: 34, marginBottom: 14, objectFit: 'contain', alignSelf: 'flex-start' },
   /* Introduction: a list of questions, each on its own line with a mark. */
   questionRow: { flexDirection: 'row', marginBottom: 5 },
   questionMark: { width: 14, fontSize: 9.5, color: GOLD, fontFamily: 'Helvetica-Bold' },
@@ -478,6 +499,9 @@ export function heatColor(ratio: number): string {
  * being live at once.
  */
 export function setActiveReportTheme(theme: ReportTheme): void {
+  FIRM = theme.firm;
+  ADVISER = theme.adviser;
+  LOGO = theme.logo;
   INK = theme.ink;
   GOLD = theme.brand;
   GOLD_DARK = theme.brandDark;

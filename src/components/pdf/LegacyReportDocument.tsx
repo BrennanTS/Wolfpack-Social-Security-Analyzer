@@ -1,10 +1,10 @@
 import { Document } from '@react-pdf/renderer';
-import { BRAND_NAME } from '../../lib/brand';
 import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
 import { formatVersionLabel } from '../../lib/version';
 import { HouseholdSection } from './HouseholdSection';
 import { PersonSection } from './PersonSection';
 import { WidowedSection } from './WidowedSection';
+import { FIRM } from './theme';
 import { formatReportDate, MethodologyAppendix, ReportHeader } from './reportChrome';
 
 /**
@@ -45,14 +45,14 @@ export function LegacyReportDocument({
   const shape = householdDisplayShape(analysis.status);
   const isMarried = shape === 'twoClaimants';
   const reportDate = formatReportDate();
-  const footerText = `${BRAND_NAME} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
+  const footerText = `${FIRM} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
   const appendix = <MethodologyAppendix analysis={analysis} />;
   const leadingHeader = <ReportHeader dateLabel={reportDate} />;
 
   return (
     <Document
       title="Social Security Claiming Analysis"
-      author={BRAND_NAME}
+      author={FIRM}
       subject="Social Security Claiming Analysis"
     >
       {shape === 'widowed' && (

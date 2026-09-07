@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PLAN_TO_AGE, LIFE_EXPECTANCY_BOUNDS } from './formBounds';
 import { BLANK_FORM, type AnalyzerFormState } from './formState';
-import { buildShareUrl, fromShareParams, toShareParams } from './shareLink';
+import {
+  buildShareUrl,
+  fromShareParams,
+  readViewExtras,
+  toShareParams,
+  toViewParams,
+  BLANK_VIEW_EXTRAS,
+} from './shareLink';
+import { DEFAULT_TARGET_RANGE } from './gridTarget';
 import {
   addScenario,
   DEFAULT_SCENARIO_SET,
@@ -9,6 +17,7 @@ import {
   resetScenarios,
   selectedRow,
   selectScenario,
+  toggleScenarioHidden,
   type ScenarioSet,
 } from './scenario';
 import { BLANK_ALREADY_CLAIMED, BLANK_DECEASED } from './widowedForm';
@@ -46,13 +55,10 @@ const single: AnalyzerFormState = {
 };
 
 describe('round trip', () => {
-  it('restores everything except the names', () => {
-    const restored = fromShareParams(toShareParams(married));
-    expect(restored).toEqual({
-      ...married,
-      personA: { ...married.personA, name: '' },
-      personB: { ...married.personB, name: '' },
-    });
+  it('restores everything, names included', () => {
+    // Names travel since 2026-09-07 — see the module comment for what
+    // changed and what did not.
+    expect(fromShareParams(toShareParams(married))).toEqual(married);
   });
 
   it('restores a single household without person B', () => {
@@ -68,16 +74,38 @@ describe('round trip', () => {
   });
 });
 
-describe('names are never encoded', () => {
-  it('omits both name fields from the query string', () => {
+describe('first names', () => {
+  it('travel, so a link opens on the household it was sent about', () => {
     const query = toShareParams(married).toString();
-    expect(query).not.toMatch(/Dan/i);
-    expect(query).not.toMatch(/Sarah/i);
+    expect(query).toContain('an=Dan');
+    expect(query).toContain('bn=Sarah');
+  });
+
+  it('are omitted when there are none, rather than sent empty', () => {
+    const query = toShareParams({
+      ...married,
+      personA: { ...married.personA, name: '   ' },
+      personB: { ...married.personB, name: '' },
+    }).toString();
+    expect(query).not.toContain('an=');
+    expect(query).not.toContain('bn=');
+  });
+
+  it('survive the characters a name actually has', () => {
+    const back = fromShareParams(
+      toShareParams({ ...married, personA: { ...married.personA, name: "Ana María O'Neill" } }),
+    );
+    expect(back.personA.name).toBe("Ana María O'Neill");
+  });
+
+  it('are capped rather than rejected, being display text', () => {
+    const back = fromShareParams(new URLSearchParams(`an=${'x'.repeat(200)}`));
+    expect(back.personA.name).toHaveLength(40);
   });
 
   it('omits person B entirely when single', () => {
     const query = toShareParams(single).toString();
-    expect(query).not.toMatch(/[?&]?b[ymgb]=/);
+    expect(query).not.toMatch(/[?&]?b[ymgbn]=/);
   });
 });
 
@@ -373,7 +401,7 @@ describe('legacy share links', () => {
     expect(fromShareParams(new URLSearchParams('m=0')).maritalStatus).toBe('single');
   });
 
-  it('leaves the status unchosen when m is absent or unrecognised', () => {
+  it('leaves the status unchosen when m is absent or unrecognized', () => {
     expect(fromShareParams(new URLSearchParams('')).maritalStatus).toBeNull();
     expect(fromShareParams(new URLSearchParams('m=x')).maritalStatus).toBeNull();
   });
@@ -410,12 +438,18 @@ describe('scenario share links', () => {
     expect(toShareParams(withScenarios(set)).get('sc')).toBe('65-0.66-3');
   });
 
-  it('writes nothing for a custom row nobody selected', () => {
-    // `addScenario` no longer selects, so a link built while the report is
-    // still on the optimum must carry the optimum — not whichever row the
-    // adviser last typed in to compare against it.
+  it('carries a custom row nobody selected, and keeps the optimum selected', () => {
+    // The row travels now — a saved view that lost the comparison an adviser
+    // built is the data loss this encoding exists to prevent — but selection
+    // is explicit, so a link built while the report is still on the optimum
+    // opens on the optimum rather than on whatever was typed in beside it.
     const set = addScenario(resetScenarios(), [{ years: 65, months: 0 }]);
-    expect(toShareParams(withScenarios(set)).get('sc')).toBeNull();
+    const params = toShareParams(withScenarios(set));
+    expect(params.get('sc')).toBe('65-0');
+    expect(params.get('scs')).toBe('optimal');
+    const back = fromShareParams(params);
+    expect(back.scenarios.selectedId).toBe('optimal');
+    expect(back.scenarios.rows).toHaveLength(5);
   });
 
   it('round-trips through a URL into a selected custom row', () => {
@@ -460,6 +494,189 @@ describe('scenario share links', () => {
     expect(selectedRow(back.scenarios).scenario).toEqual({
       kind: 'custom',
       ages: [{ years: 62, months: 0 }],
+    });
+  });
+});
+
+
+describe('the rest of the view', () => {
+  const complete = (): AnalyzerFormState => ({
+    ...BLANK_FORM,
+    personA: { ...BLANK_FORM.personA, birthYear: 1962, birthMonth: 4, gender: 'male', monthlyBenefit: 2400, lifeExpectancy: 85 },
+    maritalStatus: 'single',
+  });
+
+  it('carries the rows an adviser hid and the ages they added', () => {
+    // Both are printed in the report, so a link or a saved client that lost
+    // them reopens something the adviser did not set up.
+    const params = toViewParams(complete(), {
+      claimingPrefs: { a: { hidden: ['63', '64'], added: [{ years: 69, months: 1 }] } },
+      gridTarget: DEFAULT_TARGET_RANGE,
+    });
+    expect(params.get('pah')).toBe('63,64');
+    expect(params.get('paa')).toBe('69-1');
+    const back = readViewExtras(params);
+    expect(back.claimingPrefs.a).toEqual({ hidden: ['63', '64'], added: [{ years: 69, months: 1 }] });
+  });
+
+  it('leaves a spouse’s preferences out of a single claimant’s link', () => {
+    // Switching married → single leaves person B's edits in state; writing
+    // them would restore a table for someone the household no longer has.
+    const params = toViewParams(complete(), {
+      claimingPrefs: { b: { hidden: ['67'], added: [] } },
+      gridTarget: DEFAULT_TARGET_RANGE,
+    });
+    expect(params.get('pbh')).toBeNull();
+  });
+
+  it('says nothing about preferences that were never touched', () => {
+    const params = toViewParams(complete(), BLANK_VIEW_EXTRAS);
+    expect(params.get('pah')).toBeNull();
+    expect(params.get('paa')).toBeNull();
+    expect(readViewExtras(params).claimingPrefs).toEqual({});
+  });
+
+  it('drops a row id that is not one, keeping the rest', () => {
+    const params = new URLSearchParams('pah=63,%3Cscript%3E,64');
+    expect(readViewExtras(params).claimingPrefs.a?.hidden).toEqual(['63', '64']);
+  });
+
+  it('carries the near-best region, including when it is switched off', () => {
+    // Absent has to mean "a link written before this existed", and the
+    // default is on — so off is written explicitly.
+    const off = toViewParams(complete(), { claimingPrefs: {}, gridTarget: { on: false, percent: 1 } });
+    expect(off.get('gt')).toBe('off');
+    expect(readViewExtras(off).gridTarget.on).toBe(false);
+
+    const wide = toViewParams(complete(), { claimingPrefs: {}, gridTarget: { on: true, percent: 4 } });
+    expect(wide.get('gt')).toBe('4');
+    expect(readViewExtras(wide).gridTarget).toEqual({ on: true, percent: 4 });
+  });
+
+  it('falls back to the default region for a nonsense tolerance', () => {
+    for (const raw of ['-1', '0', '900', 'wide', '']) {
+      expect(readViewExtras(new URLSearchParams(`gt=${raw}`)).gridTarget).toEqual(
+        DEFAULT_TARGET_RANGE,
+      );
+    }
+  });
+
+  it('omits the tolerance when it is the default one', () => {
+    const params = toViewParams(complete(), BLANK_VIEW_EXTRAS);
+    expect(params.get('gt')).toBeNull();
+  });
+
+  it('carries the theme and layout the report is built with', () => {
+    // A saved client reopens looking the way it was presented, rather than in
+    // whatever was last used for someone else.
+    const params = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      themeId: 'midnight',
+      layoutId: 'preset-adviser',
+    });
+    expect(params.get('th')).toBe('midnight');
+    expect(params.get('ly')).toBe('preset-adviser');
+    const back = readViewExtras(params);
+    expect(back.themeId).toBe('midnight');
+    expect(back.layoutId).toBe('preset-adviser');
+  });
+
+  it('says nothing about a theme or layout that was not named', () => {
+    const params = toViewParams(complete(), BLANK_VIEW_EXTRAS);
+    expect(params.get('th')).toBeNull();
+    expect(readViewExtras(params).themeId).toBeUndefined();
+  });
+
+  it('refuses an id that is not one this app could have minted', () => {
+    // The value picks a theme by id; anything shaped unlike an id is a
+    // hand-edited link rather than a theme this browser has.
+    for (const raw of ['<script>', 'a b', 'x'.repeat(200), '']) {
+      expect(readViewExtras(new URLSearchParams(`th=${encodeURIComponent(raw)}`)).themeId).toBeUndefined();
+    }
+  });
+});
+
+describe('the whole scenario list', () => {
+  const withRows = (set: ScenarioSet): AnalyzerFormState => ({ ...BLANK_FORM, scenarios: set });
+
+  it('carries every custom row, not only the selected one', () => {
+    let set = addScenario(resetScenarios(), [{ years: 65, months: 0 }]);
+    set = addScenario(set, [{ years: 68, months: 6 }]);
+    const params = toShareParams(withRows(set));
+    expect(params.get('sc')).toBe('65-0_68-6');
+    const back = fromShareParams(params);
+    expect(back.scenarios.rows.filter((r) => r.scenario.kind === 'custom')).toHaveLength(2);
+  });
+
+  it('carries a renamed row’s label, and not a minted one', () => {
+    let set = addScenario(resetScenarios(), [{ years: 65, months: 0 }]);
+    const id = set.rows[set.rows.length - 1].id;
+    expect(toShareParams(withRows(set)).get('sc')).toBe('65-0');
+    set = { ...set, rows: set.rows.map((r) => (r.id === id ? { ...r, label: 'Retire early' } : r)) };
+    const params = toShareParams(withRows(set));
+    expect(params.get('sc')).toBe('65-0~Retire early');
+    const back = fromShareParams(params);
+    expect(back.scenarios.rows.map((r) => r.label)).toContain('Retire early');
+  });
+
+  it('carries a derived row as the selection, which used to be lost', () => {
+    // Selecting "Delay to 70" and sharing handed the reader Best.
+    const set = selectScenario(resetScenarios(), 'latest');
+    const params = toShareParams(withRows(set));
+    expect(params.get('scs')).toBe('latest');
+    expect(fromShareParams(params).scenarios.selectedId).toBe('latest');
+  });
+
+  it('carries which rows are hidden', () => {
+    const set = toggleScenarioHidden(resetScenarios(), 'fra');
+    const params = toShareParams(withRows(set));
+    expect(params.get('sch')).toBe('fra');
+    const back = fromShareParams(params);
+    expect(back.scenarios.rows.find((r) => r.id === 'fra')?.hidden).toBe(true);
+  });
+
+  it('will not hide the row everything else is measured against', () => {
+    // `toggleScenarioHidden` refuses Optimal; a hand-written link goes
+    // through that rule rather than around it.
+    const back = fromShareParams(new URLSearchParams('sch=optimal'));
+    expect(back.scenarios.rows.find((r) => r.id === 'optimal')?.hidden).not.toBe(true);
+  });
+
+  it('ignores a selection token that names nothing', () => {
+    const back = fromShareParams(new URLSearchParams('scs=c9'));
+    expect(back.scenarios.selectedId).toBe('optimal');
+  });
+
+  it('still reads a link written before rows could travel together', () => {
+    // One custom row, no `scs` — the shape every link in circulation has.
+    const back = fromShareParams(new URLSearchParams('sc=65-0.67-6'));
+    const selected = selectedRow(back.scenarios);
+    expect(selected.scenario).toEqual({
+      kind: 'custom',
+      ages: [{ years: 65, months: 0 }, { years: 67, months: 6 }],
+    });
+  });
+
+  it('drops the whole list when one row is malformed', () => {
+    // A partially restored comparison is a set of rows the adviser did not
+    // build, which is worse than the defaults.
+    const back = fromShareParams(new URLSearchParams('sc=65-0_nonsense'));
+    expect(back.scenarios).toEqual(DEFAULT_SCENARIO_SET);
+  });
+
+  it('round-trips a list an adviser actually built', () => {
+    let set = addScenario(resetScenarios(), [{ years: 65, months: 0 }]);
+    set = addScenario(set, [{ years: 70, months: 0 }]);
+    set = toggleScenarioHidden(set, 'earliest');
+    set = selectScenario(set, set.rows[set.rows.length - 1].id);
+    const back = fromShareParams(toShareParams(withRows(set)));
+    expect(back.scenarios.rows.map((r) => r.scenario.kind)).toEqual(
+      set.rows.map((r) => r.scenario.kind),
+    );
+    expect(back.scenarios.rows.find((r) => r.id === 'earliest')?.hidden).toBe(true);
+    expect(selectedRow(back.scenarios).scenario).toEqual({
+      kind: 'custom',
+      ages: [{ years: 70, months: 0 }],
     });
   });
 });

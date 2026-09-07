@@ -8,7 +8,6 @@
  * how an import cycle starts.
  */
 import { Text, View } from '@react-pdf/renderer';
-import { BRAND_NAME } from '../../lib/brand';
 import { BLS_CPI_URL, formatPercent, getCpiLast30Years } from '../../lib/cpiHistory';
 import { fraLabel } from '../../lib/format';
 import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
@@ -19,7 +18,7 @@ import {
   spousalSummary,
 } from '../methodologyCopy';
 import { WIDOWED_MODELING_NOTE, WIDOWED_SURVIVOR_CARD } from '../widowedCopy';
-import { styles } from './theme';
+import { FIRM, styles } from './theme';
 
 interface MethodItem {
   title: string;
@@ -42,7 +41,7 @@ export function PageFooter({ text }: { text: string }) {
  * It exists so a printed/downloaded report reads as a finished document
  * rather than opening on a bare section heading.
  *
- * No brand line: `PageFooter` already prints "Wolfpack | Planning Team" on
+ * No brand line: `PageFooter` already prints the firm's name on
  * every page including this one, so a second copy 700pt above it was the
  * same name twice on one sheet. The rule that kept this header off pages 2+
  * is the same rule, applied one level in.
@@ -228,7 +227,7 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
       <View style={styles.disclaimer} wrap={false}>
         <Text style={styles.disclaimerTitle}>Important Disclosures</Text>
         <Text style={styles.disclaimerText}>
-          Prepared by {BRAND_NAME} for educational
+          Prepared by {FIRM} for educational
           planning only. Not affiliated with the SSA. Benefit amounts are in today&rsquo;s
           dollars, before any future cost-of-living adjustment.{' '}
           {appendixShape === 'widowed'
