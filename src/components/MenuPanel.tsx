@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { blockAppliesTo, hiddenBlockIds, layoutBlockIds } from '../lib/reportLayout';
+import { disclosureHasPlaceholder } from '../lib/reportTheme';
 import type { useReportLayouts } from '../hooks/useReportLayouts';
 import type { useReportThemes } from '../hooks/useReportThemes';
 import type { HouseholdDisplayShape } from '../lib/household';
@@ -23,8 +24,8 @@ function summarize(
     skipped > 0 ? `${skipped} not printed for this household` : '',
   ].filter(Boolean);
   return notes.length === 0
-    ? `“${layout.name}” — ${count}.`
-    : `“${layout.name}” — ${count}; ${notes.join(', ')}.`;
+    ? `“${layout.name}”: ${count}.`
+    : `“${layout.name}”: ${count}; ${notes.join(', ')}.`;
 }
 
 interface MenuPanelProps {
@@ -146,7 +147,7 @@ export function MenuPanel({
                 the app — an adviser who picks Mono and sees the screen
                 unchanged should find that unsurprising rather than broken. */}
             <p className="menu-note">
-              “{themes.theme.name}” — {themes.theme.firm}. Applies to the exported PDF; the
+              “{themes.theme.name}”, {themes.theme.firm}. Applies to the exported PDF; the
               app keeps its own appearance, including dark mode.
             </p>
             <span className="theme-swatches theme-swatches-inline" aria-hidden="true">
@@ -155,6 +156,15 @@ export function MenuPanel({
               <span className="theme-swatch" style={{ background: themes.theme.heatHi }} />
               <span className="theme-swatch" style={{ background: themes.theme.ink }} />
             </span>
+            {/* The one thing the theme can be quietly wrong about. Said here,
+                where an adviser looks before exporting, as well as in the
+                editor where the text is. */}
+            {disclosureHasPlaceholder(themes.theme.disclosure) && (
+              <p className="menu-note menu-note-warning" role="status">
+                The disclosures still carry the placeholder for your firm’s regulatory
+                wording. It is left off the report until it is replaced.
+              </p>
+            )}
             <button type="button" className="menu-action" onClick={onEditTheme}>
               Edit theme…
             </button>
@@ -174,7 +184,7 @@ export function MenuPanel({
 
             <p className="menu-note menu-note-spaced">
               The legacy report is the one that printed before layouts. Kept while advisers
-              move across, and on its way out — its order is fixed, so nothing here changes it.
+              move across, and on its way out. Its order is fixed, so nothing here changes it.
             </p>
             <button
               type="button"

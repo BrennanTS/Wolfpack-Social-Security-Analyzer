@@ -147,7 +147,7 @@ export function ClaimingGridPanel({
   function cellLabel(cell: ClaimingGridCell): string {
     return `${names[0]} at ${filingAgeLabel(cell.ages[0])}, ${names[1]} at ${filingAgeLabel(
       cell.ages[1],
-    )} — ${formatCurrency(cell.value)}, ${percentOfBest(grid!, cell.value).toFixed(1)}% of best`;
+    )}: ${formatCurrency(cell.value)}, ${percentOfBest(grid!, cell.value).toFixed(1)}% of best`;
   }
 
   return (

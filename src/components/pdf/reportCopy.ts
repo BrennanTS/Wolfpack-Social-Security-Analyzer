@@ -55,9 +55,9 @@ export const CHANGE_TABLE_NOTE =
 export const SURVIVOR_TITLE = 'What the one left behind receives';
 
 export const SURVIVOR_INTRO =
-  'When one of you dies, the other keeps the larger of the two benefits — not both. ' +
-  'Waiting raises that figure for whoever outlives the other, for every year they ' +
-  'live on. This is the reason to wait that a lifetime total on its own cannot show.';
+  'When one of you dies, the other keeps the larger of the two benefits, not both. ' +
+  'Waiting raises that figure for whoever lives longer, for every year they live on. ' +
+  'A lifetime total on its own cannot show this.';
 
 /**
  * How much better the chosen plan leaves the survivor, and for how long.
@@ -70,12 +70,12 @@ export function survivorGainNote(gain: string, worstLabel: string, years: number
   const lead = `${gain} a year more than “${worstLabel}”`;
   if (years < 1) {
     return (
-      `${lead} — for every year the survivor lives on. On the ages in this report they ` +
-      'die within a year of each other, so the difference barely arises; it is worth ' +
-      'weighing because those ages are the least certain thing here.'
+      `${lead}, for every year the survivor lives on. On the ages in this report they ` +
+      'die within a year of each other, so the difference barely arises. It is still ' +
+      'worth weighing, because those ages are the least certain part of this report.'
     );
   }
-  return `${lead} — and about ${years} years to receive it, on the ages in this report.`;
+  return `${lead}, and about ${years} years to receive it, on the ages in this report.`;
 }
 
 export const SURVIVOR_CHART_CAPTION =
@@ -88,30 +88,29 @@ export const SURVIVOR_CHART_CAPTION =
 export const LONGEVITY_TITLE = 'What if we are wrong about how long you live';
 
 export const LONGEVITY_INTRO =
-  'Every figure in this report rests on the ages you told us to plan to. Nobody knows ' +
-  'those ages. So here is the same comparison priced three ways — as planned, and if ' +
+  'Every figure in this report rests on the ages you chose to plan to. Nobody knows ' +
+  'those ages. This page prices the same comparison three ways: as planned, and if ' +
   'you both live about ten years less or ten years more.';
 
 export function longevityVerdict(winnerLabel: string | null, tied = false): string {
   if (winnerLabel === null && tied) {
     return (
-      'The leading plans are within half a percent of each other however long you live — ' +
-      'a few thousand dollars across thirty years, which is less than the assumptions ' +
-      'behind them can be trusted to. Choose between them on when you actually want to ' +
-      'stop working, not on these figures.'
+      'The leading plans are within half a percent of each other however long you live. ' +
+      'That is a few thousand dollars across thirty years, which is less than the ' +
+      'assumptions behind them can support. Choose between them on when you want to ' +
+      'stop working rather than on these figures.'
     );
   }
   if (winnerLabel === null) {
     return (
       'No single plan wins in all three cases. Which one suits you depends on how long ' +
       'you expect to live, and on how much it would matter to run short late in life. ' +
-      'That is a conversation to have rather than a number to read.'
+      'Talk this one through with your adviser.'
     );
   }
   return (
     `“${winnerLabel}” pays the most in all three cases. You do not have to be right ` +
-    'about how long you live for it to be the better choice — which is a stronger ' +
-    'reason to pick it than any single figure in this report.'
+    'about how long you live for it to be the better choice.'
   );
 }
 
@@ -137,9 +136,9 @@ export const ACTION_INTRO =
 /** Said once, in the intro — not repeated on every filing row. */
 export const ACTION_APPLY_NOTE =
   'Apply about three months before you want payments to start. You can apply online at ' +
-  'ssa.gov, by phone on 1-800-772-1213, or at a local office — call first for an ' +
-  'appointment. A survivor benefit cannot be applied for online: it has to be by phone ' +
-  'or in person.';
+  'ssa.gov, by phone at 1-800-772-1213, or at a local Social Security office. Call first ' +
+  'for an appointment. Survivor benefits cannot be applied for online. Apply by phone or ' +
+  'in person.';
 
 /**
  * Savvy's report is the only one of the six that tells the client what
@@ -155,9 +154,9 @@ export const ACTION_CHECK_EARNINGS =
   'and it is far easier to correct now than later.';
 
 export const ACTION_DEATH_STEP =
-  'Tell Social Security. The survivor benefit does not start on its own, and a one-off ' +
-  'payment of $255 is due to the surviving spouse — it has to be claimed within two ' +
-  'years.';
+  'Report the death to Social Security. The survivor benefit does not start on its own. ' +
+  'A one-time lump-sum death payment of $255 is also due to the surviving spouse and ' +
+  'must be claimed within two years.';
 
 export const ACTION_REVIEW_NOTE =
   'Review this once a year, and sooner if your health, your marriage, or your plans for ' +
@@ -176,25 +175,32 @@ export const KEY_TERMS: Term[] = [
   {
     term: 'Your full retirement age',
     body:
-      'The age at which Social Security pays your whole benefit — 67 for anyone born in ' +
+      'The age at which Social Security pays your full benefit: 67 for anyone born in ' +
       '1960 or later, and between 66 and 67 for those born before. Claim earlier and the ' +
-      'amount is permanently lower; wait and it is permanently higher, up to age 70. ' +
-      '(You may see this called your FRA.)',
+      'amount is permanently lower. Wait and it is permanently higher, up to age 70. ' +
+      '(Social Security calls this your FRA.)',
   },
   {
     term: 'Your full benefit',
     body:
       'What you would be paid each month if you claimed at your full retirement age. ' +
       'Everything else is worked out from it: about 70% of it at 62, and about 124% at ' +
-      '70. (You may see this called your PIA, or primary insurance amount.)',
+      '70. (Social Security calls this your primary insurance amount, or PIA.)',
   },
   {
-    term: 'The yearly rise',
+    term: 'Waiting past full retirement age',
+    body:
+      'For each month you wait past your full retirement age, up to age 70, your benefit ' +
+      'grows by two-thirds of one percent, which is 8% a year. The increase is permanent. ' +
+      '(Social Security calls these delayed retirement credits.)',
+  },
+  {
+    term: 'The yearly increase',
     body:
       'Social Security raises benefits most years to keep pace with prices. Figures in ' +
-      'this report are in today’s money, so they already allow for that — a figure of ' +
+      'this report are in today’s money, so they already allow for that. A figure of ' +
       '$3,000 a month means $3,000 of today’s buying power, whatever the actual check ' +
-      'says by then. (You may see this called a COLA.)',
+      'says by then. (Social Security calls this a cost-of-living adjustment, or COLA.)',
   },
   {
     term: 'Spousal benefit',
@@ -208,16 +214,16 @@ export const KEY_TERMS: Term[] = [
     body:
       'When one spouse dies, the other keeps the larger of the two benefits rather than ' +
       'both. The age the higher earner claimed at sets that figure for as long as the ' +
-      'survivor lives — which is why a filing decision is partly a decision for the ' +
-      'person left behind.',
+      'survivor lives, so a filing decision is also a decision about what the survivor ' +
+      'will receive. (Social Security calls this a widow’s or widower’s benefit.)',
   },
   {
     term: 'The widow’s limit',
     body:
-      'A survivor is not made to inherit the whole of an early-claiming cut. If the ' +
-      'spouse who died had claimed before their full retirement age, the survivor ' +
-      'receives the greater of what that spouse was actually paid and 82.5% of their ' +
-      'full benefit. It is the reason a survivor can be paid more than the person who died.',
+      'If the spouse who died had claimed before their full retirement age, the survivor ' +
+      'receives the greater of what that spouse was actually paid and 82.5% of that ' +
+      'spouse’s full benefit. This is why a survivor can be paid more than the person ' +
+      'who died.',
   },
 ];
 
@@ -227,8 +233,7 @@ export const KEY_TERMS: Term[] = [
 
 export const ASSUMPTIONS_TITLE = 'What this report assumes';
 
-export const ASSUMPTIONS_INTRO =
-  'The front of this report keeps the arithmetic out of the way. Here it is.';
+export const ASSUMPTIONS_INTRO = 'The assumptions behind every figure in this report.';
 
 export function planToNote(names: readonly string[], ages: readonly number[]): string {
   const each = names.map((name, i) => `${name} to ${ages[i]}`);
@@ -239,8 +244,8 @@ export function planToNote(names: readonly string[], ages: readonly number[]): s
       ? each.join(' and ')
       : `${each.slice(0, -1).join(', ')}, and ${each[each.length - 1]}`;
   return (
-    `Every figure assumes ${pairs}. These are the ages you chose, not a prediction. ` +
-    'The page on longevity shows how much the answer moves if they are wrong.'
+    `Every figure assumes ${pairs}. These are the ages you chose to plan to, not a ` +
+    'prediction. The page on longevity shows how much the answer moves if they are wrong.'
   );
 }
 
@@ -276,15 +281,15 @@ export const INTRO_TITLE = 'What this report answers';
  */
 export const INTRO_LEAD =
   'Claim early and you receive more payments, each one smaller. Wait and you receive ' +
-  'fewer payments, each one larger — and the larger figure is what the person left ' +
-  'behind keeps. Every page here is that trade-off, worked out with your numbers.';
+  'fewer payments, each one larger. The larger figure is also what a surviving spouse ' +
+  'keeps. Every page here works out that trade-off with your numbers.';
 
 /** The questions a client walks in with, in the order the report answers them. */
 export function introQuestions(hasSpouse: boolean): string[] {
   return hasSpouse
     ? [
         'When should each of you file?',
-        'What will you receive each month — separately, and together?',
+        'What will each of you receive each month, and what will you receive together?',
         'What happens to whoever is left, and for how long?',
         'How much does it matter if you live longer or shorter than expected?',
         'What do you actually have to do, and when?',
@@ -298,8 +303,8 @@ export function introQuestions(hasSpouse: boolean): string[] {
 }
 
 export const INTRO_HOW_TO_READ =
-  'The first page is the answer. Everything after it is the reasoning, in the order ' +
-  'you would ask for it. The words used are explained at the back.';
+  'The first page is the answer. The pages after it show the reasoning. The terms used ' +
+  'are explained at the back.';
 
 /* ------------------------------------------------------------------ *
  * What this report does not include
@@ -308,8 +313,7 @@ export const INTRO_HOW_TO_READ =
 export const LIMITS_TITLE = 'What this report does not include';
 
 export const LIMITS_INTRO =
-  'A report that only tells you what it knows is more useful than one that pretends ' +
-  'to know everything. These are the edges of this one.';
+  'This report answers a specific question. Here is what it leaves out.';
 
 /**
  * The limits, each named for what a reader might have assumed was covered.
@@ -325,7 +329,7 @@ export const LIMITS: Term[] = [
     body:
       'Your full benefit comes from your Social Security statement, and Social Security ' +
       'sets the real figure only when you apply. More years of work, or a change in the ' +
-      'yearly rise, will move it — and every other figure here moves with it.',
+      'yearly increase, will move it, and every other figure here moves with it.',
   },
   {
     term: 'Taxes',
@@ -339,14 +343,15 @@ export const LIMITS: Term[] = [
     body:
       'If you claim before your full retirement age and keep working, Social Security ' +
       'holds back part of your benefit above an earnings limit, and restores it later. ' +
-      'This report assumes you have stopped work by the month you claim.',
+      '(Social Security calls this the earnings test.) This report assumes you have ' +
+      'stopped work by the month you claim.',
   },
   {
     term: 'Other benefits',
     body:
       'Benefits for children, for a former spouse, for disability, and the reductions ' +
       'that apply to some public-sector pensions are not modeled. If any of these apply ' +
-      'to you, say so — they can change the answer.',
+      'to you, tell your adviser. They can change the answer.',
   },
   {
     term: 'The law',

@@ -6,6 +6,7 @@ import { PersonSection } from './PersonSection';
 import { WidowedSection } from './WidowedSection';
 import { FIRM } from './theme';
 import { formatReportDate, MethodologyAppendix, ReportHeader } from './reportChrome';
+import { DisclosureBlock } from './ReportSections';
 
 /**
  * The report this app printed before layouts, kept while advisers move
@@ -46,7 +47,14 @@ export function LegacyReportDocument({
   const isMarried = shape === 'twoClaimants';
   const reportDate = formatReportDate();
   const footerText = `${FIRM} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
-  const appendix = <MethodologyAppendix analysis={analysis} />;
+  // The firm's disclosures follow the appendix: this document has no layout
+  // to place them in, and a report an adviser can hand over must carry them.
+  const appendix = (
+    <>
+      <MethodologyAppendix analysis={analysis} />
+      {DisclosureBlock()}
+    </>
+  );
   const leadingHeader = <ReportHeader dateLabel={reportDate} />;
 
   return (

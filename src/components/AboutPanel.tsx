@@ -82,7 +82,7 @@ export function AboutPanel({ open, onClose }: AboutPanelProps) {
           </section>
 
           <div className="cpi-history">
-            <h3>BLS CPI-U — Last 30 Years</h3>
+            <h3>BLS CPI-U, last 30 years</h3>
             <p className="cpi-source">
               Annual inflation from the{' '}
               <a href={BLS_CPI_URL} target="_blank" rel="noopener noreferrer">

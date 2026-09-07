@@ -33,6 +33,16 @@ export interface ReportTheme {
   /** An optional second line under the firm — an adviser, or a team. */
   adviser?: string;
   /**
+   * The disclosures printed at the end of every report.
+   *
+   * Part of the theme because it is the firm's text, not the app's: the
+   * regulatory line a compliance officer requires is different for every
+   * firm, and the app has no business guessing it. Paragraphs are separated
+   * by a blank line. `DEFAULT_DISCLOSURE` is the starting point, and it
+   * carries a bracketed placeholder for exactly that line.
+   */
+  disclosure: string;
+  /**
    * An optional logo for the cover, as a data URL.
    *
    * Held in the theme rather than fetched from a link: a report is printed in
@@ -62,6 +72,42 @@ export interface ReportTheme {
 }
 
 /**
+ * The disclosures a report opens with until a firm writes its own.
+ *
+ * Written for a compliance reader as much as a client: each paragraph is one
+ * of the things a financial-planning review usually asks a claiming analysis
+ * to say. It is a draft to be reviewed, and the bracketed line says so.
+ */
+export const DEFAULT_DISCLOSURE = [
+  'This report is an educational estimate prepared to help you think about when to ' +
+    'claim Social Security. It is not a recommendation to buy or sell any investment or ' +
+    'insurance product, and it is not legal, tax, or accounting advice. Consult a ' +
+    'qualified professional about your own situation before acting on it.',
+  'The figures are estimates. They are based on the information you provided, including ' +
+    'the benefit amount on your Social Security statement, and on the assumptions listed in ' +
+    'this report for cost-of-living increases, the discount rate, and how long each person is ' +
+    'assumed to live. Your actual benefit is determined by the Social Security Administration ' +
+    'when you apply and may differ from any figure here. Verify your figures at ssa.gov or ' +
+    'with a Social Security representative before you make a decision.',
+  'This report is not affiliated with, endorsed by, or approved by the Social Security ' +
+    'Administration or any other government agency. Social Security rules are set by law ' +
+    'and can change.',
+  'This report was prepared for the people named on the cover and is intended for their ' +
+    'use only.',
+  '[Replace this paragraph with your firm’s regulatory disclosure, for example: Advisory ' +
+    'services are offered through Firm Name, a registered investment adviser. Insurance ' +
+    'products are offered through Agency Name.]',
+].join('\n\n');
+
+/** How long a disclosure may be. Long enough for a page; not a novel. */
+export const MAX_DISCLOSURE_CHARS = 6000;
+
+/** Whether a disclosure still carries the placeholder a firm has to replace. */
+export function disclosureHasPlaceholder(text: string): boolean {
+  return /\[[^\]]*\]/.test(text);
+}
+
+/**
  * The house palette, and the one the app itself wears. Bronze accents on
  * warm white, with the claiming grid in cool blue so the heat surface reads
  * as data rather than as more branding.
@@ -69,8 +115,9 @@ export interface ReportTheme {
 const WOLFPACK: ReportTheme = {
   id: 'wolfpack',
   name: 'Wolfpack',
-  blurb: 'Bronze on warm white — the house palette',
+  blurb: 'Bronze on warm white, the house palette',
   firm: BRAND_NAME,
+  disclosure: DEFAULT_DISCLOSURE,
   ink: '#101010',
   muted: '#454545',
   subtle: '#6b6b6b',
@@ -86,8 +133,9 @@ const WOLFPACK: ReportTheme = {
 const MIDNIGHT: ReportTheme = {
   id: 'midnight',
   name: 'Midnight',
-  blurb: 'Navy and gold — traditional, institutional',
+  blurb: 'Navy and gold, traditional and institutional',
   firm: BRAND_NAME,
+  disclosure: DEFAULT_DISCLOSURE,
   ink: '#101820',
   muted: '#3f4d5c',
   subtle: '#5f6c7a',
@@ -103,8 +151,9 @@ const MIDNIGHT: ReportTheme = {
 const SLATE: ReportTheme = {
   id: 'slate',
   name: 'Slate',
-  blurb: 'Teal on cool gray — quieter, more modern',
+  blurb: 'Teal on cool gray, quieter and more modern',
   firm: BRAND_NAME,
+  disclosure: DEFAULT_DISCLOSURE,
   ink: '#171c1a',
   muted: '#414b48',
   subtle: '#5f6b67',
@@ -129,8 +178,9 @@ const SLATE: ReportTheme = {
 const MONO: ReportTheme = {
   id: 'mono',
   name: 'Mono',
-  blurb: 'Black and white — safe on any printer',
+  blurb: 'Black and white, safe on any printer',
   firm: BRAND_NAME,
+  disclosure: DEFAULT_DISCLOSURE,
   ink: '#000000',
   muted: '#3d3d3d',
   subtle: '#5e5e5e',
@@ -219,7 +269,7 @@ export function themeColorWarning(field: ThemeColorField, value: string): string
   if (field.floor === null) return null;
   const ratio = contrastRatio(value, PAPER);
   if (ratio >= field.floor) return null;
-  return `${ratio.toFixed(1)}:1 on paper — below ${field.floor}:1, so this will print faint`;
+  return `${ratio.toFixed(1)}:1 on paper, below ${field.floor}:1, so this will print faint`;
 }
 
 export const DEFAULT_REPORT_THEME_ID = WOLFPACK.id;
@@ -313,6 +363,10 @@ export function parseTheme(raw: unknown): ReportTheme | null {
     name: cleanText(source.name, 'Imported theme', 60),
     blurb: cleanText(source.blurb, 'Imported', 80),
     firm: cleanText(source.firm, BRAND_NAME, 80),
+    disclosure:
+      typeof source.disclosure === 'string'
+        ? source.disclosure.trim().slice(0, MAX_DISCLOSURE_CHARS)
+        : DEFAULT_DISCLOSURE,
     ...colors,
   };
   const adviser = typeof source.adviser === 'string' ? source.adviser.trim().slice(0, 80) : '';

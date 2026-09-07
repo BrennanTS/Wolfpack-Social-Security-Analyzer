@@ -83,7 +83,7 @@ export function WidowedPanel({
     <div className="results">
       <div className="recommendation-card">
         <span className="rec-label">
-          {label} — {scenarioEyebrow(analysis.scenarioIsBest)}
+          {label} · {scenarioEyebrow(analysis.scenarioIsBest)}
         </span>
         <h2 data-testid="recommendation-title">{analysis.recommendation}</h2>
         <p>{analysis.recommendationDetail}</p>
@@ -134,17 +134,17 @@ export function WidowedPanel({
                     {row.label}
                     {row.isOptimal && <span className="badge">Best</span>}
                   </td>
-                  <td data-testid="cell-survivor-age">{row.survivorClaimDate?.age ?? '—'}</td>
+                  <td data-testid="cell-survivor-age">{row.survivorClaimDate?.age ?? ''}</td>
                   <td data-testid="cell-own-age">{row.filingAges[0].label}</td>
                   <td data-testid="cell-lifetime">
                     {/* `lifetimeTotal`, not `expectedNpv`. They hold the same
                         number for a widowed row today, but only one of them
                         MEANS an undiscounted lifetime sum, and reading the
                         other under this header is how the two would drift. */}
-                    {row.lifetimeTotal === null ? '—' : formatCurrency(row.lifetimeTotal)}
+                    {row.lifetimeTotal === null ? '' : formatCurrency(row.lifetimeTotal)}
                   </td>
                   <td data-testid="cell-delta" className={row.deltaVsOptimal < 0 ? 'negative' : ''}>
-                    {row.deltaVsOptimal === 0 ? '—' : formatCurrency(row.deltaVsOptimal)}
+                    {row.deltaVsOptimal === 0 ? '' : formatCurrency(row.deltaVsOptimal)}
                   </td>
                 </tr>
               ))}
@@ -188,7 +188,7 @@ export function WidowedPanel({
                 {deceased.filed ? 'Filed' : 'Had not filed'}
               </span>
               <span className="summary-value" data-testid="deceased-filed">
-                {deceased.filed ? monthYear(deceased.filed.year, deceased.filed.month) : '—'}
+                {deceased.filed ? monthYear(deceased.filed.year, deceased.filed.month) : 'Had not filed'}
               </span>
               <span className="summary-hint">
                 {deceased.filed

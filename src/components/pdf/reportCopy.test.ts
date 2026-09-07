@@ -99,7 +99,7 @@ describe('report copy', () => {
     expect(tied).toMatch(/within half a percent/);
     expect(tied).not.toMatch(/No single plan wins/);
     // And it tells the reader what to decide on instead.
-    expect(tied).toMatch(/when you actually want to stop working/);
+    expect(tied).toMatch(/when you want to stop working/);
   });
 
   it('stays silent about dropped strategies when none were dropped', () => {
@@ -134,6 +134,6 @@ describe('the introduction and the limits page', () => {
 
   it('gives the client a phone number and the survivor rule', () => {
     expect(copy.ACTION_APPLY_NOTE).toContain('1-800-772-1213');
-    expect(copy.ACTION_APPLY_NOTE).toMatch(/survivor benefit cannot be applied for online/i);
+    expect(copy.ACTION_APPLY_NOTE).toMatch(/survivor benefits cannot be applied for online/i);
   });
 });

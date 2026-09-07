@@ -46,6 +46,7 @@ export let HEAT_HI = DEFAULT_THEME.heatHi;
 export let FIRM = DEFAULT_THEME.firm;
 export let ADVISER: string | undefined = DEFAULT_THEME.adviser;
 export let LOGO: string | undefined = DEFAULT_THEME.logo;
+export let DISCLOSURE = DEFAULT_THEME.disclosure;
 
 /** Letter page content width: 612pt − left/right padding */
 export const CONTENT_W = 516;
@@ -327,6 +328,7 @@ function buildStyles() {
   termRow: { marginBottom: 9 },
   termName: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: INK, marginBottom: 2 },
   termBody: { fontSize: 9, color: MUTED, lineHeight: 1.45 },
+  disclosureParagraph: { fontSize: 8.5, color: MUTED, lineHeight: 1.45, marginBottom: 7 },
   tdAge: { flexDirection: 'row', alignItems: 'center' },
   negative: { color: RED },
   badge: {
@@ -502,6 +504,7 @@ export function setActiveReportTheme(theme: ReportTheme): void {
   FIRM = theme.firm;
   ADVISER = theme.adviser;
   LOGO = theme.logo;
+  DISCLOSURE = theme.disclosure;
   INK = theme.ink;
   GOLD = theme.brand;
   GOLD_DARK = theme.brandDark;

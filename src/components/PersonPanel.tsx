@@ -194,7 +194,7 @@ export function PersonPanel({
     <div className="results">
       <div className="recommendation-card">
         <span className="rec-label">
-          {personLabel(analysis.person.name, index)} — {scenarioEyebrow(isBest)}
+          {personLabel(analysis.person.name, index)} · {scenarioEyebrow(isBest)}
         </span>
         <h2 data-testid="recommendation-title">{personLabel(analysis.person.name, index)}</h2>
         <div className="rec-stats">

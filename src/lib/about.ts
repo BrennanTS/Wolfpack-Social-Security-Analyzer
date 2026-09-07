@@ -22,7 +22,7 @@ export const ABOUT_CARDS: AboutCard[] = [
   {
     title: 'Full Retirement Age (FRA)',
     body:
-      "Set by birth year on SSA's published schedule — 66 for those born 1943-1954, " +
+      "Set by birth year on SSA's published schedule: 66 for those born 1943 to 1954, " +
       'rising to 67 for 1960 and later.',
   },
   {
@@ -39,7 +39,7 @@ export const ABOUT_CARDS: AboutCard[] = [
     title: 'Life expectancy by gender',
     body:
       "SSA's 2021 period life table supplies a suggested planning age for each person. " +
-      'Adjust it under Planning assumptions — every lifetime total moves with it.',
+      'Adjust it under Planning assumptions. Every lifetime total moves with it.',
   },
 ];
 

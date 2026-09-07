@@ -202,7 +202,7 @@ export function HouseholdPanel({
       />
 
       <div className="recommendation-card">
-        <span className="rec-label">Household — {scenarioEyebrow(analysis.scenarioIsBest)}</span>
+        <span className="rec-label">Household · {scenarioEyebrow(analysis.scenarioIsBest)}</span>
         <h2 data-testid="recommendation-title">{analysis.recommendation}</h2>
         <p>{analysis.recommendationDetail}</p>
       </div>

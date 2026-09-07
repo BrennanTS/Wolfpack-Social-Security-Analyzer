@@ -18,7 +18,7 @@ import {
   spousalSummary,
 } from '../methodologyCopy';
 import { WIDOWED_MODELING_NOTE, WIDOWED_SURVIVOR_CARD } from '../widowedCopy';
-import { FIRM, styles } from './theme';
+import { styles } from './theme';
 
 interface MethodItem {
   title: string;
@@ -142,7 +142,7 @@ export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, Meth
             title: 'Survivor Full Retirement Age',
             body:
               'Survivor benefits use their own full-retirement-age schedule, which is not the ' +
-              'retirement one — the two coincide only for birth years from 1962 onward.',
+              'retirement one. The two coincide only for birth years from 1962 onward.',
           }
         : {
             title: 'Delayed Retirement Credits',
@@ -224,19 +224,22 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
           printed a whole extra sheet carrying a single hairline and a footer
           — 0.01% ink — the first time the terms and the appendix shared a
           page group. A callout box should move as one thing regardless. */}
+      {/* What this report's model does and does not cover. The firm's own
+          disclosures print in the disclosure block, from the theme; nothing
+          here repeats them, so a report carrying both never says the same
+          sentence twice. */}
       <View style={styles.disclaimer} wrap={false}>
-        <Text style={styles.disclaimerTitle}>Important Disclosures</Text>
+        <Text style={styles.disclaimerTitle}>Modeling notes</Text>
         <Text style={styles.disclaimerText}>
-          Prepared by {FIRM} for educational
-          planning only. Not affiliated with the SSA. Benefit amounts are in today&rsquo;s
-          dollars, before any future cost-of-living adjustment.{' '}
+          Benefit amounts are in today&rsquo;s dollars, before any future cost-of-living
+          adjustment.{' '}
           {appendixShape === 'widowed'
             ? `${WIDOWED_MODELING_NOTE} `
             : hasSpouse
               ? `${coupleModelingNote(analysis.survivorGap)} `
               : `${SINGLE_CLAIMANT_BENEFIT_NOTE} `}
-          Projections exclude taxation, earnings limits, and future rule changes. Data:{' '}
-          {BLS_CPI_URL}. Verify at ssa.gov before claiming.
+          Projections exclude taxation, the earnings test, and future rule changes. Data:{' '}
+          {BLS_CPI_URL}.
         </Text>
       </View>
     </>

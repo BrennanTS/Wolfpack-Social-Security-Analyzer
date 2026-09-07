@@ -52,8 +52,8 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
 
 /** What a space says about itself, including when it will do nothing. */
 const SPACE_BLURB: Record<'edge' | 'person' | 'prints', string> = {
-  prints: 'Extra room before what follows — add another for a wider gap',
-  edge: 'Nothing to separate here — the page margin already does it',
+  prints: 'Extra room before what follows. Add another for a wider gap',
+  edge: 'Nothing to separate here. The page margin already does it',
   person: 'Not printed between two per-person sections',
 };
 
@@ -469,9 +469,9 @@ export function ReportLayoutEditor({
                         between a layout that adapts and one that looks
                         broken when a single client's report comes out short. */}
                     {isHidden
-                      ? 'Hidden — kept here, left out of the report'
+                      ? 'Hidden. Kept here, left out of the report'
                       : skipped
-                        ? `Not printed for ${SHAPE_NAME[shape!]} — kept for other households`
+                        ? `Not printed for ${SHAPE_NAME[shape!]}. Kept for other households`
                         : meta
                           ? `${meta.blurb} · ${FILL_LABEL[meta.fill]}`
                           : ''}

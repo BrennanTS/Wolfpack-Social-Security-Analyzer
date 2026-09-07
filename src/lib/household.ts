@@ -1189,7 +1189,7 @@ function coupleRecommendationDetail(
 
   return (
     `Filing at these ages is worth ${formatCurrency(expectedNpv)} to the two of you over ` +
-    `your lifetimes — more than any other pair of ages — with ${labels[0]} filing at age ` +
+    `your lifetimes, more than any other pair of ages, with ${labels[0]} filing at age ` +
     `${ages[0]} and ${labels[1]} at age ${ages[1]}, assuming each lives to the age set for them.`
   );
 }
@@ -1228,15 +1228,15 @@ function selectedScenarioDetail(
   if (shortfall <= 0) {
     return (
       `Every figure here is computed with ${filings}. It is worth ` +
-      `${formatCurrency(selectedNpv)} in ${value} — the same as the optimizer's own ` +
-      `choice, ${bestFilings}, so this scenario costs nothing.`
+      `${formatCurrency(selectedNpv)} in ${value}, the same as the best available ` +
+      `(${bestFilings}), so this scenario costs nothing.`
     );
   }
 
   return (
-    `Every figure here is computed with ${filings}, not the optimizer's choice. It is ` +
+    `Every figure here is computed with ${filings}, not the recommended ages. It is ` +
     `worth ${formatCurrency(selectedNpv)} in ${value}, ${formatCurrency(shortfall)} less ` +
-    `than the best available — ${bestFilings}, at ${formatCurrency(optimalNpv)}.`
+    `than the best available, which is ${bestFilings} at ${formatCurrency(optimalNpv)}.`
   );
 }
 
@@ -1391,7 +1391,7 @@ async function analyzeWidowed(
       `to survivor benefits, so these two dates are independent. Claiming the survivor ` +
       `benefit at age ${best.survivorClaimAge} and filing on ${label}'s own record at age ` +
       `${best.ownFilingAge} pays ${formatCurrency(best.lifetimeTotal)} over ${label}'s ` +
-      `lifetime — a straight sum of dollars in today's dollars, not a present value.`,
+      `lifetime. That is a straight sum of dollars in today's dollars, not a present value.`,
     assumptions,
     asOf,
     piaEstimated: best.piaEstimated,

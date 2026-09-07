@@ -3605,6 +3605,28 @@ tbody tr:hover {
   border-radius: var(--radius);
 }
 
+.theme-field textarea {
+  width: 100%;
+  min-height: 160px;
+  padding: 8px 9px;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  resize: vertical;
+}
+
+/* Advice about the text, shown beside it: the one thing that must not reach
+   a client is a bracketed placeholder. */
+.theme-field-warning {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--gold-dark);
+}
+
 .theme-logo-row {
   display: flex;
   align-items: center;
@@ -3721,6 +3743,11 @@ tbody tr:hover {
   grid-column: 1 / -1;
   font-size: 0.6875rem;
   line-height: 1.35;
+  color: var(--gold-dark);
+}
+
+/* A menu note that is a warning: the same voice as the field-level one. */
+.menu-note-warning {
   color: var(--gold-dark);
 }
 

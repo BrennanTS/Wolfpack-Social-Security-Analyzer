@@ -97,13 +97,13 @@ export function longevityAges(planned: readonly number[]): number[][] {
 }
 
 function rowLabel(index: number, ages: number[], planned: readonly number[]): string {
-  if (index === 1) return `As planned — ${ages.join(' and ')}`;
+  if (index === 1) return `As planned: ${ages.join(' and ')}`;
   // Named by the ages rather than by "10 years less", because the floor and
   // ceiling can clamp a shift to something other than ten and a label that
   // said ten would then be wrong.
   const direction = index === 0 ? 'shorter' : 'longer';
   const same = ages.every((a, i) => a === planned[i]);
-  return same ? `Same again — ${ages.join(' and ')}` : `Much ${direction} — ${ages.join(' and ')}`;
+  return same ? `Same again: ${ages.join(' and ')}` : `Much ${direction}: ${ages.join(' and ')}`;
 }
 
 /**

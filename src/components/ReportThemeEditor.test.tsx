@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReportThemeEditor } from './ReportThemeEditor';
-import { DEFAULT_REPORT_THEME_ID, REPORT_THEMES, reportTheme, type ReportTheme } from '../lib/reportTheme';
+import {
+  DEFAULT_DISCLOSURE,
+  DEFAULT_REPORT_THEME_ID,
+  REPORT_THEMES,
+  reportTheme,
+  type ReportTheme,
+} from '../lib/reportTheme';
 
 const house = () => reportTheme(DEFAULT_REPORT_THEME_ID);
 
@@ -132,6 +138,31 @@ describe('ReportThemeEditor', () => {
     await userEvent.type(screen.getByLabelText(/theme name/i), 'Northgate');
     await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
     expect(s.saveAs).toHaveBeenCalledWith('Northgate', expect.objectContaining({ firm: 'Northgate' }));
+  });
+
+  it('edits the disclosures the report ends on', async () => {
+    const s = store();
+    renderEditor(s);
+    const box = screen.getByRole('textbox', { name: /printed at the end of the report/i });
+    await userEvent.clear(box);
+    await userEvent.type(box, 'Ours.');
+    expect(s.change).toHaveBeenLastCalledWith(expect.objectContaining({ disclosure: 'Ours.' }));
+  });
+
+  it('warns while the regulatory placeholder is still in the text, and only then', async () => {
+    // Square brackets on a client's copy is the one outcome this field must
+    // never produce quietly.
+    renderEditor();
+    expect(screen.getByRole('status')).toHaveTextContent(/square brackets/i);
+    renderEditor(store({ theme: { ...house(), disclosure: 'Advisory services are offered through Northgate.' } }));
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
+  it('can put the standard wording back', async () => {
+    const s = store({ theme: { ...house(), disclosure: 'Ours.' } });
+    renderEditor(s);
+    await userEvent.click(screen.getByRole('button', { name: /restore the standard wording/i }));
+    expect(s.change).toHaveBeenLastCalledWith(expect.objectContaining({ disclosure: DEFAULT_DISCLOSURE }));
   });
 
   it('offers rename and delete only for a theme of your own', () => {

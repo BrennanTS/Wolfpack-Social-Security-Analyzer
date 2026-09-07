@@ -14,7 +14,7 @@ export const RESOURCE_SECTIONS: ResourceSection[] = [
     title: 'Social Security Administration',
     links: [
       {
-        title: 'SSA.gov — Official site',
+        title: 'SSA.gov (official site)',
         description: 'Benefits, eligibility, and official program information.',
         href: 'https://www.ssa.gov/',
       },
@@ -79,7 +79,7 @@ export const RESOURCE_SECTIONS: ResourceSection[] = [
     title: 'Planning & research',
     links: [
       {
-        title: 'Bureau of Labor Statistics — CPI-U',
+        title: 'Bureau of Labor Statistics, CPI-U',
         description: 'Official inflation data behind COLA assumptions.',
         href: 'https://www.bls.gov/cpi/',
       },

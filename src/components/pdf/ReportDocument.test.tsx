@@ -367,6 +367,39 @@ describe('ReportDocument composition', () => {
     }
   });
 
+  it('prints the theme’s disclosures as their own section, one paragraph each', () => {
+    setActiveReportTheme({
+      ...reportTheme(DEFAULT_REPORT_THEME_ID),
+      disclosure: 'First paragraph of ours.\n\nSecond paragraph of ours.',
+    });
+    try {
+      const only: ReportLayout = { id: 'x', name: 'D', items: [{ kind: 'block', id: 'disclosure' }] };
+      const text = collectText(build(married, only));
+      expect(text).toContain('Important disclosures');
+      expect(text).toContain('First paragraph of ours.');
+      expect(text).toContain('Second paragraph of ours.');
+    } finally {
+      setActiveReportTheme(reportTheme(DEFAULT_REPORT_THEME_ID));
+    }
+  });
+
+  it('ends the client report on the disclosures', () => {
+    // Every report an adviser can hand over carries them, in the layout an
+    // adviser is most likely to hand over.
+    const text = collectText(build(married, CLIENT_LAYOUT)).join(' ');
+    expect(text).toContain('Important disclosures');
+    expect(text).toMatch(/not a recommendation to buy or sell/i);
+  });
+
+  it('never prints a bracketed placeholder paragraph', () => {
+    // The standard wording carries one for the line only the firm can write.
+    // Square brackets on a client's copy is the outcome this guards against;
+    // the editor and the menu warn instead.
+    const text = collectText(build(married, CLIENT_LAYOUT)).join(' ');
+    expect(text).not.toMatch(/\[Replace this paragraph/);
+    expect(text).not.toMatch(/\[[^\]]*\]/);
+  });
+
   it('leaves the adviser line off the cover when there is none', () => {
     const cover: ReportLayout = { id: 'x', name: 'Cover', items: [{ kind: 'block', id: 'cover' }] };
     const text = collectText(build(married, cover)).join(' ');

@@ -140,11 +140,11 @@ export function StrategyTable({
           ))}
           <Text style={[styles.td, { width: HCOL.npv }]}>{formatCurrency(s.expectedNpv)}</Text>
           <Text style={[styles.td, { width: HCOL.delta }, s.deltaVsOptimal < 0 ? styles.negative : {}]}>
-            {s.deltaVsOptimal === 0 ? '—' : formatCurrency(s.deltaVsOptimal)}
+            {s.deltaVsOptimal === 0 ? '' : formatCurrency(s.deltaVsOptimal)}
           </Text>
           {showSurvivorIncome && (
             <Text style={[styles.td, { width: HCOL.survivor }]}>
-              {s.survivorIncome == null ? '—' : formatCurrency(s.survivorIncome)}
+              {s.survivorIncome == null ? '' : formatCurrency(s.survivorIncome)}
             </Text>
           )}
         </View>
@@ -404,7 +404,7 @@ export function ClaimingGridPlot({
           style={{ fontSize: 6, fill: MUTED }}
           textAnchor="middle"
         >
-          {`${names[0]}'s claiming age (columns) — ${names[1]}'s down the side`}
+          {`${names[0]}'s claiming age across, ${names[1]}'s down the side`}
         </Text>
       </Svg>
     </View>
@@ -446,7 +446,7 @@ export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
 
       <View style={styles.recBox}>
         <Text style={styles.recEyebrow}>
-          Household — {scenarioEyebrow(analysis.scenarioIsBest)}
+          Household · {scenarioEyebrow(analysis.scenarioIsBest)}
         </Text>
         <Text style={styles.recHeadline}>{analysis.recommendation}</Text>
         <Text style={styles.recBody}>{analysis.recommendationDetail}</Text>
@@ -631,7 +631,7 @@ export function ClaimingGridBlock({
         square is the best either of them can do filing somewhere inside those two
         years.
         {gridTarget.on
-          ? ` Outlined squares are within ${gridTarget.percent}% of the best — ${
+          ? ` Outlined squares are within ${gridTarget.percent}% of the best: ${
               cellsWithin(grid, gridTarget.percent).size
             } of ${grid.cells.length} combinations.`
           : ''}

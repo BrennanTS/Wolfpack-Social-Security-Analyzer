@@ -18,7 +18,7 @@ import {
   personLabel,
 } from '../../lib/format';
 import { firstDeath } from '../../lib/incomeCliff';
-import { ADVISER, FIRM, LOGO, styles } from './theme';
+import { ADVISER, DISCLOSURE, FIRM, LOGO, styles } from './theme';
 import * as copy from './reportCopy';
 
 /** A month index on the band convention, as a calendar month. */
@@ -82,9 +82,9 @@ export function AnswerBlock({
                 {people.length === 1 ? 'You file at' : `${names[i]} files at`}
               </Text>
               <Text style={styles.heroFactValue}>
-                {selected.filingAges[i].label} — {shortMonthYearLabel(
+                {selected.filingAges[i].label} ({shortMonthYearLabel(
                   filingMonth(person, selected.filingAges[i]),
-                )}
+                )})
               </Text>
             </View>
           ))}
@@ -153,7 +153,7 @@ export function ChangesBlock({ analysis }: { analysis: HouseholdAnalysis }) {
           <Text style={[styles.td, { flex: 1 }]}>{change.reason}</Text>
           {change.byPerson.map((amount, i) => (
             <Text key={names[i]} style={[styles.td, styles.tdRight, { width: 74 }]}>
-              {amount > 0 ? formatCurrencyPrecise(amount) : '—'}
+              {amount > 0 ? formatCurrencyPrecise(amount) : ''}
             </Text>
           ))}
           <Text style={[styles.td, styles.tdRight, styles.tdBold, { width: 74 }]}>
@@ -526,6 +526,42 @@ export function LimitsBlock() {
           <Text style={styles.termName}>{limit.term}</Text>
           <Text style={styles.termBody}>{limit.body}</Text>
         </View>
+      ))}
+    </>
+  );
+}
+
+
+/* ------------------------------------------------------------------ *
+ * Disclosures
+ * ------------------------------------------------------------------ */
+
+/**
+ * The firm's own disclosures, one paragraph per blank-line-separated block.
+ *
+ * Read from the theme rather than from copy in this file: the regulatory
+ * wording is the firm's, and the compliance officer who signs it off edits
+ * it in the app rather than asking for a build. `wrap={false}` on each
+ * paragraph, not on the block, so a long set flows across a page break
+ * without splitting a sentence.
+ *
+ * A paragraph that is entirely in square brackets is a note to the adviser,
+ * not a sentence for the client, and is left off the page. The standard
+ * wording carries one, for the regulatory line only the firm can write; the
+ * editor and the menu both say so while it is still there, and the report
+ * itself never shows it.
+ */
+export function DisclosureBlock() {
+  const paragraphs = DISCLOSURE.split(/\n\s*\n/)
+    .map((p) => p.replace(/\s+/g, ' ').trim())
+    .filter((p) => p.length > 0 && !/^\[.*\]$/.test(p));
+  return (
+    <>
+      <Text style={styles.sectionTitle}>Important disclosures</Text>
+      {paragraphs.map((paragraph, i) => (
+        <Text key={i} style={styles.disclosureParagraph} wrap={false}>
+          {paragraph}
+        </Text>
       ))}
     </>
   );

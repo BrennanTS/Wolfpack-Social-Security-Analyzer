@@ -76,6 +76,6 @@ describe('labels', () => {
       decimalYears: 70,
       monthDuration: null as never,
     });
-    expect(label).toBe('70 — Dec 2035');
+    expect(label).toBe('70 (Dec 2035)');
   });
 });

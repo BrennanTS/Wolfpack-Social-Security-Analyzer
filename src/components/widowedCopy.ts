@@ -53,7 +53,7 @@ export const WIDOWED_HEADERS = {
 export function widowedLifetimeCaption(planToAge: number): string {
   return (
     `Lifetime total is a straight sum of every dollar paid through age ${planToAge}, in ` +
-    `today’s dollars — undiscounted, and before any cost-of-living adjustment. It is not ` +
+    `today’s dollars, undiscounted, and before any cost-of-living adjustment. It is not ` +
     `the mortality-weighted present value the married and single tables show, and the two ` +
     `figures are not comparable.`
   );
@@ -73,13 +73,13 @@ export function widowedLifetimeCaption(planToAge: number): string {
 export function widowedIncomeCaption(mode: DollarsMode = 'real', overlaps = true): string {
   const dollarsClause =
     mode === 'nominal'
-      ? 'Amounts are in future (nominal) dollars — the engine’s own today’s-dollars figures, ' +
-        'compounded forward using the assumed COLA — not today’s purchasing power.'
+      ? 'Amounts are in future (nominal) dollars: today’s figures compounded forward at the ' +
+        'assumed COLA, rather than today’s purchasing power.'
       : 'Amounts are in today’s dollars, before any cost-of-living adjustment.';
   const shape = overlaps
     ? 'The survivor segment is the increment above the personal band beneath it, not a second ' +
       'check: the two benefits are one payment, and SSA pays the larger.'
-    : 'The two benefits never run together here — SSA pays the larger, and this person’s own ' +
+    : 'The two benefits never run together here. SSA pays the larger, and this person’s own ' +
       'record is worth more than the survivor benefit, so the survivor benefit stops the month ' +
       'their own begins.';
   return `${shape} ${dollarsClause}`;
@@ -114,7 +114,7 @@ export const WIDOWED_DECEASED_HEADING = 'The deceased spouse’s record';
 export const WIDOWED_COMPARISON_HEADING = 'The two dates, compared';
 
 /**
- * The widowed arm of the PDF's "Important Disclosures" block.
+ * The widowed arm of the PDF appendix's "Modeling notes" box.
  *
  * `SINGLE_CLAIMANT_BENEFIT_NOTE` is actively wrong here — it says survivor
  * benefits are not modeled, which for this report is the opposite of the

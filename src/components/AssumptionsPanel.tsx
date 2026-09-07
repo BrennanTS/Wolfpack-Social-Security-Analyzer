@@ -54,7 +54,7 @@ export function AssumptionsPanel({
         <div className="assumptions-body">
           <div className="field advanced-field">
             <label htmlFor="discount">
-              Discount rate — {formatPercent(discountRate * 100, 2)}
+              Discount rate: {formatPercent(discountRate * 100, 2)}
             </label>
             <input
               id="discount"
@@ -81,8 +81,8 @@ export function AssumptionsPanel({
           {lifeExpectancies.map((control, index) => (
             <div className="field advanced-field" key={index}>
               <label htmlFor={`life-${index}`}>
-                Life expectancy — {control.label}
-                {control.value !== null ? ` — plan to age ${control.value}` : ''}
+                Life expectancy: {control.label}
+                {control.value !== null ? `, plan to age ${control.value}` : ''}
               </label>
               {control.value !== null ? (
                 <>
@@ -128,7 +128,7 @@ export function AssumptionsPanel({
 
           <div className="field advanced-field">
             <label htmlFor="cola">
-              Chart COLA assumption — {formatPercent(annualCola, 2)}
+              Chart COLA assumption: {formatPercent(annualCola, 2)}
             </label>
             <input
               id="cola"

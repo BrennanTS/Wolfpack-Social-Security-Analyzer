@@ -28,6 +28,7 @@ import {
   AnswerBlock,
   ChangesBlock,
   CoverBlock,
+  DisclosureBlock,
   IntroBlock,
   LimitsBlock,
   LongevityBlock,
@@ -181,6 +182,8 @@ export function ReportDocument({
         return IntroBlock({ analysis });
       case 'limits':
         return LimitsBlock();
+      case 'disclosure':
+        return DisclosureBlock();
       case 'answer':
         return AnswerBlock({ analysis });
       case 'changes':

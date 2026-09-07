@@ -277,11 +277,11 @@ export function LifetimeHeatmapChart({
                 title={`Claim ${claimAge}, live to ${livingAge}: ${formatCurrency(value)} cumulative`}
               >
                 <span className="heatmap-cell-value">
-                  {/* An em dash, not "$0k". This is the diagonal where death
-                      falls in the month of claiming, so nothing has been
-                      paid — a unit on a quantity that does not exist yet. */}
+                  {/* "$0", not "$0k". This is the diagonal where death falls
+                      in the month of claiming, so nothing has been paid, and
+                      a rounded-thousands unit on nothing reads as a defect. */}
                   {value === 0
-                    ? '—'
+                    ? '$0'
                     : value >= 1_000_000
                       ? `$${(value / 1_000_000).toFixed(1)}M`
                       : `$${Math.round(value / 1000)}k`}
@@ -351,7 +351,7 @@ export function OpportunityCostChart({ options, shownAge }: OpportunityCostChart
             // Both strings name the baseline as what it is — the age the
             // report is built on. They said "optimal", which is the shown
             // scenario only when the adviser has not chosen another one.
-            if (row.isShown) return ['—', 'The age shown'];
+            if (row.isShown) return ['', 'The age shown'];
             const num = typeof value === 'number' ? value : 0;
             return [formatCurrency(num), `Lifetime shortfall vs age ${shownAge}`];
           }}

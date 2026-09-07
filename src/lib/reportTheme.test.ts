@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_DISCLOSURE,
   DEFAULT_REPORT_THEME_ID,
+  MAX_DISCLOSURE_CHARS,
   MAX_LOGO_CHARS,
+  disclosureHasPlaceholder,
   REPORT_THEMES,
   THEME_COLORS,
   parseTheme,
@@ -197,5 +200,48 @@ describe('parseTheme repairs rather than trusts', () => {
   it('does not throw on malformed json', () => {
     expect(parseThemeFile('{not json')).toBeNull();
     expect(parseThemeFile('')).toBeNull();
+  });
+});
+
+
+describe('disclosures', () => {
+  it('start every preset from the standard wording', () => {
+    for (const theme of REPORT_THEMES) expect(theme.disclosure).toBe(DEFAULT_DISCLOSURE);
+  });
+
+  it('say the things a compliance review asks a claiming analysis to say', () => {
+    // Each of these is one paragraph of the default. A firm may rewrite
+    // them; the default must not quietly lose one.
+    const text = DEFAULT_DISCLOSURE;
+    expect(text).toMatch(/not a recommendation to buy or sell/i);
+    expect(text).toMatch(/not legal, tax, or accounting advice/i);
+    expect(text).toMatch(/determined by the Social Security Administration when you apply/i);
+    expect(text).toMatch(/not affiliated with, endorsed by, or approved by the Social Security Administration/i);
+    expect(text).toMatch(/set by law and can change/i);
+    expect(text).toMatch(/prepared for the people named on the cover/i);
+  });
+
+  it('carry a bracketed placeholder for the firm’s regulatory line, and know it', () => {
+    // The one sentence the app cannot write is the one that names the firm's
+    // registration. It is left in brackets on purpose, and the editor warns
+    // while the brackets remain.
+    expect(disclosureHasPlaceholder(DEFAULT_DISCLOSURE)).toBe(true);
+    expect(disclosureHasPlaceholder('Advisory services are offered through Northgate, an RIA.')).toBe(false);
+  });
+
+  it('use no em dash, which is the one mark a reader reads as machine-written', () => {
+    expect(DEFAULT_DISCLOSURE).not.toContain('—');
+  });
+
+  it('survive export and import, and fall back to the standard wording when absent', () => {
+    const house = reportTheme(DEFAULT_REPORT_THEME_ID);
+    const custom = { ...house, disclosure: 'Our own wording.' };
+    expect(parseThemeFile(serializeTheme(custom))?.disclosure).toBe('Our own wording.');
+    expect(parseTheme({ name: 'x', ink: '#111111' })?.disclosure).toBe(DEFAULT_DISCLOSURE);
+  });
+
+  it('cap a disclosure at a page’s worth rather than letting a file fill storage', () => {
+    const parsed = parseTheme({ name: 'x', ink: '#111111', disclosure: 'x'.repeat(50_000) });
+    expect(parsed?.disclosure.length).toBeLessThanOrEqual(MAX_DISCLOSURE_CHARS);
   });
 });

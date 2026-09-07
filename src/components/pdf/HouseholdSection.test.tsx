@@ -355,10 +355,9 @@ describe('HouseholdSection — the printed survivor-income column', () => {
     // every cell would be an em dash and the caption would assert figures
     // that are not on the page.
     expect(table([null, null])).not.toContain('Survivor income');
-    // One em dash survives, in the optimal row's "vs. best" cell — the
-    // survivor column's own dashes are what must be gone, and the header
-    // above is what proves the column is.
-    expect((table([null, null]).match(/—/g) ?? []).length).toBe(1);
+    // No placeholder anywhere: the survivor column is gone, header and cells
+    // alike, and a blank "vs. best" on the best row is the only empty cell.
+    expect(table([null, null])).not.toMatch(/—/);
     expect(page([null, null])).not.toContain("each spouse's own life-expectancy input");
   });
 
@@ -551,7 +550,7 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
     const occurrences = text.match(/\$135,700/g) ?? [];
     expect(occurrences).toHaveLength(1);
     expect(text).toContain('68 years, 0 months');
-    expect(text).toMatch(/optimizer/i);
+    expect(text).toMatch(/one filing date per person/);
   });
 
   // Order, not just presence. The note is written to be read AFTER the cliff
@@ -779,13 +778,13 @@ describe('HouseholdSection — the printed claiming grid', () => {
     expect(text).toContain('Claiming Age Grid');
     // 995 and 1000 are within 1%; 980 and 900 are not. The caption has to
     // carry the count, because a printed page has no hover to explore with.
-    expect(text).toContain('within 1% of the best — 2 of 4 combinations');
+    expect(text).toContain('within 1% of the best: 2 of 4 combinations');
   });
 
   it('drops the tolerance sentence when the highlight is off', () => {
     const text = printedGrid({ on: false, percent: 1 });
     expect(text).toContain('Claiming Age Grid');
-    expect(text).not.toContain('of the best —');
+    expect(text).not.toContain('of the best:');
   });
 
   it('prints no grid at all when the caller passes no target', () => {

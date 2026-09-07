@@ -36,7 +36,7 @@ type SpousalTopUp = NonNullable<HouseholdAnalysis['spousalTopUp']>;
  */
 function dollarsBasisClause(mode: DollarsMode): string {
   return mode === 'nominal'
-    ? 'figures are in future dollars, grown forward at the assumed yearly rise'
+    ? 'figures are in future dollars, grown forward at the assumed yearly increase'
     : 'figures are in today’s dollars, before any cost-of-living adjustment';
 }
 
@@ -47,8 +47,8 @@ const BAND_TYPE_LABEL: Record<BandType, string> = {
 };
 
 /**
- * The legend label for one person's one benefit-type band — "Jane —
- * spousal", "John — own benefit". Shared by the on-screen chart legend
+ * The legend label for one person's one benefit-type band: "Jane (spousal)",
+ * "John (own benefit)". Shared by the on-screen chart legend
  * (`CombinedIncomeChart`) and the PDF's combined-income bars
  * (`pdf/HouseholdSection`) so the two cannot drift, for the same reason
  * `combinedIncomeCaption` and `survivorGapNote` are centralized here: three
@@ -56,7 +56,7 @@ const BAND_TYPE_LABEL: Record<BandType, string> = {
  * more than one file.
  */
 export function benefitSeriesLabel(personName: string, type: BandType): string {
-  return `${personName} — ${BAND_TYPE_LABEL[type]}`;
+  return `${personName} (${BAND_TYPE_LABEL[type]})`;
 }
 
 /**
@@ -84,7 +84,7 @@ export function survivorFloorNote(floor: SurvivorFloor | null | undefined): stri
     `${formatCurrencyPrecise(floor.deceasedMonthly)}/mo ${floor.deceasedLabel} was being ` +
     `paid. That is SSA\u2019s widow(er)\u2019s limit: because ${floor.deceasedLabel} filed before ` +
     `full retirement age, the survivor benefit is the greater of that reduced amount and ` +
-    `82.5% of ${floor.deceasedLabel}\u2019s full retirement age benefit \u2014 the survivor does not ` +
+    `82.5% of ${floor.deceasedLabel}\u2019s full retirement age benefit. The survivor does not ` +
     `inherit the whole of an early-filing reduction.`
   );
 }
@@ -128,7 +128,7 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
   if (gap.survivorUnder60) {
     return (
       `${lead}. ${gap.survivorLabel} is under 60 then, so no widow(er) benefit is payable ` +
-      `yet and the chart is right to show none — but SSA could pay one from age 60 onward, ` +
+      `yet and the chart is right to show none. SSA could pay one from age 60 onward, ` +
       `and none is shown.`
     );
   }
@@ -136,7 +136,7 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
   if (gap.survivorOwnMonthly === null) {
     return (
       `${lead}. ${gap.survivorLabel} has not filed on their own record by then, so the chart ` +
-      `shows them nothing from that death until their own benefit begins — SSA would pay a ` +
+      `shows them nothing from that death until their own benefit begins. SSA would pay a ` +
       `survivor benefit over those months.`
     );
   }
@@ -270,10 +270,9 @@ export function survivorClaimNote(
 
   return (
     `If ${survivorLabel} were to ${claimClause}, the household would gain an estimated ` +
-    `${formatCurrency(gain)} — a straight sum of dollars paid over its lifetime, not a present ` +
-    `value.${basisClause} This is not a recommendation: the recommendation above comes from an ` +
-    `optimizer that carries a single filing date per person and cannot model a separate ` +
-    `survivor claim date.`
+    `${formatCurrency(gain)}. That is a straight sum of dollars paid over its lifetime, not a ` +
+    `present value.${basisClause} This is not a recommendation: the recommendation above is ` +
+    `built with one filing date per person and cannot model a separate survivor claim date.`
   );
 }
 
@@ -369,7 +368,7 @@ export function combinedIncomeCaption(
     ? 'their own benefit, plus any spousal segment'
     : 'their own benefit, plus any spousal or survivor segment';
   const survivorCaveat = gap
-    ? ' No survivor segment is included for this household — see the note below.'
+    ? ' No survivor segment is included for this household. See the note below.'
     : '';
   // Real: the band genuinely stays flat (the engine applies no COLA), so the
   // increment framing can say so. Nominal: the band keeps growing at the
@@ -389,15 +388,15 @@ export function combinedIncomeCaption(
   // toggle does exactly that, so the sentence has to say so instead.
   const dollarsClause =
     mode === 'nominal'
-      ? 'Amounts are in future dollars — today’s figures grown forward at the assumed ' +
-        'yearly rise, so they are what the check will say rather than what it will buy.'
+      ? 'Amounts are in future dollars: today’s figures grown forward at the assumed ' +
+        'yearly increase, so they are what the check will say rather than what it will buy.'
       : 'Amounts are in today’s dollars, before any cost-of-living adjustment.';
   // Typographic apostrophes, matching the `&rsquo;` the two duplicated copies
   // carried before extraction. This sentence prints beside copy that uses
   // them — the PDF disclaimer's "today’s dollars" is on the same page — so
   // ASCII here renders straight quotes next to curly ones.
   return (
-    `Each person’s segments show the annual rate they’re paid once a benefit is running — ` +
+    `Each person’s segments show the annual rate they’re paid once a benefit is running: ` +
     `${included}.` +
     survivorCaveat +
     ' A survivor segment is the increment above the personal band beneath it: ' +
@@ -407,7 +406,7 @@ export function combinedIncomeCaption(
 }
 
 /**
- * The couple half of the PDF's "Important Disclosures" block.
+ * The couple half of the PDF appendix's "Modeling notes" box.
  *
  * Conditional for exactly the reason `combinedIncomeCaption` is. For a married
  * report the methodology appendix attaches to the household `<Page>`
@@ -420,7 +419,7 @@ export function combinedIncomeCaption(
 export function coupleModelingNote(gap: SurvivorGap | null | undefined): string {
   return gap
     ? 'The spousal top-up is modeled via the couple optimizer; the survivor ' +
-        'benefit this household would actually receive is not — see the note on the ' +
+        'benefit this household would actually receive is not. See the note on the ' +
         'household page.'
     : 'The spousal top-up and survivor benefits are both modeled via the couple ' +
         'optimizer.';
@@ -494,8 +493,8 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
     // misread as also claiming their eventual filing benefits are equal,
     // which early/delayed filing can make untrue even when PIAs tie exactly.
     return (
-      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner — ` +
-      `there is no spousal top-up to claim on the other's record.`
+      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner, ` +
+      `and there is no spousal top-up to claim on the other's record.`
     );
   }
   if (spousal.atFra <= 0) {
@@ -506,7 +505,7 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
     // genuinely exceed what they receive while this sentence is still true.
     // Unqualified, the sentence denied that.
     return (
-      `No top-up applies to this household — half of the higher earner's full benefit does not ` +
+      `No top-up applies to this household: half of the higher earner's full benefit does not ` +
       `exceed ${subject}'s own benefit at their own full retirement age.`
     );
   }
@@ -522,10 +521,10 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
   // rather than guessing which side produced it.
   const start =
     spousal.startsAtSpouseAge === null
-      ? `, though it never begins under the recommended strategy — a spousal benefit needs a ` +
+      ? `, though it never begins under the recommended strategy: a spousal benefit needs a ` +
         `month in which both spouses have filed and both are still living, and this strategy ` +
         `leaves none`
-      : `, beginning at ${subject}'s age ${spousal.startsAtSpouseAge} — the later of ` +
+      : `, beginning at ${subject}'s age ${spousal.startsAtSpouseAge}, the later of ` +
         `${subject}'s own filing and the other spouse's, since a spousal benefit cannot ` +
         `start before the other spouse has filed`;
 
@@ -627,7 +626,7 @@ export function incomeCliffSentence(cliff: IncomeCliff, mode: DollarsMode = 'rea
     dropPercent > 0
       ? `falls ${dropPercent.toFixed(1)}%, from ${formatCurrency(before)}/yr the year before to ` +
         `${formatCurrency(after)}/yr the year after`
-      : `does not fall — ${formatCurrency(before)}/yr the year before, ` +
+      : `does not fall: ${formatCurrency(before)}/yr the year before, ` +
         `${formatCurrency(after)}/yr the year after`;
 
   return (
@@ -708,7 +707,7 @@ export function householdValueCaption(discountRatePercent: string): string {
     `lifetimes, in today’s money. It assumes each of you lives exactly to the age set for ` +
     `you rather than averaging over how long someone might live, so it is a figure for ` +
     `those ages and not an average across all of them. Future payments are counted at ` +
-    `${discountRatePercent} less per year for being further away — see the assumptions page.`
+    `${discountRatePercent} less per year for being further away. See the assumptions page.`
   );
 }
 
@@ -819,7 +818,7 @@ export function survivorIncomeCaption(
 
   const basisClause =
     mode === 'nominal'
-      ? ' This column is in future dollars, grown forward at the assumed yearly rise — ' +
+      ? ' This column is in future dollars, grown forward at the assumed yearly increase, ' +
         `unlike ${HOUSEHOLD_VALUE_COLUMN_HEADER} beside it, which stays in today’s money ` +
         'whichever way this is set.'
       : ' This column is in today’s dollars, before any cost-of-living adjustment.';
@@ -827,21 +826,21 @@ export function survivorIncomeCaption(
   // The claim, made only when the figures below actually support it.
   const riseClause = survivorIncomeRisesWithDelay(comparisons)
     ? 'Delaying raises this figure for this household, and the survivor keeps the higher ' +
-      'amount for every year they outlive their spouse — the argument for delaying that the ' +
-      `${HOUSEHOLD_VALUE_COLUMN_HEADER} column alone cannot show.`
+      'amount for every year they outlive their spouse. This is the argument for delaying ' +
+      `that the ${HOUSEHOLD_VALUE_COLUMN_HEADER} column alone cannot show.`
     : 'For this household the figure is not simply larger for later filing: it turns on what ' +
       'the first spouse to die had filed for AND on whether the survivor has begun collecting ' +
-      'by that year — a strategy under which the survivor’s own benefit has not started by ' +
-      'then shows $0, nothing having started yet rather than anything having been reduced.';
+      'by that year. A strategy under which the survivor’s own benefit has not started by ' +
+      'then shows $0: nothing has started yet, rather than anything having been reduced.';
 
   const gapClause = !gap
     ? ''
     : gap.survivorUnder60
-      ? ' The survivor has not yet reached the age a widow(er) benefit can start — see the ' +
+      ? ' The survivor has not yet reached the age a widow(er) benefit can start. See the ' +
         'note below for what changes from age 60 onward.'
       : ' The engine does not model survivor benefits in this household’s ' +
-        'direction, so these figures understate what the survivor would actually receive — ' +
-        'see the note below.';
+        'direction, so these figures understate what the survivor would actually receive. ' +
+        'See the note below.';
 
   return `${base} ${riseClause}${gapClause}${basisClause}`;
 }
@@ -876,19 +875,19 @@ export function soloVsHouseholdNote(
   if (soloAge !== null) {
     parts.push(
       `Two answers, because there are two questions. On ${label}'s own record alone, age ` +
-        `${soloAge} is worth the most. For the household — where a filing age also sets what ` +
-        `a surviving spouse inherits — age ${householdBestAge} is worth the most.`,
+        `${soloAge} is worth the most. For the household, where a filing age also sets what ` +
+        `a surviving spouse inherits, age ${householdBestAge} is worth the most.`,
     );
   } else {
-    parts.push(`The optimizer's own answer for this household is age ${householdBestAge}.`);
+    parts.push(`The best answer for this household is age ${householdBestAge}.`);
   }
 
   if (shownAge !== null) {
     // Stated last and stated plainly: this is the one that decides what every
     // other number on the page means.
     parts.push(
-      `You are looking at age ${shownAge}, which you chose — every figure in this report is ` +
-        `built on it, not on the optimizer's answer.`,
+      `You are looking at age ${shownAge}, which you chose. Every figure in this report is ` +
+        `built on it, not on the best answer.`,
     );
   } else {
     parts.push('That is the age every figure in this report is built on.');

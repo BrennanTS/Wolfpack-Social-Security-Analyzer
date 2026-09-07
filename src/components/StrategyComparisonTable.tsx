@@ -310,7 +310,7 @@ export function StrategyComparisonTable({
                   return (
                     <td key={people[i].id} data-testid={`cell-age-${people[i].id}`}>
                       <select
-                        aria-label={`${s.label} — ${personLabel(people[i].name, i)} claiming age, years`}
+                        aria-label={`${s.label}, ${personLabel(people[i].name, i)} claiming age, years`}
                         data-testid={`scenario-years-${s.key}-${i}`}
                         value={filingAge.years}
                         onChange={(e) => {
@@ -331,7 +331,7 @@ export function StrategyComparisonTable({
                         ))}
                       </select>
                       <select
-                        aria-label={`${s.label} — ${personLabel(people[i].name, i)} claiming age, months`}
+                        aria-label={`${s.label}, ${personLabel(people[i].name, i)} claiming age, months`}
                         data-testid={`scenario-months-${s.key}-${i}`}
                         value={filingAge.months}
                         onChange={(e) =>
@@ -357,7 +357,7 @@ export function StrategyComparisonTable({
                     assertion about a figure in it. */}
                 <td data-testid="cell-npv">{formatCurrency(s.expectedNpv)}</td>
                 <td data-testid="cell-delta" className={s.deltaVsOptimal < 0 ? 'negative' : ''}>
-                  {s.deltaVsOptimal === 0 ? '—' : formatCurrency(s.deltaVsOptimal)}
+                  {s.deltaVsOptimal === 0 ? '' : formatCurrency(s.deltaVsOptimal)}
                 </td>
                 {showSurvivorIncome && (
                   <td data-testid={`cell-survivor-${s.key}`}>
@@ -365,7 +365,7 @@ export function StrategyComparisonTable({
                         updated fixture built without the field is `undefined`,
                         not `null`, and must fall back the same way rather than
                         print `formatCurrency(undefined)`'s "NaN". */}
-                    {s.survivorIncome == null ? '—' : formatCurrency(s.survivorIncome)}
+                    {s.survivorIncome == null ? '' : formatCurrency(s.survivorIncome)}
                   </td>
                 )}
 

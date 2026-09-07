@@ -75,6 +75,18 @@ describe('MenuPanel', () => {
     expect(screen.getByText(/nothing saved yet/i)).toBeInTheDocument();
   });
 
+  it('says when the disclosures still carry the firm’s placeholder', () => {
+    renderMenu();
+    expect(screen.getByRole('status')).toHaveTextContent(/placeholder/i);
+  });
+
+  it('says nothing about disclosures a firm has written', () => {
+    const themes = stubThemes();
+    themes.theme = { ...themes.theme, disclosure: 'Advisory services are offered through Northgate.' };
+    renderMenu({ themes });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('names the chosen theme and the firm it prints', () => {
     // The picker itself moved into the dialog; what stays here is enough to
     // tell an adviser which identity the next export carries.

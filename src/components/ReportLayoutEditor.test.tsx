@@ -260,7 +260,7 @@ describe('ReportLayoutEditor', () => {
     };
     const s = store({ layout: mine, selectedId: 'mine', layouts: [...PRESETS, mine] });
     renderEditor(s, 'twoClaimants');
-    expect(screen.getByText(/hidden — kept here, left out of the report/i)).toBeInTheDocument();
+    expect(screen.getByText(/hidden\. kept here, left out of the report/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /^show your social security decision$/i }));
     expect(s.update).toHaveBeenCalledWith('mine', [{ kind: 'block', id: 'answer' }]);
   });

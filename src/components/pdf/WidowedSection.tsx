@@ -112,17 +112,17 @@ export function WidowedSection({ analysis, footerText, appendix, leadingHeader }
               {row.isOptimal && <Text style={styles.badge}>BEST</Text>}
             </View>
             <Text style={[styles.td, { width: WCOL.survivor }]}>
-              {row.survivorClaimDate?.age ?? '—'}
+              {row.survivorClaimDate?.age ?? ''}
             </Text>
             <Text style={[styles.td, { width: WCOL.own }]}>{row.filingAges[0].label}</Text>
             <Text style={[styles.td, { width: WCOL.lifetime }]}>
               {/* `lifetimeTotal`, never `expectedNpv` — see `WidowedPanel`. */}
-              {row.lifetimeTotal === null ? '—' : formatCurrency(row.lifetimeTotal)}
+              {row.lifetimeTotal === null ? '' : formatCurrency(row.lifetimeTotal)}
             </Text>
             <Text
               style={[styles.td, { width: WCOL.delta }, row.deltaVsOptimal < 0 ? styles.negative : {}]}
             >
-              {row.deltaVsOptimal === 0 ? '—' : formatCurrency(row.deltaVsOptimal)}
+              {row.deltaVsOptimal === 0 ? '' : formatCurrency(row.deltaVsOptimal)}
             </Text>
           </View>
         ))}
@@ -148,7 +148,7 @@ export function WidowedSection({ analysis, footerText, appendix, leadingHeader }
               ['Date of Death', monthYear(deceased.deathYear, deceased.deathMonth)],
               [
                 deceased.filed ? 'Filed' : 'Had Not Filed',
-                deceased.filed ? monthYear(deceased.filed.year, deceased.filed.month) : '—',
+                deceased.filed ? monthYear(deceased.filed.year, deceased.filed.month) : 'Had not filed',
               ],
               ['Benefit at FRA', `${formatCurrencyPrecise(deceased.piaMonthly)}/mo`],
             ].map(([k, v]) => (

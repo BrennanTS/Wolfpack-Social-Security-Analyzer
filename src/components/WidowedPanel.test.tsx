@@ -198,8 +198,7 @@ describe('WidowedPanel', () => {
         piaMonthly: 3000, filed: null,
       },
     } as Partial<HouseholdAnalysis>);
-    expect(screen.getByText('Had not filed')).toBeInTheDocument();
-    expect(screen.getByTestId('deceased-filed')).toHaveTextContent('—');
+    expect(screen.getByTestId('deceased-filed')).toHaveTextContent('Had not filed');
     expect(screen.getByTestId('deceased-filed')).not.toHaveTextContent('August 2024');
   });
 

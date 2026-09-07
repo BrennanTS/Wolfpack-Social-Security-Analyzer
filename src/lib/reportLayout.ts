@@ -33,7 +33,8 @@ export type ReportBlockId =
   | 'personRamp'
   | 'terms'
   | 'limits'
-  | 'methodology';
+  | 'methodology'
+  | 'disclosure';
 
 /**
  * A block, a forced page break, or a space.
@@ -261,7 +262,7 @@ export const BLOCKS: readonly BlockMeta[] = [
   {
     id: 'limits',
     label: 'What this report does not include',
-    blurb: 'Taxes, work, other benefits — the edges, named',
+    blurb: 'Taxes, work, and other benefits this report leaves out',
     shapes: ALL,
     fill: 'medium',
     scope: 'household',
@@ -272,6 +273,14 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'How every figure was produced',
     shapes: ALL,
     fill: 'medium',
+    scope: 'household',
+  },
+  {
+    id: 'disclosure',
+    label: 'Important disclosures',
+    blurb: 'Your firm’s own wording, set in the theme',
+    shapes: ALL,
+    fill: 'small',
     scope: 'household',
   },
 ];
@@ -327,6 +336,7 @@ export const CLIENT_LAYOUT: ReportLayout = {
     block('action'),
     block('terms'),
     block('limits'),
+    block('disclosure'),
   ],
 };
 
@@ -363,6 +373,7 @@ export const ADVISER_LAYOUT: ReportLayout = {
     block('terms'),
     block('limits'),
     block('methodology'),
+    block('disclosure'),
   ],
 };
 

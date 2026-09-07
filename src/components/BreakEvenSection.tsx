@@ -49,8 +49,8 @@ export function BreakEvenSection({
               <p className="be-label">Break-even age</p>
               <p className={`be-verdict ${beatsLater ? 'favors-later' : 'favors-earlier'}`}>
                 {beatsLater
-                  ? `Delaying to ${be.laterAge} wins — you live past break-even`
-                  : `Claiming at ${be.earlierAge} wins — you don't reach break-even`}
+                  ? `Delaying to ${be.laterAge} wins. You live past break-even`
+                  : `Claiming at ${be.earlierAge} wins. You don't reach break-even`}
               </p>
             </div>
           );

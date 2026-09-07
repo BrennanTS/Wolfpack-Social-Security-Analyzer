@@ -113,7 +113,7 @@ function BenefitTable({
               {formatCurrency(row.lifetimeBenefits)}
             </Text>
             <Text style={[styles.td, { width: COL.diff }, diff < 0 ? styles.negative : {}]}>
-              {diff === 0 ? '—' : formatCurrency(diff)}
+              {diff === 0 ? '' : formatCurrency(diff)}
             </Text>
           </View>
         );

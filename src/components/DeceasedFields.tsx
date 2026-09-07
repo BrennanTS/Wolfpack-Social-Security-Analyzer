@@ -60,9 +60,9 @@ const ERROR_TEXT: Record<WidowedFieldError, string> = {
   claimBeforeSixty:
     'A survivor benefit starts at 60 at the earliest. Earlier claims (disability, ' +
     'or caring for a child under 16) are outside what this tool models.',
-  filedBeforeSixtyTwo: 'Nobody can file for retirement before age 62 — check this date.',
+  filedBeforeSixtyTwo: 'Nobody can file for retirement before age 62. Check this date.',
   checkAmountUnreachable:
-    'No Social Security benefit reaches that amount — check for an extra digit.',
+    'No Social Security benefit reaches that amount. Check for an extra digit.',
 };
 
 
@@ -335,7 +335,7 @@ export function DeceasedFields({
               </div>
               {errors.filed && <span className="field-error">{ERROR_TEXT[errors.filed]}</span>}
               <span className="field-hint" id="dec-check-amount-hint">
-                This is an estimate — a current check includes every cost-of-living increase
+                This is an estimate. A current check includes every cost-of-living increase
                 since they filed, which the benefit formula does not.
               </span>
             </div>

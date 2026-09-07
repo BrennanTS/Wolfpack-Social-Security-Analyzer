@@ -324,8 +324,8 @@ describe('CombinedIncomeChart', () => {
       render(
         <CombinedIncomeChart monthlySeries={monthlySeriesWithSpousal} people={[john, noRecordSarah]} />,
       );
-      expect(screen.getByText(/Jane — spousal/)).toBeInTheDocument();
-      expect(screen.getByText(/John — own benefit/)).toBeInTheDocument();
+      expect(screen.getByText(/Jane \(spousal\)/)).toBeInTheDocument();
+      expect(screen.getByText(/John \(own benefit\)/)).toBeInTheDocument();
     });
 
     it('omits a band and its legend entry when every month of it is zero', () => {
@@ -343,7 +343,7 @@ describe('CombinedIncomeChart', () => {
       // Self-sufficient against a `visibleBenefitSeries` that returned `[]`
       // unconditionally: that would also make the assertion above pass, so
       // this also pins that a real, surviving series is still there.
-      expect(legend?.textContent).toMatch(/Avery — own benefit/);
+      expect(legend?.textContent).toMatch(/Avery \(own benefit\)/);
     });
   });
 
@@ -594,13 +594,13 @@ describe('the tooltip', () => {
     // the stack needs the point — but a "$0/yr" row is noise beside the bands
     // actually paying, and there can be three of them at once.
     const rows = tooltipRows([
-      { dataKey: 'a:personal', name: 'Client — own benefit', value: 66960, color: '#b8965a' },
-      { dataKey: 'b:personal', name: 'Spouse — own benefit', value: 21732, color: '#9d78b0' },
-      { dataKey: 'b:survivor', name: 'Spouse — survivor', value: 0, color: '#6f8ba3' },
+      { dataKey: 'a:personal', name: 'Client (own benefit)', value: 66960, color: '#b8965a' },
+      { dataKey: 'b:personal', name: 'Spouse (own benefit)', value: 21732, color: '#9d78b0' },
+      { dataKey: 'b:survivor', name: 'Spouse (survivor)', value: 0, color: '#6f8ba3' },
     ]);
     expect(rows).toEqual([
-      'Client — own benefit: $66,960/yr',
-      'Spouse — own benefit: $21,732/yr',
+      'Client (own benefit): $66,960/yr',
+      'Spouse (own benefit): $21,732/yr',
     ]);
   });
 

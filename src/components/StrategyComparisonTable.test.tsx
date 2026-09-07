@@ -43,11 +43,11 @@ describe('StrategyComparisonTable', () => {
     expect(screen.getAllByTestId(/^strategy-row-/)).toHaveLength(3);
   });
 
-  it('marks only the optimal row and shows an em dash for its delta', () => {
+  it('marks only the optimal row and leaves its delta blank', () => {
     render(<StrategyComparisonTable comparisons={comparisons} people={people} />);
     const optimal = screen.getByTestId('strategy-row-optimal');
     expect(optimal.className).toContain('row-optimal');
-    expect(within(optimal).getByTestId('cell-delta')).toHaveTextContent('—');
+    expect(within(optimal).getByTestId('cell-delta')).toHaveTextContent('');
   });
 
   it('shows each person filing age in its own column', () => {
@@ -121,14 +121,14 @@ describe('StrategyComparisonTable', () => {
     expect(caption).toHaveTextContent('not simply larger for later filing');
   });
 
-  it('shows an em dash rather than a currency figure when a row has no survivor income', () => {
+  it('leaves the cell blank rather than printing a currency figure when a row has no survivor income', () => {
     const withNullRow: HouseholdStrategy[] = [
       { ...comparisons[0], survivorIncome: null },
       comparisons[1],
     ];
     render(<StrategyComparisonTable comparisons={withNullRow} people={people} />);
     const row = screen.getByTestId('strategy-row-earliest');
-    expect(within(row).getByTestId('cell-survivor-earliest')).toHaveTextContent('—');
+    expect(within(row).getByTestId('cell-survivor-earliest')).toHaveTextContent('');
   });
 
   it('states the assumed death direction in the caption below the table, without naming one', () => {

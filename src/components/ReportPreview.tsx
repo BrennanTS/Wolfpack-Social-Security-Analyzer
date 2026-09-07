@@ -150,7 +150,7 @@ export function ReportPreview({
       <div className="report-preview-frame">
         {!inlineOk ? (
           <p className="report-preview-empty">
-            This browser will not display a PDF here. The layout still works — export the
+            This browser will not display a PDF here. The layout still works. Export the
             report to see it.
           </p>
         ) : url === null ? (

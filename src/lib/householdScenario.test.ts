@@ -121,7 +121,7 @@ describe('a chosen scenario', () => {
     const chosen = await run(married, both65);
     expect(chosen.selected.expectedNpv).toBeLessThan(chosen.optimal.expectedNpv);
     expect(chosen.selected.deltaVsOptimal).toBeLessThan(0);
-    expect(chosen.recommendationDetail).toContain("not the optimizer's choice");
+    expect(chosen.recommendationDetail).toContain('not the recommended ages');
     expect(chosen.recommendationDetail).toContain('less than the best available');
     // The card must not call a typed-in age a recommendation.
     expect(chosen.recommendationDetail).not.toContain('optimizer maximizes');

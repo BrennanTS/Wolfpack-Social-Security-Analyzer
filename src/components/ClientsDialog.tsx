@@ -142,7 +142,7 @@ export function ClientsDialog({
           <div>
             <h2 id="clients-dialog-title">Clients</h2>
             <p>
-              Saved in this browser only — first names, dates of birth, benefit figures, the
+              Saved in this browser only: first names, dates of birth, benefit figures, the
               assumptions you set, and the theme and layout the report is built with. Nothing is
               uploaded. Export is the only backup.
             </p>

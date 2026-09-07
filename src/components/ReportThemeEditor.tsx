@@ -1,7 +1,10 @@
 import { useCallback, useId, useRef, useState } from 'react';
 import {
+  DEFAULT_DISCLOSURE,
+  MAX_DISCLOSURE_CHARS,
   MAX_LOGO_CHARS,
   THEME_COLORS,
+  disclosureHasPlaceholder,
   parseThemeFile,
   serializeTheme,
   themeColorWarning,
@@ -210,6 +213,43 @@ export function ReportThemeEditor({
           <span className="theme-field-hint">
             Stored inside the theme and scaled down, so it travels with an exported file and
             prints without a network.
+          </span>
+        </div>
+
+        <h3 className="theme-group-heading">Disclosures</h3>
+        <div className="theme-field">
+          <label className="theme-field-label" htmlFor={`${nameFieldId}-disclosure`}>
+            Printed at the end of the report
+          </label>
+          <textarea
+            id={`${nameFieldId}-disclosure`}
+            rows={10}
+            value={theme.disclosure}
+            maxLength={MAX_DISCLOSURE_CHARS}
+            spellCheck
+            aria-describedby={`${nameFieldId}-disclosure-hint`}
+            onChange={(e) => set({ disclosure: e.target.value })}
+          />
+          {/* A report with the placeholder still in it would print square
+              brackets on a client's copy. Said here, where the text is, rather
+              than at export, where there is nothing to be done about it. */}
+          {disclosureHasPlaceholder(theme.disclosure) && (
+            <span className="theme-field-warning" role="status">
+              Replace the text in square brackets with your firm’s own regulatory wording
+              before a report goes to a client.
+            </span>
+          )}
+          <span className="theme-field-hint" id={`${nameFieldId}-disclosure-hint`}>
+            The wording your compliance review approves, one paragraph per blank line. It
+            prints as its own section wherever the layout places it.{' '}
+            <button
+              type="button"
+              className="clients-inline-action"
+              onClick={() => set({ disclosure: DEFAULT_DISCLOSURE })}
+              disabled={theme.disclosure === DEFAULT_DISCLOSURE}
+            >
+              Restore the standard wording
+            </button>
           </span>
         </div>
 

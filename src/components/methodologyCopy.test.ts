@@ -238,7 +238,7 @@ describe('spousalSummary', () => {
         null,
       );
       expect(copy).toBe(
-        `Both spouses have the same Primary Insurance Amount, so neither is the lower earner — ` +
+        `Both spouses have the same Primary Insurance Amount, so neither is the lower earner, and ` +
           `there is no spousal top-up to claim on the other's record.`,
       );
     }
@@ -432,7 +432,7 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
     // this also re-proves the overclaim fix — "identical records" would fail
     // this exact match too.
     expect(forwardCopy).toContain(
-      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner — ` +
+      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner, and ` +
         `there is no spousal top-up to claim on the other's record.`,
     );
   });
@@ -626,7 +626,7 @@ describe('survivorIncomeCaption', () => {
     };
     const caption = survivorIncomeCaption(RISING, gap);
     expect(caption).toContain('understate what the survivor would actually receive');
-    expect(caption).toContain('see the note below');
+    expect(caption).toContain('See the note below');
     expect(caption).toContain('Delaying raises this figure for this household');
     // The gap note's own figures belong to `survivorGapNote`, not here — a
     // second rendering of them is the exact duplication three of this
@@ -652,7 +652,7 @@ describe('survivorIncomeCaption', () => {
     };
     const caption = survivorIncomeCaption(rowsWith([[67, 67], 0], [[70, 70], 0]), gap);
     expect(caption).toContain('has not yet reached the age a widow(er) benefit can start');
-    expect(caption).toContain('see the note below');
+    expect(caption).toContain('See the note below');
     expect(caption).not.toContain('Delaying raises');
     expect(caption).not.toContain('understate');
   });
@@ -1200,7 +1200,7 @@ describe('survivorClaimNote', () => {
     expect(note).toMatch(/Jane/);
     expect(note).toMatch(/68 years, 0 months/);
     expect(note).toMatch(/\$135,700/);
-    expect(note).toMatch(/optimizer/i);
+    expect(note).toMatch(/one filing date per person/);
   });
 
   it('renders nothing when there is no alternative to show', () => {
@@ -1380,7 +1380,7 @@ describe('survivorClaimNote', () => {
       gain: 102_960,
       baselineHasSurvivorBand: false,
     })!;
-    expect(note).toContain('carries a single filing date per person');
+    expect(note).toContain('built with one filing date per person');
     expect(note).not.toContain('filing date fixed');
     expect(note).toContain('cannot model a separate survivor claim date');
   });

@@ -131,7 +131,7 @@ describe('DeceasedFields', () => {
       const field = screen.getByTestId('dec-check-amount-field');
       expect(
         within(field).getByText(
-          'No Social Security benefit reaches that amount — check for an extra digit.',
+          'No Social Security benefit reaches that amount. Check for an extra digit.',
         ),
       ).toBeInTheDocument();
     });
@@ -140,7 +140,7 @@ describe('DeceasedFields', () => {
       renderFields({ deceased: { ...BLANK_DECEASED, recordKind: 'checkAmount' } });
       expect(
         screen.getByText(
-          'This is an estimate — a current check includes every cost-of-living increase ' +
+          'This is an estimate. A current check includes every cost-of-living increase ' +
             'since they filed, which the benefit formula does not.',
         ),
       ).toBeInTheDocument();

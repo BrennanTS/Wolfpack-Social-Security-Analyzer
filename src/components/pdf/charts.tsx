@@ -252,7 +252,7 @@ export function PdfHeatmap({
                 {/* An em dash on the diagonal where death falls in the month
                     of claiming: nothing has been paid, and "$0k" puts a unit
                     on a quantity that does not exist yet. */}
-                {value === 0 ? '\u2014' : formatCompactCurrency(value, unit)}
+                {value === 0 ? '$0' : formatCompactCurrency(value, unit)}
               </Text>
             );
           }),

@@ -79,5 +79,5 @@ export function applyMonth(filing: CalendarMonth): CalendarMonth {
  * invites a reader to check whether they agree.
  */
 export function ageAndDateLabel(person: Person, age: FilingAgeDisplay): string {
-  return `${age.label} — ${shortMonthYearLabel(filingMonth(person, age))}`;
+  return `${age.label} (${shortMonthYearLabel(filingMonth(person, age))})`;
 }

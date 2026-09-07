@@ -81,7 +81,7 @@ export function CopyLinkButton({ form, extras = BLANK_VIEW_EXTRAS, disabled }: C
         <div className="share-link-fallback">
           <div className="share-link-fallback-head">
             <label htmlFor="share-link-fallback-input" className="field-hint">
-              Clipboard unavailable — copy this link manually:
+              Clipboard unavailable. Copy this link manually:
             </label>
             <button
               type="button"
