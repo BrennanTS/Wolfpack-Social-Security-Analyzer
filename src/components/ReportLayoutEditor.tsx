@@ -9,7 +9,16 @@ import {
   type ReportBlockId,
   type ReportLayout,
 } from '../lib/reportLayout';
+import type { HouseholdDisplayShape } from '../lib/household';
+import { blockAppliesTo } from '../lib/reportLayout';
 import type { useReportLayouts } from '../hooks/useReportLayouts';
+
+/** What this household is called, for the "won't print" hint. */
+const SHAPE_NAME: Record<HouseholdDisplayShape, string> = {
+  oneClaimant: 'a single client',
+  twoClaimants: 'a married couple',
+  widowed: 'a widow(er)',
+};
 
 /** How much of a page a block takes, in the editor's words. */
 const FILL_LABEL: Record<'small' | 'medium' | 'full', string> = {
@@ -41,16 +50,23 @@ export function ReportLayoutEditor({
   rename,
   remove,
   importLayout,
-}: ReturnType<typeof useReportLayouts>) {
-  const [draft, setDraft] = useState<LayoutItem[] | null>(null);
+  draftItems,
+  setDraftItems,
+  shape,
+}: ReturnType<typeof useReportLayouts> & {
+  /** The household on screen, so the editor can say what it will skip. */
+  shape?: HouseholdDisplayShape;
+}) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const nameFieldId = useId();
 
-  const items = draft ?? layout.items;
-  const dirty = draft !== null;
+  // `layout` already has the draft applied — the store owns it, so the export
+  // and this list can never show different reports.
+  const items = layout.items;
+  const dirty = draftItems !== null;
   const editingPreset = isPreset(selectedId);
 
   const commit = useCallback(
@@ -58,10 +74,10 @@ export function ReportLayoutEditor({
       // A preset's items are code, so editing one starts a draft the adviser
       // then names. A layout of their own is theirs to change, and saves as
       // they go — there is nothing to protect it from.
-      if (editingPreset) setDraft(next);
+      if (editingPreset) setDraftItems(next);
       else update(selectedId, next);
     },
-    [editingPreset, selectedId, update],
+    [editingPreset, selectedId, update, setDraftItems],
   );
 
   const move = useCallback(
@@ -112,10 +128,10 @@ export function ReportLayoutEditor({
         return;
       }
       importLayout(parsed);
-      setDraft(null);
+      setDraftItems(null);
       setNote(`Imported “${parsed.name}”.`);
     },
-    [importLayout],
+    [importLayout, setDraftItems],
   );
 
   const omitted = omittedBlocks({ ...layout, items });
@@ -130,7 +146,6 @@ export function ReportLayoutEditor({
           id={nameFieldId}
           value={selectedId}
           onChange={(e) => {
-            setDraft(null);
             setNote(null);
             select(e.target.value);
           }}
@@ -153,7 +168,7 @@ export function ReportLayoutEditor({
             defaultName={editingPreset ? `${layout.name} (mine)` : layout.name}
             onSave={(name) => {
               saveAs(name, items);
-              setDraft(null);
+              setDraftItems(null);
               setNote(`Saved “${name}”.`);
             }}
           />
@@ -164,12 +179,15 @@ export function ReportLayoutEditor({
         {items.map((item, index) => {
           const meta = item.kind === 'block' ? blockMeta(item.id) : undefined;
           const key = item.kind === 'break' ? `break-${index}` : item.id;
+          const skipped =
+            item.kind === 'block' && shape !== undefined && !blockAppliesTo(item.id, shape);
           return (
             <li
               key={key}
               className={[
                 'layout-row',
                 item.kind === 'break' ? 'layout-row-break' : '',
+                skipped ? 'layout-row-skipped' : '',
                 overIndex === index ? 'layout-row-over' : '',
                 dragIndex === index ? 'layout-row-dragging' : '',
               ]
@@ -202,7 +220,15 @@ export function ReportLayoutEditor({
                 <span className="layout-row-text">
                   <span className="layout-row-name">{meta?.label ?? item.id}</span>
                   <span className="layout-row-blurb">
-                    {meta ? `${meta.blurb} · ${FILL_LABEL[meta.fill]}` : ''}
+                    {/* A block outside its household shape is dropped at
+                        render, silently. Saying so here is the difference
+                        between a layout that adapts and one that looks
+                        broken when a single client's report comes out short. */}
+                    {skipped
+                      ? `Not printed for ${SHAPE_NAME[shape!]} — kept for other households`
+                      : meta
+                        ? `${meta.blurb} · ${FILL_LABEL[meta.fill]}`
+                        : ''}
                   </span>
                 </span>
               )}
@@ -254,6 +280,18 @@ export function ReportLayoutEditor({
       </div>
 
       <div className="layout-actions">
+        <button
+          type="button"
+          onClick={() => {
+            const name = window.prompt('Name for the copy', `${layout.name} copy`);
+            if (name === null) return;
+            saveAs(name, items);
+            setDraftItems(null);
+            setNote(`Saved “${name}”.`);
+          }}
+        >
+          Duplicate
+        </button>
         <button type="button" onClick={onExport}>
           Export…
         </button>
@@ -276,7 +314,7 @@ export function ReportLayoutEditor({
               onClick={() => {
                 if (window.confirm(`Delete “${layout.name}”?`)) {
                   remove(selectedId);
-                  setDraft(null);
+                  setDraftItems(null);
                 }
               }}
             >

@@ -8,6 +8,7 @@ import {
   layoutBlockIds,
   layoutRuns,
   omittedBlocks,
+  blockScope,
   parseLayout,
   parseLayoutFile,
   serializeLayout,
@@ -183,5 +184,57 @@ describe('parseLayout repairs rather than trusts', () => {
   it('does not throw on malformed json', () => {
     expect(parseLayoutFile('{not json')).toBeNull();
     expect(parseLayoutFile('')).toBeNull();
+  });
+});
+
+describe('person-scoped blocks', () => {
+  it('marks exactly the per-person blocks', () => {
+    const person = BLOCKS.filter((b) => b.scope === 'person').map((b) => b.id);
+    expect(person).toEqual([
+      'personDetails',
+      'personComparison',
+      'personCumulative',
+      'personBreakeven',
+      'personHeatmap',
+      'personOpportunity',
+      'personRamp',
+    ]);
+    expect(blockScope('terms')).toBe('household');
+    expect(blockScope('personRamp')).toBe('person');
+  });
+
+  it('lets the detail card be kept while the charts are dropped', () => {
+    // The point of the split: the profile and recommendation are what an
+    // adviser keeps for a client, and four of the charts are what they cut.
+    const layout = parseLayout({
+      items: [{ kind: 'block', id: 'personDetails' }, { kind: 'block', id: 'personBreakeven' }],
+    });
+    expect(layoutBlockIds(layout!)).toEqual(['personDetails', 'personBreakeven']);
+  });
+
+  it('expands a layout saved before the split, rather than dropping its person pages', () => {
+    // `people` was one block. A saved layout naming it must not come back
+    // silently missing every person page.
+    const layout = parseLayout({
+      items: [{ kind: 'block', id: 'answer' }, { kind: 'block', id: 'people' }],
+    });
+    expect(layoutBlockIds(layout!)).toEqual([
+      'answer',
+      'personDetails',
+      'personComparison',
+      'personCumulative',
+      'personBreakeven',
+      'personHeatmap',
+      'personOpportunity',
+      'personRamp',
+    ]);
+  });
+
+  it('does not duplicate a block the legacy expansion already added', () => {
+    const layout = parseLayout({
+      items: [{ kind: 'block', id: 'personRamp' }, { kind: 'block', id: 'people' }],
+    });
+    const ids = layoutBlockIds(layout!);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

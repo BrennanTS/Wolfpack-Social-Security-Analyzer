@@ -17,6 +17,8 @@ const stubLayouts = () => ({
   rename: vi.fn(),
   remove: vi.fn(),
   importLayout: vi.fn(),
+    draftItems: null,
+    setDraftItems: vi.fn(),
 });
 
 function renderMenu(overrides: Partial<Parameters<typeof MenuPanel>[0]> = {}) {

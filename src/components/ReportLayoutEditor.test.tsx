@@ -1,13 +1,39 @@
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReportLayoutEditor } from './ReportLayoutEditor';
-import { ADVISER_LAYOUT, CLIENT_LAYOUT, PRESETS, type ReportLayout } from '../lib/reportLayout';
+import {
+  ADVISER_LAYOUT,
+  CLIENT_LAYOUT,
+  PRESETS,
+  type LayoutItem,
+  type ReportLayout,
+} from '../lib/reportLayout';
 
 /** A store whose calls can be inspected, so these tests are about the editor. */
 function store(overrides: Partial<ReturnType<typeof base>> = {}) {
   return { ...base(), ...overrides };
 }
+
+/**
+ * Renders the editor against a store that really holds the draft.
+ *
+ * The draft lives in the store, not the component — that is what makes the
+ * export show what the editor shows — so a stub with a frozen `draftItems`
+ * would never re-render and every assertion about the visible list would be
+ * about nothing.
+ */
+function Harness(props: ReturnType<typeof store> & { shape?: 'oneClaimant' | 'twoClaimants' | 'widowed' }) {
+  const [draftItems, setDraftItems] = useState<LayoutItem[] | null>(props.draftItems ?? null);
+  const layout = draftItems === null ? props.layout : { ...props.layout, items: draftItems };
+  return <ReportLayoutEditor {...props} layout={layout} draftItems={draftItems} setDraftItems={setDraftItems} />;
+}
+
+const renderEditor = (
+  s: ReturnType<typeof store> = store(),
+  shape?: 'oneClaimant' | 'twoClaimants' | 'widowed',
+) => render(<Harness {...s} shape={shape} />);
 
 function base() {
   return {
@@ -21,6 +47,8 @@ function base() {
     rename: vi.fn(),
     remove: vi.fn(),
     importLayout: vi.fn(),
+    draftItems: null,
+    setDraftItems: vi.fn(),
   };
 }
 
@@ -31,20 +59,20 @@ describe('ReportLayoutEditor', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('lists the selected layout in order', () => {
-    render(<ReportLayoutEditor {...store()} />);
+    renderEditor();
     expect(screen.getAllByRole('listitem')).toHaveLength(CLIENT_LAYOUT.items.length);
     expect(rowNames()[0]).toContain('Your Social Security decision');
   });
 
   it('offers every block the layout leaves out, and none it already has', () => {
-    render(<ReportLayoutEditor {...store()} />);
+    renderEditor();
     // The client preset omits the grid; it must be one click from being in.
     expect(screen.getByRole('button', { name: /\+ Claiming age grid/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /\+ Your action plan/ })).not.toBeInTheDocument();
   });
 
   it('says so when nothing is left to add', () => {
-    render(<ReportLayoutEditor {...store({ layout: ADVISER_LAYOUT, selectedId: ADVISER_LAYOUT.id })} />);
+    renderEditor(store({ layout: ADVISER_LAYOUT, selectedId: ADVISER_LAYOUT.id }));
     expect(screen.getByText(/every section is in this report/i)).toBeInTheDocument();
   });
 
@@ -53,7 +81,7 @@ describe('ReportLayoutEditor', () => {
     // from a keyboard, and the only way on a touch screen. A drag-only editor
     // is a locked door.
     const s = store();
-    render(<ReportLayoutEditor {...s} />);
+    renderEditor(s);
     const [first] = rowNames();
     expect(first).toContain('Your Social Security decision');
     return userEvent
@@ -66,19 +94,19 @@ describe('ReportLayoutEditor', () => {
   });
 
   it('cannot move the first block up or the last one down', () => {
-    render(<ReportLayoutEditor {...store()} />);
+    renderEditor();
     expect(screen.getByRole('button', { name: /move Your Social Security decision up/i })).toBeDisabled();
   });
 
   it('removes a block, and offers it back', async () => {
-    render(<ReportLayoutEditor {...store()} />);
+    renderEditor();
     await userEvent.click(screen.getByRole('button', { name: /remove Your action plan/i }));
     expect(rowNames().join(' ')).not.toContain('Your action plan');
     expect(screen.getByRole('button', { name: /\+ Your action plan/ })).toBeInTheDocument();
   });
 
   it('adds a page break', async () => {
-    render(<ReportLayoutEditor {...store()} />);
+    renderEditor();
     await userEvent.click(screen.getByRole('button', { name: /\+ Page break/ }));
     expect(screen.getByText('Page break')).toBeInTheDocument();
   });
@@ -87,7 +115,7 @@ describe('ReportLayoutEditor', () => {
     // Presets are code. Editing one in place would fork what "Client" means
     // for this browser only, silently.
     const s = store();
-    render(<ReportLayoutEditor {...s} />);
+    renderEditor(s);
     await userEvent.click(screen.getByRole('button', { name: /\+ Page break/ }));
     expect(s.update).not.toHaveBeenCalled();
     expect(screen.getByText(/presets can’t be changed/i)).toBeInTheDocument();
@@ -95,7 +123,7 @@ describe('ReportLayoutEditor', () => {
 
   it('saves an edited preset under a new name', async () => {
     const s = store();
-    render(<ReportLayoutEditor {...s} />);
+    renderEditor(s);
     await userEvent.click(screen.getByRole('button', { name: /\+ Page break/ }));
     await userEvent.clear(screen.getByLabelText(/layout name/i));
     await userEvent.type(screen.getByLabelText(/layout name/i), 'Estate review');
@@ -106,18 +134,53 @@ describe('ReportLayoutEditor', () => {
   it('writes edits straight through for a layout of your own', async () => {
     const mine: ReportLayout = { id: 'mine', name: 'Mine', items: CLIENT_LAYOUT.items };
     const s = store({ layout: mine, selectedId: 'mine', layouts: [...PRESETS, mine] });
-    render(<ReportLayoutEditor {...s} />);
+    renderEditor(s);
     await userEvent.click(screen.getByRole('button', { name: /\+ Page break/ }));
     expect(s.update).toHaveBeenCalledWith('mine', expect.any(Array));
     expect(screen.queryByText(/presets can’t be changed/i)).not.toBeInTheDocument();
   });
 
+  it('duplicates any layout, so a second variant need not restart from a preset', async () => {
+    // Editing your own layout writes through in place, so without this the
+    // only way to a second custom layout is back to a preset and start again.
+    const s = store();
+    vi.spyOn(window, 'prompt').mockReturnValue('Married — long');
+    renderEditor(s);
+    await userEvent.click(screen.getByRole('button', { name: /^duplicate$/i }));
+    expect(s.saveAs).toHaveBeenCalledWith('Married — long', expect.any(Array));
+  });
+
+  it('does not duplicate when the name prompt is dismissed', async () => {
+    const s = store();
+    vi.spyOn(window, 'prompt').mockReturnValue(null);
+    renderEditor(s);
+    await userEvent.click(screen.getByRole('button', { name: /^duplicate$/i }));
+    expect(s.saveAs).not.toHaveBeenCalled();
+  });
+
+  it('says which blocks this household will not receive', () => {
+    // Blocks outside their household shape are dropped at render, silently.
+    // Unflagged, a single client's short report looks like a bug.
+    renderEditor(store(), 'oneClaimant');
+    expect(screen.getByText(/not printed for a single client/i)).toBeInTheDocument();
+  });
+
+  it('flags nothing when every block applies', () => {
+    renderEditor(store(), 'twoClaimants');
+    expect(screen.queryByText(/not printed for/i)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about households when there is no analysis yet', () => {
+    renderEditor();
+    expect(screen.queryByText(/not printed for/i)).not.toBeInTheDocument();
+  });
+
   it('offers rename and delete only for a layout you own', () => {
-    const { unmount } = render(<ReportLayoutEditor {...store()} />);
+    const { unmount } = renderEditor();
     expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
     unmount();
     const mine: ReportLayout = { id: 'mine', name: 'Mine', items: CLIENT_LAYOUT.items };
-    render(<ReportLayoutEditor {...store({ layout: mine, selectedId: 'mine' })} />);
+    renderEditor(store({ layout: mine, selectedId: 'mine' }));
     expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
   });
 });

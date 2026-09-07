@@ -2994,3 +2994,18 @@ tbody tr:hover {
   font-size: 0.6875rem;
   color: var(--gold-dark);
 }
+
+/* A block the current household will never see. Dimmed rather than hidden:
+   it is still part of the layout, and a layout is shared between households.
+   Kept above the disabled-button opacity so its own controls stay usable. */
+.layout-row-skipped {
+  border-style: dashed;
+}
+
+.layout-row-skipped .layout-row-name {
+  color: var(--text-muted);
+}
+
+.layout-row-skipped .layout-row-blurb {
+  color: var(--gold-dark);
+}

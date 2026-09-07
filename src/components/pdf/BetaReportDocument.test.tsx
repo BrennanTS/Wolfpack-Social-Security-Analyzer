@@ -150,6 +150,42 @@ describe('BetaReportDocument composition', () => {
     expect(text).not.toContain('If one of you is left alone');
   });
 
+  it('prints only the person parts the layout asks for', () => {
+    const detailOnly: ReportLayout = {
+      id: 'x', name: 'Detail only',
+      items: [{ kind: 'block', id: 'personDetails' }],
+    };
+    const text = collectText(build(married, detailOnly)).join(' ');
+    expect(text).toContain('Full Retirement Age');
+    // The six charts are separate blocks now, and none was asked for.
+    expect(text).not.toContain('Break-Even Analysis');
+    expect(text).not.toContain('Lifetime Benefit Heatmap');
+    expect(text).not.toContain('Monthly Benefit Ramp');
+  });
+
+  it('keeps the report person-major when several person blocks are chosen', () => {
+    // Grouped, a couple reads "Dan: these charts, then Sarah: these charts".
+    // Rendered a block at a time it would be every chart twice in a row under
+    // alternating names, with cards sitting under nobody's heading.
+    const twoParts: ReportLayout = {
+      id: 'x', name: 'Two parts',
+      items: [
+        { kind: 'block', id: 'personDetails' },
+        { kind: 'block', id: 'personBreakeven' },
+      ],
+    };
+    const text = collectText(build(married, twoParts)).join(' ');
+    const dan = text.indexOf('Dan');
+    const sarah = text.indexOf('Sarah');
+    const firstBreakEven = text.indexOf('Break-Even Analysis');
+    const lastBreakEven = text.lastIndexOf('Break-Even Analysis');
+    expect(dan).toBeLessThan(sarah);
+    // Dan's break-even falls between the two names; Sarah's after hers.
+    expect(firstBreakEven).toBeGreaterThan(dan);
+    expect(firstBreakEven).toBeLessThan(sarah);
+    expect(lastBreakEven).toBeGreaterThan(sarah);
+  });
+
   it('omits the longevity block when the caller did not price it', () => {
     // `sensitivity` is async and computed by the caller; a layout naming the
     // block must not fail the export when it is missing.

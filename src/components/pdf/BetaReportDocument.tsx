@@ -6,6 +6,7 @@ import type { ClaimingRow } from '../../lib/claimingRows';
 import type { LongevitySensitivity } from '../../lib/longevity';
 import {
   ADVISER_LAYOUT,
+  blockScope,
   layoutRuns,
   type ReportBlockId,
   type ReportLayout,
@@ -19,7 +20,7 @@ import {
   ReportHeader,
 } from './ReportDocument';
 import { ClaimingGridBlock, HouseholdBlock } from './HouseholdSection';
-import { PersonBlock } from './PersonSection';
+import { PersonBlock, type PersonPart } from './PersonSection';
 import { WidowedSection } from './WidowedSection';
 import {
   ActionBlock,
@@ -49,6 +50,23 @@ import {
  * living claimants choosing between filing ages has already been decided for
  * a widow(er), and `layoutRuns` drops them.
  */
+/**
+ * A run of blocks, collapsed so consecutive person blocks travel together.
+ *
+ * Household blocks stay one to a group; person blocks gather into one, which
+ * is what keeps the report person-major when a layout interleaves them.
+ */
+function groupRun(run: ReportBlockId[]): { scope: 'household' | 'person'; ids: ReportBlockId[] }[] {
+  const groups: { scope: 'household' | 'person'; ids: ReportBlockId[] }[] = [];
+  for (const id of run) {
+    const scope = blockScope(id);
+    const last = groups[groups.length - 1];
+    if (scope === 'person' && last?.scope === 'person') last.ids.push(id);
+    else groups.push({ scope, ids: [id] });
+  }
+  return groups;
+}
+
 export function BetaReportDocument({
   analysis,
   claimingRowsByPerson = {},
@@ -81,6 +99,42 @@ export function BetaReportDocument({
    * that walk this document's element tree without a renderer can see inside
    * each block.
    */
+  /** Which part of a person's detail each person-scoped block prints. */
+  const PART_OF: Partial<Record<ReportBlockId, PersonPart>> = {
+    personDetails: 'details',
+    personComparison: 'comparison',
+    personCumulative: 'cumulative',
+    personBreakeven: 'breakeven',
+    personHeatmap: 'heatmap',
+    personOpportunity: 'opportunity',
+    personRamp: 'ramp',
+  };
+
+  /**
+   * One run of consecutive person blocks, printed for each claimant in turn.
+   *
+   * Grouped rather than rendered one block at a time so the report stays
+   * person-major: a couple gets the client's charts, then the spouse's, under
+   * one name each. Block-at-a-time would print every chart twice in a row
+   * under alternating names, and a break-even card under nobody's heading.
+   */
+  const renderPeople = (ids: ReportBlockId[]): React.ReactNode => {
+    const parts = ids.flatMap((id) => (PART_OF[id] ? [PART_OF[id] as PersonPart] : []));
+    if (parts.length === 0) return null;
+    return analysis.people.map((rep, i) => (
+      <View key={rep.person.id} break={i > 0}>
+        {PersonBlock({
+          analysis: rep,
+          index: i === 0 ? 0 : 1,
+          annualCola: analysis.assumptions.annualCola,
+          isBest: analysis.scenarioIsBest,
+          claimingRows: claimingRowsByPerson[rep.person.id],
+          parts,
+        })}
+      </View>
+    ));
+  };
+
   const renderBlock = (id: ReportBlockId): React.ReactNode => {
     switch (id) {
       case 'answer':
@@ -98,18 +152,6 @@ export function BetaReportDocument({
         return HouseholdBlock({ analysis });
       case 'grid':
         return ClaimingGridBlock({ analysis, gridTarget });
-      case 'people':
-        return analysis.people.map((rep, i) => (
-          <View key={rep.person.id} break={i > 0}>
-            {PersonBlock({
-              analysis: rep,
-              index: i === 0 ? 0 : 1,
-              annualCola: analysis.assumptions.annualCola,
-              isBest: analysis.scenarioIsBest,
-              claimingRows: claimingRowsByPerson[rep.person.id],
-            })}
-          </View>
-        ));
       case 'terms':
         return TermsBlock({ analysis });
       case 'methodology':
@@ -139,16 +181,18 @@ export function BetaReportDocument({
         <Page key={run.join('-')} size="LETTER" style={styles.page}>
           {/* The document title sits on the first sheet only. */}
           {runIndex === 0 && !isWidowed && <ReportHeader dateLabel={reportDate} />}
-          {run.map((id, i) =>
-            // The first block on a sheet sits against the top margin; every
+          {groupRun(run).map((group, i) =>
+            // The first group on a sheet sits against the top margin; every
             // one after it needs the gap its own heading deliberately does
             // not carry. A plain Fragment for the first, so nothing adds a
             // layout box where no spacing is wanted.
             i === 0 ? (
-              <Fragment key={id}>{renderBlock(id)}</Fragment>
+              <Fragment key={group.ids.join('-')}>
+                {group.scope === 'person' ? renderPeople(group.ids) : renderBlock(group.ids[0])}
+              </Fragment>
             ) : (
-              <View key={id} style={styles.blockGap}>
-                {renderBlock(id)}
+              <View key={group.ids.join('-')} style={styles.blockGap}>
+                {group.scope === 'person' ? renderPeople(group.ids) : renderBlock(group.ids[0])}
               </View>
             ),
           )}

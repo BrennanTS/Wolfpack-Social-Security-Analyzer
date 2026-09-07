@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { REPORT_THEMES } from '../lib/reportTheme';
 import { ReportLayoutEditor } from './ReportLayoutEditor';
 import type { useReportLayouts } from '../hooks/useReportLayouts';
+import type { HouseholdDisplayShape } from '../lib/household';
 import { AppVersion } from './AppVersion';
 
 interface MenuPanelProps {
@@ -12,6 +13,8 @@ interface MenuPanelProps {
   onOpenAbout: () => void;
   onOpenResources: () => void;
   layouts: ReturnType<typeof useReportLayouts>;
+  /** The household on screen, so the editor can flag blocks it will skip. */
+  shape?: HouseholdDisplayShape;
 }
 
 /**
@@ -35,6 +38,7 @@ export function MenuPanel({
   onOpenAbout,
   onOpenResources,
   layouts,
+  shape,
 }: MenuPanelProps) {
   useEffect(() => {
     if (!open) return;
@@ -135,7 +139,7 @@ export function MenuPanel({
             <p className="menu-note">
               Applies to the beta PDF. Drag to reorder, and export a layout to share it.
             </p>
-            <ReportLayoutEditor {...layouts} />
+            <ReportLayoutEditor {...layouts} shape={shape} />
           </section>
 
           <section className="resources-section">

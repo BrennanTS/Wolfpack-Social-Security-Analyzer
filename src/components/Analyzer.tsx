@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DollarsMode } from '../lib/dollarsMode';
-import type { HouseholdAnalysis } from '../lib/household';
+import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
 import { BRAND_NAME } from '../lib/brand';
 import {
   analyzeIfComplete,
@@ -561,6 +561,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         onOpenAbout={() => setAboutOpen(true)}
         onOpenResources={() => setResourcesOpen(true)}
         layouts={reportLayouts}
+        shape={analysis ? householdDisplayShape(analysis.status) : undefined}
       />
 
       <footer className="footer">

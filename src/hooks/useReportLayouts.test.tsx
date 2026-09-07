@@ -101,6 +101,35 @@ describe('useReportLayouts', () => {
     expect(names).not.toContain('Bad');
   });
 
+  it('builds the report from the draft, so Export matches what the editor shows', () => {
+    // The defect this exists for: the draft lived in the editor component, so
+    // dropping four charts, watching them leave the list and clicking Export
+    // handed back the unedited preset.
+    const { result } = renderHook(() => useReportLayouts());
+    const full = result.current.layout.items.length;
+    act(() => result.current.setDraftItems(items(2)));
+    expect(result.current.layout.items).toHaveLength(2);
+    expect(full).toBeGreaterThan(2);
+  });
+
+  it('abandons a draft when another layout is chosen', () => {
+    // The draft belonged to the layout being edited; carrying it across would
+    // silently apply one layout's edits to another.
+    const { result } = renderHook(() => useReportLayouts());
+    act(() => result.current.setDraftItems(items(1)));
+    act(() => result.current.select(PRESETS[1].id));
+    expect(result.current.layout.items).toEqual(PRESETS[1].items);
+  });
+
+  it('settles the draft once it is saved', () => {
+    const { result } = renderHook(() => useReportLayouts());
+    act(() => result.current.setDraftItems(items(2)));
+    act(() => void result.current.saveAs('Saved from draft', result.current.layout.items));
+    expect(result.current.draftItems).toBeNull();
+    expect(result.current.layout.name).toBe('Saved from draft');
+    expect(result.current.layout.items).toHaveLength(2);
+  });
+
   it('gives an imported layout a fresh id, so it cannot collide', () => {
     const { result } = renderHook(() => useReportLayouts());
     act(() => void result.current.saveAs('First', items(2)));

@@ -22,7 +22,13 @@ export type ReportBlockId =
   | 'action'
   | 'household'
   | 'grid'
-  | 'people'
+  | 'personDetails'
+  | 'personComparison'
+  | 'personCumulative'
+  | 'personBreakeven'
+  | 'personHeatmap'
+  | 'personOpportunity'
+  | 'personRamp'
   | 'terms'
   | 'methodology';
 
@@ -58,6 +64,15 @@ export interface BlockMeta {
   shapes: readonly HouseholdDisplayShape[];
   /** Roughly how much of a page it fills, for the editor's size hint. */
   fill: 'small' | 'medium' | 'full';
+  /**
+   * `'person'` blocks print once for each claimant, under that person's name.
+   *
+   * The report stays person-major because of this: consecutive person blocks
+   * are rendered together for one person before the next, so a couple gets
+   * "Client: these charts, then Spouse: these charts" rather than every chart
+   * twice in a row under alternating names.
+   */
+  scope: 'household' | 'person';
 }
 
 const ALL: readonly HouseholdDisplayShape[] = ['oneClaimant', 'twoClaimants', 'widowed'];
@@ -77,6 +92,7 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'Filing dates, the monthly figures, and the lifetime total',
     shapes: LIVING,
     fill: 'small',
+    scope: 'household',
   },
   {
     id: 'changes',
@@ -84,6 +100,7 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'Every month the household income moves, and why',
     shapes: LIVING,
     fill: 'small',
+    scope: 'household',
   },
   {
     id: 'survivor',
@@ -91,6 +108,7 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'Survivor income under each plan, as bars',
     shapes: COUPLE,
     fill: 'small',
+    scope: 'household',
   },
   {
     id: 'longevity',
@@ -98,6 +116,7 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'The same comparison priced at three lifespans',
     shapes: LIVING,
     fill: 'small',
+    scope: 'household',
   },
   {
     id: 'action',
@@ -105,6 +124,7 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'When to apply, and what to bring',
     shapes: LIVING,
     fill: 'small',
+    scope: 'household',
   },
   {
     id: 'household',
@@ -112,6 +132,7 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'The strategy table and the combined income chart',
     shapes: COUPLE,
     fill: 'full',
+    scope: 'household',
   },
   {
     id: 'grid',
@@ -119,13 +140,63 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'Every combination of claiming ages, ranked',
     shapes: COUPLE,
     fill: 'medium',
+    scope: 'household',
   },
   {
-    id: 'people',
-    label: 'Client and spouse detail',
-    blurb: 'A page each: benefit by claiming age, break-even',
+    id: 'personDetails',
+    label: 'Client details',
+    blurb: 'Date of birth, full benefit, and the recommended filing age',
     shapes: LIVING,
-    fill: 'full',
+    fill: 'small',
+    scope: 'person',
+  },
+  {
+    id: 'personComparison',
+    label: 'Benefit comparison by claiming age',
+    blurb: 'Every claiming age, monthly and lifetime, as a table',
+    shapes: LIVING,
+    fill: 'medium',
+    scope: 'person',
+  },
+  {
+    id: 'personCumulative',
+    label: 'Cumulative lifetime benefits',
+    blurb: 'Claim at 62, 67 and 70 compared over a lifetime',
+    shapes: LIVING,
+    fill: 'medium',
+    scope: 'person',
+  },
+  {
+    id: 'personBreakeven',
+    label: 'Break-even analysis',
+    blurb: 'When waiting overtakes claiming earlier',
+    shapes: LIVING,
+    fill: 'small',
+    scope: 'person',
+  },
+  {
+    id: 'personHeatmap',
+    label: 'Lifetime benefit heatmap',
+    blurb: 'Claiming age against age at death',
+    shapes: LIVING,
+    fill: 'medium',
+    scope: 'person',
+  },
+  {
+    id: 'personOpportunity',
+    label: 'Opportunity cost',
+    blurb: 'What each other age costs against the one shown',
+    shapes: LIVING,
+    fill: 'medium',
+    scope: 'person',
+  },
+  {
+    id: 'personRamp',
+    label: 'Monthly benefit ramp',
+    blurb: 'The monthly check at each age from 62 to 70',
+    shapes: LIVING,
+    fill: 'medium',
+    scope: 'person',
   },
   {
     id: 'terms',
@@ -133,6 +204,7 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'The words on the page, defined',
     shapes: ALL,
     fill: 'medium',
+    scope: 'household',
   },
   {
     id: 'methodology',
@@ -140,10 +212,27 @@ export const BLOCKS: readonly BlockMeta[] = [
     blurb: 'How every figure was produced',
     shapes: ALL,
     fill: 'medium',
+    scope: 'household',
   },
 ];
 
 const BY_ID = new Map(BLOCKS.map((b) => [b.id, b]));
+
+/** What the old single `people` block expanded to. */
+const LEGACY_PEOPLE: readonly ReportBlockId[] = [
+  'personDetails',
+  'personComparison',
+  'personCumulative',
+  'personBreakeven',
+  'personHeatmap',
+  'personOpportunity',
+  'personRamp',
+];
+
+/** Blocks that print once per claimant. */
+export function blockScope(id: ReportBlockId): 'household' | 'person' {
+  return BY_ID.get(id)?.scope ?? 'household';
+}
 
 export function blockMeta(id: ReportBlockId): BlockMeta | undefined {
   return BY_ID.get(id);
@@ -189,7 +278,13 @@ export const ADVISER_LAYOUT: ReportLayout = {
     block('household'),
     block('grid'),
     BREAK,
-    block('people'),
+    block('personDetails'),
+    block('personComparison'),
+    block('personCumulative'),
+    block('personBreakeven'),
+    block('personHeatmap'),
+    block('personOpportunity'),
+    block('personRamp'),
     BREAK,
     block('terms'),
     block('methodology'),
@@ -288,7 +383,20 @@ export function parseLayout(raw: unknown): ReportLayout | null {
       continue;
     }
     if (kind !== 'block') continue;
-    const id = (item as { id?: unknown }).id;
+    let id = (item as { id?: unknown }).id;
+    // `people` was one block before it was split into seven. A layout saved
+    // then must not quietly lose its person pages, so it maps to the part an
+    // adviser was really keeping: the detail card and the charts around it.
+    if (id === 'people') {
+      for (const part of LEGACY_PEOPLE) {
+        if (!seen.has(part)) {
+          seen.add(part);
+          items.push({ kind: 'block', id: part });
+        }
+      }
+      continue;
+    }
+    id = id as unknown;
     if (typeof id !== 'string' || !BY_ID.has(id as ReportBlockId)) continue;
     // A block twice would render its content twice under one heading.
     if (seen.has(id as ReportBlockId)) continue;

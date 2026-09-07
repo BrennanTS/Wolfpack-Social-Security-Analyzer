@@ -3,6 +3,7 @@ import {
   DEFAULT_LAYOUT_ID,
   PRESETS,
   parseLayout,
+  type LayoutItem,
   type ReportLayout,
 } from '../lib/reportLayout';
 
@@ -20,6 +21,16 @@ const SELECTED_KEY = 'ssa-report-layout-id';
 export function useReportLayouts() {
   const [saved, setSaved] = useState<ReportLayout[]>(readSaved);
   const [selectedId, setSelectedId] = useState<string>(readSelected);
+  /**
+   * Unsaved edits to a preset.
+   *
+   * Held here rather than inside the editor because the export reads from
+   * this hook. Kept in the component, an adviser could drop four charts,
+   * watch them leave the list, click Export and be handed the unedited
+   * preset — which is exactly what happened the first time this was tried
+   * end to end.
+   */
+  const [draftItems, setDraftItems] = useState<LayoutItem[] | null>(null);
 
   useEffect(() => {
     try {
@@ -46,9 +57,15 @@ export function useReportLayouts() {
    * storage and can name a layout since deleted, and an export is the worst
    * moment to discover that.
    */
-  const layout = useMemo(
+  const stored = useMemo(
     () => all.find((l) => l.id === selectedId) ?? all.find((l) => l.id === DEFAULT_LAYOUT_ID) ?? PRESETS[0],
     [all, selectedId],
+  );
+
+  /** What the report is built from: the draft if there is one, else what is saved. */
+  const layout = useMemo(
+    () => (draftItems === null ? stored : { ...stored, items: draftItems }),
+    [stored, draftItems],
   );
 
   const isPreset = useCallback((id: string) => PRESETS.some((p) => p.id === id), []);
@@ -62,6 +79,7 @@ export function useReportLayouts() {
     };
     setSaved((list) => [...list, next]);
     setSelectedId(next.id);
+    setDraftItems(null);
     return next;
   }, []);
 
@@ -104,11 +122,19 @@ export function useReportLayouts() {
     return next;
   }, []);
 
+  /** Changing layout abandons any draft — it belonged to the other one. */
+  const select = useCallback((id: string) => {
+    setDraftItems(null);
+    setSelectedId(id);
+  }, []);
+
   return {
     layouts: all,
     layout,
     selectedId: layout.id,
-    select: setSelectedId,
+    select,
+    draftItems,
+    setDraftItems,
     isPreset,
     saveAs,
     update,

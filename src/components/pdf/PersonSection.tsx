@@ -130,12 +130,54 @@ function BenefitTable({
  * self-contained rather than assuming a household header already ran.
  */
 /**
- * One person's content — profile, benefit by claiming age, break-even.
+ * The parts a person's detail is built from, each selectable by a layout.
+ *
+ * One component with a `parts` filter rather than seven components: all
+ * seven read the same dozen derived values — the claiming table, the shown
+ * age, the break-evens — and seven components would each have to recompute
+ * them or be handed them, which is how two of them would eventually disagree
+ * about which age is "shown".
+ */
+export type PersonPart =
+  | 'details'
+  | 'comparison'
+  | 'cumulative'
+  | 'breakeven'
+  | 'heatmap'
+  | 'opportunity'
+  | 'ramp';
+
+export const PERSON_PARTS: readonly PersonPart[] = [
+  'details',
+  'comparison',
+  'cumulative',
+  'breakeven',
+  'heatmap',
+  'opportunity',
+  'ramp',
+];
+
+/**
+ * One person's content, or the parts of it a layout asked for.
  *
  * Split from `PersonSection` so a layout can flow a person's detail after
- * whatever precedes it rather than always starting a fresh sheet.
+ * whatever precedes it rather than always starting a fresh sheet, and so an
+ * adviser can keep the profile card while dropping four charts.
+ *
+ * The name always prints, whatever the parts: it is what says whose figures
+ * these are, and a break-even card under no heading belongs to nobody.
  */
-export function PersonBlock({ analysis, index, annualCola, isBest = true, claimingRows }: Omit<Props, 'footerText' | 'appendix' | 'leadingHeader'>) {
+export function PersonBlock({
+  analysis,
+  index,
+  annualCola,
+  isBest = true,
+  claimingRows,
+  parts = PERSON_PARTS,
+}: Omit<Props, 'footerText' | 'appendix' | 'leadingHeader'> & {
+  parts?: readonly PersonPart[];
+}) {
+  const has = (part: PersonPart) => parts.includes(part);
   const { person, fra, currentAge, claimingOptions, filingAge, monthlyAtFilingAge, ssaSuggestedLifeExpectancy } =
     analysis;
   const name = personLabel(person.name, index);
@@ -200,86 +242,98 @@ export function PersonBlock({ analysis, index, annualCola, isBest = true, claimi
     <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{name}</Text>
 
-      <View style={styles.profileGrid}>
-        {[
-          ['Date of Birth', dob],
-          ['Current Age', yearsMonthsLabel(currentAge.years, currentAge.months)],
-          ['Full Retirement Age', fraLabel(fra)],
-          ['Full benefit', `${formatCurrencyPrecise(person.piaMonthly)}/mo`],
-          ['Life Expectancy', `Age ${person.lifeExpectancy}`],
-          ['SSA Suggested Age', `Age ${ssaSuggestedLifeExpectancy}`],
-        ].map(([label, value]) => (
-          <View key={label} style={styles.profileItem}>
-            <Text style={styles.profileLabel}>{label}</Text>
-            <Text style={styles.profileValue}>{value}</Text>
-          </View>
-        ))}
-      </View>
+      {has('details') && (
+        <>
+  <View style={styles.profileGrid}>
+          {[
+            ['Date of Birth', dob],
+            ['Current Age', yearsMonthsLabel(currentAge.years, currentAge.months)],
+            ['Full Retirement Age', fraLabel(fra)],
+            ['Full benefit', `${formatCurrencyPrecise(person.piaMonthly)}/mo`],
+            ['Life Expectancy', `Age ${person.lifeExpectancy}`],
+            ['SSA Suggested Age', `Age ${ssaSuggestedLifeExpectancy}`],
+          ].map(([label, value]) => (
+            <View key={label} style={styles.profileItem}>
+              <Text style={styles.profileLabel}>{label}</Text>
+              <Text style={styles.profileValue}>{value}</Text>
+            </View>
+          ))}
+        </View>
 
-      <View style={styles.recBox}>
-        <Text style={styles.recEyebrow}>{scenarioEyebrow(isBest)}</Text>
-        <Text style={styles.recHeadline}>File at age {filingAge.label}</Text>
-        <Text style={styles.recBody}>
-          {name} filing at age {filingAge.label} yields {formatCurrency(monthlyAtFilingAge)}
-          /month, {optimal.percentOfPia}% of their full benefit.
-        </Text>
-        <View style={styles.recMetrics}>
-          <View style={styles.recMetricBlock}>
-            <Text style={styles.recMetricValue}>{formatCurrency(monthlyAtFilingAge)}</Text>
-            <Text style={styles.recMetricLabel}>Monthly at age {filingAge.label}</Text>
-          </View>
-          <View style={styles.recMetricBlock}>
-            <Text style={styles.recMetricValue}>{formatCurrency(optimal.lifetimeBenefits)}</Text>
-            <Text style={styles.recMetricLabel}>Lifetime through age {person.lifeExpectancy}</Text>
-          </View>
-          <View style={styles.recMetricBlock}>
-            <Text style={styles.recMetricValue}>{optimal.percentOfPia}%</Text>
-            <Text style={styles.recMetricLabel}>Of full benefit</Text>
+        <View style={styles.recBox}>
+          <Text style={styles.recEyebrow}>{scenarioEyebrow(isBest)}</Text>
+          <Text style={styles.recHeadline}>File at age {filingAge.label}</Text>
+          <Text style={styles.recBody}>
+            {name} filing at age {filingAge.label} yields {formatCurrency(monthlyAtFilingAge)}
+            /month, {optimal.percentOfPia}% of their full benefit.
+          </Text>
+          <View style={styles.recMetrics}>
+            <View style={styles.recMetricBlock}>
+              <Text style={styles.recMetricValue}>{formatCurrency(monthlyAtFilingAge)}</Text>
+              <Text style={styles.recMetricLabel}>Monthly at age {filingAge.label}</Text>
+            </View>
+            <View style={styles.recMetricBlock}>
+              <Text style={styles.recMetricValue}>{formatCurrency(optimal.lifetimeBenefits)}</Text>
+              <Text style={styles.recMetricLabel}>Lifetime through age {person.lifeExpectancy}</Text>
+            </View>
+            <View style={styles.recMetricBlock}>
+              <Text style={styles.recMetricValue}>{optimal.percentOfPia}%</Text>
+              <Text style={styles.recMetricLabel}>Of full benefit</Text>
+            </View>
           </View>
         </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>Benefit Comparison by Claiming Age</Text>
-      <Text style={styles.sectionDesc}>
-        What you would be paid each month at each age, and what it adds up to by age{' '}
-        {person.lifeExpectancy}. In today&rsquo;s money, before Social Security&rsquo;s yearly rises
-      </Text>
-      <BenefitTable
-        rows={tableRows}
-        baselineLifetime={shownRow?.lifetimeBenefits ?? optimal.lifetimeBenefits}
-        baselineAge={shownAge}
-        bestTogetherRowId={bestTogetherRow?.id ?? ''}
-        soloRowId={soloRow?.id ?? ''}
-        shownRowId={shownDiffers ? (shownRow?.id ?? '') : ''}
-      />
-      {(soloDiffers || shownDiffers) && (
-        <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
-          {soloVsHouseholdNote(
-            name,
-            (analysis.householdBestFilingAge ?? analysis.filingAge).label,
-            soloDiffers ? (analysis.soloFilingAge?.label ?? null) : null,
-            shownDiffers ? analysis.filingAge.label : null,
-          )}
-        </Text>
+        </>
       )}
 
-      <Text style={styles.sectionTitle}>Cumulative Lifetime Benefits</Text>
-      <Text style={styles.sectionDesc}>
-        Comparing claim-at-62, 67, and 70. Red dashed line = life expectancy (age{' '}
-        {person.lifeExpectancy}).
-      </Text>
-      <View style={styles.chartSection}>
-        <View style={styles.chartBox} wrap={false}>
-          <PdfChart
-            options={claimingOptions}
-            lifeExpectancy={person.lifeExpectancy}
-            shownAge={shownAge}
-            annualCola={annualCola}
-          />
-        </View>
-      </View>
+      {has('comparison') && (
+        <>
+  <Text style={styles.sectionTitle}>Benefit Comparison by Claiming Age</Text>
+        <Text style={styles.sectionDesc}>
+          What you would be paid each month at each age, and what it adds up to by age{' '}
+          {person.lifeExpectancy}. In today&rsquo;s money, before Social Security&rsquo;s yearly rises
+        </Text>
+        <BenefitTable
+          rows={tableRows}
+          baselineLifetime={shownRow?.lifetimeBenefits ?? optimal.lifetimeBenefits}
+          baselineAge={shownAge}
+          bestTogetherRowId={bestTogetherRow?.id ?? ''}
+          soloRowId={soloRow?.id ?? ''}
+          shownRowId={shownDiffers ? (shownRow?.id ?? '') : ''}
+        />
+        {(soloDiffers || shownDiffers) && (
+          <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
+            {soloVsHouseholdNote(
+              name,
+              (analysis.householdBestFilingAge ?? analysis.filingAge).label,
+              soloDiffers ? (analysis.soloFilingAge?.label ?? null) : null,
+              shownDiffers ? analysis.filingAge.label : null,
+            )}
+          </Text>
+        )}
+        </>
+      )}
 
-      {breakEvens.length > 0 && (
+      {has('cumulative') && (
+        <>
+  <Text style={styles.sectionTitle}>Cumulative Lifetime Benefits</Text>
+        <Text style={styles.sectionDesc}>
+          Comparing claim-at-62, 67, and 70. Red dashed line = life expectancy (age{' '}
+          {person.lifeExpectancy}).
+        </Text>
+        <View style={styles.chartSection}>
+          <View style={styles.chartBox} wrap={false}>
+            <PdfChart
+              options={claimingOptions}
+              lifeExpectancy={person.lifeExpectancy}
+              shownAge={shownAge}
+              annualCola={annualCola}
+            />
+          </View>
+        </View>
+        </>
+      )}
+
+      {has('breakeven') && breakEvens.length > 0 && (
         <View style={styles.beSection}>
           <Text style={styles.sectionTitle}>Break-Even Analysis</Text>
           <Text style={styles.sectionDesc}>
@@ -317,37 +371,49 @@ export function PersonBlock({ analysis, index, annualCola, isBest = true, claimi
         </View>
       )}
 
-      <Text style={styles.sectionTitle}>Lifetime Benefit Heatmap</Text>
-      <Text style={styles.sectionDesc}>
-        Cumulative benefits by claiming age (rows) and age at death (columns). Color
-        ranks the claiming ages WITHIN each column, so the darkest cell in a column is
-        the age that wins if death falls there; compare across columns by the figures,
-        not the shade. Gold row label = age {shownAge}, the age shown.
-      </Text>
-      <View style={styles.chartBox} wrap={false}>
-        <PdfHeatmap
-          options={claimingOptions}
-          lifeExpectancy={person.lifeExpectancy}
-          shownAge={shownAge}
-          annualCola={annualCola}
-        />
-      </View>
+      {has('heatmap') && (
+        <>
+  <Text style={styles.sectionTitle}>Lifetime Benefit Heatmap</Text>
+        <Text style={styles.sectionDesc}>
+          Cumulative benefits by claiming age (rows) and age at death (columns). Color
+          ranks the claiming ages WITHIN each column, so the darkest cell in a column is
+          the age that wins if death falls there; compare across columns by the figures,
+          not the shade. Gold row label = age {shownAge}, the age shown.
+        </Text>
+        <View style={styles.chartBox} wrap={false}>
+          <PdfHeatmap
+            options={claimingOptions}
+            lifeExpectancy={person.lifeExpectancy}
+            shownAge={shownAge}
+            annualCola={annualCola}
+          />
+        </View>
+        </>
+      )}
 
-      <Text style={styles.sectionTitle}>Opportunity Cost vs. Age {shownAge}</Text>
-      <Text style={styles.sectionDesc}>
-        Lifetime income shortfall compared to claiming at age {shownAge}.
-      </Text>
-      <View style={styles.chartBox} wrap={false}>
-        <PdfOpportunityCost options={claimingOptions} shownAge={shownAge} />
-      </View>
+      {has('opportunity') && (
+        <>
+  <Text style={styles.sectionTitle}>Opportunity Cost vs. Age {shownAge}</Text>
+        <Text style={styles.sectionDesc}>
+          Lifetime income shortfall compared to claiming at age {shownAge}.
+        </Text>
+        <View style={styles.chartBox} wrap={false}>
+          <PdfOpportunityCost options={claimingOptions} shownAge={shownAge} />
+        </View>
+        </>
+      )}
 
-      <Text style={styles.sectionTitle}>Monthly Benefit Ramp (Ages 62–70)</Text>
-      <Text style={styles.sectionDesc}>
-        Monthly check at each claiming age. Gold marker = age {shownAge}, the age shown.
-      </Text>
-      <View style={styles.chartBox} wrap={false}>
-        <PdfMonthlyRamp options={claimingOptions} shownAge={shownAge} />
-      </View>
+      {has('ramp') && (
+        <>
+  <Text style={styles.sectionTitle}>Monthly Benefit Ramp (Ages 62–70)</Text>
+        <Text style={styles.sectionDesc}>
+          Monthly check at each claiming age. Gold marker = age {shownAge}, the age shown.
+        </Text>
+        <View style={styles.chartBox} wrap={false}>
+          <PdfMonthlyRamp options={claimingOptions} shownAge={shownAge} />
+        </View>
+        </>
+      )}
 
     </>
   );
