@@ -57,13 +57,18 @@ export const PAD_BOTTOM = 40;
  *
  * `age` carries the age AND its badges. At 44pt it fit one short badge; the
  * three-badge row ("62" + TOGETHER + ALONE) printed them overlapping the age
- * itself. Widened to hold the worst real case — TOGETHER beside ALONE, which
+ * itself. 80pt was still 5pt short of the worst pair and ran ALONE into the
+ * monthly figure beside it. Measured rather than eyeballed: at 5.5pt
+ * Helvetica-Bold with 4pt of padding and 5pt of margin each, TOGETHER beside
+ * SHOWN is 87pt, so 96 leaves nine. The 16pt came from `diff`, which is the
+ * roomiest column by far — its widest value, "-$190,680", needs 38pt of the
+ * 138 it keeps. Widened to hold the worst real case — TOGETHER beside ALONE, which
  * is what a person whose household and solo answers agree gets — with the
  * width taken from `diff`, the roomiest column. SHOWN never joins them: it
  * only renders when the shown age differs from the optimum, which is exactly
  * when TOGETHER is on some other row.
  */
-export const COL = { age: 80, monthly: 108, pia: 56, life: 118, diff: 154 };
+export const COL = { age: 96, monthly: 108, pia: 56, life: 118, diff: 138 };
 
 function buildStyles() {
   return StyleSheet.create({
@@ -267,7 +272,9 @@ function buildStyles() {
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 2,
-    marginLeft: 4,
+    /* 5, not 4: two tags butted together read as one long tag, and the pair
+       "TOGETHER ALONE" is exactly the case this column is sized for. */
+    marginLeft: 5,
   },
   badgeShown: {
     fontSize: 5.5,
@@ -276,7 +283,7 @@ function buildStyles() {
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 2,
-    marginLeft: 4,
+    marginLeft: 5,
   },
   chartSection: { marginTop: 4, marginBottom: 12 },
   chartBox: {
