@@ -1,5 +1,6 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { HouseholdAnalysis } from '../../lib/household';
+import { BRAND_NAME } from '../../lib/brand';
 import type { LongevitySensitivity } from '../../lib/longevity';
 import { incomeChanges } from '../../lib/incomeChanges';
 import { monthDateAt } from '../../lib/benefitPeriods';
@@ -230,8 +231,12 @@ export function SurvivorBlock({
       </View>
       <Text style={[styles.sectionDesc, { marginTop: 6 }]}>{copy.SURVIVOR_CHART_CAPTION}</Text>
 
+      {/* `wrap={false}` on both callouts: they are bordered boxes. Flowed
+          after the survivor bars, this one split at the foot of a page — its
+          left rule on one sheet and its sentence on the next — exactly as the
+          disclaimer box once did. */}
       {selected !== null && selected > (worst.survivorIncome as number) && (
-        <View style={styles.betaCallout}>
+        <View style={styles.betaCallout} wrap={false}>
           <Text style={styles.betaCalloutText}>
             {copy.survivorGainNote(
               formatCurrency(selected - (worst.survivorIncome as number)),
@@ -308,7 +313,7 @@ export function LongevityBlock({
         </View>
       ))}
 
-      <View style={styles.betaCallout}>
+      <View style={styles.betaCallout} wrap={false}>
         <Text style={styles.betaCalloutText}>
           {copy.longevityVerdict(winnerLabel, sensitivity.tiedEveryRow)}
         </Text>
@@ -347,7 +352,12 @@ export function ActionBlock({
       who: f.who,
       what: `Apply, so payments start in ${monthYearLabel(f.starts)}.`,
     })),
-    { when: 'Every year', who: 'Both of you', what: copy.ACTION_CHECK_EARNINGS },
+    {
+      when: 'After applying',
+      who: people.length === 2 ? 'Each of you' : 'You',
+      what: copy.ACTION_VERIFY_STEP,
+    },
+    { when: 'Every year', who: people.length === 2 ? 'Both of you' : 'You', what: copy.ACTION_CHECK_EARNINGS },
   ];
   if (people.length === 2) {
     steps.push({ when: 'If one of you dies', who: 'The survivor', what: copy.ACTION_DEATH_STEP });
@@ -405,10 +415,15 @@ export function TermsBlock({
         </View>
       ))}
 
-      <Text style={styles.sectionTitle}>{copy.ASSUMPTIONS_TITLE}</Text>
-      <Text style={styles.sectionDesc}>{copy.ASSUMPTIONS_INTRO}</Text>
-      <View style={styles.betaTerm}>
-        <Text style={styles.betaTermBody}>{copy.planToNote(names, ages)}</Text>
+      {/* Heading, intro and the one paragraph move as ONE block. Left to
+          flow, the heading printed alone at the foot of page 3 with its body
+          on page 4 — the same orphan the claiming grid's heading once was. */}
+      <View wrap={false}>
+        <Text style={styles.sectionTitle}>{copy.ASSUMPTIONS_TITLE}</Text>
+        <Text style={styles.sectionDesc}>{copy.ASSUMPTIONS_INTRO}</Text>
+        <View style={styles.betaTerm}>
+          <Text style={styles.betaTermBody}>{copy.planToNote(names, ages)}</Text>
+        </View>
       </View>
     </>
   );
@@ -436,3 +451,82 @@ export function MethodologyBlock({
 }
 
 export const BETA_CHART_WIDTH = CHART_INNER_W;
+
+/* ------------------------------------------------------------------ *
+ * Cover
+ * ------------------------------------------------------------------ */
+
+/**
+ * The first sheet, when the layout asks for one.
+ *
+ * Every one of the six competing reports opens on a cover naming the client;
+ * ours opened on a table. A block rather than a fixed page so an adviser
+ * printing a two-page summary for their own desk can leave it out.
+ */
+export function CoverBlock({
+  analysis,
+  dateLabel,
+}: {
+  analysis: HouseholdAnalysis;
+  dateLabel: string;
+}) {
+  const names = analysis.people.map((p, i) => personLabel(p.person.name, i));
+  const hasSpouse = analysis.people.length === 2;
+  return (
+    <>
+      <View style={styles.betaCoverBand}>
+        <Text style={styles.betaCoverTitle}>{copy.COVER_TITLE}</Text>
+        <Text style={styles.betaCoverSub}>{copy.coverSubtitle(hasSpouse)}</Text>
+      </View>
+      <Text style={styles.betaCoverLabel}>{copy.COVER_PREPARED_FOR}</Text>
+      <Text style={styles.betaCoverName}>{names.join(' and ')}</Text>
+      <Text style={styles.betaCoverDate}>{dateLabel}</Text>
+      <Text style={styles.betaCoverLabel}>{copy.COVER_PREPARED_BY}</Text>
+      <Text style={styles.betaCoverFirm}>{BRAND_NAME}</Text>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Introduction
+ * ------------------------------------------------------------------ */
+
+/** The trade-off in one sentence, then the questions the report answers. */
+export function IntroBlock({ analysis }: { analysis: HouseholdAnalysis }) {
+  const hasSpouse = analysis.people.length === 2;
+  return (
+    <>
+      <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.INTRO_TITLE}</Text>
+      <Text style={styles.betaCalloutText}>{copy.INTRO_LEAD}</Text>
+      <View style={{ marginTop: 10, marginBottom: 6 }}>
+        {copy.introQuestions(hasSpouse).map((q, i) => (
+          <View key={q} style={styles.betaQuestion} wrap={false}>
+            <Text style={styles.betaQuestionMark}>{i + 1}.</Text>
+            <Text style={styles.betaQuestionText}>{q}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.sectionDesc}>{copy.INTRO_HOW_TO_READ}</Text>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * What this report does not include
+ * ------------------------------------------------------------------ */
+
+/** The edges of the report, named — the most trustworthy page a report can carry. */
+export function LimitsBlock() {
+  return (
+    <>
+      <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.LIMITS_TITLE}</Text>
+      <Text style={styles.sectionDesc}>{copy.LIMITS_INTRO}</Text>
+      {copy.LIMITS.map((limit) => (
+        <View key={limit.term} style={styles.betaTerm} wrap={false}>
+          <Text style={styles.betaTermName}>{limit.term}</Text>
+          <Text style={styles.betaTermBody}>{limit.body}</Text>
+        </View>
+      ))}
+    </>
+  );
+}

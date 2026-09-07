@@ -15,6 +15,8 @@ import type { HouseholdDisplayShape } from './household';
 
 /** Every block the report can print. */
 export type ReportBlockId =
+  | 'cover'
+  | 'intro'
   | 'answer'
   | 'changes'
   | 'survivor'
@@ -30,6 +32,7 @@ export type ReportBlockId =
   | 'personOpportunity'
   | 'personRamp'
   | 'terms'
+  | 'limits'
   | 'methodology';
 
 /**
@@ -86,6 +89,22 @@ const COUPLE: readonly HouseholdDisplayShape[] = ['twoClaimants'];
  * report is choosing between the same words the client will read.
  */
 export const BLOCKS: readonly BlockMeta[] = [
+  {
+    id: 'cover',
+    label: 'Cover',
+    blurb: 'The title, who it is for, and who prepared it',
+    shapes: ALL,
+    fill: 'full',
+    scope: 'household',
+  },
+  {
+    id: 'intro',
+    label: 'What this report answers',
+    blurb: 'The trade-off in one sentence, and the questions ahead',
+    shapes: LIVING,
+    fill: 'small',
+    scope: 'household',
+  },
   {
     id: 'answer',
     label: 'Your Social Security decision',
@@ -207,6 +226,14 @@ export const BLOCKS: readonly BlockMeta[] = [
     scope: 'household',
   },
   {
+    id: 'limits',
+    label: 'What this report does not include',
+    blurb: 'Taxes, work, other benefits — the edges, named',
+    shapes: ALL,
+    fill: 'medium',
+    scope: 'household',
+  },
+  {
     id: 'methodology',
     label: 'Methodology',
     blurb: 'How every figure was produced',
@@ -249,14 +276,25 @@ const BREAK: LayoutItem = { kind: 'break' };
 /**
  * What a client is handed.
  *
- * The four blocks that answer the questions they walked in with, and nothing
- * that answers a question they did not ask. No page breaks at all — the
- * blocks are small enough that forcing one would put the white space back.
+ * A cover on its own sheet, then the blocks that answer the questions they
+ * walked in with, and nothing that answers a question they did not ask. The
+ * only break is after the cover — the rest are small enough that forcing one
+ * would put the white space back.
  */
 export const CLIENT_LAYOUT: ReportLayout = {
   id: 'preset-client',
   name: 'Client',
-  items: [block('answer'), block('changes'), block('survivor'), block('action'), block('terms')],
+  items: [
+    block('cover'),
+    BREAK,
+    block('intro'),
+    block('answer'),
+    block('changes'),
+    block('survivor'),
+    block('action'),
+    block('terms'),
+    block('limits'),
+  ],
 };
 
 /**
@@ -269,6 +307,9 @@ export const ADVISER_LAYOUT: ReportLayout = {
   id: 'preset-adviser',
   name: 'Adviser',
   items: [
+    block('cover'),
+    BREAK,
+    block('intro'),
     block('answer'),
     block('changes'),
     block('survivor'),
@@ -287,6 +328,7 @@ export const ADVISER_LAYOUT: ReportLayout = {
     block('personRamp'),
     BREAK,
     block('terms'),
+    block('limits'),
     block('methodology'),
   ],
 };

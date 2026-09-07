@@ -49,17 +49,19 @@ describe('presets', () => {
 });
 
 describe('layoutRuns', () => {
-  it('puts a whole break-free layout in one run, so its blocks share pages', () => {
+  it('keeps everything after the cover on shared pages', () => {
     // This is the white-space fix: five small blocks used to be five sheets.
+    // The cover is the one block that earns a sheet of its own.
     const runs = layoutRuns(CLIENT_LAYOUT, 'twoClaimants');
-    expect(runs).toHaveLength(1);
-    expect(runs[0].length).toBeGreaterThan(3);
+    expect(runs).toHaveLength(2);
+    expect(runs[0]).toEqual(['cover']);
+    expect(runs[1].length).toBeGreaterThan(4);
   });
 
   it('starts a new run at each break', () => {
     const runs = layoutRuns(ADVISER_LAYOUT, 'twoClaimants');
-    expect(runs.length).toBe(4);
-    expect(runs[1][0]).toBe('household');
+    expect(runs.length).toBe(5);
+    expect(runs[2][0]).toBe('household');
   });
 
   it('drops blocks that say nothing about this household', () => {
@@ -83,6 +85,11 @@ describe('layoutRuns', () => {
     const ids = layoutRuns(ADVISER_LAYOUT, 'widowed').flat();
     expect(ids).not.toContain('answer');
     expect(ids).not.toContain('household');
+    // The intro's questions are about two living claimants choosing.
+    expect(ids).not.toContain('intro');
+    // A cover and the honesty page apply to anyone.
+    expect(ids).toContain('cover');
+    expect(ids).toContain('limits');
     expect(ids).toContain('terms');
   });
 });

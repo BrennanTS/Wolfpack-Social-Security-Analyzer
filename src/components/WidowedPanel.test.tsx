@@ -209,7 +209,7 @@ describe('WidowedPanel', () => {
   });
 
   it('discloses a recovered PIA, and the year its dollars are in', () => {
-    // A cheque carries every COLA since they filed and the engine's PIA
+    // A check carries every COLA since they filed and the engine's PIA
     // carries none, so the recovered figure is in the filing year's dollars.
     // Without the year the reader cannot judge how wide that gap is.
     renderPanel({ piaEstimated: true });

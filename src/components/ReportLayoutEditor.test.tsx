@@ -61,7 +61,8 @@ describe('ReportLayoutEditor', () => {
   it('lists the selected layout in order', () => {
     renderEditor();
     expect(screen.getAllByRole('listitem')).toHaveLength(CLIENT_LAYOUT.items.length);
-    expect(rowNames()[0]).toContain('Your Social Security decision');
+    // The client preset opens on its cover.
+    expect(rowNames()[0]).toContain('Cover');
   });
 
   it('offers every block the layout leaves out, and none it already has', () => {
@@ -83,19 +84,19 @@ describe('ReportLayoutEditor', () => {
     const s = store();
     renderEditor(s);
     const [first] = rowNames();
-    expect(first).toContain('Your Social Security decision');
+    expect(first).toContain('Cover');
     return userEvent
-      .click(screen.getByRole('button', { name: /move Your Social Security decision down/i }))
+      .click(screen.getByRole('button', { name: /move Cover down/i }))
       .then(() => {
         // A preset is not written through; it becomes a draft shown in place.
         expect(s.update).not.toHaveBeenCalled();
-        expect(rowNames()[1]).toContain('Your Social Security decision');
+        expect(rowNames()[1]).toContain('Cover');
       });
   });
 
   it('cannot move the first block up or the last one down', () => {
     renderEditor();
-    expect(screen.getByRole('button', { name: /move Your Social Security decision up/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /move Cover up/i })).toBeDisabled();
   });
 
   it('removes a block, and offers it back', async () => {
@@ -107,8 +108,10 @@ describe('ReportLayoutEditor', () => {
 
   it('adds a page break', async () => {
     renderEditor();
+    // The client preset already carries one, after its cover.
+    const before = screen.getAllByText('Page break').length;
     await userEvent.click(screen.getByRole('button', { name: /\+ Page break/ }));
-    expect(screen.getByText('Page break')).toBeInTheDocument();
+    expect(screen.getAllByText('Page break')).toHaveLength(before + 1);
   });
 
   it('will not write an edit back into a preset', async () => {

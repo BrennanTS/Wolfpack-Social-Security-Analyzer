@@ -94,15 +94,43 @@ describe('BetaReportDocument composition', () => {
   });
 
   it('puts a break-free layout on a single page group', () => {
-    // The white-space fix, pinned. The client layout's five blocks used to be
-    // five sheets because each block rendered its own `<Page>`; they now share
-    // one group and let react-pdf paginate.
-    expect(pageGroups(build(married, CLIENT_LAYOUT))).toHaveLength(1);
+    // The white-space fix, pinned. Small blocks used to be a sheet each
+    // because each rendered its own `<Page>`; they now share one group and
+    // let react-pdf paginate.
+    const breakFree: ReportLayout = {
+      ...CLIENT_LAYOUT,
+      items: CLIENT_LAYOUT.items.filter((i) => i.kind === 'block' && i.id !== 'cover'),
+    };
+    expect(pageGroups(build(married, breakFree))).toHaveLength(1);
   });
 
   it('opens a new page group at each break', () => {
-    // Three breaks in the adviser layout, so four groups.
-    expect(pageGroups(build(married, ADVISER_LAYOUT))).toHaveLength(4);
+    // Four breaks in the adviser layout, so five groups.
+    expect(pageGroups(build(married, ADVISER_LAYOUT))).toHaveLength(5);
+  });
+
+  it('prints the document title once, on the first sheet after the cover', () => {
+    // A cover carries the title already; the running header on the same page
+    // would print it twice.
+    const doc = build(married, CLIENT_LAYOUT);
+    const groups = pageGroups(doc);
+    const coverText = collectText(groups[0]).join(' ');
+    const nextText = collectText(groups[1]).join(' ');
+    expect(coverText.match(/Social Security Claiming Analysis/g)).toHaveLength(1);
+    expect(nextText).toContain('Social Security Claiming Analysis');
+  });
+
+  it('opens on a cover that names the household and the firm', () => {
+    const text = collectText(build(married, CLIENT_LAYOUT)).join(' ');
+    expect(text).toContain('Prepared for');
+    expect(text).toContain('Dan and Sarah');
+    expect(text).toContain('Prepared by');
+  });
+
+  it('tells the client where the report stops', () => {
+    const text = collectText(build(married, CLIENT_LAYOUT)).join(' ');
+    expect(text).toContain('What this report does not include');
+    expect(text).toContain('Taxes');
   });
 
   it('prints only the blocks the layout asks for', () => {

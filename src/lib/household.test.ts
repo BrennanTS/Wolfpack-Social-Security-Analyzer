@@ -1314,9 +1314,11 @@ describe('analyzeHousehold — entry order', () => {
         asOf,
       );
       expect(result.recommendationDetail).not.toContain('optimizer maximizes');
-      expect(result.recommendationDetail).toContain('Both spouses have the same PIA');
-      expect(result.recommendationDetail).toContain('Under the model shown here');
-      expect(result.recommendationDetail).toContain('The other model is equally admissible');
+      // In the client's words now — the earlier sentence said "engine",
+      // "model" and "admissible" on a screen a client reads.
+      expect(result.recommendationDetail).toContain('You both have the same full benefit');
+      expect(result.recommendationDetail).toContain('Treating');
+      expect(result.recommendationDetail).toContain('Worked out the other way round');
       // Still names the figure and both ages — the qualifier replaces the
       // claim about the figure, not the figure.
       expect(result.recommendationDetail).toContain(

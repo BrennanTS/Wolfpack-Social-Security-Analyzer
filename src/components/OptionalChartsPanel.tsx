@@ -71,7 +71,7 @@ export function OptionalChartsPanel({
 
       <ToggleChartSection
         title="Monthly Benefit Ramp (62–70)"
-        description="How your monthly cheque grows for each year you delay, and how it compares with claiming at 62."
+        description="How your monthly check grows for each year you delay, and how it compares with claiming at 62."
         visible={visibility.monthlyRamp}
         onToggle={() => onToggle('monthlyRamp')}
       >

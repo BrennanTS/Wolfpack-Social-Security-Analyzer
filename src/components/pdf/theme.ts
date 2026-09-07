@@ -260,6 +260,34 @@ function buildStyles() {
     borderColor: SUBTLE,
     borderRadius: 1.5,
   },
+  /* Cover page. A band of brand colour with the title in it — the one place
+     the report is allowed to look like a document rather than a page — then
+     the names with room around them. Nothing absolute-positioned: react-pdf
+     places these in flow, so a long firm name simply takes another line. */
+  betaCoverBand: {
+    backgroundColor: GOLD,
+    paddingVertical: 26,
+    paddingHorizontal: 28,
+    marginTop: 40,
+    marginBottom: 70,
+    borderRadius: 3,
+  },
+  betaCoverTitle: { fontSize: 24, color: SURFACE, fontFamily: 'Helvetica-Bold', lineHeight: 1.2 },
+  betaCoverSub: { fontSize: 10, color: SURFACE, marginTop: 8, lineHeight: 1.4 },
+  betaCoverLabel: {
+    fontSize: 8,
+    color: MUTED,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  betaCoverName: { fontSize: 18, color: INK, fontFamily: 'Helvetica-Bold', marginBottom: 6 },
+  betaCoverDate: { fontSize: 10, color: MUTED, marginBottom: 36 },
+  betaCoverFirm: { fontSize: 11, color: INK },
+  /* Introduction: a list of questions, each on its own line with a mark. */
+  betaQuestion: { flexDirection: 'row', marginBottom: 5 },
+  betaQuestionMark: { width: 14, fontSize: 9.5, color: GOLD, fontFamily: 'Helvetica-Bold' },
+  betaQuestionText: { flex: 1, fontSize: 9.5, color: INK, lineHeight: 1.4 },
   betaTerm: { marginBottom: 9 },
   betaTermName: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: INK, marginBottom: 2 },
   betaTermBody: { fontSize: 9, color: MUTED, lineHeight: 1.45 },

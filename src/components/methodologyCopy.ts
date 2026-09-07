@@ -390,7 +390,7 @@ export function combinedIncomeCaption(
   const dollarsClause =
     mode === 'nominal'
       ? 'Amounts are in future dollars — today’s figures grown forward at the assumed ' +
-        'yearly rise, so they are what the cheque will say rather than what it will buy.'
+        'yearly rise, so they are what the check will say rather than what it will buy.'
       : 'Amounts are in today’s dollars, before any cost-of-living adjustment.';
   // Typographic apostrophes, matching the `&rsquo;` the two duplicated copies
   // carried before extraction. This sentence prints beside copy that uses

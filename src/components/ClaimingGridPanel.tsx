@@ -159,7 +159,7 @@ export function ClaimingGridPanel({
       <p className="table-desc">
         Household value at every combination of whole claiming ages, darkest at the best.
         Each square is the best either of them can do filing somewhere inside those two
-        years, so the darkest square is the optimizer&rsquo;s own answer.{' '}
+        years, so the darkest square is the best pair of ages.{' '}
         Click a square to read it; the report only moves if you say so.
       </p>
 

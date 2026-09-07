@@ -78,7 +78,7 @@ export function widowedIncomeCaption(mode: DollarsMode = 'real', overlaps = true
       : 'Amounts are in today’s dollars, before any cost-of-living adjustment.';
   const shape = overlaps
     ? 'The survivor segment is the increment above the personal band beneath it, not a second ' +
-      'cheque: the two benefits are one payment, and SSA pays the larger.'
+      'check: the two benefits are one payment, and SSA pays the larger.'
     : 'The two benefits never run together here — SSA pays the larger, and this person’s own ' +
       'record is worth more than the survivor benefit, so the survivor benefit stops the month ' +
       'their own begins.';
@@ -89,7 +89,7 @@ export function widowedIncomeCaption(mode: DollarsMode = 'real', overlaps = true
  * The deceased's PIA, when it was recovered from a check amount rather than
  * known. Null when it was entered directly — there is nothing to disclose.
  *
- * Names the year the figure is in. A cheque carries every cost-of-living rise
+ * Names the year the figure is in. A check carries every cost-of-living rise
  * since they filed and the engine's PIA carries none, so the recovered number
  * is in the filing year's dollars; for a filing twenty years ago that gap is
  * large, and the reader can only judge it if the year is on the page.
@@ -103,8 +103,8 @@ export function piaEstimateNote(
     ? `${formatCurrency(deceased.piaMonthly)} is in ${deceased.filed.year} dollars`
     : `${formatCurrency(deceased.piaMonthly)} carries no cost-of-living adjustment`;
   return (
-    `This benefit was worked back from the monthly cheque you entered, so it is an ` +
-    `estimate: a cheque includes every cost-of-living rise since they filed and this ` +
+    `This benefit was worked back from the monthly check you entered, so it is an ` +
+    `estimate: a check includes every cost-of-living rise since they filed and this ` +
     `figure includes none, which means ${basis}. Every survivor figure on this page ` +
     `follows from it.`
   );

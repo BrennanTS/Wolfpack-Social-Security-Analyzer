@@ -1176,12 +1176,14 @@ function coupleRecommendationDetail(
   ages: readonly [string, string],
 ): string {
   if (isPiaTie) {
+    // A sentence a client reads. The earlier version said "engine", "model"
+    // and "admissible" in the space of three lines.
     return (
-      `Both spouses have the same PIA, so neither is the engine's higher earner and it can ` +
-      `model either one as the dependent. Under the model shown here, the best household ` +
-      `value is ${formatCurrency(expectedNpv)}, with ${labels[0]} filing at ` +
-      `age ${ages[0]} and ${labels[1]} at age ${ages[1]}. The other model is equally ` +
-      `admissible and need not give the same ages or the same value.`
+      `You both have the same full benefit, so there is no higher earner for the ` +
+      `spousal top-up to be worked out from. Treating ${labels[0]} as the one it is ` +
+      `worked out from, the best result is ${formatCurrency(expectedNpv)}, with ` +
+      `${labels[0]} filing at age ${ages[0]} and ${labels[1]} at age ${ages[1]}. ` +
+      `Worked out the other way round, the ages and the figure can both differ slightly.`
     );
   }
 

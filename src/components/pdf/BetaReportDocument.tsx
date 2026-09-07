@@ -26,6 +26,9 @@ import {
   ActionBlock,
   AnswerBlock,
   ChangesBlock,
+  CoverBlock,
+  IntroBlock,
+  LimitsBlock,
   LongevityBlock,
   MethodologyBlock,
   SurvivorBlock,
@@ -137,6 +140,12 @@ export function BetaReportDocument({
 
   const renderBlock = (id: ReportBlockId): React.ReactNode => {
     switch (id) {
+      case 'cover':
+        return CoverBlock({ analysis, dateLabel: reportDate });
+      case 'intro':
+        return IntroBlock({ analysis });
+      case 'limits':
+        return LimitsBlock();
       case 'answer':
         return AnswerBlock({ analysis });
       case 'changes':
@@ -162,6 +171,10 @@ export function BetaReportDocument({
   };
 
   const runs = layoutRuns(layout, shape);
+  // The document title goes on the first sheet that is not a cover: a cover
+  // already carries the title, and printing it twice on one page reads as a
+  // template nobody finished.
+  const headerRun = runs.findIndex((run) => run[0] !== 'cover');
 
   return (
     <Document
@@ -179,8 +192,11 @@ export function BetaReportDocument({
 
       {runs.map((run, runIndex) => (
         <Page key={run.join('-')} size="LETTER" style={styles.page}>
-          {/* The document title sits on the first sheet only. */}
-          {runIndex === 0 && !isWidowed && <ReportHeader dateLabel={reportDate} />}
+          {/* Called, not mounted, like every block: the tests walk this tree
+              without a renderer, and a mounted `<ReportHeader />` has no
+              children to walk — the title would be invisible to every
+              assertion about which page carries it. */}
+          {runIndex === headerRun && !isWidowed && ReportHeader({ dateLabel: reportDate })}
           {groupRun(run).map((group, i) =>
             // The first group on a sheet sits against the top margin; every
             // one after it needs the gap its own heading deliberately does

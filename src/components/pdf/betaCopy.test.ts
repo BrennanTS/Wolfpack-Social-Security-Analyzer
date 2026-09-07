@@ -38,6 +38,10 @@ function allCopy(): string[] {
     beta.longevityVerdict(null, true),
     beta.longevityDroppedNote(['Both wait until 70']) ?? '',
     beta.planToNote(['Dan', 'Sarah'], [79, 95]),
+    beta.coverSubtitle(true),
+    beta.coverSubtitle(false),
+    ...beta.introQuestions(true),
+    ...beta.introQuestions(false),
   );
   return out.filter((s) => s.length > 0);
 }
@@ -106,5 +110,30 @@ describe('beta copy', () => {
     const note = beta.planToNote(['Dan', 'Sarah'], [79, 95]);
     expect(note).toContain('Dan to 79');
     expect(note).toContain('Sarah to 95');
+  });
+});
+
+describe('the introduction and the limits page', () => {
+  it('states the whole trade-off in the lead sentence', () => {
+    // The clearest sentence in six competing reports, and the one thing a
+    // client should be able to repeat afterwards.
+    expect(beta.INTRO_LEAD).toMatch(/more payments/);
+    expect(beta.INTRO_LEAD).toMatch(/fewer payments/);
+  });
+
+  it('asks the survivor question only of a couple', () => {
+    expect(beta.introQuestions(true).join(' ')).toMatch(/left/);
+    expect(beta.introQuestions(false).join(' ')).not.toMatch(/left/);
+  });
+
+  it('names taxes and work as limits, since both are asked about', () => {
+    const terms = beta.LIMITS.map((l) => l.term);
+    expect(terms).toContain('Taxes');
+    expect(terms.some((t) => /work/i.test(t))).toBe(true);
+  });
+
+  it('gives the client a phone number and the survivor rule', () => {
+    expect(beta.ACTION_APPLY_NOTE).toContain('1-800-772-1213');
+    expect(beta.ACTION_APPLY_NOTE).toMatch(/survivor benefit cannot be applied for online/i);
   });
 });

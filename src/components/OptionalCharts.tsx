@@ -411,7 +411,7 @@ export function MonthlyRampChart({ options, shownAge }: MonthlyRampChartProps) {
             const num = typeof value === 'number' ? value : 0;
             const boost = ((num / age62 - 1) * 100).toFixed(1);
             return [
-              `${formatCurrency(num)} (${row.percentOfPia}% PIA, +${boost}% vs 62)`,
+              `${formatCurrency(num)} (${row.percentOfPia}% of full, +${boost}% vs 62)`,
               'Monthly benefit',
             ];
           }}

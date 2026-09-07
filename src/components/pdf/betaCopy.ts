@@ -138,7 +138,18 @@ export const ACTION_INTRO =
 /** Said once, in the intro — not repeated on every filing row. */
 export const ACTION_APPLY_NOTE =
   'Apply about three months before you want payments to start. You can apply online at ' +
-  'ssa.gov, by phone, or at a local office.';
+  'ssa.gov, by phone on 1-800-772-1213, or at a local office — call first for an ' +
+  'appointment. A survivor benefit cannot be applied for online: it has to be by phone ' +
+  'or in person.';
+
+/**
+ * Savvy's report is the only one of the six that tells the client what
+ * happens AFTER applying. The award letter is where a wrong start month is
+ * caught cheaply; a year later it is an argument.
+ */
+export const ACTION_VERIFY_STEP =
+  'When your award letter arrives, check that the amount and the start month match ' +
+  'this plan. Anything wrong is far easier to put right before the first payment.';
 
 export const ACTION_CHECK_EARNINGS =
   'Check your earnings record at ssa.gov/myaccount. A missing year lowers your benefit, ' +
@@ -146,7 +157,8 @@ export const ACTION_CHECK_EARNINGS =
 
 export const ACTION_DEATH_STEP =
   'Tell Social Security. The survivor benefit does not start on its own, and a one-off ' +
-  'payment of $255 is due to the surviving spouse.';
+  'payment of $255 is due to the surviving spouse — it has to be claimed within two ' +
+  'years.';
 
 export const ACTION_REVIEW_NOTE =
   'Review this once a year, and sooner if your health, your marriage, or your plans for ' +
@@ -182,14 +194,14 @@ export const KEY_TERMS: Term[] = [
     body:
       'Social Security raises benefits most years to keep pace with prices. Figures in ' +
       'this report are in today’s money, so they already allow for that — a figure of ' +
-      '$3,000 a month means $3,000 of today’s buying power, whatever the actual cheque ' +
+      '$3,000 a month means $3,000 of today’s buying power, whatever the actual check ' +
       'says by then. (You may see this called a COLA.)',
   },
   {
     term: 'Spousal benefit',
     body:
       'If your own benefit is small, you may be topped up to as much as half of your ' +
-      'spouse’s full benefit. It is a top-up, not a second cheque, and your spouse has ' +
+      'spouse’s full benefit. It is a top-up, not a second check, and your spouse has ' +
       'to have claimed before it can start.',
   },
   {
@@ -232,3 +244,122 @@ export function planToNote(names: readonly string[], ages: readonly number[]): s
     'The page on longevity shows how much the answer moves if they are wrong.'
   );
 }
+
+/* ------------------------------------------------------------------ *
+ * Cover
+ * ------------------------------------------------------------------ */
+
+export const COVER_TITLE = 'Social Security Claiming Analysis';
+export const COVER_PREPARED_FOR = 'Prepared for';
+export const COVER_PREPARED_BY = 'Prepared by';
+
+/** The one line under the title, in the reader's own terms. */
+export function coverSubtitle(hasSpouse: boolean): string {
+  return hasSpouse
+    ? 'When each of you should claim, and what it means for the two of you'
+    : 'When you should claim, and what it means for you';
+}
+
+/* ------------------------------------------------------------------ *
+ * Introduction
+ * ------------------------------------------------------------------ */
+
+export const INTRO_TITLE = 'What this report answers';
+
+/**
+ * The whole decision in one sentence.
+ *
+ * Six competing reports were read for this page and one sentence in them was
+ * clearer than anything we had: the trade-off is between starting earlier and
+ * receiving more payments that are each smaller, or starting later and
+ * receiving fewer payments that are each larger. Everything else in the
+ * report is that sentence with your numbers in it.
+ */
+export const INTRO_LEAD =
+  'Claim early and you receive more payments, each one smaller. Wait and you receive ' +
+  'fewer payments, each one larger — and the larger figure is what the person left ' +
+  'behind keeps. Every page here is that trade-off, worked out with your numbers.';
+
+/** The questions a client walks in with, in the order the report answers them. */
+export function introQuestions(hasSpouse: boolean): string[] {
+  return hasSpouse
+    ? [
+        'When should each of you file?',
+        'What will you receive each month — separately, and together?',
+        'What happens to whoever is left, and for how long?',
+        'How much does it matter if you live longer or shorter than expected?',
+        'What do you actually have to do, and when?',
+      ]
+    : [
+        'When should you file?',
+        'What will you receive each month?',
+        'How much does it matter if you live longer or shorter than expected?',
+        'What do you actually have to do, and when?',
+      ];
+}
+
+export const INTRO_HOW_TO_READ =
+  'The first page is the answer. Everything after it is the reasoning, in the order ' +
+  'you would ask for it. The words used are explained at the back.';
+
+/* ------------------------------------------------------------------ *
+ * What this report does not include
+ * ------------------------------------------------------------------ */
+
+export const LIMITS_TITLE = 'What this report does not include';
+
+export const LIMITS_INTRO =
+  'A report that only tells you what it knows is more useful than one that pretends ' +
+  'to know everything. These are the edges of this one.';
+
+/**
+ * The limits, each named for what a reader might have assumed was covered.
+ *
+ * Savvy prints a page like this and it is the most trustworthy page in any of
+ * the six reports. Adapted to what THIS app models rather than copied: several
+ * of Savvy's caveats concern features we do not have, and one of ours (the
+ * grid covering every whole-age pair) is a limit Savvy cannot claim.
+ */
+export const LIMITS: Term[] = [
+  {
+    term: 'The figures are estimates',
+    body:
+      'Your full benefit comes from your Social Security statement, and Social Security ' +
+      'sets the real figure only when you apply. More years of work, or a change in the ' +
+      'yearly rise, will move it — and every other figure here moves with it.',
+  },
+  {
+    term: 'Taxes',
+    body:
+      'Depending on your other income, up to 85% of what you receive can be taxable. ' +
+      'Nothing here is reduced for tax, because that depends on the rest of your ' +
+      'retirement income and belongs in a plan that includes it.',
+  },
+  {
+    term: 'Working while claiming',
+    body:
+      'If you claim before your full retirement age and keep working, Social Security ' +
+      'holds back part of your benefit above an earnings limit, and restores it later. ' +
+      'This report assumes you have stopped work by the month you claim.',
+  },
+  {
+    term: 'Other benefits',
+    body:
+      'Benefits for children, for a former spouse, for disability, and the reductions ' +
+      'that apply to some public-sector pensions are not modeled. If any of these apply ' +
+      'to you, say so — they can change the answer.',
+  },
+  {
+    term: 'The law',
+    body:
+      'Every figure follows the rules as they stand today. Congress can change them, ' +
+      'and has before. Nobody can say when or how.',
+  },
+  {
+    term: 'Which ages were compared',
+    body:
+      'The comparisons price every whole year from 62 to 70 for each of you, and the ' +
+      'best answer is found to the month. Plans that start in between a whole year are ' +
+      'shown only where they win.',
+  },
+];

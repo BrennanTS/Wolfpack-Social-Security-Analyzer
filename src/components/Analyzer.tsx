@@ -501,8 +501,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
               </div>
               <h3>Your analysis awaits</h3>
               <p>
-                Enter your date of birth, gender, marital status, and estimated benefit at full
-                retirement age to see your optimal claiming strategy.
+                Enter your date of birth, gender, marital status, and the monthly benefit on
+                your Social Security statement to see when to claim.
               </p>
             </div>
           ) : (
