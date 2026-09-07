@@ -129,7 +129,13 @@ function BenefitTable({
  * of two per-person pages for a married household — so it stays
  * self-contained rather than assuming a household header already ran.
  */
-export function PersonSection({ analysis, index, annualCola, isBest = true, claimingRows, footerText, appendix, leadingHeader }: Props) {
+/**
+ * One person's content — profile, benefit by claiming age, break-even.
+ *
+ * Split from `PersonSection` so a layout can flow a person's detail after
+ * whatever precedes it rather than always starting a fresh sheet.
+ */
+export function PersonBlock({ analysis, index, annualCola, isBest = true, claimingRows }: Omit<Props, 'footerText' | 'appendix' | 'leadingHeader'>) {
   const { person, fra, currentAge, claimingOptions, filingAge, monthlyAtFilingAge, ssaSuggestedLifeExpectancy } =
     analysis;
   const name = personLabel(person.name, index);
@@ -191,8 +197,7 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
   const shownDiffers = shownAge !== bestTogetherAge;
 
   return (
-    <Page size="LETTER" style={styles.page}>
-      {leadingHeader}
+    <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{name}</Text>
 
       <View style={styles.profileGrid}>
@@ -344,8 +349,23 @@ export function PersonSection({ analysis, index, annualCola, isBest = true, clai
         <PdfMonthlyRamp options={claimingOptions} shownAge={shownAge} />
       </View>
 
-      {appendix}
+    </>
+  );
+}
 
+/**
+ * A person's page as the original report composes it. Kept so
+ * `ReportDocument` and the tests that call it as a plain function carry on
+ * working untouched.
+ */
+export function PersonSection({ footerText, appendix, leadingHeader, ...rest }: Props) {
+  return (
+    <Page size="LETTER" style={styles.page}>
+      {leadingHeader}
+      {/* Called, not mounted — the report's tests walk this element tree
+          without a renderer. See the note in `HouseholdSection`. */}
+      {PersonBlock(rest)}
+      {appendix}
       <PageFooter text={footerText} />
     </Page>
   );

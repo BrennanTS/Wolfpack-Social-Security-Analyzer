@@ -1,5 +1,6 @@
 import type { ClaimingRow } from './claimingRows';
 import { reportTheme } from './reportTheme';
+import type { ReportLayout } from './reportLayout';
 import type { HouseholdAnalysis } from './household';
 import type { LongevitySensitivity } from './longevity';
 
@@ -75,6 +76,7 @@ export async function downloadBetaPdfReport(
   gridTarget?: { on: boolean; percent: number },
   sensitivity?: LongevitySensitivity | null,
   themeId?: string,
+  layout?: ReportLayout,
 ): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
   const { setActiveReportTheme } = await import('../components/pdf/theme');
@@ -87,6 +89,7 @@ export async function downloadBetaPdfReport(
       claimingRowsByPerson={claimingRowsByPerson}
       gridTarget={gridTarget}
       sensitivity={sensitivity}
+      layout={layout}
     />,
   ).toBlob();
 

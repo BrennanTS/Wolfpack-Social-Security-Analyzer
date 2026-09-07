@@ -33,6 +33,7 @@ import {
 import { AboutPanel } from './AboutPanel';
 import { MenuPanel } from './MenuPanel';
 import { useReportTheme } from '../hooks/useReportTheme';
+import { useReportLayouts } from '../hooks/useReportLayouts';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
@@ -116,6 +117,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { themeId, chooseTheme } = useReportTheme();
+  const reportLayouts = useReportLayouts();
   const [showAssumptions, setShowAssumptions] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -302,7 +304,14 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setExportingBeta(true);
     try {
       const sensitivity = await longevityIfComplete(form, asOf);
-      await downloadBetaPdfReport(analysis, claimingRowsByPerson, gridTarget, sensitivity, themeId);
+      await downloadBetaPdfReport(
+        analysis,
+        claimingRowsByPerson,
+        gridTarget,
+        sensitivity,
+        themeId,
+        reportLayouts.layout,
+      );
     } catch {
       setExportError('Beta PDF export failed. Please try again.');
     } finally {
@@ -551,6 +560,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         onThemeChange={chooseTheme}
         onOpenAbout={() => setAboutOpen(true)}
         onOpenResources={() => setResourcesOpen(true)}
+        layouts={reportLayouts}
       />
 
       <footer className="footer">

@@ -87,6 +87,15 @@ function buildStyles() {
     borderBottomColor: BORDER,
   },
   sectionTitleFirst: { marginTop: 0 },
+  /**
+   * Space above a block that follows another on the same sheet.
+   *
+   * Blocks zero their own first heading's top margin (`sectionTitleFirst`),
+   * which was right while each one owned a page. Flowed together, that put
+   * "Your action plan" hard against the note above it. A block cannot know
+   * what precedes it, so the gap belongs to whatever places them.
+   */
+  blockGap: { marginTop: 16 },
   sectionDesc: { fontSize: 8, color: MUTED, marginBottom: 8, lineHeight: 1.45 },
   profileGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 4 },
   profileItem: { width: '33.33%', marginBottom: 8, paddingRight: 8 },

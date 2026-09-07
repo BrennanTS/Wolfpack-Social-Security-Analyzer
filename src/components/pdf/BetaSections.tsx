@@ -1,4 +1,4 @@
-import { Page, Text, View } from '@react-pdf/renderer';
+import { Text, View } from '@react-pdf/renderer';
 import type { HouseholdAnalysis } from '../../lib/household';
 import type { LongevitySensitivity } from '../../lib/longevity';
 import { incomeChanges } from '../../lib/incomeChanges';
@@ -39,13 +39,11 @@ function calendarAt(monthIndex: number): CalendarMonth {
  * The current report opens on a five-column comparison of present values,
  * which is an adviser's working surface rather than an answer.
  */
-export function BetaAnswerSection({
+export function AnswerBlock({
   analysis,
-  footer,
   header,
 }: {
   analysis: HouseholdAnalysis;
-  footer: React.ReactNode;
   header?: React.ReactNode;
 }) {
   const people = analysis.people.map((p) => p.person);
@@ -72,7 +70,7 @@ export function BetaAnswerSection({
   const afterDeath = death === null ? null : changes.find((c) => c.monthIndex > death.deathMonthIndex);
 
   return (
-    <Page size="LETTER" style={styles.page}>
+    <>
       {header}
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.ANSWER_TITLE}</Text>
 
@@ -113,6 +111,25 @@ export function BetaAnswerSection({
         </View>
       </View>
 
+    </>
+  );
+}
+
+/**
+ * Every month the household's income moves, and what moved it.
+ *
+ * Its own block rather than the tail of the answer: it is the one part of the
+ * opening page whose length depends on the household — two filings and a
+ * death for most, more for a household with spousal and survivor steps — so
+ * it is also the part an adviser is most likely to cut for a short report.
+ */
+export function ChangesBlock({ analysis }: { analysis: HouseholdAnalysis }) {
+  const people = analysis.people.map((p) => p.person);
+  const names = people.map((p, i) => personLabel(p.name, i));
+  const changes = incomeChanges(analysis);
+
+  return (
+    <>
       <Text style={styles.sectionTitle}>{copy.CHANGE_TABLE_TITLE}</Text>
       <View style={styles.tableHeader}>
         <Text style={[styles.th, { width: 74 }]}>When</Text>
@@ -124,8 +141,12 @@ export function BetaAnswerSection({
         ))}
         <Text style={[styles.th, styles.thRight, { width: 74 }]}>Together</Text>
       </View>
+      {/* `wrap={false}` on every row in this file. A row is one fact, and
+          react-pdf will otherwise leave its first cells on one page and the
+          sentence they belong to on the next — which is what the action
+          plan's last row did the first time these blocks shared a sheet. */}
       {changes.map((change) => (
-        <View key={change.monthIndex} style={styles.tableRow}>
+        <View key={change.monthIndex} style={styles.tableRow} wrap={false}>
           <Text style={[styles.td, { width: 74 }]}>
             {monthYearLabel(calendarAt(change.monthIndex))}
           </Text>
@@ -142,8 +163,7 @@ export function BetaAnswerSection({
       ))}
       <Text style={[styles.sectionDesc, { marginTop: 8 }]}>{copy.CHANGE_TABLE_NOTE}</Text>
 
-      {footer}
-    </Page>
+    </>
   );
 }
 
@@ -152,12 +172,10 @@ export function BetaAnswerSection({
  * ------------------------------------------------------------------ */
 
 /** Horizontal bars: household income in the first full year alone. */
-export function BetaSurvivorSection({
+export function SurvivorBlock({
   analysis,
-  footer,
 }: {
   analysis: HouseholdAnalysis;
-  footer: React.ReactNode;
 }) {
   const rows = analysis.comparisons.filter(
     (c) => typeof c.survivorIncome === 'number' && c.survivorIncome > 0,
@@ -185,7 +203,7 @@ export function BetaSurvivorSection({
         );
 
   return (
-    <Page size="LETTER" style={styles.page}>
+    <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.SURVIVOR_TITLE}</Text>
       <Text style={styles.sectionDesc}>{copy.SURVIVOR_INTRO}</Text>
 
@@ -194,7 +212,7 @@ export function BetaSurvivorSection({
           const value = row.survivorIncome as number;
           const isSelected = row.key === analysis.selected.key;
           return (
-            <View key={row.key} style={styles.betaBarRow}>
+            <View key={row.key} style={styles.betaBarRow} wrap={false}>
               <Text style={styles.betaBarLabel}>{row.label}</Text>
               <View style={styles.betaBarTrack}>
                 <View
@@ -224,8 +242,7 @@ export function BetaSurvivorSection({
         </View>
       )}
 
-      {footer}
-    </Page>
+    </>
   );
 }
 
@@ -234,12 +251,10 @@ export function BetaSurvivorSection({
  * ------------------------------------------------------------------ */
 
 /** Every plan priced at three lifespans — see `longevitySensitivity`. */
-export function BetaLongevitySection({
+export function LongevityBlock({
   sensitivity,
-  footer,
 }: {
   sensitivity: LongevitySensitivity;
-  footer: React.ReactNode;
 }) {
   const { rows, strategies } = sensitivity;
   if (strategies.length === 0) return null;
@@ -256,7 +271,7 @@ export function BetaLongevitySection({
   const dropped = copy.longevityDroppedNote(sensitivity.droppedKeys);
 
   return (
-    <Page size="LETTER" style={styles.page}>
+    <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.LONGEVITY_TITLE}</Text>
       <Text style={styles.sectionDesc}>{copy.LONGEVITY_INTRO}</Text>
 
@@ -272,6 +287,7 @@ export function BetaLongevitySection({
         <View
           key={row.label}
           style={[styles.tableRow, row.isPlanned ? styles.tableRowOptimal : {}]}
+          wrap={false}
         >
           <Text style={[styles.td, { flex: 1 }, row.isPlanned ? styles.tdBold : {}]}>
             {row.label}
@@ -299,8 +315,7 @@ export function BetaLongevitySection({
       </View>
       {dropped && <Text style={[styles.sectionDesc, { marginTop: 8 }]}>{dropped}</Text>}
 
-      {footer}
-    </Page>
+    </>
   );
 }
 
@@ -309,12 +324,10 @@ export function BetaLongevitySection({
  * ------------------------------------------------------------------ */
 
 /** Dated steps with tick boxes — the page a client can act on. */
-export function BetaActionSection({
+export function ActionBlock({
   analysis,
-  footer,
 }: {
   analysis: HouseholdAnalysis;
-  footer: React.ReactNode;
 }) {
   const people = analysis.people.map((p) => p.person);
   const names = people.map((p, i) => personLabel(p.name, i));
@@ -341,7 +354,7 @@ export function BetaActionSection({
   }
 
   return (
-    <Page size="LETTER" style={styles.page}>
+    <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.ACTION_TITLE}</Text>
       <Text style={styles.sectionDesc}>
         {copy.ACTION_INTRO} {copy.ACTION_APPLY_NOTE}
@@ -354,7 +367,7 @@ export function BetaActionSection({
         <Text style={[styles.th, { flex: 1 }]}>What to do</Text>
       </View>
       {steps.map((step) => (
-        <View key={`${step.when}-${step.who}`} style={styles.tableRow}>
+        <View key={`${step.when}-${step.who}`} style={styles.tableRow} wrap={false}>
           <View style={{ width: 18, paddingTop: 2 }}>
             <View style={styles.betaCheckbox} />
           </View>
@@ -365,8 +378,7 @@ export function BetaActionSection({
       ))}
 
       <Text style={[styles.sectionDesc, { marginTop: 10 }]}>{copy.ACTION_REVIEW_NOTE}</Text>
-      {footer}
-    </Page>
+    </>
   );
 }
 
@@ -375,18 +387,16 @@ export function BetaActionSection({
  * ------------------------------------------------------------------ */
 
 /** The glossary five of the six competing reports carry and ours does not. */
-export function BetaTermsSection({
+export function TermsBlock({
   analysis,
-  footer,
 }: {
   analysis: HouseholdAnalysis;
-  footer: React.ReactNode;
 }) {
   const names = analysis.people.map((p, i) => personLabel(p.person.name, i));
   const ages = analysis.people.map((p) => p.person.lifeExpectancy);
 
   return (
-    <Page size="LETTER" style={styles.page}>
+    <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Words used in this report</Text>
       {copy.KEY_TERMS.map((term) => (
         <View key={term.term} style={styles.betaTerm} wrap={false}>
@@ -400,8 +410,7 @@ export function BetaTermsSection({
       <View style={styles.betaTerm}>
         <Text style={styles.betaTermBody}>{copy.planToNote(names, ages)}</Text>
       </View>
-      {footer}
-    </Page>
+    </>
   );
 }
 
@@ -414,18 +423,15 @@ export function BetaTermsSection({
  * spilled an empty twelfth page carrying nothing but a footer. Its own page
  * is also the better reading: the terms are for the client, this is not.
  */
-export function BetaAppendixSection({
+export function MethodologyBlock({
   appendix,
-  footer,
 }: {
   appendix: React.ReactNode;
-  footer: React.ReactNode;
 }) {
   return (
-    <Page size="LETTER" style={styles.page}>
+    <>
       {appendix}
-      {footer}
-    </Page>
+    </>
   );
 }
 

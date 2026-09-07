@@ -92,9 +92,9 @@ export type Household =
  * because the risk went away: a `switch` with a `never` arm still makes a
  * fourth status a compile error here.
  */
-export function householdDisplayShape(
-  status: Household['status'],
-): 'oneClaimant' | 'twoClaimants' | 'widowed' {
+export type HouseholdDisplayShape = 'oneClaimant' | 'twoClaimants' | 'widowed';
+
+export function householdDisplayShape(status: Household['status']): HouseholdDisplayShape {
   switch (status) {
     case 'single':
       return 'oneClaimant';

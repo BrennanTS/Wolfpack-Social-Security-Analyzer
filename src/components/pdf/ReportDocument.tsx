@@ -215,7 +215,12 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
       {pairs.map((pair, i) => (
         <MethodPair key={i} left={pair[0]} right={pair[1]} />
       ))}
-      <View style={styles.disclaimer}>
+      {/* `wrap={false}`: this is a bordered box, and react-pdf will happily
+          leave its text on one page and its bottom border on the next. That
+          printed a whole extra sheet carrying a single hairline and a footer
+          — 0.01% ink — the first time the terms and the appendix shared a
+          page group. A callout box should move as one thing regardless. */}
+      <View style={styles.disclaimer} wrap={false}>
         <Text style={styles.disclaimerTitle}>Important Disclosures</Text>
         <Text style={styles.disclaimerText}>
           Prepared by {BRAND_NAME} for educational

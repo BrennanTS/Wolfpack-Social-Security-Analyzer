@@ -3,6 +3,21 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MenuPanel } from './MenuPanel';
 import { REPORT_THEMES } from '../lib/reportTheme';
+import { CLIENT_LAYOUT, PRESETS } from '../lib/reportLayout';
+
+/** A layout store that behaves, so these tests stay about the menu. */
+const stubLayouts = () => ({
+  layouts: [...PRESETS],
+  layout: CLIENT_LAYOUT,
+  selectedId: CLIENT_LAYOUT.id,
+  select: vi.fn(),
+  isPreset: (id: string) => PRESETS.some((p) => p.id === id),
+  saveAs: vi.fn(),
+  update: vi.fn(),
+  rename: vi.fn(),
+  remove: vi.fn(),
+  importLayout: vi.fn(),
+});
 
 function renderMenu(overrides: Partial<Parameters<typeof MenuPanel>[0]> = {}) {
   const props = {
@@ -12,6 +27,7 @@ function renderMenu(overrides: Partial<Parameters<typeof MenuPanel>[0]> = {}) {
     onThemeChange: vi.fn(),
     onOpenAbout: vi.fn(),
     onOpenResources: vi.fn(),
+    layouts: stubLayouts(),
     ...overrides,
   };
   render(<MenuPanel {...props} />);

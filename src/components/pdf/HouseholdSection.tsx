@@ -418,13 +418,15 @@ export function ClaimingGridPlot({
  * — the spousal top-up (clearly labeled, since `spousalTopUp` carries two
  * distinct figures), and the combined income timeline.
  */
-export function HouseholdSection({
-  analysis,
-  footerText,
-  appendix,
-  leadingHeader,
-  gridTarget,
-}: Props) {
+/**
+ * The household page's content — the strategy table, the combined-income
+ * chart, and the notes that go with them.
+ *
+ * Split from `HouseholdSection` below so a layout can place this content
+ * without a page of its own. The section still renders exactly this, in the
+ * same order, so the existing report is unchanged.
+ */
+export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
   const people = analysis.people.map((p) => p.person);
   const spousal = analysis.spousalTopUp;
   const gapNote = survivorGapNote(analysis.survivorGap);
@@ -439,8 +441,7 @@ export function HouseholdSection({
   const claimNote = survivorClaimNote(analysis.survivorClaim, 'real');
 
   return (
-    <Page size="LETTER" style={styles.page}>
-      {leadingHeader}
+    <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Household</Text>
 
       <View style={styles.recBox}>
@@ -561,39 +562,87 @@ export function HouseholdSection({
           the two cannot disagree about when to render it. */}
       {claimNote && <Text style={styles.sectionDesc}>{claimNote}</Text>}
 
-      {analysis.claimingGrid && gridTarget && (
-        /* Heading, caption and board move as ONE block. Left to flow, the
-           heading orphaned at the foot of the previous page while the grid
-           it names started the next — `wrap={false}` on the box alone only
-           keeps the box together, not the words introducing it. */
-        <View wrap={false}>
-          <Text style={styles.sectionTitle}>Claiming Age Grid</Text>
-          <Text style={styles.sectionDesc}>
-            Household value at every combination of whole claiming ages, rounded. Each
-            square is the best either of them can do filing somewhere inside those two
-            years.
-            {gridTarget.on
-              ? ` Outlined squares are within ${gridTarget.percent}% of the best — ${
-                  cellsWithin(analysis.claimingGrid, gridTarget.percent).size
-                } of ${analysis.claimingGrid.cells.length} combinations.`
-              : ''}
-          </Text>
-          <View style={styles.chartBox}>
-            <ClaimingGridPlot
-              grid={analysis.claimingGrid}
-              names={[
-                personLabel(people[0].name, 0),
-                personLabel(people[1].name, 1),
-              ]}
-              target={gridTarget}
-            />
-          </View>
-        </View>
-      )}
+    </>
+  );
+}
+
+/**
+ * The household page as the original report composes it: this content, the
+ * claiming grid, and the methodology appendix on one sheet.
+ *
+ * Kept so `ReportDocument` and the tests that call it as a plain function
+ * carry on working untouched while the beta report moves to layouts.
+ */
+export function HouseholdSection({
+  analysis,
+  footerText,
+  appendix,
+  leadingHeader,
+  gridTarget,
+}: Props) {
+  return (
+    <Page size="LETTER" style={styles.page}>
+      {leadingHeader}
+      {/* Called, not mounted. The report's tests walk the element tree this
+          function returns without a renderer, and an unrendered
+          `<HouseholdBlock />` element has no children to walk — the whole
+          page would silently vanish from every assertion about it. */}
+      {HouseholdBlock({ analysis })}
+      {ClaimingGridBlock({ analysis, gridTarget })}
 
       {appendix}
 
       <PageFooter text={footerText} />
     </Page>
+  );
+}
+
+/**
+ * The claiming-age grid, as a block a layout can place on its own.
+ *
+ * Lifted out of the household page unchanged — `HouseholdSection` still
+ * renders it in the same position, so the existing report is byte-identical.
+ * It is separate because it is the block an adviser most often keeps for
+ * themselves and drops from the client's copy.
+ *
+ * Returns null rather than an empty view when there is no grid, so a layout
+ * that includes it for a household without one closes the gap instead of
+ * printing a heading over nothing.
+ */
+export function ClaimingGridBlock({
+  analysis,
+  gridTarget,
+}: {
+  analysis: HouseholdAnalysis;
+  gridTarget?: { on: boolean; percent: number };
+}) {
+  if (!analysis.claimingGrid || !gridTarget) return null;
+  const people = analysis.people.map((p) => p.person);
+  const grid = analysis.claimingGrid;
+  return (
+    /* Heading, caption and board move as ONE block. Left to flow, the
+       heading orphaned at the foot of the previous page while the grid
+       it names started the next — `wrap={false}` on the box alone only
+       keeps the box together, not the words introducing it. */
+    <View wrap={false}>
+      <Text style={styles.sectionTitle}>Claiming Age Grid</Text>
+      <Text style={styles.sectionDesc}>
+        Household value at every combination of whole claiming ages, rounded. Each
+        square is the best either of them can do filing somewhere inside those two
+        years.
+        {gridTarget.on
+          ? ` Outlined squares are within ${gridTarget.percent}% of the best — ${
+              cellsWithin(grid, gridTarget.percent).size
+            } of ${grid.cells.length} combinations.`
+          : ''}
+      </Text>
+      <View style={styles.chartBox}>
+        <ClaimingGridPlot
+          grid={grid}
+          names={[personLabel(people[0].name, 0), personLabel(people[1].name, 1)]}
+          target={gridTarget}
+        />
+      </View>
+    </View>
   );
 }

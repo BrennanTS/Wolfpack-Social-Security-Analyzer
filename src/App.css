@@ -2769,3 +2769,228 @@ tbody tr:hover {
   display: flex;
   justify-content: flex-end;
 }
+
+/* ─── Report layout editor ─── */
+.layout-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.layout-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layout-picker-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.layout-picker select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.layout-dirty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  background: var(--gold-soft);
+  border-radius: var(--radius);
+}
+
+.layout-saveas {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.layout-saveas input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.layout-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layout-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: grab;
+}
+
+.layout-row:active {
+  cursor: grabbing;
+}
+
+/* The drop target, drawn as a line above the row rather than a fill: it
+   marks where the dragged block will land, not which row is hovered. */
+.layout-row-over {
+  box-shadow: inset 0 2px 0 var(--gold);
+}
+
+.layout-row-dragging {
+  opacity: 0.4;
+}
+
+/* A page break is a rule across the list, not a card: it is the absence of
+   content, and drawing it like a block makes the report look one section
+   longer than it is. */
+.layout-row-break {
+  background: transparent;
+  border: 0;
+  border-top: 1px dashed var(--gold);
+  border-radius: 0;
+  padding: 5px 9px;
+}
+
+.layout-break-label {
+  flex: 1;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gold-dark);
+}
+
+.layout-grip {
+  color: var(--text-subtle);
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.layout-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.layout-row-name {
+  font-size: 0.8125rem;
+  color: var(--text);
+}
+
+.layout-row-blurb {
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+  line-height: 1.35;
+}
+
+.layout-row-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.layout-row-actions button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.layout-row-actions button:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--fill);
+  border-color: var(--border);
+}
+
+.layout-row-actions button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.layout-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.layout-add-label {
+  width: 100%;
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+.layout-add-block,
+.layout-add-break {
+  padding: 5px 9px;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+
+.layout-add-block:hover,
+.layout-add-break:hover {
+  color: var(--text);
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.layout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.layout-actions button {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.layout-actions button:hover {
+  color: var(--text);
+  background: var(--fill);
+  border-color: var(--border-strong);
+}
+
+.layout-note {
+  margin: 0;
+  font-size: 0.6875rem;
+  color: var(--gold-dark);
+}

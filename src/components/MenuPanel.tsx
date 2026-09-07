@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { REPORT_THEMES } from '../lib/reportTheme';
+import { ReportLayoutEditor } from './ReportLayoutEditor';
+import type { useReportLayouts } from '../hooks/useReportLayouts';
 import { AppVersion } from './AppVersion';
 
 interface MenuPanelProps {
@@ -9,6 +11,7 @@ interface MenuPanelProps {
   onThemeChange: (id: string) => void;
   onOpenAbout: () => void;
   onOpenResources: () => void;
+  layouts: ReturnType<typeof useReportLayouts>;
 }
 
 /**
@@ -31,6 +34,7 @@ export function MenuPanel({
   onThemeChange,
   onOpenAbout,
   onOpenResources,
+  layouts,
 }: MenuPanelProps) {
   useEffect(() => {
     if (!open) return;
@@ -121,6 +125,17 @@ export function MenuPanel({
                 );
               })}
             </div>
+          </section>
+
+          <section className="resources-section">
+            <h3>Report layout</h3>
+            {/* What the report contains, in what order, and where it breaks
+                pages. Beside the theme because the two are the same decision
+                from a client's side: what the document looks like. */}
+            <p className="menu-note">
+              Applies to the beta PDF. Drag to reorder, and export a layout to share it.
+            </p>
+            <ReportLayoutEditor {...layouts} />
           </section>
 
           <section className="resources-section">
