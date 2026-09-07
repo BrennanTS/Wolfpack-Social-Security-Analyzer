@@ -3009,3 +3009,248 @@ tbody tr:hover {
 .layout-row-skipped .layout-row-blurb {
   color: var(--gold-dark);
 }
+
+/* ─── Layout editor dialog ─── */
+.drawer-backdrop-dialog {
+  z-index: 200;
+}
+
+.layout-dialog {
+  position: fixed;
+  z-index: 201;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(1040px, calc(100vw - 48px));
+  max-height: min(820px, calc(100vh - 64px));
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.layout-dialog:focus {
+  outline: none;
+}
+
+.layout-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.layout-dialog-header h2 {
+  margin: 0 0 4px;
+  font-size: 1.0625rem;
+}
+
+.layout-dialog-header p {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.layout-dialog-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: 20px;
+  padding: 18px 22px 20px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* The editor scrolls; the preview beside it does not move with it. */
+.layout-dialog-body > .layout-editor {
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+/* Two columns: the report on the left, everything not in it on the right —
+   which is the direction things actually travel. Named areas rather than
+   source order so the narrow drawer keeps its single column unchanged. */
+/* One column inside the dialog's left half: the preview took the right, and
+   splitting the remaining ~520px again left both halves too narrow to read a
+   block's name and its size hint on one line. */
+.layout-editor-wide {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'picker'
+    'dirty'
+    'list'
+    'add'
+    'actions'
+    'note';
+  align-content: start;
+}
+
+.layout-editor-wide > .layout-picker {
+  grid-area: picker;
+}
+
+.layout-editor-wide > .layout-dirty {
+  grid-area: dirty;
+}
+
+.layout-editor-wide > .layout-list {
+  grid-area: list;
+}
+
+.layout-editor-wide > .layout-add {
+  grid-area: add;
+  align-content: start;
+  padding: 12px;
+  background: var(--fill);
+  border-radius: var(--radius-lg);
+}
+
+.layout-editor-wide > .layout-actions {
+  grid-area: actions;
+}
+
+.layout-editor-wide > .layout-note {
+  grid-area: note;
+}
+
+.layout-add-heading {
+  width: 100%;
+  margin: 0 0 2px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+/* Rows have room here, so the size hint sits beside the name rather than
+   wrapping under it. */
+.layout-editor-wide .layout-row {
+  padding: 10px 12px;
+}
+
+.layout-editor-wide .layout-row-name {
+  font-size: 0.875rem;
+}
+
+.layout-editor-wide .layout-picker select {
+  max-width: 320px;
+}
+
+.menu-action {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 0.8125rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.menu-action:hover:not(:disabled) {
+  background: var(--fill);
+  border-color: var(--gold);
+}
+
+.menu-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Below this the preview cannot be read at all, so the editor takes the
+   whole dialog rather than sharing it with a two-inch page. */
+@media (max-width: 900px) {
+  .layout-dialog-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .layout-dialog-body > .report-preview {
+    display: none;
+  }
+}
+
+/* The dialog body is the scroll container, and the block list is much taller
+   than the palette beside it. Left alone, the things you drag INTO and the
+   buttons that save your work both scroll away while you are still working
+   on the list — so both stay put. */
+.layout-editor-wide > .layout-actions {
+  position: sticky;
+  bottom: -20px;
+  z-index: 1;
+  margin-bottom: -8px;
+  padding-top: 12px;
+  padding-bottom: 14px;
+  background: var(--bg-secondary);
+}
+
+/* ─── Live report preview ─── */
+.report-preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.report-preview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.report-preview-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.report-preview-status {
+  font-size: 0.6875rem;
+  color: var(--gold-dark);
+}
+
+.report-preview-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.report-preview-frame iframe {
+  flex: 1;
+  border: 0;
+  background: #ffffff;
+  transition: opacity 0.15s var(--ease);
+}
+
+/* The previous render stays up while the next is built — dimmed, so it reads
+   as catching up rather than as the current answer. */
+.report-preview-frame iframe.is-stale {
+  opacity: 0.55;
+}
+
+.report-preview-empty {
+  margin: auto;
+  padding: 20px;
+  max-width: 28ch;
+  text-align: center;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-subtle);
+}

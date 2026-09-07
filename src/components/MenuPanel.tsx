@@ -1,9 +1,24 @@
 import { useEffect } from 'react';
 import { REPORT_THEMES } from '../lib/reportTheme';
-import { ReportLayoutEditor } from './ReportLayoutEditor';
+import { blockAppliesTo, layoutBlockIds } from '../lib/reportLayout';
 import type { useReportLayouts } from '../hooks/useReportLayouts';
 import type { HouseholdDisplayShape } from '../lib/household';
 import { AppVersion } from './AppVersion';
+
+/** One line naming the chosen layout and how much of it this household gets. */
+function summarize(
+  layout: ReturnType<typeof useReportLayouts>['layout'],
+  shape?: HouseholdDisplayShape,
+): string {
+  const blocks = layoutBlockIds(layout);
+  const printed =
+    shape === undefined ? blocks : blocks.filter((id) => blockAppliesTo(id, shape));
+  const skipped = blocks.length - printed.length;
+  const count = `${printed.length} section${printed.length === 1 ? '' : 's'}`;
+  return skipped === 0
+    ? `“${layout.name}” — ${count}.`
+    : `“${layout.name}” — ${count}; ${skipped} not printed for this household.`;
+}
 
 interface MenuPanelProps {
   open: boolean;
@@ -13,6 +28,17 @@ interface MenuPanelProps {
   onOpenAbout: () => void;
   onOpenResources: () => void;
   layouts: ReturnType<typeof useReportLayouts>;
+  /** Opens the layout editor, which needs more room than this drawer has. */
+  onEditLayout: () => void;
+  /**
+   * The original report.
+   *
+   * It lives here rather than in the header now: it is on its way out, and an
+   * adviser reaching for "Export PDF" should land on the one being developed.
+   */
+  onExportOriginal: () => void;
+  exportingOriginal: boolean;
+  canExport: boolean;
   /** The household on screen, so the editor can flag blocks it will skip. */
   shape?: HouseholdDisplayShape;
 }
@@ -39,6 +65,10 @@ export function MenuPanel({
   onOpenResources,
   layouts,
   shape,
+  onEditLayout,
+  onExportOriginal,
+  exportingOriginal,
+  canExport,
 }: MenuPanelProps) {
   useEffect(() => {
     if (!open) return;
@@ -137,9 +167,27 @@ export function MenuPanel({
                 pages. Beside the theme because the two are the same decision
                 from a client's side: what the document looks like. */}
             <p className="menu-note">
-              Applies to the beta PDF. Drag to reorder, and export a layout to share it.
+              Applies to the beta PDF. {summarize(layouts.layout, shape)}
             </p>
-            <ReportLayoutEditor {...layouts} shape={shape} />
+            <button type="button" className="menu-action" onClick={onEditLayout}>
+              Edit layout…
+            </button>
+          </section>
+
+          <section className="resources-section">
+            <h3>Original report</h3>
+            <p className="menu-note">
+              The report the beta replaces. Kept while the beta settles, and not built from
+              a layout.
+            </p>
+            <button
+              type="button"
+              className="menu-action"
+              onClick={onExportOriginal}
+              disabled={exportingOriginal || !canExport}
+            >
+              {exportingOriginal ? 'Generating…' : 'Export PDF'}
+            </button>
           </section>
 
           <section className="resources-section">

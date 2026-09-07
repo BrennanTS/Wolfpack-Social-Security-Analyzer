@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
+import type { LongevitySensitivity } from '../lib/longevity';
 import { BRAND_NAME } from '../lib/brand';
 import {
   analyzeIfComplete,
@@ -32,6 +33,7 @@ import {
 } from '../lib/widowedForm';
 import { AboutPanel } from './AboutPanel';
 import { MenuPanel } from './MenuPanel';
+import { LayoutEditorDialog } from './LayoutEditorDialog';
 import { useReportTheme } from '../hooks/useReportTheme';
 import { useReportLayouts } from '../hooks/useReportLayouts';
 import { AssumptionsPanel } from './AssumptionsPanel';
@@ -116,6 +118,16 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
+  /**
+   * The longevity block's data, for the preview.
+   *
+   * Asynchronous and derived from the form rather than the analysis, so it
+   * cannot be computed during a render. Fetched once when the editor opens —
+   * not on every keystroke — and passed in so the preview shows the same
+   * block the export will rather than silently omitting it.
+   */
+  const [previewSensitivity, setPreviewSensitivity] = useState<LongevitySensitivity | null>(null);
   const { themeId, chooseTheme } = useReportTheme();
   const reportLayouts = useReportLayouts();
   const [showAssumptions, setShowAssumptions] = useState(true);
@@ -334,27 +346,10 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         </div>
         <div className="header-actions">
           <DarkModeToggle active={darkMode} onToggle={onToggleDarkMode} />
-          <button
-            type="button"
-            className="btn-export"
-            onClick={handleExportPdf}
-            disabled={exporting || !inputsComplete}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M4 1h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"
-                stroke="currentColor"
-                strokeWidth="1.2"
-              />
-              <path d="M9 1v3h3M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.2" />
-            </svg>
-            {exporting ? 'Generating…' : 'Export PDF'}
-          </button>
-          {/* The beta report, alongside the one it may one day replace.
-              Same analysis, same engine, a different document — so an
-              adviser can hand a client either without the app changing
-              underneath them. Styled identically to it: the two are
-              alternatives, not a primary and a fallback. */}
+          {/* The only export in the header. The original moved into the menu
+              — it is on its way out, and an adviser reaching for "Export PDF"
+              should land on the report being developed rather than choose
+              between two buttons a few pixels apart. */}
           <button
             type="button"
             className="btn-export"
@@ -562,6 +557,33 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         onOpenResources={() => setResourcesOpen(true)}
         layouts={reportLayouts}
         shape={analysis ? householdDisplayShape(analysis.status) : undefined}
+        onEditLayout={() => {
+          // The drawer steps aside: the dialog is the same task with more
+          // room, not a second thing open on top of the first.
+          setMenuOpen(false);
+          setLayoutEditorOpen(true);
+          void longevityIfComplete(form, asOf).then(setPreviewSensitivity);
+        }}
+        onExportOriginal={handleExportPdf}
+        exportingOriginal={exporting}
+        canExport={inputsComplete}
+      />
+      <LayoutEditorDialog
+        open={layoutEditorOpen}
+        onClose={() => setLayoutEditorOpen(false)}
+        layouts={reportLayouts}
+        shape={analysis ? householdDisplayShape(analysis.status) : undefined}
+        preview={
+          analysis
+            ? {
+                analysis,
+                claimingRowsByPerson,
+                gridTarget,
+                sensitivity: previewSensitivity,
+                themeId,
+              }
+            : undefined
+        }
       />
 
       <footer className="footer">

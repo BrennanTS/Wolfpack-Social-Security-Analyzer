@@ -30,6 +30,10 @@ function renderMenu(overrides: Partial<Parameters<typeof MenuPanel>[0]> = {}) {
     onOpenAbout: vi.fn(),
     onOpenResources: vi.fn(),
     layouts: stubLayouts(),
+    onEditLayout: vi.fn(),
+    onExportOriginal: vi.fn(),
+    exportingOriginal: false,
+    canExport: true,
     ...overrides,
   };
   render(<MenuPanel {...props} />);
@@ -69,6 +73,34 @@ describe('MenuPanel', () => {
     renderMenu();
     const panel = screen.getByRole('heading', { name: 'Menu' }).closest('aside') as HTMLElement;
     expect(within(panel).getByText(/applies to the exported pdf/i)).toBeInTheDocument();
+  });
+
+  it('opens the layout editor rather than holding it in the drawer', async () => {
+    // Fifteen blocks in a 420px column pushed the palette below the fold.
+    const props = renderMenu();
+    await userEvent.click(screen.getByRole('button', { name: /edit layout/i }));
+    expect(props.onEditLayout).toHaveBeenCalled();
+    // And the editor itself is not also sitting in here.
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
+  });
+
+  it('summarizes the chosen layout, so the drawer still says what will print', () => {
+    renderMenu();
+    expect(screen.getByText(/“Client”/)).toBeInTheDocument();
+    expect(screen.getByText(/section/)).toBeInTheDocument();
+  });
+
+  it('offers the original report here rather than in the header', async () => {
+    // It is on its way out; an adviser reaching for "Export PDF" should land
+    // on the beta, not choose between two buttons a few pixels apart.
+    const props = renderMenu();
+    await userEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+    expect(props.onExportOriginal).toHaveBeenCalled();
+  });
+
+  it('will not export the original before the inputs are complete', () => {
+    renderMenu({ canExport: false });
+    expect(screen.getByRole('button', { name: 'Export PDF' })).toBeDisabled();
   });
 
   it('closes itself as it hands over to another drawer', async () => {

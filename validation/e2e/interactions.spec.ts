@@ -6,6 +6,7 @@
  * opening/closing the settings drawer, dark mode, and PDF
  * export.
  */
+import type { Page } from '@playwright/test';
 import { expect, fillScenarioForm, test } from './helpers/app';
 
 const dan = {
@@ -267,13 +268,21 @@ test('toggles dark mode', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
+/**
+ * The original report's export, which now lives in the menu rather than the
+ * header — it is on its way out, and the header carries only the beta.
+ */
+async function openOriginalExport(page: Page) {
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  return page.getByRole('button', { name: 'Export PDF', exact: true });
+}
+
 test('exports a PDF', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, single);
 
   const downloadPromise = page.waitForEvent('download');
-  // Exact, not a substring: "Export PDF" is a prefix of "Export PDF (beta)".
-  await page.getByRole('button', { name: 'Export PDF', exact: true }).click();
+  await (await openOriginalExport(page)).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-.*\.pdf$/);
 });
@@ -492,9 +501,9 @@ test('renders a widowed household, and never the single-claimant view', async ({
   await expect(page.getByTestId('deceased-filed')).toContainText('June 2022');
 
   // Both actions live, having been disabled dead ends until now.
-  await expect(page.getByRole('button', { name: 'Export PDF', exact: true })).toBeEnabled();
   await expect(page.getByTestId('export-beta')).toBeEnabled();
   await expect(page.getByRole('button', { name: /copy link/i })).toBeEnabled();
+  await expect(await openOriginalExport(page)).toBeEnabled();
 });
 
 test('blocks the widowed dates SSA would not pay, instead of failing the analysis', async ({
@@ -644,12 +653,17 @@ test('exports the beta report, named apart from the report it may replace', asyn
   // The original still works afterwards. Two exports sharing one analysis is
   // the whole premise of shipping the beta alongside rather than instead.
   const alsoOriginal = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export PDF', exact: true }).click();
+  await (await openOriginalExport(page)).click();
   expect((await alsoOriginal).suggestedFilename()).toMatch(/^Social-Security-Analysis-[\d-]+\.pdf$/);
 });
 
 /**
  * Both export buttons, in both themes, at rest and on hover.
+ *
+ * One is in the header (the beta) and one is in the menu (the original), so
+ * this opens the drawer for the second — the defect below is about theme
+ * tokens, not about where a button sits, and moving a button must not quietly
+ * drop it from this guard.
  *
  * This repo keeps shipping the same defect: `--ink` and `--cream` are NOT
  * redefined in the dark block — they hold their light values in both themes —
@@ -697,13 +711,11 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
         return `rgb(${mix(t.r, b.r)}, ${mix(t.g, b.g)}, ${mix(t.b, b.b)})`;
       };
       const pageBg = getComputedStyle(document.body).backgroundColor;
-      // By test id, not by class: the two buttons carry the same classes
-      // now, being alternatives rather than a primary and a fallback.
       const el =
         which === 'beta'
           ? document.querySelector<HTMLElement>('[data-testid="export-beta"]')!
-          : [...document.querySelectorAll<HTMLElement>('.btn-export')].find(
-              (x) => x.dataset.testid !== 'export-beta',
+          : [...document.querySelectorAll<HTMLElement>('.menu-action')].find((x) =>
+              /export pdf/i.test(x.textContent ?? ''),
             )!;
       const cs = getComputedStyle(el);
       return ratio(over(cs.color, over(cs.backgroundColor, pageBg)), over(cs.backgroundColor, pageBg));
@@ -717,6 +729,11 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
       await page.waitForTimeout(300);
     }
     for (const which of ['primary', 'beta'] as const) {
+      // The original's button lives inside the menu drawer now.
+      if (which === 'primary') {
+        await page.getByRole('button', { name: 'Menu', exact: true }).click();
+        await page.waitForTimeout(300);
+      }
       const button =
         which === 'beta'
           ? page.getByTestId('export-beta')
@@ -736,6 +753,11 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
       // Move off, so the next measurement is a true resting state.
       await page.mouse.move(0, 0);
       await page.waitForTimeout(500);
+
+      if (which === 'primary') {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+      }
     }
   }
 });

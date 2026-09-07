@@ -53,9 +53,16 @@ export function ReportLayoutEditor({
   draftItems,
   setDraftItems,
   shape,
+  wide = false,
 }: ReturnType<typeof useReportLayouts> & {
   /** The household on screen, so the editor can say what it will skip. */
   shape?: HouseholdDisplayShape;
+  /**
+   * Two columns instead of one — the report on the left, what is not in it on
+   * the right. Only a layout change: the drawer and the dialog run the same
+   * editor, so neither can grow behaviour the other lacks.
+   */
+  wide?: boolean;
 }) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -137,7 +144,7 @@ export function ReportLayoutEditor({
   const omitted = omittedBlocks({ ...layout, items });
 
   return (
-    <div className="layout-editor">
+    <div className={wide ? 'layout-editor layout-editor-wide' : 'layout-editor'}>
       <div className="layout-picker">
         <label className="layout-picker-label" htmlFor={nameFieldId}>
           Layout
@@ -265,10 +272,11 @@ export function ReportLayoutEditor({
       </ol>
 
       <div className="layout-add">
+        {wide && <h3 className="layout-add-heading">Not in this report</h3>}
         <button type="button" className="layout-add-break" onClick={addBreak}>
           + Page break
         </button>
-        {omitted.length > 0 && <span className="layout-add-label">Not included</span>}
+        {omitted.length > 0 && !wide && <span className="layout-add-label">Not included</span>}
         {omitted.map((b) => (
           <button key={b.id} type="button" className="layout-add-block" onClick={() => addBlock(b.id)}>
             + {b.label}

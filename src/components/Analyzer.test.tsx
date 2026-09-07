@@ -116,11 +116,13 @@ describe('Analyzer', () => {
 
       await screen.findByTestId('widowed-strategy-table', {}, { timeout: 10000 });
 
-      // Named exactly, not by a substring: there are two export buttons now
-      // and "Export PDF" is a prefix of "Export PDF (beta)".
-      expect(screen.getByRole('button', { name: 'Export PDF' })).toBeEnabled();
       expect(screen.getByTestId('export-beta')).toBeEnabled();
       expect(screen.getByRole('button', { name: /copy link/i })).toBeEnabled();
+
+      // The original report moved into the menu — still offered, just no
+      // longer competing with the beta for the same corner of the header.
+      await userEvent.click(screen.getByRole('button', { name: /^menu$/i }));
+      expect(screen.getByRole('button', { name: 'Export PDF' })).toBeEnabled();
     });
 
     it('drops the spousal methodology block, which contradicts what it just showed', async () => {
