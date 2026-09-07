@@ -3,6 +3,7 @@ import { Document, Page, Text, View } from '@react-pdf/renderer';
 import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
 import type { ClaimingRow } from '../../lib/claimingRows';
 import type { LongevitySensitivity } from '../../lib/longevity';
+import type { SolvencySensitivity } from '../../lib/solvency';
 import {
   ADVISER_LAYOUT,
   blockScope,
@@ -33,6 +34,7 @@ import {
   LimitsBlock,
   LongevityBlock,
   MethodologyBlock,
+  SolvencyBlock,
   SurvivorBlock,
   TermsBlock,
 } from './ReportSections';
@@ -46,10 +48,6 @@ import {
  * pages — one `<Page>` per run of blocks between the adviser's page breaks,
  * inside which react-pdf paginates on its own. A run that overflows spills
  * onto another sheet; a run that underfills simply ends.
- *
- * `LegacyReportDocument` is the fixed-order report this replaced. It was
- * built alongside rather than in place, so advisers could move across on
- * their own schedule.
  *
  * Widowed households keep their own section: every block built for two
  * living claimants choosing between filing ages has already been decided for
@@ -98,6 +96,7 @@ export function ReportDocument({
   claimingRowsByPerson = {},
   gridTarget,
   sensitivity,
+  solvency,
   layout = ADVISER_LAYOUT,
   onBlockPage,
 }: {
@@ -111,6 +110,13 @@ export function ReportDocument({
    * the block.
    */
   sensitivity?: LongevitySensitivity | null;
+  /**
+   * Every strategy priced against the trust fund shortfall. Computed by the
+   * caller for the same reason `sensitivity` is: it needs the analysis, and
+   * the block is off in the layout most advisers hand over. Undefined simply
+   * omits it.
+   */
+  solvency?: SolvencySensitivity | null;
   /** What to include, in what order, and where the pages break. */
   layout?: ReportLayout;
   /**
@@ -193,6 +199,9 @@ export function ReportDocument({
       case 'longevity':
         // The one block whose data the caller may not have computed.
         return sensitivity ? LongevityBlock({ sensitivity }) : null;
+      case 'solvency':
+        // The other block whose data the caller may not have computed.
+        return solvency ? SolvencyBlock({ sensitivity: solvency }) : null;
       case 'action':
         return ActionBlock({ analysis });
       case 'household':

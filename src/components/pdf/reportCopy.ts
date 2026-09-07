@@ -149,6 +149,28 @@ export const ACTION_VERIFY_STEP =
   'When your award letter arrives, check that the amount and the start month match ' +
   'this plan. Anything wrong is far easier to put right before the first payment.';
 
+/**
+ * The row that has nothing to do with Social Security and belongs here more
+ * than most of the others.
+ *
+ * Almost everyone who delays Social Security still has to take Medicare at
+ * 65, and the Part B penalty for missing that window is permanent. It is the
+ * most expensive mistake a client following this report can make, and until
+ * now no page mentioned it.
+ *
+ * Two versions, because the fact that matters is different in each: a client
+ * already receiving Social Security at 65 is enrolled for them, and one who
+ * is not has to act.
+ */
+export const ACTION_MEDICARE_MANUAL =
+  'Sign up for Medicare yourself. Enrollment is not automatic until you have claimed Social ' +
+  'Security, and Part B costs more for life if you sign up late, unless you are covered by ' +
+  'an employer plan through current work.';
+
+export const ACTION_MEDICARE_AUTOMATIC =
+  'Medicare starts on its own, because you will already be receiving Social Security. Watch ' +
+  'for the card, and check that Part B is what you want before it begins.';
+
 export const ACTION_CHECK_EARNINGS =
   'Check your earnings record at ssa.gov/myaccount. A missing year lowers your benefit, ' +
   'and it is far easier to correct now than later.';
@@ -161,6 +183,66 @@ export const ACTION_DEATH_STEP =
 export const ACTION_REVIEW_NOTE =
   'Review this once a year, and sooner if your health, your marriage, or your plans for ' +
   'work change.';
+
+/* ------------------------------------------------------------------ *
+ * If benefits are reduced
+ * ------------------------------------------------------------------ */
+
+export const SOLVENCY_TITLE = 'What if benefits are reduced';
+
+/**
+ * The question clients bring to the meeting, answered with their own numbers.
+ *
+ * Stated as the trustees state it and attributed to them, so a reader is
+ * weighing an actuary's projection rather than our opinion. It says twice
+ * that nobody knows what Congress will do, because the failure mode of a page
+ * like this is a client reading a prediction into it.
+ */
+export function solvencyIntro(
+  trustees: { fromYear: number; payablePercent: number; report: string },
+  priced: { fromYear: number; payablePercent: number },
+): string {
+  // The projection and the figures this page used are stated separately, and
+  // always both. An adviser may price a different reduction; attributing
+  // their number to the trustees would put words in an actuary's mouth.
+  const attribution =
+    `Social Security is paid from a trust fund that is projected to run short. The ` +
+    `${trustees.report} expects the retirement fund's reserves to be used up in ` +
+    `${trustees.fromYear}, with about ${trustees.payablePercent}% of scheduled benefits ` +
+    `payable from then on if the law does not change. Congress has changed the program ` +
+    `before when it faced a shortfall. Nobody knows whether it will this time, or how.`;
+  const used =
+    priced.fromYear === trustees.fromYear && priced.payablePercent === trustees.payablePercent
+      ? `This page prices your plans on that projection, so the question is answered with your ` +
+        `own figures rather than a headline.`
+      : `This page prices your plans on a different assumption, chosen by your adviser: ` +
+        `${priced.payablePercent}% of scheduled benefits from ${priced.fromYear} onward.`;
+  return `${attribution} ${used}`;
+}
+
+export const SOLVENCY_TABLE_CAPTION =
+  'The left column is the same lifetime figure the comparison table gives each plan, in ' +
+  'today’s money. The right column is that figure with benefits reduced from the year above, ' +
+  'and nothing else changed. Read the gap between the two columns, and the order of the rows ' +
+  'within each one.';
+
+/** Whether the reduction changes the answer, which is the point of the page. */
+export function solvencyVerdict(sameWinner: boolean, fullLabel: string, reducedLabel: string): string {
+  if (sameWinner) {
+    return (
+      `“${fullLabel}” pays the most either way. A reduction of this size does not change ` +
+      `which plan is best for you, and that is the most useful thing this page can tell you.`
+    );
+  }
+  return (
+    `As things stand, “${fullLabel}” pays the most. Under a reduction, “${reducedLabel}” does. ` +
+    `A cut falls on the years furthest away, and a plan that waits puts more of its money ` +
+    `there. This is worth talking through rather than settling from the figures alone.`
+  );
+}
+
+export const SOLVENCY_DISCLAIMER =
+  'This page is a what-if, not a prediction. Nothing here forecasts what Congress will do.';
 
 /* ------------------------------------------------------------------ *
  * Terms

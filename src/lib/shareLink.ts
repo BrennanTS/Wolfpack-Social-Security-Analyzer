@@ -14,6 +14,12 @@ import {
   type ClaimingTablePrefs,
 } from './claimingRows';
 import { DEFAULT_TARGET_RANGE, MAX_TARGET_PERCENT, type TargetRange } from './gridTarget';
+import {
+  DEFAULT_SOLVENCY,
+  SOLVENCY_PAYABLE_BOUNDS,
+  SOLVENCY_YEAR_BOUNDS,
+  type SolvencyAssumption,
+} from './solvency';
 import type { Gender } from './personAnalysis';
 import {
   addScenario,
@@ -443,6 +449,15 @@ export interface ViewExtras {
   claimingPrefs: ClaimingPrefsByPerson;
   gridTarget: TargetRange;
   /**
+   * The benefit reduction the "what if benefits are reduced" page prices.
+   *
+   * Travels because an adviser who moved it off the trustees' own projection
+   * has made a judgment, and a saved client or a shared link that quietly
+   * reverted it would price a different page from the one they were looking
+   * at. Absent means the default.
+   */
+  solvency?: SolvencyAssumption;
+  /**
    * Which theme and layout the report is built with.
    *
    * Carried since 2026-09-07, by product decision: a saved client remembers
@@ -533,6 +548,17 @@ export function toViewParams(form: AnalyzerFormState, extras: ViewExtras): URLSe
   // collects and what these parameters are named for.
   writePrefs(params, 'a', extras.claimingPrefs.a);
   if (form.maritalStatus === 'married') writePrefs(params, 'b', extras.claimingPrefs.b);
+  // `2032-78`: the year benefits are reduced from, and the percent payable.
+  // Written only when it is not the trustees' own projection, so an ordinary
+  // link stays short and a changed one is visible in it.
+  const solvency = extras.solvency;
+  if (
+    solvency !== undefined &&
+    (solvency.fromYear !== DEFAULT_SOLVENCY.fromYear ||
+      solvency.payablePercent !== DEFAULT_SOLVENCY.payablePercent)
+  ) {
+    params.set('sv', `${solvency.fromYear}-${solvency.payablePercent}`);
+  }
   if (extras.themeId !== undefined) params.set('th', extras.themeId);
   if (extras.layoutId !== undefined) params.set('ly', extras.layoutId);
   const { on, percent } = extras.gridTarget;
@@ -561,12 +587,33 @@ export function readViewExtras(params: URLSearchParams): ViewExtras {
 
   const themeId = readId(params, 'th');
   const layoutId = readId(params, 'ly');
+  const solvency = readSolvency(params);
   return {
     claimingPrefs,
     gridTarget,
+    ...(solvency === null ? {} : { solvency }),
     ...(themeId === undefined ? {} : { themeId }),
     ...(layoutId === undefined ? {} : { layoutId }),
   };
+}
+
+/**
+ * `sv=2032-78`, dropped rather than clamped like every other field here.
+ *
+ * A reduction outside the bounds is not a plausible typo to be rescued, it is
+ * a hand-edited link, and the trustees' own projection is a better answer
+ * than a number nobody chose.
+ */
+function readSolvency(params: URLSearchParams): SolvencyAssumption | null {
+  const raw = params.get('sv');
+  if (raw === null) return null;
+  const match = /^(\d{4})-(\d{1,3})$/.exec(raw.trim());
+  if (match === null) return null;
+  const fromYear = Number(match[1]);
+  const payablePercent = Number(match[2]);
+  if (!isInBounds(fromYear, SOLVENCY_YEAR_BOUNDS)) return null;
+  if (!isInBounds(payablePercent, SOLVENCY_PAYABLE_BOUNDS)) return null;
+  return { fromYear, payablePercent };
 }
 
 export function buildShareUrl(

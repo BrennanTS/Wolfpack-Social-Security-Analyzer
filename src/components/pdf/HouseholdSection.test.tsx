@@ -4,9 +4,49 @@ import type { SurvivorFloor, SurvivorGap } from '../../lib/benefitPeriods';
 import type { ClaimingGrid } from '../../lib/claimingGrid';
 import type { HouseholdAnalysis, MonthlyIncomePoint } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
-import { CombinedIncomeBars, HouseholdSection, StrategyTable } from './HouseholdSection';
+import {
+  ClaimingGridBlock,
+  CombinedIncomeBars,
+  HouseholdBlock,
+  StrategyTable,
+} from './HouseholdSection';
 import { MethodologyAppendix } from './reportChrome';
 import { benefitSeriesLabel } from '../methodologyCopy';
+
+/**
+ * The household page, composed the way the report composes it.
+ *
+ * `HouseholdSection` was a component that did this, back when the report's
+ * order was fixed in code. Layouts replaced it, and the blocks it wrapped are
+ * what a layout now places — so the composition lives here, in the one place
+ * that still wants a whole page's worth of text to assert on.
+ *
+ * Called, not mounted: these tests walk the element tree without a renderer,
+ * and an unrendered `<HouseholdBlock />` element has no children to walk, so
+ * the page would silently vanish from every assertion about it.
+ *
+ * `footerText` is accepted and ignored. The footer carries the firm and the
+ * date, which no test here reads, and dropping the argument would mean
+ * editing every call site to say the same thing.
+ */
+function HouseholdSection({
+  analysis,
+  appendix,
+  gridTarget,
+}: {
+  analysis: HouseholdAnalysis;
+  footerText?: string;
+  appendix?: ReactElement;
+  gridTarget?: { on: boolean; percent: number };
+}) {
+  return (
+    <>
+      {HouseholdBlock({ analysis })}
+      {ClaimingGridBlock({ analysis, gridTarget })}
+      {appendix}
+    </>
+  );
+}
 
 /**
  * The PDF's half of the survivor-gap disclosure and the combined-income
@@ -82,10 +122,12 @@ const printed = (survivorGap: SurvivorGap | null, survivorFloor: SurvivorFloor |
   ).join(' ');
 
 /**
- * The household page as `ReportDocument` actually composes it for a married
- * report: the methodology appendix attaches to THIS page
- * (`ReportDocument.tsx:206-211`), so its disclosures print alongside the
- * combined-income caption and the gap note.
+ * The household content and the methodology appendix, walked together.
+ *
+ * Not a claim that they share a sheet — under layouts the appendix is its own
+ * block and the adviser decides where it goes. They are walked together
+ * because their sentences contradicted each other once, and a fix applied to
+ * one of them alone is exactly how that happened.
  */
 const printedWithAppendix = (survivorGap: SurvivorGap | null) => {
   const analysis = analysisWith(survivorGap);
@@ -254,9 +296,9 @@ describe('HouseholdSection — the printed widow(er)’s-limit note', () => {
  *
  * This exists because the first fix wave removed the survivor contradiction
  * from the caption and reintroduced it in the disclosures block one line
- * below, where nothing tested the two together. They share a physical `<Page>`
- * for a married report, so they must be asserted on one page or they will
- * drift apart again.
+ * below, where nothing tested the two together. Both reach the same reader in
+ * the same report, so they must be asserted together or they will drift apart
+ * again.
  */
 describe('HouseholdSection — the household page as the report composes it', () => {
   const gap: SurvivorGap = {

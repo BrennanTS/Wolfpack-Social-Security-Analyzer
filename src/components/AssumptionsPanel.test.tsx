@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { COLA_BOUNDS } from '../lib/formBounds';
+import { DEFAULT_SOLVENCY } from '../lib/solvency';
 import { fromShareParams, toShareParams } from '../lib/shareLink';
 import { BLANK_FORM } from '../lib/formState';
 
@@ -18,6 +19,8 @@ function renderPanel(overrides: Partial<Parameters<typeof AssumptionsPanel>[0]> 
       onAnnualColaChange={onAnnualColaChange}
       discountRate={0.025}
       onDiscountRateChange={vi.fn()}
+      solvency={DEFAULT_SOLVENCY}
+      onSolvencyChange={vi.fn()}
       expanded
       onToggle={vi.fn()}
       {...overrides}
@@ -49,6 +52,8 @@ function renderStateful(initial: number) {
         }}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
+        solvency={DEFAULT_SOLVENCY}
+        onSolvencyChange={vi.fn()}
         expanded
         onToggle={vi.fn()}
       />
@@ -143,6 +148,8 @@ describe('AssumptionsPanel per-person life expectancy', () => {
         onAnnualColaChange={vi.fn()}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
+        solvency={DEFAULT_SOLVENCY}
+        onSolvencyChange={vi.fn()}
         expanded
         onToggle={vi.fn()}
       />,
@@ -168,6 +175,8 @@ describe('AssumptionsPanel per-person life expectancy', () => {
         onAnnualColaChange={vi.fn()}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
+        solvency={DEFAULT_SOLVENCY}
+        onSolvencyChange={vi.fn()}
         expanded
         onToggle={vi.fn()}
       />,
@@ -201,6 +210,8 @@ describe('AssumptionsPanel per-person life expectancy', () => {
         onAnnualColaChange={vi.fn()}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
+        solvency={DEFAULT_SOLVENCY}
+        onSolvencyChange={vi.fn()}
         expanded
         onToggle={vi.fn()}
       />,

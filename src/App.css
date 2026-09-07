@@ -3524,6 +3524,25 @@ tbody tr:hover {
   flex-shrink: 0;
 }
 
+.solvency-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.solvency-row input {
+  width: 74px;
+  padding: 5px 7px;
+  font-size: 0.75rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
 .clients-empty {
   margin: 0;
   font-size: 0.75rem;

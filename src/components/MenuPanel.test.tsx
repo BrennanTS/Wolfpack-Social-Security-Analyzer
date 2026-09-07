@@ -49,9 +49,6 @@ function renderMenu(overrides: Partial<Parameters<typeof MenuPanel>[0]> = {}) {
     onOpenResources: vi.fn(),
     layouts: stubLayouts(),
     onEditLayout: vi.fn(),
-    onExportLegacy: vi.fn(),
-    exportingLegacy: false,
-    canExport: true,
     ...overrides,
   };
   render(<MenuPanel {...props} />);
@@ -122,19 +119,6 @@ describe('MenuPanel', () => {
     renderMenu();
     expect(screen.getByText(/“Client”/)).toBeInTheDocument();
     expect(screen.getByText(/section/)).toBeInTheDocument();
-  });
-
-  it('offers the legacy report here rather than in the header', async () => {
-    // It is on its way out; an adviser reaching for "Export PDF" should land
-    // on the current report, not choose between two buttons a few pixels apart.
-    const props = renderMenu();
-    await userEvent.click(screen.getByRole('button', { name: 'Export legacy PDF' }));
-    expect(props.onExportLegacy).toHaveBeenCalled();
-  });
-
-  it('will not export the legacy report before the inputs are complete', () => {
-    renderMenu({ canExport: false });
-    expect(screen.getByRole('button', { name: 'Export legacy PDF' })).toBeDisabled();
   });
 
   it('closes itself as it hands over to another drawer', async () => {

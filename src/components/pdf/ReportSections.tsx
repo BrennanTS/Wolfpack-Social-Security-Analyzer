@@ -1,6 +1,7 @@
 import { Image, Text, View } from '@react-pdf/renderer';
 import type { HouseholdAnalysis } from '../../lib/household';
 import type { LongevitySensitivity } from '../../lib/longevity';
+import { TRUSTEES_PROJECTION, type SolvencySensitivity } from '../../lib/solvency';
 import { incomeChanges } from '../../lib/incomeChanges';
 import { dataVintageLine } from '../../lib/dataVintage';
 import { monthDateAt } from '../../lib/benefitPeriods';
@@ -337,21 +338,37 @@ export function ActionBlock({
   const people = analysis.people.map((p) => p.person);
   const names = people.map((p, i) => personLabel(p.name, i));
 
-  const filings = people
-    .map((person, i) => ({
-      person,
-      who: names[i],
-      apply: applyMonth(filingMonth(person, analysis.selected.filingAges[i])),
-      starts: filingMonth(person, analysis.selected.filingAges[i]),
-    }))
-    .sort((a, b) => a.apply.year * 12 + a.apply.month - (b.apply.year * 12 + b.apply.month));
+  /** Absolute month index, for ordering dated steps against each other. */
+  const at = (when: CalendarMonth) => when.year * 12 + when.month;
+  const asOfIndex = analysis.asOf.getFullYear() * 12 + analysis.asOf.getMonth() + 1;
+
+  const dated = people.flatMap((person, i) => {
+    const starts = filingMonth(person, analysis.selected.filingAges[i]);
+    const rows = [
+      {
+        when: applyMonth(starts),
+        who: names[i],
+        what: `Apply, so payments start in ${monthYearLabel(starts)}.`,
+      },
+    ];
+    // Medicare at 65, which this report would otherwise never mention. Left
+    // off for anyone already past it: a dated instruction in the past is
+    // worse than none, and there is nothing left to act on.
+    const sixtyFive = filingMonth(person, { years: 65, months: 0 });
+    if (at(sixtyFive) > asOfIndex) {
+      rows.push({
+        when: applyMonth(sixtyFive),
+        who: names[i],
+        what: at(starts) <= at(sixtyFive) ? copy.ACTION_MEDICARE_AUTOMATIC : copy.ACTION_MEDICARE_MANUAL,
+      });
+    }
+    return rows;
+  });
 
   const steps: { when: string; who: string; what: string }[] = [
-    ...filings.map((f) => ({
-      when: monthYearLabel(f.apply),
-      who: f.who,
-      what: `Apply, so payments start in ${monthYearLabel(f.starts)}.`,
-    })),
+    ...dated
+      .sort((a, b) => at(a.when) - at(b.when))
+      .map((row) => ({ ...row, when: monthYearLabel(row.when) })),
     {
       when: 'After applying',
       who: people.length === 2 ? 'Each of you' : 'You',
@@ -532,6 +549,75 @@ export function LimitsBlock() {
   );
 }
 
+
+/* ------------------------------------------------------------------ *
+ * If benefits are reduced
+ * ------------------------------------------------------------------ */
+
+/**
+ * Every plan priced twice: as the law stands, and under the trustees' own
+ * projected reduction.
+ *
+ * The figures are straight sums of dollars paid, which is not what the first
+ * page shows, and the caption says so in as many words. They are computed
+ * here rather than by the engine because the engine has no concept of a
+ * benefit cut; see `solvency.ts`.
+ */
+export function SolvencyBlock({ sensitivity }: { sensitivity: SolvencySensitivity }) {
+  const { rows, assumption, sameWinner, bestFullKey, bestReducedKey } = sensitivity;
+  if (rows.length === 0) return null;
+  const label = (key: string) => rows.find((r) => r.key === key)?.label ?? '';
+
+  return (
+    <>
+      <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.SOLVENCY_TITLE}</Text>
+      <Text style={styles.sectionDesc}>
+        {copy.solvencyIntro(TRUSTEES_PROJECTION, assumption)}
+      </Text>
+
+      <View style={[styles.tableHeader, { marginTop: 10 }]}>
+        <Text style={[styles.th, { flex: 1 }]}>Plan</Text>
+        <Text style={[styles.th, styles.thRight, { width: 104 }]}>As scheduled</Text>
+        <Text style={[styles.th, styles.thRight, { width: 104 }]}>
+          If reduced from {assumption.fromYear}
+        </Text>
+      </View>
+      {rows.map((row) => (
+        <View key={row.key} style={styles.tableRow} wrap={false}>
+          <Text style={[styles.td, { flex: 1 }]}>{row.label}</Text>
+          <Text
+            style={[
+              styles.td,
+              styles.tdRight,
+              { width: 104 },
+              row.key === bestFullKey ? styles.winnerText : {},
+            ]}
+          >
+            {formatCurrency(row.full)}
+          </Text>
+          <Text
+            style={[
+              styles.td,
+              styles.tdRight,
+              { width: 104 },
+              row.key === bestReducedKey ? styles.winnerText : {},
+            ]}
+          >
+            {formatCurrency(row.reduced)}
+          </Text>
+        </View>
+      ))}
+      <Text style={[styles.sectionDesc, { marginTop: 8 }]}>{copy.SOLVENCY_TABLE_CAPTION}</Text>
+
+      <View style={styles.callout} wrap={false}>
+        <Text style={styles.calloutText}>
+          {copy.solvencyVerdict(sameWinner, label(bestFullKey), label(bestReducedKey))}{' '}
+          {copy.SOLVENCY_DISCLAIMER}
+        </Text>
+      </View>
+    </>
+  );
+}
 
 /* ------------------------------------------------------------------ *
  * Disclosures

@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import { Page, Text, View, Svg, Line, Rect } from '@react-pdf/renderer';
+import { Text, View, Svg, Line, Rect } from '@react-pdf/renderer';
 import {
   buildMonthlyIncomeSeries,
   showSurvivorIncomeColumn,
@@ -46,21 +45,6 @@ import {
 } from '../methodologyCopy';
 import { scenarioEyebrow } from '../../lib/scenario';
 import { BORDER, CHART_INNER_W, GREEN, INK, MUTED, styles, heatColor } from './theme';
-import { PageFooter } from './reportChrome';
-
-interface Props {
-  analysis: HouseholdAnalysis;
-  footerText: string;
-  appendix?: ReactNode;
-  leadingHeader?: ReactNode;
-  /**
-   * The near-best region as the adviser had it on screen. Undefined prints no
-   * grid at all — the grid arrived after this component, and every existing
-   * caller (the tests here, chiefly) must keep rendering the page they were
-   * written against.
-   */
-  gridTarget?: { on: boolean; percent: number };
-}
 
 /** Household strategy-comparison columns (must sum to CONTENT_W). */
 // `npv` widened and `label` narrowed by the same amount when "Combined PV"
@@ -412,19 +396,12 @@ export function ClaimingGridPlot({
 }
 
 /**
- * The household page: only rendered for married households, always first in
- * the linearized print flow. Leads with the joint recommendation, then the
- * strategy comparison table — the feature the household refactor exists for
- * — the spousal top-up (clearly labeled, since `spousalTopUp` carries two
- * distinct figures), and the combined income timeline.
- */
-/**
  * The household page's content — the strategy table, the combined-income
  * chart, and the notes that go with them.
  *
- * Split from `HouseholdSection` below so a layout can place this content
- * without a page of its own. The section still renders exactly this, in the
- * same order, so the existing report is unchanged.
+ * Leads with the joint recommendation, then the strategy comparison table,
+ * the spousal top-up (clearly labeled, since `spousalTopUp` carries two
+ * distinct figures), and the combined income timeline.
  */
 export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
   const people = analysis.people.map((p) => p.person);
@@ -566,44 +543,13 @@ export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
   );
 }
 
-/**
- * The household page as the original report composes it: this content, the
- * claiming grid, and the methodology appendix on one sheet.
- *
- * Kept so `ReportDocument` and the tests that call it as a plain function
- * carry on working untouched while the report itself moves to layouts.
- */
-export function HouseholdSection({
-  analysis,
-  footerText,
-  appendix,
-  leadingHeader,
-  gridTarget,
-}: Props) {
-  return (
-    <Page size="LETTER" style={styles.page}>
-      {leadingHeader}
-      {/* Called, not mounted. The report's tests walk the element tree this
-          function returns without a renderer, and an unrendered
-          `<HouseholdBlock />` element has no children to walk — the whole
-          page would silently vanish from every assertion about it. */}
-      {HouseholdBlock({ analysis })}
-      {ClaimingGridBlock({ analysis, gridTarget })}
-
-      {appendix}
-
-      <PageFooter text={footerText} />
-    </Page>
-  );
-}
 
 /**
  * The claiming-age grid, as a block a layout can place on its own.
  *
- * Lifted out of the household page unchanged — `HouseholdSection` still
- * renders it in the same position, so the existing report is byte-identical.
- * It is separate because it is the block an adviser most often keeps for
- * themselves and drops from the client's copy.
+ * Lifted out of the household page unchanged. It is separate because it is
+ * the block an adviser most often keeps for themselves and drops from the
+ * client's copy.
  *
  * Returns null rather than an empty view when there is no grid, so a layout
  * that includes it for a household without one closes the gap instead of

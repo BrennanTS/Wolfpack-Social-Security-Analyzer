@@ -170,7 +170,7 @@ function cliffAfterFigure(sentence: string | null): string {
  * never mounts Recharts — see `CombinedIncomeChart.test.tsx`), the only place
  * `toNominalMonthly`'s wiring is exercised end to end at all.
  */
-async function chartYAxisTicks(page: import('@playwright/test').Page): Promise<string[]> {
+async function chartYAxisTicks(page: Page): Promise<string[]> {
   return page
     .locator('.chart-surface .recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value')
     .allTextContents();
@@ -268,22 +268,12 @@ test('toggles dark mode', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 });
 
-/**
- * The legacy report's export, which now lives in the menu rather than the
- * header — it is on its way out, and the header carries only the report the
- * layout describes.
- */
-async function openLegacyExport(page: Page) {
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  return page.getByRole('button', { name: 'Export legacy PDF', exact: true });
-}
-
-test('exports a PDF', async ({ page }) => {
+test('exports a PDF for a single claimant', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, single);
 
   const downloadPromise = page.waitForEvent('download');
-  await (await openLegacyExport(page)).click();
+  await page.getByTestId('export-report').click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-.*\.pdf$/);
 });
@@ -524,7 +514,6 @@ test('renders a widowed household, and never the single-claimant view', async ({
   // Both actions live, having been disabled dead ends until now.
   await expect(page.getByTestId('export-report')).toBeEnabled();
   await expect(page.getByRole('button', { name: /copy link/i })).toBeEnabled();
-  await expect(await openLegacyExport(page)).toBeEnabled();
 });
 
 test('blocks the widowed dates SSA would not pay, instead of failing the analysis', async ({
@@ -658,7 +647,7 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
   await expect(scenarioRow).toContainText(firstRow);
 });
 
-test('exports the report, named apart from the legacy one it replaces', async ({ page }) => {
+test('exports the report under the plain name an adviser sends', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, married);
   await expect(page.getByTestId('strategy-table')).toBeVisible();
@@ -667,26 +656,18 @@ test('exports the report, named apart from the legacy one it replaces', async ({
   await page.getByTestId('export-report').click();
   const download = await downloadPromise;
 
-  // The plain name belongs to the report an adviser sends.
+  // No suffix, and nothing else in the app writes a file — there is one
+  // report, and this is its name.
   expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-[\d-]+\.pdf$/);
-
-  // The legacy one still works afterwards, and is named apart — so an adviser
-  // holding both can tell them apart, and neither overwrites the other in a
-  // downloads folder.
-  const alsoLegacy = page.waitForEvent('download');
-  await (await openLegacyExport(page)).click();
-  expect((await alsoLegacy).suggestedFilename()).toMatch(
-    /^Social-Security-Analysis-.*-legacy\.pdf$/,
-  );
 });
 
 /**
- * Both export buttons, in both themes, at rest and on hover.
+ * The header's export button and a menu action, in both themes, at rest and
+ * on hover.
  *
- * One is in the header (the report) and one is in the menu (the legacy), so
- * this opens the drawer for the second — the defect below is about theme
- * tokens, not about where a button sits, and moving a button must not quietly
- * drop it from this guard.
+ * Two buttons rather than one because they are styled by different rules and
+ * the defect below has hit both; the menu one is behind the drawer, so this
+ * opens it.
  *
  * This repo keeps shipping the same defect: `--ink` and `--cream` are NOT
  * redefined in the dark block — they hold their light values in both themes —
@@ -699,7 +680,7 @@ test('exports the report, named apart from the legacy one it replaces', async ({
  * resolving `var()` against the old ones, which makes a hand check in a
  * hidden pane actively misleading.
  */
-test('both export buttons stay legible in light and dark, at rest and on hover', async ({ page }) => {
+test('the export button and a menu action stay legible in light and dark, at rest and on hover', async ({ page }) => {
   await page.goto('/');
   await fillScenarioForm(page, single);
   await expect(page.getByTestId('benefit-table')).toBeVisible();
@@ -738,7 +719,7 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
         which === 'report'
           ? document.querySelector<HTMLElement>('[data-testid="export-report"]')!
           : [...document.querySelectorAll<HTMLElement>('.menu-action')].find((x) =>
-              /export legacy pdf/i.test(x.textContent ?? ''),
+              /edit layout/i.test(x.textContent ?? ''),
             )!;
       const cs = getComputedStyle(el);
       return ratio(over(cs.color, over(cs.backgroundColor, pageBg)), over(cs.backgroundColor, pageBg));
@@ -752,7 +733,7 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
       await page.waitForTimeout(300);
     }
     for (const which of ['primary', 'report'] as const) {
-      // The legacy report's button lives inside the menu drawer now.
+      // The menu action is behind the drawer.
       if (which === 'primary') {
         await page.getByRole('button', { name: 'Menu', exact: true }).click();
         await page.waitForTimeout(300);
@@ -760,7 +741,7 @@ test('both export buttons stay legible in light and dark, at rest and on hover',
       const button =
         which === 'report'
           ? page.getByTestId('export-report')
-          : page.getByRole('button', { name: 'Export legacy PDF', exact: true });
+          : page.getByRole('button', { name: 'Edit layout…', exact: true });
 
       // At rest. 4.5 is the AA floor for body text; these are uppercase
       // small caps, so the real bar is higher, but a failure here is never

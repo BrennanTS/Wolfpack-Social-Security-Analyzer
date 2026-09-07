@@ -118,11 +118,6 @@ describe('Analyzer', () => {
 
       expect(screen.getByTestId('export-report')).toBeEnabled();
       expect(screen.getByRole('button', { name: /copy link/i })).toBeEnabled();
-
-      // The legacy report moved into the menu — still offered, just no
-      // longer competing with the current report for the same corner of the header.
-      await userEvent.click(screen.getByRole('button', { name: /^menu$/i }));
-      expect(screen.getByRole('button', { name: 'Export legacy PDF' })).toBeEnabled();
     });
 
     it('drops the spousal methodology block, which contradicts what it just showed', async () => {

@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import { Page, Text, View } from '@react-pdf/renderer';
+import { Text, View } from '@react-pdf/renderer';
 import { computeBreakEvens } from '../../lib/benefitMath';
 import {
   formatCurrency,
@@ -15,7 +14,6 @@ import { soloVsHouseholdNote } from '../methodologyCopy';
 import { nearestWholeClaimAge } from '../../lib/ssaTools';
 import { PdfChart, PdfHeatmap, PdfMonthlyRamp, PdfOpportunityCost } from './charts';
 import { COL, MONTHS, styles } from './theme';
-import { PageFooter } from './reportChrome';
 
 interface Props {
   analysis: PersonAnalysis;
@@ -39,9 +37,6 @@ interface Props {
    * editable.
    */
   claimingRows?: ClaimingRow[];
-  footerText: string;
-  appendix?: ReactNode;
-  leadingHeader?: ReactNode;
 }
 
 function BenefitTable({
@@ -160,7 +155,7 @@ export const PERSON_PARTS: readonly PersonPart[] = [
 /**
  * One person's content, or the parts of it a layout asked for.
  *
- * Split from `PersonSection` so a layout can flow a person's detail after
+ * A block rather than a page, so a layout can flow a person's detail after
  * whatever precedes it rather than always starting a fresh sheet, and so an
  * adviser can keep the profile card while dropping four charts.
  *
@@ -174,7 +169,7 @@ export function PersonBlock({
   isBest = true,
   claimingRows,
   parts = PERSON_PARTS,
-}: Omit<Props, 'footerText' | 'appendix' | 'leadingHeader'> & {
+}: Props & {
   parts?: readonly PersonPart[];
 }) {
   const has = (part: PersonPart) => parts.includes(part);
@@ -419,20 +414,3 @@ export function PersonBlock({
   );
 }
 
-/**
- * A person's page as the original report composes it. Kept so
- * `ReportDocument` and the tests that call it as a plain function carry on
- * working untouched.
- */
-export function PersonSection({ footerText, appendix, leadingHeader, ...rest }: Props) {
-  return (
-    <Page size="LETTER" style={styles.page}>
-      {leadingHeader}
-      {/* Called, not mounted — the report's tests walk this element tree
-          without a renderer. See the note in `HouseholdSection`. */}
-      {PersonBlock(rest)}
-      {appendix}
-      <PageFooter text={footerText} />
-    </Page>
-  );
-}

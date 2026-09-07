@@ -34,6 +34,7 @@ export type ReportBlockId =
   | 'terms'
   | 'limits'
   | 'methodology'
+  | 'solvency'
   | 'disclosure';
 
 /**
@@ -276,6 +277,14 @@ export const BLOCKS: readonly BlockMeta[] = [
     scope: 'household',
   },
   {
+    id: 'solvency',
+    label: 'What if benefits are reduced',
+    blurb: 'Every plan priced against the trust fund shortfall',
+    shapes: LIVING,
+    fill: 'medium',
+    scope: 'household',
+  },
+  {
     id: 'disclosure',
     label: 'Important disclosures',
     blurb: 'Your firm’s own wording, set in the theme',
@@ -357,6 +366,11 @@ export const ADVISER_LAYOUT: ReportLayout = {
     block('changes'),
     block('survivor'),
     block('longevity'),
+    // Beside longevity: both answer "what if the assumption underneath this
+    // is wrong", and an adviser reading one wants the other. Out of the
+    // client preset, which is the one handed over — whether a household hears
+    // about the trust fund is a conversation, not a default.
+    block('solvency'),
     block('action'),
     BREAK,
     block('household'),

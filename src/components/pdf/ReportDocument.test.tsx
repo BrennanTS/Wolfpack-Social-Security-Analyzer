@@ -367,6 +367,44 @@ describe('ReportDocument composition', () => {
     }
   });
 
+  it('tells each person when to take Medicare, three months before 65', () => {
+    // The most expensive mistake a client following this report can make:
+    // delaying Social Security past 65 without signing up for Part B.
+    const actionOnly: ReportLayout = {
+      id: 'x', name: 'A', items: [{ kind: 'block', id: 'action' }],
+    };
+    const text = collectText(build(married, actionOnly)).join(' ');
+    // John turns 65 in April 2027 and files at 70, so he must act himself.
+    expect(text).toContain('January 2027');
+    expect(text).toMatch(/Sign up for Medicare yourself/);
+    // Jane turns 65 in February 2029 and also files after it.
+    expect(text).toContain('November 2028');
+  });
+
+  it('says Medicare arrives on its own for someone who has already claimed', async () => {
+    const early = await analyzeHousehold(
+      { status: 'single', people: [{ id: 'a', name: 'Priya', birthYear: 1965, birthMonth: 7, gender: 'female', piaMonthly: 3100, lifeExpectancy: 90 }] },
+      assumptions,
+      asOf,
+    );
+    const actionOnly: ReportLayout = { id: 'x', name: 'A', items: [{ kind: 'block', id: 'action' }] };
+    const text = collectText(
+      ReportDocument({ analysis: { ...early, selected: { ...early.selected, filingAges: [{ years: 62, months: 1, label: '62 years, 1 month', decimalYears: 62.083, monthDuration: early.selected.filingAges[0].monthDuration }] } } as HouseholdAnalysis, layout: actionOnly }),
+    ).join(' ');
+    expect(text).toMatch(/Medicare starts on its own/);
+  });
+
+  it('leaves Medicare off for anyone already past 65', async () => {
+    const older = await analyzeHousehold(
+      { status: 'single', people: [{ id: 'a', name: 'Ruth', birthYear: 1959, birthMonth: 3, gender: 'female', piaMonthly: 2000, lifeExpectancy: 90 }] },
+      assumptions,
+      asOf,
+    );
+    const actionOnly: ReportLayout = { id: 'x', name: 'A', items: [{ kind: 'block', id: 'action' }] };
+    const text = collectText(build(older, actionOnly)).join(' ');
+    expect(text).not.toMatch(/Medicare/);
+  });
+
   it('prints the theme’s disclosures as their own section, one paragraph each', () => {
     setActiveReportTheme({
       ...reportTheme(DEFAULT_REPORT_THEME_ID),

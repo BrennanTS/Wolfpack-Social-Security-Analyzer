@@ -4,6 +4,7 @@ import { ReportPreview } from './ReportPreview';
 import type { HouseholdAnalysis } from '../lib/household';
 import type { ClaimingRow } from '../lib/claimingRows';
 import type { LongevitySensitivity } from '../lib/longevity';
+import type { SolvencySensitivity } from '../lib/solvency';
 import type { ReportLayout } from '../lib/reportLayout';
 import type { useReportThemes } from '../hooks/useReportThemes';
 
@@ -31,6 +32,7 @@ export function ThemeEditorDialog({
     claimingRowsByPerson: Record<string, ClaimingRow[]>;
     gridTarget?: { on: boolean; percent: number };
     sensitivity?: LongevitySensitivity | null;
+  solvency?: SolvencySensitivity | null;
     layout: ReportLayout;
   };
 }) {

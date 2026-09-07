@@ -30,6 +30,16 @@ function allCopy(): string[] {
     }
   }
   out.push(
+    copy.solvencyIntro(
+      { fromYear: 2032, payablePercent: 78, report: '2026 OASDI Trustees Report' },
+      { fromYear: 2032, payablePercent: 78 },
+    ),
+    copy.solvencyIntro(
+      { fromYear: 2032, payablePercent: 78, report: '2026 OASDI Trustees Report' },
+      { fromYear: 2040, payablePercent: 90 },
+    ),
+    copy.solvencyVerdict(true, 'Both wait until 70', 'Both wait until 70'),
+    copy.solvencyVerdict(false, 'Both wait until 70', 'Both claim at your full ages'),
     copy.versusWorstNote(1000, '$1,000', 'Both claim as early as you can') ?? '',
     copy.survivorGainNote('$19,728', 'Both claim as early as you can', 12),
     copy.survivorGainNote('$686', 'Both claim at your full ages', 0),

@@ -15,7 +15,7 @@ import {
 import { personLabel } from '../lib/format';
 import { DEFAULT_PLAN_TO_AGE } from '../lib/formBounds';
 import { readPlanToAges, writePlanToAge } from '../lib/planToAgeStore';
-import { downloadLegacyPdfReport, downloadPdfReport } from '../lib/printReport';
+import { downloadPdfReport } from '../lib/printReport';
 import {
   buildClaimingRows,
   prefsFor,
@@ -45,6 +45,11 @@ import { AssumptionsPanel } from './AssumptionsPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
 import { DEFAULT_TARGET_RANGE, type TargetRange } from './ClaimingGridPanel';
+import {
+  DEFAULT_SOLVENCY,
+  solvencySensitivity,
+  type SolvencyAssumption,
+} from '../lib/solvency';
 import { PersonFields } from './PersonFields';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
@@ -135,6 +140,16 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     () => readViewExtras(initialParams).gridTarget,
   );
   const [exportingReport, setExportingReport] = useState(false);
+  /**
+   * The benefit reduction the "what if benefits are reduced" page prices.
+   *
+   * The trustees' own projection until an adviser changes it. Not part of
+   * `Assumptions`: it reaches no engine call, and putting it there would
+   * re-run the optimizer on a number the optimizer cannot use.
+   */
+  const [solvency, setSolvency] = useState<SolvencyAssumption>(
+    () => readViewExtras(initialParams).solvency ?? DEFAULT_SOLVENCY,
+  );
   const savedClients = useSavedClients();
   const [clientsOpen, setClientsOpen] = useState(false);
   /**
@@ -189,7 +204,6 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const reportThemes = useReportThemes();
   const reportLayouts = useReportLayouts();
   const [showAssumptions, setShowAssumptions] = useState(true);
-  const [exportingLegacy, setExportingLegacy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   /**
@@ -247,6 +261,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setScenarios(next.scenarios);
     setClaimingPrefs(extras.claimingPrefs);
     setGridTarget(extras.gridTarget);
+    setSolvency(extras.solvency ?? DEFAULT_SOLVENCY);
     applySelections(extras);
   }, [applySelections]);
 
@@ -285,6 +300,19 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const asOf = useMemo(() => new Date(), []);
 
   const inputsComplete = isFormComplete(form, asOf);
+
+  /**
+   * Every strategy priced against the reduction, for the report block.
+   *
+   * Memoized on the analysis and the assumption: it rebuilds the bands for
+   * every comparison row, which is the same work `withSurvivorIncome` does
+   * and not work to repeat on a keystroke.
+   */
+  const solvencyPricing = useMemo(
+    () => (analysis ? solvencySensitivity(analysis, solvency) : null),
+    [analysis, solvency],
+  );
+
   /**
    * Everything on screen that is not the form — shared and saved with it.
    *
@@ -295,10 +323,11 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     () => ({
       claimingPrefs,
       gridTarget,
+      solvency,
       themeId: reportThemes.selectedId,
       layoutId: reportLayouts.selectedId,
     }),
-    [claimingPrefs, gridTarget, reportThemes.selectedId, reportLayouts.selectedId],
+    [claimingPrefs, gridTarget, solvency, reportThemes.selectedId, reportLayouts.selectedId],
   );
 
   /** The whole view as a query string — what is shared, saved and remembered. */
@@ -352,6 +381,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setScenarios(BLANK_FORM.scenarios);
     setClaimingPrefs({});
     setGridTarget(DEFAULT_TARGET_RANGE);
+    setSolvency(DEFAULT_SOLVENCY);
     setOpenClientId(null);
     clearCurrentView();
     setConfirmNew(false);
@@ -498,20 +528,6 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     );
   }
 
-  /** The report as it printed before layouts, now reachable only from the menu. */
-  async function handleExportLegacyPdf() {
-    if (!analysis) return;
-    setExportError(null);
-    setExportingLegacy(true);
-    try {
-      await downloadLegacyPdfReport(analysis, claimingRowsByPerson, gridTarget, reportThemes.theme);
-    } catch {
-      setExportError('Legacy PDF export failed. Please try again.');
-    } finally {
-      setExportingLegacy(false);
-    }
-  }
-
   /**
    * The report. Its longevity block needs the analysis re-run at other
    * plan-to ages, which is asynchronous and needs the form rather than the
@@ -524,14 +540,15 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setExportingReport(true);
     try {
       const sensitivity = await longevityIfComplete(form, asOf);
-      await downloadPdfReport(
+      await downloadPdfReport({
         analysis,
         claimingRowsByPerson,
         gridTarget,
         sensitivity,
-        reportThemes.theme,
-        reportLayouts.layout,
-      );
+        solvency: solvencyPricing,
+        theme: reportThemes.theme,
+        layout: reportLayouts.layout,
+      });
     } catch {
       setExportError('PDF export failed. Please try again.');
     } finally {
@@ -557,10 +574,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         </div>
         <div className="header-actions">
           <DarkModeToggle active={darkMode} onToggle={onToggleDarkMode} />
-          {/* The only export in the header. The legacy report moved into the
-              menu — it is on its way out, and an adviser reaching for
-              "Export PDF" should land on the report the layout describes
-              rather than choose between two buttons a few pixels apart. */}
+          {/* The only export anywhere. An adviser reaching for "Export PDF"
+              lands on the report the adviser's own layout describes. */}
           <button
             type="button"
             className="btn-export"
@@ -681,6 +696,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
 
             <AssumptionsPanel
               lifeExpectancies={lifeExpectancies}
+              solvency={solvency}
+              onSolvencyChange={setSolvency}
               annualCola={annualCola}
               onAnnualColaChange={setAnnualCola}
               discountRate={discountRate}
@@ -805,9 +822,6 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
           setLayoutEditorOpen(true);
           void longevityIfComplete(form, asOf).then(setPreviewSensitivity);
         }}
-        onExportLegacy={handleExportLegacyPdf}
-        exportingLegacy={exportingLegacy}
-        canExport={inputsComplete}
       />
       <ClientsDialog
         open={clientsOpen}
@@ -880,6 +894,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 claimingRowsByPerson,
                 gridTarget,
                 sensitivity: previewSensitivity,
+                solvency: solvencyPricing,
                 layout: reportLayouts.layout,
               }
             : undefined
@@ -897,6 +912,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 claimingRowsByPerson,
                 gridTarget,
                 sensitivity: previewSensitivity,
+                solvency: solvencyPricing,
                 theme: reportThemes.theme,
               }
             : undefined

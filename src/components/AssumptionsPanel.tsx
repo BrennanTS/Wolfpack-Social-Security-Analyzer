@@ -8,6 +8,13 @@ import {
   DISCOUNT_BOUNDS_PERCENT,
   LIFE_EXPECTANCY_BOUNDS,
 } from '../lib/formBounds';
+import {
+  DEFAULT_SOLVENCY,
+  SOLVENCY_PAYABLE_BOUNDS,
+  SOLVENCY_YEAR_BOUNDS,
+  TRUSTEES_PROJECTION,
+  type SolvencyAssumption,
+} from '../lib/solvency';
 
 interface LifeExpectancyControl {
   label: string;
@@ -19,6 +26,9 @@ interface LifeExpectancyControl {
 
 interface AssumptionsPanelProps {
   lifeExpectancies: LifeExpectancyControl[];
+  /** The reduction the "what if benefits are reduced" report page prices. */
+  solvency: SolvencyAssumption;
+  onSolvencyChange: (value: SolvencyAssumption) => void;
   annualCola: number;
   onAnnualColaChange: (value: number) => void;
   discountRate: number;
@@ -29,6 +39,8 @@ interface AssumptionsPanelProps {
 
 export function AssumptionsPanel({
   lifeExpectancies,
+  solvency,
+  onSolvencyChange,
   annualCola,
   onAnnualColaChange,
   discountRate,
@@ -37,6 +49,9 @@ export function AssumptionsPanel({
   onToggle,
 }: AssumptionsPanelProps) {
   const usingDefaultCola = Math.abs(annualCola - CPI_DEFAULT_COLA) < 0.05;
+  const usingTrusteesProjection =
+    solvency.fromYear === DEFAULT_SOLVENCY.fromYear &&
+    solvency.payablePercent === DEFAULT_SOLVENCY.payablePercent;
   const usingDefaultDiscount = Math.abs(discountRate - DEFAULT_DISCOUNT_RATE) < 0.001;
 
   return (
@@ -182,6 +197,64 @@ export function AssumptionsPanel({
                 Chart COLA default matches the 30-year CPI-U arithmetic average.
               </p>
             )}
+          </div>
+
+          {/* Only the report's "what if benefits are reduced" page reads
+              these. They reach no engine call, which is why they sit here
+              rather than in the analysis assumptions above. */}
+          <div className="field advanced-field">
+            <span className="field-label">If benefits are reduced</span>
+            <div className="solvency-row">
+              <label htmlFor="solvency-year">From</label>
+              <input
+                id="solvency-year"
+                type="number"
+                min={SOLVENCY_YEAR_BOUNDS.min}
+                max={SOLVENCY_YEAR_BOUNDS.max}
+                step={1}
+                value={solvency.fromYear}
+                onChange={(e) =>
+                  onSolvencyChange({
+                    ...solvency,
+                    fromYear: clampToBounds(Number(e.target.value), SOLVENCY_YEAR_BOUNDS),
+                  })
+                }
+              />
+              <label htmlFor="solvency-payable">pay</label>
+              <input
+                id="solvency-payable"
+                type="number"
+                min={SOLVENCY_PAYABLE_BOUNDS.min}
+                max={SOLVENCY_PAYABLE_BOUNDS.max}
+                step={1}
+                value={solvency.payablePercent}
+                onChange={(e) =>
+                  onSolvencyChange({
+                    ...solvency,
+                    payablePercent: clampToBounds(
+                      Number(e.target.value),
+                      SOLVENCY_PAYABLE_BOUNDS,
+                    ),
+                  })
+                }
+              />
+              <span>%</span>
+              <button
+                type="button"
+                className="btn-reset-cola"
+                onClick={() => onSolvencyChange(DEFAULT_SOLVENCY)}
+                disabled={usingTrusteesProjection}
+              >
+                Use the trustees’ projection
+              </button>
+            </div>
+            <span className="field-hint">
+              {usingTrusteesProjection
+                ? `The ${TRUSTEES_PROJECTION.report}’s own projection for the fund that pays ` +
+                  'retirement and survivor benefits. The report page attributes it to them.'
+                : 'Your own assumption. The report page says so, and does not attribute it to ' +
+                  'the trustees.'}
+            </span>
           </div>
         </div>
       )}

@@ -43,15 +43,6 @@ interface MenuPanelProps {
   layouts: ReturnType<typeof useReportLayouts>;
   /** Opens the layout editor, which needs more room than this drawer has. */
   onEditLayout: () => void;
-  /**
-   * The legacy report.
-   *
-   * It lives here rather than in the header now: it is on its way out, and an
-   * adviser reaching for "Export PDF" should land on the current one.
-   */
-  onExportLegacy: () => void;
-  exportingLegacy: boolean;
-  canExport: boolean;
   /** The household on screen, so the editor can flag blocks it will skip. */
   shape?: HouseholdDisplayShape;
 }
@@ -81,9 +72,6 @@ export function MenuPanel({
   layouts,
   shape,
   onEditLayout,
-  onExportLegacy,
-  exportingLegacy,
-  canExport,
 }: MenuPanelProps) {
   useEffect(() => {
     if (!open) return;
@@ -180,19 +168,6 @@ export function MenuPanel({
             </p>
             <button type="button" className="menu-action" onClick={onEditLayout}>
               Edit layout…
-            </button>
-
-            <p className="menu-note menu-note-spaced">
-              The legacy report is the one that printed before layouts. Kept while advisers
-              move across, and on its way out. Its order is fixed, so nothing here changes it.
-            </p>
-            <button
-              type="button"
-              className="menu-action"
-              onClick={onExportLegacy}
-              disabled={exportingLegacy || !canExport}
-            >
-              {exportingLegacy ? 'Generating…' : 'Export legacy PDF'}
             </button>
           </section>
 
