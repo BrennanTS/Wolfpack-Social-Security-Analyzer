@@ -37,6 +37,8 @@ function renderDialog(over: Partial<Parameters<typeof ClientsDialog>[0]> = {}) {
     },
     onOpenClient: vi.fn(),
     onSaved: vi.fn(),
+    onNewClient: vi.fn(),
+    canStartNew: true,
     ...over,
   };
   render(<ClientsDialog {...props} />);
@@ -117,6 +119,20 @@ describe('ClientsDialog', () => {
     renderDialog();
     expect(screen.getByText(/nothing saved yet/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /export/i })).toBeDisabled();
+  });
+
+  it('offers the way back to an empty form, which the refresh used to be', async () => {
+    // Remembering the household across a reload takes away the only way an
+    // adviser had to start the next one.
+    const props = renderDialog();
+    expect(screen.getByText(/stays put across a refresh/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /start a new one/i }));
+    expect(props.onNewClient).toHaveBeenCalled();
+  });
+
+  it('does not offer to clear a form that is already empty', () => {
+    renderDialog({ canStartNew: false });
+    expect(screen.getByRole('button', { name: /start a new one/i })).toBeDisabled();
   });
 
   it('closes on Escape and on the backdrop', async () => {

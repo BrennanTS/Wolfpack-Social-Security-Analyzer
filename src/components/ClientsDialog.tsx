@@ -33,6 +33,8 @@ export function ClientsDialog({
   currentView,
   onOpenClient,
   onSaved,
+  onNewClient,
+  canStartNew,
 }: {
   open: boolean;
   onClose: () => void;
@@ -42,6 +44,10 @@ export function ClientsDialog({
   currentView: CurrentView;
   onOpenClient: (client: ClientRecord) => void;
   onSaved: (id: string) => void;
+  /** Empties the form for the next household — see the note beside the button. */
+  onNewClient: () => void;
+  /** Whether there is anything on screen to clear. */
+  canStartNew: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -196,6 +202,20 @@ export function ClientsDialog({
                 Fill in the dates and benefit amounts before saving.
               </p>
             )}
+            {/* The household on screen is held in this browser too, so a
+                reload does not cost an adviser their work. That makes this the
+                way to start the next one — the refresh used to be. */}
+            <p className="clients-empty">
+              The household on screen stays put across a refresh.{' '}
+              <button
+                type="button"
+                className="clients-inline-action"
+                onClick={onNewClient}
+                disabled={!canStartNew}
+              >
+                Start a new one
+              </button>
+            </p>
           </section>
 
           {clients.clients.length === 0 ? (

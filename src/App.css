@@ -3316,6 +3316,100 @@ tbody tr:hover {
   overscroll-behavior: contain;
 }
 
+/* The question the app asks before it clears an adviser's work. Narrow, and
+   above every other overlay: it is asked from inside one. */
+.confirm-dialog {
+  position: fixed;
+  z-index: 301;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 48px));
+  padding: 18px 20px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.drawer-backdrop-confirm {
+  z-index: 300;
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.confirm-dialog p {
+  margin: 0 0 14px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.confirm-actions button {
+  padding: 7px 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.confirm-actions button:hover {
+  color: var(--text);
+  border-color: var(--gold);
+}
+
+/* The safe choice, which is also the one focus lands on. */
+.confirm-actions .confirm-primary {
+  color: var(--text);
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.input-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.btn-new-client {
+  padding: 4px 9px;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.btn-new-client:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.btn-new-client:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.clients-inline-action:disabled {
+  opacity: 0.5;
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
 /* ─── Saved clients ─── */
 
 /* Narrower than the layout and theme dialogs: this is a list, not a workbench
@@ -3434,6 +3528,17 @@ tbody tr:hover {
   margin: 0;
   font-size: 0.75rem;
   color: var(--text-subtle);
+}
+
+/* A link, not a button: it sits inside a sentence that explains it. */
+.clients-inline-action {
+  padding: 0;
+  font: inherit;
+  color: var(--gold-dark);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* ─── Report theme editor ─── */

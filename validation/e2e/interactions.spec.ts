@@ -309,18 +309,38 @@ test('ignores an out-of-range parameter rather than clamping it', async ({ page 
 // unchanged and still the kind of thing that breaks silently: parameters are
 // read once at mount and the address bar is cleared, so a second render must
 // not lose them.
-test('keeps a shared link’s inputs across a reload of the app shell', async ({ browser }) => {
+test('keeps the household on screen across a reload of the app shell', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   try {
-    await page.goto('/?ay=1962&am=4&ag=m&ab=2400&m=0&le=85');
+    await page.goto('/?an=Dan&ay=1962&am=4&ag=m&ab=2400&m=0&le=85');
     await expect(page.getByTestId('benefit-table')).toBeVisible();
     await expect(page.locator('#a-benefit')).toHaveValue('2400');
-    // Reloading the now-bare URL keeps nothing — the query string was cleared
-    // on hydration, which is deliberate: client data must not sit in the
-    // address bar. The empty field is the assertion, not a failure.
+
+    // The address bar is still cleared on hydration — client data must not
+    // sit in it — but the view is remembered in this browser, so a reload no
+    // longer costs an adviser their work. It used to.
+    await page.reload();
+    await expect(page.locator('#a-benefit')).toHaveValue('2400');
+    await expect(page.locator('#a-name')).toHaveValue('Dan');
+    expect(new URL(page.url()).search).toBe('');
+
+    // And there is a way back to an empty form, since the reload no longer is
+    // — from the panel where the household is typed, and from the client list.
+    // Both ask first, because what they clear was never saved.
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await page.getByRole('button', { name: /open clients/i }).click();
+    await page.getByRole('button', { name: /start a new one/i }).click();
+    await expect(page.getByRole('alertdialog')).toContainText('Dan has not been saved');
+    await page.getByRole('button', { name: /discard and start new/i }).click();
+    await expect(page.locator('#a-benefit')).toHaveValue('');
+
+    // Cleared for good: an empty form is remembered as nothing at all, so the
+    // next visit gets this browser's own plan-to ages rather than a blank
+    // view saved over them.
     await page.reload();
     await expect(page.locator('#a-benefit')).toHaveValue('');
+    await expect(page.getByRole('button', { name: /new client/i })).toBeDisabled();
   } finally {
     await context.close();
   }

@@ -25,6 +25,7 @@ import {
 } from '../lib/claimingRows';
 import type { ScenarioSet } from '../lib/scenario';
 import { fromShareParams, readViewExtras, toViewParams } from '../lib/shareLink';
+import { clearCurrentView, readCurrentView, writeCurrentView } from '../lib/currentView';
 import {
   widowedErrors,
   type AlreadyClaimedFormFields,
@@ -38,7 +39,8 @@ import { useReportThemes } from '../hooks/useReportThemes';
 import { useReportLayouts } from '../hooks/useReportLayouts';
 import { useSavedClients } from '../hooks/useSavedClients';
 import { ClientsDialog } from './ClientsDialog';
-import { suggestedClientLabel } from '../lib/clientRecord';
+import { ConfirmDialog } from './ConfirmDialog';
+import { namesFromParams, suggestedClientLabel } from '../lib/clientRecord';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { DeceasedFields } from './DeceasedFields';
 import { HouseholdView } from './HouseholdView';
@@ -55,20 +57,48 @@ interface AnalyzerProps {
   onToggleDarkMode: () => void;
 }
 
+/**
+ * What to call the household in a question about losing it.
+ *
+ * Their names where there are any, because that is what makes the question
+ * answerable — "Priya has not been saved" is a fact about someone, where "the
+ * household on screen" is a fact about the app.
+ */
+function describeHousehold(
+  a: PersonFormFields,
+  b: PersonFormFields,
+  status: AnalyzerFormState['maritalStatus'],
+): string {
+  const names = [a.name.trim(), status === 'married' ? b.name.trim() : ''].filter(
+    (name) => name !== '',
+  );
+  if (names.length === 0) return 'The household on screen';
+  return names.join(' and ');
+}
+
 export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // Parse once, before first paint. A lazy initializer rather than an effect:
   // an effect would paint the blank form first and then replace it, flickering
   // and briefly running an analysis on empty inputs. Reading `location.search`
   // is a read, so it's safe under StrictMode's double-invocation.
-  const [initialParams] = useState(() =>
-    typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search),
-  );
+  /**
+   * Where this session starts: a shared link, or the household this browser
+   * was last showing.
+   *
+   * A link wins outright — two people opening one must see one analysis — and
+   * only when there is none does the remembered view apply. That view exists
+   * because the query string is stripped on arrival, which used to mean a
+   * reload emptied the form; see `currentView` for what it stores.
+   */
+  const [initialParams] = useState(() => {
+    if (typeof window === 'undefined') return new URLSearchParams();
+    const fromUrl = new URLSearchParams(window.location.search);
+    if ([...fromUrl.keys()].length > 0) return fromUrl;
+    return new URLSearchParams(readCurrentView()?.params ?? '');
+  });
   const [initialForm] = useState(() => {
     if (typeof window === 'undefined') return BLANK_FORM;
-    const params = new URLSearchParams(window.location.search);
-    // A shared link wins outright — storage is not consulted at all. Two
-    // people opening one link must see one analysis, and the plan-to age now
-    // drives the recommendation. See `planToAgeStore`.
+    const params = initialParams;
     if ([...params.keys()].length > 0) return fromShareParams(params);
 
     const remembered = readPlanToAges();
@@ -96,10 +126,14 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // state, NOT form state: it never reaches the engine, so it is deliberately
   // outside `form` and outside the analysis effect's dependencies — hiding a
   // row must not re-run the optimizer.
-  const [claimingPrefs, setClaimingPrefs] = useState<ClaimingPrefsByPerson>({});
+  const [claimingPrefs, setClaimingPrefs] = useState<ClaimingPrefsByPerson>(
+    () => readViewExtras(initialParams).claimingPrefs,
+  );
   // Held here, not in `ClaimingGridPanel`, so the exported report prints the
   // near-best region the adviser was looking at rather than the default.
-  const [gridTarget, setGridTarget] = useState<TargetRange>(DEFAULT_TARGET_RANGE);
+  const [gridTarget, setGridTarget] = useState<TargetRange>(
+    () => readViewExtras(initialParams).gridTarget,
+  );
   const [exportingReport, setExportingReport] = useState(false);
   const savedClients = useSavedClients();
   const [clientsOpen, setClientsOpen] = useState(false);
@@ -110,7 +144,13 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
    * leaving them with two of the same household and no way to tell which is
    * current.
    */
-  const [openClientId, setOpenClientId] = useState<string | null>(null);
+  const [openClientId, setOpenClientId] = useState<string | null>(() => {
+    // Only when the view came from storage: a link is somebody else's view,
+    // and "Update open" must not point at a record it did not come from.
+    if (typeof window === 'undefined') return null;
+    if (window.location.search !== '') return null;
+    return readCurrentView()?.openClientId ?? null;
+  });
 
   // Strip the query string separately, because this is a side effect and
   // StrictMode double-invokes state initializers. replaceState is idempotent,
@@ -260,6 +300,82 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     }),
     [claimingPrefs, gridTarget, reportThemes.selectedId, reportLayouts.selectedId],
   );
+
+  /** The whole view as a query string — what is shared, saved and remembered. */
+  const currentParams = useMemo(
+    () => toViewParams(form, viewExtras).toString(),
+    [form, viewExtras],
+  );
+
+  /**
+   * Whether there is a household on screen at all.
+   *
+   * A date of birth, a benefit, a name or a marital status is enough — those
+   * are the four things an adviser types first, and any of them means the
+   * form is no longer the one the app opened with.
+   */
+  const hasHousehold =
+    personA.birthYear !== '' ||
+    personA.monthlyBenefit !== '' ||
+    personA.name.trim() !== '' ||
+    maritalStatus !== null;
+
+  useEffect(() => {
+    // Remembered on every edit rather than on a timer: the point is to
+    // survive a refresh nobody planned, and the cost is one small write.
+    //
+    // An empty form is remembered as nothing rather than as a view of its
+    // own. Written, it would be restored on the next visit in place of the
+    // plan-to ages this browser had learned — the reader would get a blank
+    // form with somebody's default horizon instead of their own.
+    if (hasHousehold) writeCurrentView({ params: currentParams, openClientId });
+    else clearCurrentView();
+  }, [currentParams, openClientId, hasHousehold]);
+
+  /**
+   * Back to an empty form, for the next household.
+   *
+   * Necessary rather than a nicety: a refresh used to be how an adviser got
+   * here, and remembering the view across one takes that away.
+   */
+  const [confirmNew, setConfirmNew] = useState(false);
+
+  const startNewClient = useCallback(() => {
+    setPersonA(BLANK_FORM.personA);
+    setPersonB(BLANK_FORM.personB);
+    setMaritalStatus(BLANK_FORM.maritalStatus);
+    setDeceased(BLANK_FORM.deceased);
+    setAlreadyClaimed(BLANK_FORM.alreadyClaimed);
+    setAnnualCola(BLANK_FORM.annualCola);
+    setDiscountRate(BLANK_FORM.discountRate);
+    setDollarsMode(BLANK_FORM.dollarsMode);
+    setScenarios(BLANK_FORM.scenarios);
+    setClaimingPrefs({});
+    setGridTarget(DEFAULT_TARGET_RANGE);
+    setOpenClientId(null);
+    clearCurrentView();
+    setConfirmNew(false);
+  }, []);
+
+  /**
+   * Whether clearing would lose anything.
+   *
+   * False when the view came from a saved record and still matches it, which
+   * is the case where a confirmation would be asking about nothing. A prompt
+   * that appears every time gets clicked through without being read.
+   */
+  const openRecord = savedClients.clients.find((c) => c.id === openClientId);
+  const unsavedChanges = openRecord === undefined || openRecord.params !== currentParams;
+
+  /** Clear, or ask first — see `unsavedChanges` for when it asks. */
+  const requestNewClient = useCallback(() => {
+    if (!hasHousehold) return;
+    if (!unsavedChanges) {
+      startNewClient();
+      return;
+    }
+    setConfirmNew(true);
+  }, [hasHousehold, unsavedChanges, startNewClient]);
 
   // The ssa.tools engine (benefits, optimal filing, expected PV) does not depend
   // on the chart-only COLA slider, so we intentionally exclude `annualCola` from
@@ -485,7 +601,21 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
 
       <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)}>
         <div className="input-panel">
-          <h2 id="settings-title">Your Information</h2>
+          {/* Beside the heading rather than in a menu: this is where an
+              adviser is looking when the next household walks in, and from
+              the client list it is three clicks away. */}
+          <div className="input-panel-head">
+            <h2 id="settings-title">Your Information</h2>
+            <button
+              type="button"
+              className="btn-new-client"
+              onClick={requestNewClient}
+              disabled={!hasHousehold}
+              title={hasHousehold ? undefined : 'The form is already empty'}
+            >
+              New client
+            </button>
+          </div>
           <p className="input-hint">A few quick fields for a more accurate analysis.</p>
 
           <div className="input-fields">
@@ -684,8 +814,15 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         onClose={() => setClientsOpen(false)}
         clients={savedClients}
         openClientId={openClientId}
+        onNewClient={() => {
+          // The dialog steps aside first: the question is about what is on
+          // screen behind it, and two overlays deep is no way to read one.
+          setClientsOpen(false);
+          requestNewClient();
+        }}
+        canStartNew={hasHousehold}
         currentView={{
-          params: toViewParams(form, viewExtras).toString(),
+          params: currentParams,
           suggestedLabel: suggestedClientLabel({
             a: personA.name.trim() || undefined,
             b: maritalStatus === 'married' ? personB.name.trim() || undefined : undefined,
@@ -698,6 +835,39 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
           setClientsOpen(false);
         }}
         onSaved={setOpenClientId}
+      />
+      <ConfirmDialog
+        open={confirmNew}
+        title="Start a new client?"
+        body={`${describeHousehold(personA, personB, maritalStatus)} ${
+          openRecord === undefined
+            ? 'has not been saved'
+            : 'has changes that are not saved'
+        }. Starting a new one clears the form.`}
+        onCancel={() => setConfirmNew(false)}
+        choices={[
+          {
+            label: 'Save, then start new',
+            primary: true,
+            onChoose: () => {
+              const label = suggestedClientLabel({
+                a: personA.name.trim() || undefined,
+                b: maritalStatus === 'married' ? personB.name.trim() || undefined : undefined,
+              });
+              if (openRecord === undefined) {
+                savedClients.save({ label, names: namesFromParams(currentParams), params: currentParams });
+              } else {
+                savedClients.update(openRecord.id, {
+                  label: openRecord.label,
+                  names: namesFromParams(currentParams),
+                  params: currentParams,
+                });
+              }
+              startNewClient();
+            },
+          },
+          { label: 'Discard and start new', onChoose: startNewClient },
+        ]}
       />
       <ThemeEditorDialog
         open={themeEditorOpen}
