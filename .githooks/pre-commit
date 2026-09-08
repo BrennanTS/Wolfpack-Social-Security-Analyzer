@@ -1,26 +1,82 @@
 #!/bin/sh
 # Pre-commit validation: lint, engine golden fixtures, UI golden fixtures.
+#
+# Runs in two phases:
+#
+#   1. typecheck + lint + vitest, concurrently (~9s). They touch different
+#      things, so there is nothing to serialise. All three are reported
+#      together rather than stopping at the first, so one commit tells you
+#      everything that is wrong instead of one problem at a time.
+#
+#   2. Playwright against a production build (~38s), only if phase 1 passed.
+#      This cannot join phase 1: `npm run test:e2e` builds the app, and that
+#      `tsc -b` writes the same composite .tsbuildinfo files as `npm run
+#      typecheck`. Running them together races on those files. Running it
+#      after is also cheaper — the build's tsc -b is then incremental.
+#
 # Escape hatches:
 #   SKIP_E2E=1 git commit …    skips only the Playwright UI suite
 #   git commit --no-verify     skips everything
-set -e
+#
+# In VS Code, "Commit (No Verify)" only appears in the Source Control ...
+# menu once `git.allowNoVerifyCommit` is true.
 
-# Covers src, the vite config AND the test/validation project — see
-# tsconfig.test.json. Test files were in no tsconfig at all until now, which
-# is how three hand-built fixtures reached `main` missing required fields and
-# failed at runtime instead of at the keyboard.
-echo "[pre-commit] tsc (types, including tests)"
-npm run typecheck
+tmp=$(mktemp -d) || exit 1
+trap 'rm -rf "$tmp"' EXIT
 
-echo "[pre-commit] oxlint"
-npm run lint
+# Captures output and exit code rather than letting a failure kill the
+# subshell before the code can be recorded.
+run() {
+	name=$1
+	shift
+	if "$@" >"$tmp/$name.log" 2>&1; then rc=0; else rc=$?; fi
+	echo "$rc" >"$tmp/$name.rc"
+}
 
-echo "[pre-commit] vitest (engine vs golden fixtures)"
-npm run test
+echo "[pre-commit] typecheck + lint + vitest (parallel)"
+
+run typecheck npm run typecheck &
+run lint      npm run lint &
+run test      npm run test &
+wait
+
+failed=0
+for name in typecheck lint test; do
+	rc=$(cat "$tmp/$name.rc" 2>/dev/null || echo 1)
+	if [ "$rc" = "0" ]; then
+		echo "[pre-commit]   ok   $name"
+	else
+		failed=1
+		echo "[pre-commit]   FAIL $name (exit $rc)"
+	fi
+done
+
+if [ "$failed" != "0" ]; then
+	for name in typecheck lint test; do
+		rc=$(cat "$tmp/$name.rc" 2>/dev/null || echo 1)
+		[ "$rc" = "0" ] && continue
+		echo
+		echo "----- $name -----"
+		cat "$tmp/$name.log"
+	done
+	echo
+	echo "[pre-commit] commit aborted. Fix the above, or: git commit --no-verify"
+	exit 1
+fi
 
 if [ "${SKIP_E2E:-0}" = "1" ]; then
-  echo "[pre-commit] SKIP_E2E=1 — skipping Playwright UI validation"
-else
-  echo "[pre-commit] playwright (UI vs golden fixtures, production build)"
-  npm run test:e2e
+	echo "[pre-commit] SKIP_E2E=1 — skipping Playwright UI validation"
+	exit 0
 fi
+
+echo "[pre-commit] playwright (UI vs golden fixtures, production build)"
+if npm run test:e2e; then
+	echo "[pre-commit] ok"
+	exit 0
+fi
+
+echo
+echo "[pre-commit] commit aborted. Fix the above, or:"
+echo "             SKIP_E2E=1 git commit …    (skip just the UI suite)"
+echo "             git commit --no-verify     (skip everything)"
+exit 1
