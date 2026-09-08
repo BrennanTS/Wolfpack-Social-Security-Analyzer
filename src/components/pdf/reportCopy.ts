@@ -399,11 +399,25 @@ export const COVER_TITLE = 'Social Security Claiming Analysis';
 export const COVER_PREPARED_FOR = 'Prepared for';
 export const COVER_PREPARED_BY = 'Prepared by';
 
-/** The one line under the title, in the reader's own terms. */
+/**
+ * The one line under the title, in the reader's own terms.
+ *
+ * It used to say "When you should claim, and what it means for you", which
+ * promises on the cover what the disclosures on the last page take back: this
+ * is one analysis of one variable, and it does not know about their taxes,
+ * their health, their work plans, or the rest of their retirement income.
+ * A cover that says "when you should claim" has already told the client the
+ * decision is made before they reach anything qualifying it.
+ *
+ * So it now describes what the report contains rather than instructing, and
+ * names the fact that something is left to weigh. The report still gives a
+ * clear answer inside; it just stops presenting that answer as the whole
+ * decision on the way in.
+ */
 export function coverSubtitle(hasSpouse: boolean): string {
   return hasSpouse
-    ? 'When each of you should claim, and what it means for the two of you'
-    : 'When you should claim, and what it means for you';
+    ? 'What each filing age would pay the two of you, and what else to weigh'
+    : 'What each filing age would pay you, and what else to weigh';
 }
 
 /* ------------------------------------------------------------------ *
@@ -444,9 +458,19 @@ export function introQuestions(hasSpouse: boolean): string[] {
       ];
 }
 
+/**
+ * How to read the report.
+ *
+ * "The first page is the answer" was the most definitive sentence in the
+ * document, and the least defensible one: the first page is the answer to the
+ * question this report asks, which is not the same as the answer to when to
+ * claim. It now says which page is which, and sends the reader to the page
+ * that says where the analysis stops.
+ */
 export const INTRO_HOW_TO_READ =
-  'The first page is the answer. The pages after it show the reasoning. The terms used ' +
-  'are explained at the back.';
+  'The first page summarizes what this report found. The pages after it show the ' +
+  'reasoning, and one of them sets out what the report leaves out, which is worth ' +
+  'reading before you decide. The terms used are explained at the back.';
 
 /* ------------------------------------------------------------------ *
  * What this report does not include
@@ -466,6 +490,18 @@ export const LIMITS_INTRO =
  * grid covering every whole-age pair) is a limit Savvy cannot claim.
  */
 export const LIMITS: Term[] = [
+  {
+    // First, deliberately. Everything below it is a caveat about the model;
+    // this one is about the decision, and it is the point of the page.
+    term: 'What else belongs in this decision',
+    body:
+      'This report compares filing ages on one measure: what Social Security itself pays ' +
+      'over your lifetimes. Your health and family history, when you plan to stop working, ' +
+      'what else you have to draw on, the tax on your other income, and what your Medicare ' +
+      'premiums will be all bear on the same choice, and none of them are in these figures. ' +
+      'Treat this as one input to that conversation with your adviser rather than the ' +
+      'conclusion of it.',
+  },
   {
     term: 'The figures are estimates',
     body:

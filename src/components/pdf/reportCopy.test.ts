@@ -147,3 +147,40 @@ describe('the introduction and the limits page', () => {
     expect(copy.ACTION_APPLY_NOTE).toMatch(/survivor benefits cannot be applied for online/i);
   });
 });
+
+/**
+ * The report gives an answer. It must not present that answer as the whole
+ * decision, and the cover is where that goes wrong first: a promise in 40pt
+ * on page one is not undone by a disclosure in 7pt on page twelve.
+ */
+describe('how definite the report allows itself to be', () => {
+  it('does not tell the reader on the cover when to claim', () => {
+    for (const hasSpouse of [false, true]) {
+      const subtitle = copy.coverSubtitle(hasSpouse);
+      expect(subtitle.toLowerCase()).not.toContain('should');
+      // And it points forward to there being more to it.
+      expect(subtitle.toLowerCase()).toContain('weigh');
+    }
+  });
+
+  it('calls the first page a summary rather than the answer', () => {
+    // "The first page is the answer" was the most definitive sentence in the
+    // report and the least defensible: it is the answer to the question this
+    // report asks, which is not the question of when to claim.
+    expect(copy.INTRO_HOW_TO_READ).not.toMatch(/first page is the answer/i);
+    expect(copy.INTRO_HOW_TO_READ.toLowerCase()).toContain('leaves out');
+  });
+
+  it('names what the decision needs that this report does not have', () => {
+    // Every other limit is a caveat about the model. This one is about the
+    // decision, which is why it leads the page.
+    const first = copy.LIMITS[0];
+    expect(first.term.toLowerCase()).toContain('decision');
+    const body = first.body.toLowerCase();
+    for (const factor of ['health', 'working', 'tax', 'medicare']) {
+      expect(body).toContain(factor);
+    }
+    // And it says what the report is FOR, rather than only what it lacks.
+    expect(body).toContain('one input');
+  });
+});
