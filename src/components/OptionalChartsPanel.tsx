@@ -41,7 +41,14 @@ export function OptionalChartsPanel({
     <div className="optional-charts">
       <div className="optional-charts-intro">
         <h3>Optional Visualizations</h3>
-        <p>Click the eye icon to show or hide additional charts. The PDF report includes the heatmap and summary charts.</p>
+        {/* The second sentence used to name the charts the report carries.
+            That was true when the report had a fixed order; layouts made it
+            a claim this panel cannot check, and it was wrong for every
+            layout but one. It now says where the answer lives instead. */}
+        <p>
+          Click the eye icon to show or hide a chart here. This changes your screen only. What
+          the report contains is set in the report layout editor.
+        </p>
       </div>
 
       <div className="optional-charts-list">

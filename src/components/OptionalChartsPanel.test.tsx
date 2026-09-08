@@ -65,3 +65,24 @@ describe('OptionalChartsPanel', () => {
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(7);
   });
 });
+
+describe('what the panel says it controls', () => {
+  it('does not claim to decide what the report contains', () => {
+    // It said "The PDF report includes the heatmap and summary charts" — true
+    // of the fixed-order report, and wrong for every layout but one once the
+    // adviser could choose. A panel that cannot check a claim should not make
+    // it.
+    render(
+      <OptionalChartsPanel
+        claimingOptions={claimingOptions}
+        shownAge={shownAge}
+        lifeExpectancy={lifeExpectancy}
+        annualCola={annualCola}
+        visibility={DEFAULT_CHART_VISIBILITY}
+        onToggle={() => {}}
+      />,
+    );
+    expect(screen.getByText(/changes your screen only/i)).toBeInTheDocument();
+    expect(screen.queryByText(/PDF report includes/i)).not.toBeInTheDocument();
+  });
+});

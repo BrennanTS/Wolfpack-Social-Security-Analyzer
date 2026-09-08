@@ -15,6 +15,12 @@ import {
 import { personLabel } from '../lib/format';
 import { DEFAULT_PLAN_TO_AGE } from '../lib/formBounds';
 import { readPlanToAges, writePlanToAge } from '../lib/planToAgeStore';
+import {
+  chartsFor,
+  toggleChart,
+  withChartsFor,
+  type ChartsByPerson,
+} from '../lib/chartVisibility';
 import { downloadPdfReport } from '../lib/printReport';
 import {
   buildClaimingRows,
@@ -133,6 +139,14 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   // row must not re-run the optimizer.
   const [claimingPrefs, setClaimingPrefs] = useState<ClaimingPrefsByPerson>(
     () => readViewExtras(initialParams).claimingPrefs,
+  );
+  // Which optional charts each person is showing. Held here rather than in
+  // `PersonPanel`, where it used to live: an adviser who sets up two charts
+  // for a meeting should still have them after a refresh, in a link they
+  // copy, and in the client they save. Display state like the rows above, so
+  // it stays outside `form` and outside the analysis effect.
+  const [charts, setCharts] = useState<ChartsByPerson>(
+    () => readViewExtras(initialParams).charts,
   );
   // Held here, not in `ClaimingGridPanel`, so the exported report prints the
   // near-best region the adviser was looking at rather than the default.
@@ -260,6 +274,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setDollarsMode(next.dollarsMode);
     setScenarios(next.scenarios);
     setClaimingPrefs(extras.claimingPrefs);
+    setCharts(extras.charts);
     setGridTarget(extras.gridTarget);
     setSolvency(extras.solvency ?? DEFAULT_SOLVENCY);
     applySelections(extras);
@@ -322,12 +337,13 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const viewExtras = useMemo(
     () => ({
       claimingPrefs,
+      charts,
       gridTarget,
       solvency,
       themeId: reportThemes.selectedId,
       layoutId: reportLayouts.selectedId,
     }),
-    [claimingPrefs, gridTarget, solvency, reportThemes.selectedId, reportLayouts.selectedId],
+    [claimingPrefs, charts, gridTarget, solvency, reportThemes.selectedId, reportLayouts.selectedId],
   );
 
   /** The whole view as a query string — what is shared, saved and remembered. */
@@ -380,6 +396,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     setDollarsMode(BLANK_FORM.dollarsMode);
     setScenarios(BLANK_FORM.scenarios);
     setClaimingPrefs({});
+    setCharts({});
     setGridTarget(DEFAULT_TARGET_RANGE);
     setSolvency(DEFAULT_SOLVENCY);
     setOpenClientId(null);
@@ -794,6 +811,12 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 claimingPrefs={claimingPrefs}
                 onClaimingPrefsChange={(personId, next) =>
                   setClaimingPrefs(withPrefsFor(claimingPrefs, personId, next))
+                }
+                charts={charts}
+                onChartToggle={(personId, key) =>
+                  setCharts(
+                    withChartsFor(charts, personId, toggleChart(chartsFor(charts, personId), key)),
+                  )
                 }
                 gridTarget={gridTarget}
                 onGridTargetChange={setGridTarget}

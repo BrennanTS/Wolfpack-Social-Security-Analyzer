@@ -14,6 +14,7 @@ import {
   type ClaimingTablePrefs,
 } from './claimingRows';
 import { DEFAULT_TARGET_RANGE, MAX_TARGET_PERCENT, type TargetRange } from './gridTarget';
+import { decodeCharts, encodeCharts, type ChartsByPerson } from './chartVisibility';
 import {
   SOLVENCY_PAYABLE_BOUNDS,
   SOLVENCY_YEAR_BOUNDS,
@@ -446,6 +447,16 @@ export function fromShareParams(params: URLSearchParams): AnalyzerFormState {
 /** Everything on screen that is not the form itself. */
 export interface ViewExtras {
   claimingPrefs: ClaimingPrefsByPerson;
+  /**
+   * Which optional charts each person is showing.
+   *
+   * Travels for the same reason the claiming rows do: an adviser who turned
+   * on the heatmap for a meeting has set something up, and a saved client or
+   * a shared link that reopened without it would not be the screen they left.
+   * It was local state inside `PersonPanel` until now, so it did not survive
+   * a refresh, a copied link, or reopening a saved client.
+   */
+  charts: ChartsByPerson;
   gridTarget: TargetRange;
   /**
    * The benefit reduction the "what if benefits are reduced" page prices.
@@ -476,6 +487,7 @@ export interface ViewExtras {
 
 export const BLANK_VIEW_EXTRAS: ViewExtras = {
   claimingPrefs: {},
+  charts: {},
   gridTarget: DEFAULT_TARGET_RANGE,
 };
 
@@ -522,6 +534,17 @@ function readPrefs(params: URLSearchParams, prefix: 'a' | 'b'): ClaimingTablePre
   return { hidden, added };
 }
 
+/** `ca=lifetimeHeatmap,monthlyRamp`. Absent when this person shows none. */
+function writeCharts(
+  params: URLSearchParams,
+  prefix: 'a' | 'b',
+  visibility: ChartsByPerson[string] | undefined,
+): void {
+  if (visibility === undefined) return;
+  const on = encodeCharts(visibility);
+  if (on !== '') params.set(`c${prefix}`, on);
+}
+
 function writePrefs(
   params: URLSearchParams,
   prefix: 'a' | 'b',
@@ -546,7 +569,11 @@ export function toViewParams(form: AnalyzerFormState, extras: ViewExtras): URLSe
   // Person ids are `a` and `b` in display order, which is what the form
   // collects and what these parameters are named for.
   writePrefs(params, 'a', extras.claimingPrefs.a);
-  if (form.maritalStatus === 'married') writePrefs(params, 'b', extras.claimingPrefs.b);
+  writeCharts(params, 'a', extras.charts.a);
+  if (form.maritalStatus === 'married') {
+    writePrefs(params, 'b', extras.claimingPrefs.b);
+    writeCharts(params, 'b', extras.charts.b);
+  }
   // `2032-78`: the year benefits are reduced from, and the percent payable.
   // Present means the reduction scenario is ON, which is the whole of what
   // the parameter says — an absent `sv` is the off state every link has
@@ -573,6 +600,12 @@ export function readViewExtras(params: URLSearchParams): ViewExtras {
   const b = readPrefs(params, 'b');
   if (b !== null) claimingPrefs.b = b;
 
+  const charts: ChartsByPerson = {};
+  const chartsA = decodeCharts(params.get('ca'));
+  if (chartsA !== null) charts.a = chartsA;
+  const chartsB = decodeCharts(params.get('cb'));
+  if (chartsB !== null) charts.b = chartsB;
+
   const raw = params.get('gt');
   const percent = raw === null ? null : Number(raw);
   const gridTarget: TargetRange =
@@ -587,6 +620,7 @@ export function readViewExtras(params: URLSearchParams): ViewExtras {
   const solvency = readSolvency(params);
   return {
     claimingPrefs,
+    charts,
     gridTarget,
     ...(solvency === null ? {} : { solvency }),
     ...(themeId === undefined ? {} : { themeId }),

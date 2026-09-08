@@ -11,6 +11,7 @@ import {
 } from './shareLink';
 import { DEFAULT_TARGET_RANGE } from './gridTarget';
 import { DEFAULT_SOLVENCY, TRUSTEES_ASSUMPTION } from './solvency';
+import { DEFAULT_CHART_VISIBILITY } from './chartVisibility';
 import {
   addScenario,
   DEFAULT_SCENARIO_SET,
@@ -511,8 +512,8 @@ describe('the rest of the view', () => {
     // Both are printed in the report, so a link or a saved client that lost
     // them reopens something the adviser did not set up.
     const params = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
       claimingPrefs: { a: { hidden: ['63', '64'], added: [{ years: 69, months: 1 }] } },
-      gridTarget: DEFAULT_TARGET_RANGE,
     });
     expect(params.get('pah')).toBe('63,64');
     expect(params.get('paa')).toBe('69-1');
@@ -524,10 +525,73 @@ describe('the rest of the view', () => {
     // Switching married → single leaves person B's edits in state; writing
     // them would restore a table for someone the household no longer has.
     const params = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
       claimingPrefs: { b: { hidden: ['67'], added: [] } },
-      gridTarget: DEFAULT_TARGET_RANGE,
     });
     expect(params.get('pbh')).toBeNull();
+  });
+
+  it('carries the optional charts each person is showing', () => {
+    // These were local state inside `PersonPanel` and survived nothing: not a
+    // refresh, not a copied link, not reopening a saved client. An adviser
+    // who set up two charts for a meeting had to set them up again.
+    const params = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      charts: {
+        a: { ...DEFAULT_CHART_VISIBILITY, lifetimeHeatmap: true, monthlyRamp: true },
+      },
+    });
+    expect(params.get('ca')).toBe('lifetimeHeatmap,monthlyRamp');
+    expect(readViewExtras(params).charts.a).toEqual({
+      ...DEFAULT_CHART_VISIBILITY,
+      lifetimeHeatmap: true,
+      monthlyRamp: true,
+    });
+  });
+
+  it('writes the charts in a fixed order, whatever order they were clicked', () => {
+    // This string is compared: the whole view is serialized to decide what is
+    // remembered and what a saved client holds, so two identical screens
+    // reached by different clicks have to produce the same text.
+    const one = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      charts: { a: { ...DEFAULT_CHART_VISIBILITY, monthlyRamp: true, lifetimeHeatmap: true } },
+    });
+    const other = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      charts: { a: { ...DEFAULT_CHART_VISIBILITY, lifetimeHeatmap: true, monthlyRamp: true } },
+    });
+    expect(one.toString()).toBe(other.toString());
+  });
+
+  it('leaves a spouse’s charts out of a single claimant’s link', () => {
+    // Same reason the spouse's claiming rows are left out: switching married
+    // → single leaves person B's state behind, and writing it would restore
+    // charts for someone the household no longer has.
+    const params = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      charts: { b: { ...DEFAULT_CHART_VISIBILITY, lifetimeHeatmap: true } },
+    });
+    expect(params.get('cb')).toBeNull();
+  });
+
+  it('drops a chart name this app does not have, and keeps the rest', () => {
+    // Chart ids, not user input. One retired between a link being written and
+    // being opened should cost that chart, not the other five.
+    const back = readViewExtras(new URLSearchParams('ca=lifetimeHeatmap,tealeaves'));
+    expect(back.charts.a?.lifetimeHeatmap).toBe(true);
+    expect(back.charts.a?.monthlyRamp).toBe(false);
+    // Nothing recognizable at all leaves the person absent rather than
+    // present with every chart off, which is what "never touched" means.
+    expect(readViewExtras(new URLSearchParams('ca=tealeaves')).charts.a).toBeUndefined();
+  });
+
+  it('says nothing about charts that were never turned on', () => {
+    const params = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      charts: { a: DEFAULT_CHART_VISIBILITY },
+    });
+    expect(params.get('ca')).toBeNull();
   });
 
   it('says nothing about preferences that were never touched', () => {
@@ -545,11 +609,17 @@ describe('the rest of the view', () => {
   it('carries the near-best region, including when it is switched off', () => {
     // Absent has to mean "a link written before this existed", and the
     // default is on — so off is written explicitly.
-    const off = toViewParams(complete(), { claimingPrefs: {}, gridTarget: { on: false, percent: 1 } });
+    const off = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      gridTarget: { on: false, percent: 1 },
+    });
     expect(off.get('gt')).toBe('off');
     expect(readViewExtras(off).gridTarget.on).toBe(false);
 
-    const wide = toViewParams(complete(), { claimingPrefs: {}, gridTarget: { on: true, percent: 4 } });
+    const wide = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      gridTarget: { on: true, percent: 4 },
+    });
     expect(wide.get('gt')).toBe('4');
     expect(readViewExtras(wide).gridTarget).toEqual({ on: true, percent: 4 });
   });

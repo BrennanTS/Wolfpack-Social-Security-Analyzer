@@ -9,6 +9,7 @@ import {
   type ClaimingRow,
   type ClaimingTablePrefs,
 } from '../lib/claimingRows';
+import { chartsFor, type ChartKey, type ChartsByPerson } from '../lib/chartVisibility';
 import type { ScenarioSet } from '../lib/scenario';
 import { HouseholdPanel } from './HouseholdPanel';
 import { PersonPanel } from './PersonPanel';
@@ -34,6 +35,8 @@ interface HouseholdViewProps {
   claimingRowsByPerson?: Record<string, ClaimingRow[]>;
   claimingPrefs?: ClaimingPrefsByPerson;
   onClaimingPrefsChange?: (personId: string, prefs: ClaimingTablePrefs) => void;
+  charts?: ChartsByPerson;
+  onChartToggle?: (personId: string, key: ChartKey) => void;
   /** The claiming grid's near-best region — shared so the PDF prints it. */
   gridTarget?: TargetRange;
   onGridTargetChange?: (target: TargetRange) => void;
@@ -65,6 +68,8 @@ export function HouseholdView({
   claimingRowsByPerson,
   claimingPrefs,
   onClaimingPrefsChange,
+  charts,
+  onChartToggle,
   gridTarget,
   onGridTargetChange,
 }: HouseholdViewProps) {
@@ -116,7 +121,13 @@ export function HouseholdView({
   }
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  /** The claiming-table props for one person, or none when nothing is wired. */
+  /**
+   * The per-person props, or none when nothing is wired.
+   *
+   * Both the claiming table and the optional charts are state one level up,
+   * so both arrive the same way and only this function knows which person
+   * index maps to which id.
+   */
   function claimingProps(personIndex: number) {
     const personId = analysis.people[personIndex].person.id;
     if (claimingRowsByPerson === undefined || claimingPrefs === undefined) return {};
@@ -126,6 +137,8 @@ export function HouseholdView({
       onClaimingPrefsChange: (next: ClaimingTablePrefs) =>
         onClaimingPrefsChange?.(personId, next),
       filingAgeOptions: analysis.filingAgeOptions[personIndex],
+      chartVisibility: charts === undefined ? undefined : chartsFor(charts, personId),
+      onChartToggle: (key: ChartKey) => onChartToggle?.(personId, key),
     };
   }
 

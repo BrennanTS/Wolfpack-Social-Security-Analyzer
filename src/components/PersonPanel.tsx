@@ -17,7 +17,11 @@ import { scenarioEyebrow } from '../lib/scenario';
 import { soloVsHouseholdNote } from './methodologyCopy';
 import { nearestWholeClaimAge } from '../lib/ssaTools';
 import { computeBreakEvens } from '../lib/benefitMath';
-import { DEFAULT_CHART_VISIBILITY, type ChartKey } from '../lib/chartVisibility';
+import {
+  DEFAULT_CHART_VISIBILITY,
+  type ChartKey,
+  type ChartVisibility,
+} from '../lib/chartVisibility';
 import { BenefitChart } from './BenefitChart';
 import { EyeIcon } from './EyeIcon';
 import { BreakEvenSection } from './BreakEvenSection';
@@ -48,6 +52,16 @@ interface PersonPanelProps {
   onClaimingPrefsChange?: (prefs: ClaimingTablePrefs) => void;
   /** Every attainable filing age for THIS person — `analysis.filingAgeOptions[i]`. */
   filingAgeOptions?: FilingAgeChoice[];
+  /**
+   * Which optional charts this person is showing.
+   *
+   * Held by `Analyzer` rather than here, so it survives a refresh and rides
+   * in a copied link and a saved client — like the claiming rows above, and
+   * for the same reason. Optional, defaulting to none shown, so a caller that
+   * does not care (the tests, chiefly) renders what it always did.
+   */
+  chartVisibility?: ChartVisibility;
+  onChartToggle?: (key: ChartKey) => void;
 }
 
 export function PersonPanel({
@@ -59,6 +73,8 @@ export function PersonPanel({
   claimingPrefs,
   onClaimingPrefsChange,
   filingAgeOptions,
+  chartVisibility = DEFAULT_CHART_VISIBILITY,
+  onChartToggle,
 }: PersonPanelProps) {
   const { fra, claimingOptions, filingAge, monthlyAtFilingAge } = analysis;
   // The planning horizon the adviser actually set, not SSA's suggestion.
@@ -178,17 +194,6 @@ export function PersonPanel({
   };
 
   const breakEvens = computeBreakEvens(claimingOptions, annualCola);
-
-  // Chart visibility is per-person state, not lifted to Analyzer/HouseholdView:
-  // each person's charts are toggled independently, and since HouseholdView
-  // only ever mounts the active tab's panel, this naturally resets to the
-  // defaults when you navigate away from a person's tab and back (there's no
-  // hidden panel to preserve state in — see HouseholdView's doc comment on
-  // "only the active panel is rendered").
-  const [chartVisibility, setChartVisibility] = useState(DEFAULT_CHART_VISIBILITY);
-  function toggleChart(key: ChartKey) {
-    setChartVisibility((v) => ({ ...v, [key]: !v[key] }));
-  }
 
   return (
     <div className="results">
@@ -476,7 +481,7 @@ export function PersonPanel({
         lifeExpectancy={analysis.person.lifeExpectancy}
         annualCola={annualCola}
         visibility={chartVisibility}
-        onToggle={toggleChart}
+        onToggle={(key) => onChartToggle?.(key)}
       />
     </div>
   );
