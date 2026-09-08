@@ -556,9 +556,39 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
     }
   }
 
+  /**
+   * The header's real height, published as `--header-h`.
+   *
+   * The token was a constant, and the header is not: below 600px it wraps to
+   * two rows and stands 98px rather than 64. Everything positioned against it
+   * was therefore wrong on a phone — the settings drawer started 34px under
+   * it, and `scroll-padding-top` left too little room, so tapping a household
+   * tab scrolled it neatly beneath the header.
+   *
+   * Measured rather than guessed at a second breakpoint, because the height
+   * depends on how the actions wrap, which depends on their text. The CSS
+   * keeps 64px as its own value, so a browser without `ResizeObserver` and
+   * the moment before this runs both get the desktop height.
+   */
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (el === null || typeof ResizeObserver === 'undefined') return;
+    const publish = () => {
+      document.documentElement.style.setProperty(
+        '--header-h',
+        `${Math.round(el.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className={`analyzer${settingsOpen ? ' settings-open' : ''}`}>
-      <header className="header">
+      <header className="header" ref={headerRef}>
         <div className="header-brand">
           <SettingsDrawerToggle open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} />
           <div className="brand-monogram" aria-hidden="true">

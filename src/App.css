@@ -1,8 +1,32 @@
+/*
+ * Room for the sticky header whenever anything is scrolled into view.
+ *
+ * A header that stays put is a header that covers whatever lands under it,
+ * and the browser puts a `scrollIntoView` target flush against the top by
+ * default. Without this, tapping a household tab on a phone scrolls it
+ * exactly beneath the header — reachable only by scrolling back up, which is
+ * how a fixed header earns its bad reputation.
+ */
+html {
+  scroll-padding-top: var(--header-h);
+}
+
 /* ─── App shell ─── */
 .app-root {
   position: relative;
   min-height: 100vh;
-  overflow-x: hidden;
+  /*
+   * `clip`, not `hidden`, and the difference is the whole reason the header
+   * stayed put.
+   *
+   * `overflow-x: hidden` forces the other axis from `visible` to `auto`, so
+   * this element became a scroll container — and a `position: sticky` header
+   * sticks inside its nearest scrolling ancestor, not the viewport. This box
+   * grows to its content and never scrolls itself, so the header had no room
+   * to stick in and rode up with the page. `clip` cuts the overflow off
+   * without creating a scroll container at all.
+   */
+  overflow-x: clip;
 }
 
 /* ─── Empty state ─── */
@@ -75,8 +99,10 @@
   flex-direction: column;
   background: var(--bg);
   --drawer-w: clamp(280px, 22vw, 420px);
-  --header-h: 64px;
-  overflow-x: hidden;
+  /* `clip` for the reason `.app-root` gives: the nearest scroll container is
+     what sticky sticks to, so leaving either of them `hidden` is enough to
+     unstick the header. */
+  overflow-x: clip;
 }
 
 .header {

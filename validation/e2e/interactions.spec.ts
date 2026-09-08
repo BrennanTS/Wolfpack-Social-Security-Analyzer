@@ -117,6 +117,13 @@ test('keeps the "vs. best" column on a phone-sized viewport', async ({ page }) =
   await expect(strategyTable.getByTestId('cell-delta').first()).toBeVisible();
 
   // The narrow-screen trim is still in force where it was intended.
+  //
+  // The drawer is closed first because on a phone it is modal: it dims the
+  // page behind it, and nothing back there is meant to be clickable while it
+  // is open. This used to reach the tab anyway, through a gap between the top
+  // of that dimmer and the top of the viewport — the header was not sticky,
+  // so content scrolled up into the strip the dimmer does not cover.
+  await page.getByRole('button', { name: 'Hide settings panel' }).click();
   await page.getByRole('tab', { name: 'Jane' }).click();
   const benefitTable = page.getByTestId('benefit-table');
   await expect(benefitTable).toBeVisible();
@@ -276,6 +283,44 @@ test('exports a PDF for a single claimant', async ({ page }) => {
   await page.getByTestId('export-report').click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^Social-Security-Analysis-.*\.pdf$/);
+});
+
+/**
+ * The header stays put, which only a real browser can answer.
+ *
+ * `position: sticky` was on it the whole time and did nothing, because two
+ * ancestors carried `overflow-x: hidden` — which forces the other axis from
+ * `visible` to `auto`, making them scroll containers. Sticky sticks inside
+ * its nearest scrolling ancestor, and those boxes grow to their content and
+ * never scroll, so the header had nowhere to stick and rode up with the
+ * page. `overflow-x: clip` cuts the same overflow without becoming a scroll
+ * container.
+ *
+ * Pinned here because the CSS still reads as though it works: nothing about
+ * `position: sticky; top: 0` looks wrong, and the property that breaks it is
+ * three rules away in another selector.
+ */
+test('keeps the header on screen when the page is scrolled', async ({ page }) => {
+  await page.goto('/');
+  await fillScenarioForm(page, married);
+  await expect(page.getByTestId('strategy-table')).toBeVisible();
+
+  const header = page.locator('.header');
+  expect((await header.boundingBox())?.y).toBe(0);
+
+  // `scrollTo` rather than a wheel: a wheel goes to whatever is under the
+  // pointer, and the settings drawer scrolls itself. The document is what
+  // has to move for this question.
+  await page.evaluate(() => window.scrollTo(0, 1200));
+  await page.waitForTimeout(300);
+  // Guard: the page really did scroll, so a header still at the top is
+  // sticky rather than a page that never moved.
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+  expect((await header.boundingBox())?.y).toBe(0);
+
+  // And the export button inside it is still reachable, which is the point
+  // of the header being there at all.
+  await expect(page.getByTestId('export-report')).toBeInViewport();
 });
 
 test('hydrates the form from a shared link and clears the query string', async ({ page }) => {
