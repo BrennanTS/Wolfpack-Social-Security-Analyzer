@@ -282,6 +282,46 @@ describe('ReportLayoutEditor', () => {
     ]);
   });
 
+  it('drags a page break to a position, rather than only appending one', async () => {
+    // The two items whose whole purpose is being at a particular position
+    // were the two that could only be added at the end. Reported by Dan:
+    // "the Page break and Space sections were not drag and dropping".
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    dragFrom(screen.getByRole('button', { name: /\+ Page break/ }), 45);
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'block', id: 'answer' },
+      { kind: 'break' },
+      { kind: 'block', id: 'terms' },
+    ]);
+  });
+
+  it('drags a space to a position too', () => {
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    layOutRows();
+    dragFrom(screen.getByRole('button', { name: /\+ Space/ }), 45);
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'block', id: 'answer' },
+      { kind: 'space' },
+      { kind: 'block', id: 'terms' },
+    ]);
+  });
+
+  it('still appends a page break on a press that never moved', async () => {
+    // Clicking is what a keyboard and a touch screen have, and it must keep
+    // meaning "put it at the end" rather than becoming a dead gesture.
+    const s = twoRowStore();
+    renderEditor(s, 'twoClaimants');
+    await userEvent.click(screen.getByRole('button', { name: /\+ Page break/ }));
+    expect(s.update).toHaveBeenCalledWith('mine', [
+      { kind: 'block', id: 'answer' },
+      { kind: 'block', id: 'terms' },
+      { kind: 'break' },
+    ]);
+  });
+
   it('drops past the last row, and says so while the drag is on', () => {
     const s = twoRowStore();
     renderEditor(s, 'twoClaimants');

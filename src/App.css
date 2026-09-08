@@ -789,6 +789,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Clears the toggle and, when it is there, the flag beside it — which
+     wraps onto its own line in a narrow drawer and sat hard against the
+     first section heading. */
+  padding-top: 14px;
   padding-bottom: 8px;
 }
 
@@ -3039,18 +3043,24 @@ tbody tr:hover {
   border-radius: var(--radius-pill);
 }
 
-.layout-add-block {
+/* Both chip kinds drag. The page break and the space are the two items whose
+   whole purpose is being at a particular position, so appending them to the
+   bottom to be walked up was the wrong and only gesture they had. */
+.layout-add-block,
+.layout-add-break {
   cursor: grab;
   user-select: none;
   touch-action: none;
 }
 
-.layout-add-block:focus-visible {
+.layout-add-block:focus-visible,
+.layout-add-break:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
 
-.layout-add-block:active {
+.layout-add-block:active,
+.layout-add-break:active {
   cursor: grabbing;
 }
 
@@ -3524,23 +3534,122 @@ tbody tr:hover {
   flex-shrink: 0;
 }
 
-.solvency-row {
+/* ---- Planning assumptions: sections, the scenario flag and its switch ---- */
+
+/*
+ * A heading per group, because the panel had grown to four unrelated
+ * controls in one column and nothing said which of them moved the
+ * recommendation and which only redrew a chart.
+ */
+.assumptions-heading {
+  margin: 14px 0 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.assumptions-heading:first-child {
+  margin-top: 0;
+}
+
+.assumptions-heading-note {
+  margin: 3px 0 8px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-subtle);
+}
+
+/*
+ * Visible with the panel collapsed. The reduction scenario adds a page to
+ * the report, and an adviser must never find that out from the exported PDF.
+ */
+.assumptions-flag {
+  display: inline-block;
+  /* Beside the toggle, which is inline-block. The gap on the left is what
+     keeps it off the word "assumptions". */
+  margin: 0 0 0 8px;
+  vertical-align: baseline;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--gold-dark);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+}
+
+/* `.field label` sets `display: block` and outranks a lone class, so this
+   has to be specific enough to beat it — the checkbox and its wording sat on
+   two lines otherwise. */
+.advanced-field .solvency-switch {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.advanced-field .solvency-switch input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--gold);
+  flex-shrink: 0;
+}
+
+/* `.field-label` carries a bottom margin for stacked fields; inside the row
+   it would push the text off the checkbox's center line. */
+.advanced-field .solvency-switch .field-label {
+  margin-bottom: 0;
+}
+
+/* The switched-on state, marked where the adviser turned it on. */
+.advanced-field.is-scenario-on {
+  padding: 8px 10px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  background: var(--gold-soft);
+}
+
+.solvency-fields {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 8px;
   font-size: 0.75rem;
   color: var(--text-muted);
 }
 
-.solvency-row input {
-  width: 74px;
+/* Beats `.field label { display: block }`, which would drop each label onto
+   its own grid row and leave the inputs unlabeled-looking beside a gap. */
+.advanced-field .solvency-fields label {
+  display: inline;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.solvency-percent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.solvency-fields input {
+  width: 68px;
   padding: 5px 7px;
   font-size: 0.75rem;
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
+}
+
+.solvency-reset {
+  margin-top: 8px;
 }
 
 .clients-empty {

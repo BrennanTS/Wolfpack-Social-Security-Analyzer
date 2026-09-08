@@ -9,9 +9,10 @@ import {
   LIFE_EXPECTANCY_BOUNDS,
 } from '../lib/formBounds';
 import {
-  DEFAULT_SOLVENCY,
+  isTrusteesProjection,
   SOLVENCY_PAYABLE_BOUNDS,
   SOLVENCY_YEAR_BOUNDS,
+  TRUSTEES_ASSUMPTION,
   TRUSTEES_PROJECTION,
   type SolvencyAssumption,
 } from '../lib/solvency';
@@ -49,9 +50,7 @@ export function AssumptionsPanel({
   onToggle,
 }: AssumptionsPanelProps) {
   const usingDefaultCola = Math.abs(annualCola - CPI_DEFAULT_COLA) < 0.05;
-  const usingTrusteesProjection =
-    solvency.fromYear === DEFAULT_SOLVENCY.fromYear &&
-    solvency.payablePercent === DEFAULT_SOLVENCY.payablePercent;
+  const usingTrusteesProjection = isTrusteesProjection(solvency);
   const usingDefaultDiscount = Math.abs(discountRate - DEFAULT_DISCOUNT_RATE) < 0.001;
 
   return (
@@ -64,9 +63,22 @@ export function AssumptionsPanel({
       >
         {expanded ? '− Hide' : '+ '} Planning assumptions
       </button>
+      {/* Readable with the panel shut. The reduction scenario changes what
+          the report contains, and an adviser who cannot see that it is on
+          is the failure this badge exists to prevent. */}
+      {solvency.enabled && (
+        <span className="assumptions-flag" data-testid="solvency-flag">
+          Benefit reduction on
+        </span>
+      )}
 
       {expanded && (
         <div className="assumptions-body">
+          <h4 className="assumptions-heading">Used in the recommendation</h4>
+          <p className="assumptions-heading-note">
+            These decide which filing ages the report recommends.
+          </p>
+
           <div className="field advanced-field">
             <label htmlFor="discount">
               Discount rate: {formatPercent(discountRate * 100, 2)}
@@ -141,6 +153,11 @@ export function AssumptionsPanel({
             </div>
           ))}
 
+          <h4 className="assumptions-heading">Used in the charts only</h4>
+          <p className="assumptions-heading-note">
+            This moves the illustrative charts. It does not move the recommendation.
+          </p>
+
           <div className="field advanced-field">
             <label htmlFor="cola">
               Chart COLA assumption: {formatPercent(annualCola, 2)}
@@ -199,62 +216,100 @@ export function AssumptionsPanel({
             )}
           </div>
 
+          <h4 className="assumptions-heading">Optional report scenario</h4>
+          <p className="assumptions-heading-note">
+            Off unless you switch it on. Nothing here reaches the recommendation or the
+            charts.
+          </p>
+
           {/* Only the report's "what if benefits are reduced" page reads
               these. They reach no engine call, which is why they sit here
               rather than in the analysis assumptions above. */}
-          <div className="field advanced-field">
-            <span className="field-label">If benefits are reduced</span>
-            <div className="solvency-row">
-              <label htmlFor="solvency-year">From</label>
+          <div className={`field advanced-field${solvency.enabled ? ' is-scenario-on' : ''}`}>
+            <label className="solvency-switch" htmlFor="solvency-on">
               <input
-                id="solvency-year"
-                type="number"
-                min={SOLVENCY_YEAR_BOUNDS.min}
-                max={SOLVENCY_YEAR_BOUNDS.max}
-                step={1}
-                value={solvency.fromYear}
+                id="solvency-on"
+                type="checkbox"
+                checked={solvency.enabled}
                 onChange={(e) =>
-                  onSolvencyChange({
-                    ...solvency,
-                    fromYear: clampToBounds(Number(e.target.value), SOLVENCY_YEAR_BOUNDS),
-                  })
+                  onSolvencyChange(
+                    e.target.checked
+                      ? { ...solvency, enabled: true }
+                      : { ...solvency, enabled: false },
+                  )
                 }
               />
-              <label htmlFor="solvency-payable">pay</label>
-              <input
-                id="solvency-payable"
-                type="number"
-                min={SOLVENCY_PAYABLE_BOUNDS.min}
-                max={SOLVENCY_PAYABLE_BOUNDS.max}
-                step={1}
-                value={solvency.payablePercent}
-                onChange={(e) =>
-                  onSolvencyChange({
-                    ...solvency,
-                    payablePercent: clampToBounds(
-                      Number(e.target.value),
-                      SOLVENCY_PAYABLE_BOUNDS,
-                    ),
-                  })
-                }
-              />
-              <span>%</span>
-              <button
-                type="button"
-                className="btn-reset-cola"
-                onClick={() => onSolvencyChange(DEFAULT_SOLVENCY)}
-                disabled={usingTrusteesProjection}
-              >
-                Use the trustees’ projection
-              </button>
-            </div>
+              <span className="field-label">Price a benefit reduction</span>
+            </label>
             <span className="field-hint">
-              {usingTrusteesProjection
-                ? `The ${TRUSTEES_PROJECTION.report}’s own projection for the fund that pays ` +
-                  'retirement and survivor benefits. The report page attributes it to them.'
-                : 'Your own assumption. The report page says so, and does not attribute it to ' +
-                  'the trustees.'}
+              {solvency.enabled
+                ? 'The report carries a “what if benefits are reduced” page, pricing every ' +
+                  'plan twice. It is marked on the page itself as a scenario you switched on.'
+                : 'Adds a “what if benefits are reduced” page to the report, pricing every ' +
+                  'plan twice. Nothing is added while this is off.'}
             </span>
+
+            {solvency.enabled && (
+              <>
+                {/* A labeled grid rather than a sentence across one line:
+                    the drawer is about 230px wide, and "From 2032 pay 78 %"
+                    wrapped into fragments that read as separate controls. */}
+                <div className="solvency-fields">
+                  <label htmlFor="solvency-year">Reduced from</label>
+                  <input
+                    id="solvency-year"
+                    type="number"
+                    min={SOLVENCY_YEAR_BOUNDS.min}
+                    max={SOLVENCY_YEAR_BOUNDS.max}
+                    step={1}
+                    value={solvency.fromYear}
+                    onChange={(e) =>
+                      onSolvencyChange({
+                        ...solvency,
+                        fromYear: clampToBounds(Number(e.target.value), SOLVENCY_YEAR_BOUNDS),
+                      })
+                    }
+                  />
+                  <label htmlFor="solvency-payable">Percent payable</label>
+                  <span className="solvency-percent">
+                    <input
+                      id="solvency-payable"
+                      type="number"
+                      min={SOLVENCY_PAYABLE_BOUNDS.min}
+                      max={SOLVENCY_PAYABLE_BOUNDS.max}
+                      step={1}
+                      value={solvency.payablePercent}
+                      onChange={(e) =>
+                        onSolvencyChange({
+                          ...solvency,
+                          payablePercent: clampToBounds(
+                            Number(e.target.value),
+                            SOLVENCY_PAYABLE_BOUNDS,
+                          ),
+                        })
+                      }
+                    />
+                    %
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn-reset-cola solvency-reset"
+                  onClick={() => onSolvencyChange(TRUSTEES_ASSUMPTION)}
+                  disabled={usingTrusteesProjection}
+                >
+                  Use the trustees’ projection
+                </button>
+                <span className="field-hint">
+                  {usingTrusteesProjection
+                    ? `The ${TRUSTEES_PROJECTION.report}’s own projection for the fund that ` +
+                      'pays retirement and survivor benefits. The report page attributes it ' +
+                      'to them.'
+                    : 'Your own assumption. The report page says so, and does not attribute ' +
+                      'it to the trustees.'}
+                </span>
+              </>
+            )}
           </div>
         </div>
       )}

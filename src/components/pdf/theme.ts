@@ -279,6 +279,27 @@ function buildStyles() {
     paddingLeft: 10,
     paddingVertical: 6,
   },
+  /**
+   * The strip that marks a page as a scenario an adviser switched on.
+   *
+   * Boxed on all four sides rather than ruled like `callout`, so it reads as
+   * a label on the page rather than as another remark inside it. Somebody
+   * flipping through the report has to be able to tell at a glance that this
+   * page prices something hypothetical.
+   */
+  scenarioBanner: {
+    borderWidth: 1,
+    borderColor: GOLD,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  scenarioBannerText: {
+    fontSize: 7.5,
+    letterSpacing: 0.7,
+    fontFamily: 'Helvetica-Bold',
+    color: GOLD_DARK,
+  },
   calloutText: { fontSize: 9.5, color: INK, lineHeight: 1.45 },
   winnerText: { fontFamily: 'Helvetica-Bold', color: GREEN },
   checkbox: {

@@ -77,7 +77,18 @@ const SPACE_BLURB: Record<'edge' | 'person' | 'prints', string> = {
  * dragged in from the palette goes where it was dropped, exactly as a row
  * dragged up the list does.
  */
-type Dragging = { kind: 'row'; index: number; label: string } | { kind: 'add'; id: ReportBlockId; label: string };
+type Dragging =
+  | { kind: 'row'; index: number; label: string }
+  | { kind: 'add'; id: ReportBlockId; label: string }
+  /**
+   * A page break or a space, which are not blocks and have no id.
+   *
+   * These were click-to-append only, which put them at the bottom of the
+   * report to be walked up — for the two items whose whole purpose is being
+   * at a particular position. They now drag like everything else beside
+   * them.
+   */
+  | { kind: 'mark'; item: LayoutItem; label: string };
 
 /** How far the pointer must travel before a press becomes a drag, in px. */
 const DRAG_THRESHOLD = 4;
@@ -163,11 +174,11 @@ export function ReportLayoutEditor({
     commit([...items, { kind: 'block', id }]);
   }, [items, commit]);
 
-  /** A block from the palette, dropped at a position rather than appended. */
-  const insertBlock = useCallback(
-    (id: ReportBlockId, at: number) => {
+  /** Anything from the palette, dropped at a position rather than appended. */
+  const insertAt = useCallback(
+    (item: LayoutItem, at: number) => {
       const next = [...items];
-      next.splice(Math.max(0, Math.min(at, next.length)), 0, { kind: 'block', id });
+      next.splice(Math.max(0, Math.min(at, next.length)), 0, item);
       commit(next);
     },
     [items, commit],
@@ -214,7 +225,11 @@ export function ReportLayoutEditor({
   const dropAt = useCallback(
     (item: Dragging, at: number) => {
       if (item.kind === 'add') {
-        insertBlock(item.id, at);
+        insertAt({ kind: 'block', id: item.id }, at);
+        return;
+      }
+      if (item.kind === 'mark') {
+        insertAt(item.item, at);
         return;
       }
       // `at` is an insertion point, so removing the row first shifts every
@@ -222,7 +237,7 @@ export function ReportLayoutEditor({
       const to = at > item.index ? at - 1 : at;
       move(item.index, to);
     },
-    [insertBlock, move],
+    [insertAt, move],
   );
 
   /**
@@ -282,7 +297,9 @@ export function ReportLayoutEditor({
     press.current = null;
     capture(e, false);
     if (drag !== null) dropAt(drag, overIndex ?? items.length);
+    // A press that never became a drag is still a click, which appends.
     else if (held?.item.kind === 'add') addBlock(held.item.id);
+    else if (held?.item.kind === 'mark') commit([...items, held.item.item]);
     setDrag(null);
     setOverIndex(null);
     setGhostAt(null);
@@ -332,6 +349,17 @@ export function ReportLayoutEditor({
   const addSpace = useCallback(() => {
     commit([...items, { kind: 'space' }]);
   }, [items, commit]);
+
+  /**
+   * The two items that are not blocks, as one list so the chips that add them
+   * cannot drift apart. `item()` is a factory rather than a constant: each
+   * drop needs its own object, and a shared one would put the same identity
+   * in the layout twice.
+   */
+  const MARKS: { label: string; item: () => LayoutItem; add: () => void }[] = [
+    { label: 'Page break', item: () => ({ kind: 'break' }), add: addBreak },
+    { label: 'Space', item: () => ({ kind: 'space' }), add: addSpace },
+  ];
 
   const onExport = useCallback(() => {
     const current: ReportLayout = { ...layout, items };
@@ -532,12 +560,33 @@ export function ReportLayoutEditor({
 
       <div className="layout-add">
         {wide && <h3 className="layout-add-heading">Not in this report</h3>}
-        <button type="button" className="layout-add-break" onClick={addBreak}>
-          + Page break
-        </button>
-        <button type="button" className="layout-add-break" onClick={addSpace}>
-          + Space
-        </button>
+        {/* Spans carrying the button role, for the reason the block chips
+            below give: a press on a real button is the browser's to
+            interpret, and the gesture here is a press that may become a
+            drag. Enter and Space still append, which is what a keyboard
+            has. */}
+        {MARKS.map((mark) => (
+          <span
+            key={mark.label}
+            role="button"
+            tabIndex={0}
+            className="layout-add-break"
+            onPointerDown={(e) =>
+              startPress(e, { kind: 'mark', item: mark.item(), label: mark.label })
+            }
+            onPointerMove={movePress}
+            onPointerUp={endPress}
+            onPointerCancel={cancelPress}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                mark.add();
+              }
+            }}
+          >
+            + {mark.label}
+          </span>
+        ))}
         {omitted.length > 0 && !wide && <span className="layout-add-label">Not included</span>}
         {/* Draggable as well as clickable. Clicking appends, which is right
             for a keyboard and the only thing a touch screen can do; dragging

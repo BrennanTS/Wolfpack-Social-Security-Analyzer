@@ -1,7 +1,11 @@
 import { Image, Text, View } from '@react-pdf/renderer';
 import type { HouseholdAnalysis } from '../../lib/household';
 import type { LongevitySensitivity } from '../../lib/longevity';
-import { TRUSTEES_PROJECTION, type SolvencySensitivity } from '../../lib/solvency';
+import {
+  TRUSTEES_PROJECTION,
+  type SolvencyAssumption,
+  type SolvencySensitivity,
+} from '../../lib/solvency';
 import { incomeChanges } from '../../lib/incomeChanges';
 import { dataVintageLine } from '../../lib/dataVintage';
 import { monthDateAt } from '../../lib/benefitPeriods';
@@ -44,9 +48,18 @@ function calendarAt(monthIndex: number): CalendarMonth {
 export function AnswerBlock({
   analysis,
   header,
+  solvency,
 }: {
   analysis: HouseholdAnalysis;
   header?: React.ReactNode;
+  /**
+   * The benefit reduction being priced, when this report prices one.
+   *
+   * Named here, on the page an adviser opens to check the answer, because
+   * that is where a scenario left switched on gets noticed. `ReportDocument`
+   * passes it only when the layout carries the page it refers to.
+   */
+  solvency?: SolvencyAssumption;
 }) {
   const people = analysis.people.map((p) => p.person);
   const names = people.map((p, i) => personLabel(p.name, i));
@@ -113,6 +126,13 @@ export function AnswerBlock({
         </View>
       </View>
 
+      {/* The same gold box the scenario's own page and the assumptions page
+          carry, so a reader learns the mark once and recognizes it. */}
+      {solvency !== undefined && (
+        <View style={[styles.scenarioBanner, { marginTop: 10, marginBottom: 0 }]} wrap={false}>
+          <Text style={styles.disclaimerText}>{copy.solvencyAnswerNote(solvency)}</Text>
+        </View>
+      )}
     </>
   );
 }
@@ -570,6 +590,11 @@ export function SolvencyBlock({ sensitivity }: { sensitivity: SolvencySensitivit
 
   return (
     <>
+      {/* Before the title, because a reader who has already started on the
+          figures has been told the wrong thing once. */}
+      <View style={styles.scenarioBanner} wrap={false}>
+        <Text style={styles.scenarioBannerText}>{copy.SOLVENCY_SCENARIO_BANNER}</Text>
+      </View>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.SOLVENCY_TITLE}</Text>
       <Text style={styles.sectionDesc}>
         {copy.solvencyIntro(TRUSTEES_PROJECTION, assumption)}

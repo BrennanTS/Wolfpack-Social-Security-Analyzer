@@ -191,6 +191,66 @@ export const ACTION_REVIEW_NOTE =
 export const SOLVENCY_TITLE = 'What if benefits are reduced';
 
 /**
+ * The strip above the title, marking the page as a scenario.
+ *
+ * This page is off unless an adviser switches it on, and it is the only page
+ * in the report that prices something that has not happened. It says so in
+ * its own words, on its own line, before the title — so nobody reaches the
+ * figures thinking they are being told what their benefit will be.
+ */
+export const SOLVENCY_SCENARIO_BANNER =
+  'OPTIONAL SCENARIO, TURNED ON FOR THIS REPORT';
+
+/** The same warning where a reviewer checks what was assumed. */
+export const SOLVENCY_SCENARIO_HEADING = 'OPTIONAL SCENARIO SWITCHED ON';
+
+/**
+ * The line on the answer page, where the reader's eye already is.
+ *
+ * Not on the cover, which is the page nobody reads twice, and not only on the
+ * scenario's own page, which announces itself to whoever reaches it and to
+ * nobody else. This is the page an adviser opens to check the answer, so it
+ * is where they will notice what they left switched on.
+ *
+ * Second clause first in importance: the headline figure beside it is at
+ * scheduled benefits, and a reader who half-remembers a reduction being
+ * mentioned must not wonder whether this number already carries one.
+ */
+export function solvencyAnswerNote(assumption: {
+  fromYear: number;
+  payablePercent: number;
+}): string {
+  return (
+    `An optional scenario is switched on: benefits reduced to ${assumption.payablePercent}% ` +
+    `of scheduled from ${assumption.fromYear}. It adds one page and changes nothing on this one.`
+  );
+}
+
+/**
+ * What the assumptions page says about the scenario.
+ *
+ * The banner on the page itself is unmissable to anyone who reaches that
+ * page, and useless to anyone who does not. This is the line for the reader
+ * who checks what was assumed rather than reading front to back: an adviser
+ * looking for what they left switched on, or a compliance reviewer asking
+ * whether a hypothetical leaked into the numbers.
+ *
+ * The second sentence is the one that matters. The fear a switched-on
+ * scenario creates is not that the extra page exists, it is that it moved
+ * everything else, and it does not.
+ */
+export function solvencyAssumptionNote(assumption: {
+  fromYear: number;
+  payablePercent: number;
+}): string {
+  return (
+    `This report prices a reduction to ${assumption.payablePercent}% of scheduled benefits ` +
+    `from ${assumption.fromYear}, on the “${SOLVENCY_TITLE}” page. Every other figure in ` +
+    'this report is at scheduled benefits, unchanged by it.'
+  );
+}
+
+/**
  * The question clients bring to the meeting, answered with their own numbers.
  *
  * Stated as the trustees state it and attributed to them, so a reader is

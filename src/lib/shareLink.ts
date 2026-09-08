@@ -15,7 +15,6 @@ import {
 } from './claimingRows';
 import { DEFAULT_TARGET_RANGE, MAX_TARGET_PERCENT, type TargetRange } from './gridTarget';
 import {
-  DEFAULT_SOLVENCY,
   SOLVENCY_PAYABLE_BOUNDS,
   SOLVENCY_YEAR_BOUNDS,
   type SolvencyAssumption,
@@ -451,10 +450,10 @@ export interface ViewExtras {
   /**
    * The benefit reduction the "what if benefits are reduced" page prices.
    *
-   * Travels because an adviser who moved it off the trustees' own projection
-   * has made a judgment, and a saved client or a shared link that quietly
-   * reverted it would price a different page from the one they were looking
-   * at. Absent means the default.
+   * Travels because switching it on is a judgment an adviser made, and a
+   * saved client or a shared link that quietly dropped it would open a
+   * different report from the one they were looking at. Absent means off,
+   * which is what almost every link says.
    */
   solvency?: SolvencyAssumption;
   /**
@@ -549,14 +548,12 @@ export function toViewParams(form: AnalyzerFormState, extras: ViewExtras): URLSe
   writePrefs(params, 'a', extras.claimingPrefs.a);
   if (form.maritalStatus === 'married') writePrefs(params, 'b', extras.claimingPrefs.b);
   // `2032-78`: the year benefits are reduced from, and the percent payable.
-  // Written only when it is not the trustees' own projection, so an ordinary
-  // link stays short and a changed one is visible in it.
+  // Present means the reduction scenario is ON, which is the whole of what
+  // the parameter says — an absent `sv` is the off state every link has
+  // unless an adviser switched the scenario on, and the figures beside it
+  // are meaningless while it is off.
   const solvency = extras.solvency;
-  if (
-    solvency !== undefined &&
-    (solvency.fromYear !== DEFAULT_SOLVENCY.fromYear ||
-      solvency.payablePercent !== DEFAULT_SOLVENCY.payablePercent)
-  ) {
+  if (solvency !== undefined && solvency.enabled) {
     params.set('sv', `${solvency.fromYear}-${solvency.payablePercent}`);
   }
   if (extras.themeId !== undefined) params.set('th', extras.themeId);
@@ -601,8 +598,8 @@ export function readViewExtras(params: URLSearchParams): ViewExtras {
  * `sv=2032-78`, dropped rather than clamped like every other field here.
  *
  * A reduction outside the bounds is not a plausible typo to be rescued, it is
- * a hand-edited link, and the trustees' own projection is a better answer
- * than a number nobody chose.
+ * a hand-edited link, and leaving the scenario off is a better answer than
+ * pricing a number nobody chose.
  */
 function readSolvency(params: URLSearchParams): SolvencyAssumption | null {
   const raw = params.get('sv');
@@ -613,7 +610,7 @@ function readSolvency(params: URLSearchParams): SolvencyAssumption | null {
   const payablePercent = Number(match[2]);
   if (!isInBounds(fromYear, SOLVENCY_YEAR_BOUNDS)) return null;
   if (!isInBounds(payablePercent, SOLVENCY_PAYABLE_BOUNDS)) return null;
-  return { fromYear, payablePercent };
+  return { enabled: true, fromYear, payablePercent };
 }
 
 export function buildShareUrl(

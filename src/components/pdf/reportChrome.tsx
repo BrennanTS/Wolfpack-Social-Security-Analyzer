@@ -19,6 +19,8 @@ import {
   spousalSummary,
 } from '../methodologyCopy';
 import { WIDOWED_MODELING_NOTE, WIDOWED_SURVIVOR_CARD } from '../widowedCopy';
+import { SOLVENCY_SCENARIO_HEADING, solvencyAssumptionNote } from './reportCopy';
+import type { SolvencyAssumption } from '../../lib/solvency';
 import { styles } from './theme';
 
 interface MethodItem {
@@ -208,7 +210,21 @@ export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, Meth
  * physical `<Page>`, and testing them apart is how they came to contradict
  * each other about survivor benefits.
  */
-export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis }) {
+export function MethodologyAppendix({
+  analysis,
+  solvency,
+}: {
+  analysis: HouseholdAnalysis;
+  /**
+   * The benefit reduction being priced, when one is.
+   *
+   * Passed only when this report actually carries the page it describes —
+   * `ReportDocument` checks the layout. An adviser who leaves the scenario on
+   * and hands over a layout without that page must not be told about a page
+   * that is not there.
+   */
+  solvency?: SolvencyAssumption;
+}) {
   // Exhaustive, and repeated here rather than left to `ReportDocument` alone
   // because this block is exported and rendered on its own by
   // `HouseholdSection.test.tsx`. See `householdDisplayShape`.
@@ -219,6 +235,16 @@ export function MethodologyAppendix({ analysis }: { analysis: HouseholdAnalysis 
   return (
     <>
       <Text style={styles.sectionTitle}>Methodology & Assumptions</Text>
+      {/* Above the grid, not inside it. A ninth card among eight is something
+          to be read past; the point of this one is that it stops you. */}
+      {solvency !== undefined && (
+        <View style={styles.scenarioBanner} wrap={false}>
+          <Text style={styles.scenarioBannerText}>{SOLVENCY_SCENARIO_HEADING}</Text>
+          <Text style={[styles.disclaimerText, { marginTop: 3 }]}>
+            {solvencyAssumptionNote(solvency)}
+          </Text>
+        </View>
+      )}
       {pairs.map((pair, i) => (
         <MethodPair key={i} left={pair[0]} right={pair[1]} />
       ))}

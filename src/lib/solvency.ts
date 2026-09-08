@@ -39,14 +39,42 @@ export const TRUSTEES_PROJECTION = {
 } as const;
 
 export interface SolvencyAssumption {
+  /**
+   * Whether the report prices a reduction at all.
+   *
+   * OFF unless an adviser turns it on, and that is a compliance position
+   * rather than a default. A page that prices a benefit cut is a claim about
+   * a client's future that nobody asked for, and it must never reach a
+   * client because it happened to be on. Everything downstream reads this
+   * one flag: `solvencySensitivity` returns null, the block renders nothing,
+   * and the link parameter is absent.
+   */
+  enabled: boolean;
   fromYear: number;
   payablePercent: number;
 }
 
+/** Off, with the trustees' figures ready for whenever it is switched on. */
 export const DEFAULT_SOLVENCY: SolvencyAssumption = {
+  enabled: false,
   fromYear: TRUSTEES_PROJECTION.fromYear,
   payablePercent: TRUSTEES_PROJECTION.payablePercent,
 };
+
+/** The trustees' own projection, switched on. What the reset button restores. */
+export const TRUSTEES_ASSUMPTION: SolvencyAssumption = {
+  enabled: true,
+  fromYear: TRUSTEES_PROJECTION.fromYear,
+  payablePercent: TRUSTEES_PROJECTION.payablePercent,
+};
+
+/** Whether an assumption still carries the trustees' own figures. */
+export function isTrusteesProjection(assumption: SolvencyAssumption): boolean {
+  return (
+    assumption.fromYear === TRUSTEES_PROJECTION.fromYear &&
+    assumption.payablePercent === TRUSTEES_PROJECTION.payablePercent
+  );
+}
 
 /** Bounds a stored or shared value has to fall inside to be honored. */
 export const SOLVENCY_YEAR_BOUNDS = { min: 2026, max: 2100 };
@@ -143,13 +171,15 @@ function cutShare(
  * The share is measured from the bands rather than by re-running the engine,
  * which has no concept of a benefit cut and cannot be given one.
  *
- * Null for a household with no strategies to compare, and for a payable
- * percentage of 100, where there is nothing to show.
+ * Null when the adviser has not switched the scenario on, for a household
+ * with no strategies to compare, and for a payable percentage of 100, where
+ * there is nothing to show.
  */
 export function solvencySensitivity(
   analysis: HouseholdAnalysis,
   assumption: SolvencyAssumption = DEFAULT_SOLVENCY,
 ): SolvencySensitivity | null {
+  if (!assumption.enabled) return null;
   if (analysis.comparisons.length === 0) return null;
   if (assumption.payablePercent >= 100) return null;
 

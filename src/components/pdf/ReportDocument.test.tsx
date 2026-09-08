@@ -13,6 +13,9 @@ import {
 } from '../../lib/reportLayout';
 import { setActiveReportTheme, styles } from './theme';
 import { DEFAULT_REPORT_THEME_ID, reportTheme } from '../../lib/reportTheme';
+import { solvencySensitivity, TRUSTEES_ASSUMPTION } from '../../lib/solvency';
+import { MethodologyAppendix } from './reportChrome';
+import * as copy from './reportCopy';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../public');
 
@@ -459,3 +462,109 @@ describe('ReportDocument composition', () => {
     expect(text).not.toContain('What if we are wrong');
   });
 });
+
+/**
+ * The benefit-reduction page, which is the one page an adviser switches on.
+ *
+ * Off by default, and off is a compliance position rather than a tidiness
+ * one: this page prices a cut that has not happened, and it must never reach
+ * a client because nobody noticed it was on. So the report says nothing at
+ * all while it is off, and says what it is, unmissably, while it is on.
+ */
+describe('ReportDocument — the benefit-reduction scenario', () => {
+  let married: HouseholdAnalysis;
+
+  beforeAll(async () => {
+    married = await analyzeHousehold({ status: 'married', people: [john, jane] }, assumptions, asOf);
+  });
+
+  it('prints nothing for it when the adviser has not switched it on', () => {
+    // The adviser layout carries the block; the block carries no page.
+    const text = collectText(
+      ReportDocument({ analysis: married, layout: ADVISER_LAYOUT, solvency: null }),
+    ).join(' ');
+    expect(text).not.toContain(copy.SOLVENCY_TITLE);
+    expect(text).not.toContain(copy.SOLVENCY_SCENARIO_BANNER);
+  });
+
+  it('names the scenario on the answer page, beside the figure it did not change', () => {
+    // The page an adviser opens to check the answer is where they notice
+    // what they left switched on. The cover is the page nobody reads twice.
+    const solvency = solvencySensitivity(married, TRUSTEES_ASSUMPTION);
+    const text = collectText(
+      ReportDocument({ analysis: married, layout: ADVISER_LAYOUT, solvency }),
+    ).join(' ');
+    expect(text).toContain('An optional scenario is switched on');
+    expect(text).toContain('changes nothing on this one');
+  });
+
+  it('says so on the assumptions page too, where a reviewer looks', () => {
+    // Called directly: the appendix travels to the page as a PROP rather than
+    // as children (see `buildMethodPairs`), so a text walk over the document
+    // cannot reach inside it.
+    const text = collectText(
+      MethodologyAppendix({ analysis: married, solvency: TRUSTEES_ASSUMPTION }),
+    ).join(' ');
+    expect(text).toContain(copy.SOLVENCY_SCENARIO_HEADING);
+    // The sentence that answers the actual worry: it did not move anything
+    // else.
+    expect(text).toContain('Every other figure in this report is at scheduled benefits');
+    expect(collectText(MethodologyAppendix({ analysis: married })).join(' ')).not.toContain(
+      copy.SOLVENCY_SCENARIO_HEADING,
+    );
+  });
+
+  it('tells the assumptions page nothing on a layout without the reduction page', () => {
+    // An adviser can leave the reduction switched on and hand over the client
+    // layout, which has no such page. Telling that reader a scenario is on
+    // sends them looking for a page that is not there.
+    //
+    // Asserted on the prop the document hands the appendix, for the same
+    // reason the test above calls the appendix directly.
+    const solvency = solvencySensitivity(married, TRUSTEES_ASSUMPTION);
+    const passed = (layout: ReportLayout) =>
+      appendixProps(ReportDocument({ analysis: married, layout, solvency }))?.solvency;
+
+    const noBlock: ReportLayout = {
+      id: 'x',
+      name: 'No solvency block',
+      items: [{ kind: 'block', id: 'answer' }, { kind: 'block', id: 'methodology' }],
+    };
+    expect(passed(noBlock)).toBeUndefined();
+    expect(passed(ADVISER_LAYOUT)).toEqual(TRUSTEES_ASSUMPTION);
+  });
+
+  it('marks the page as a scenario, above its own title', () => {
+    const solvency = solvencySensitivity(married, TRUSTEES_ASSUMPTION);
+    expect(solvency).not.toBeNull();
+    const text = collectText(
+      ReportDocument({ analysis: married, layout: ADVISER_LAYOUT, solvency }),
+    ).join(' ');
+    expect(text).toContain(copy.SOLVENCY_SCENARIO_BANNER);
+    // Above, not below: a reader who has reached the figures has already been
+    // told the wrong thing once.
+    expect(text.indexOf(copy.SOLVENCY_SCENARIO_BANNER)).toBeLessThan(
+      text.indexOf(copy.SOLVENCY_TITLE),
+    );
+  });
+});
+
+/** The props `ReportDocument` hands `MethodologyAppendix`, or null. */
+function appendixProps(
+  node: unknown,
+): { solvency?: { fromYear: number; payablePercent: number } } | null {
+  let found: { solvency?: { fromYear: number; payablePercent: number } } | null = null;
+  const walk = (n: unknown): void => {
+    if (found !== null) return;
+    if (Array.isArray(n)) return void n.forEach(walk);
+    if (n === null || typeof n !== 'object') return;
+    const el = n as { type?: unknown; props?: Record<string, unknown> };
+    if (el.type === MethodologyAppendix) {
+      found = el.props as { solvency?: { fromYear: number; payablePercent: number } };
+      return;
+    }
+    if (el.props !== undefined) Object.values(el.props).forEach(walk);
+  };
+  walk(node);
+  return found;
+}

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { COLA_BOUNDS } from '../lib/formBounds';
-import { DEFAULT_SOLVENCY } from '../lib/solvency';
+import { DEFAULT_SOLVENCY, TRUSTEES_ASSUMPTION } from '../lib/solvency';
 import { fromShareParams, toShareParams } from '../lib/shareLink';
 import { BLANK_FORM } from '../lib/formState';
 
@@ -218,6 +218,47 @@ describe('AssumptionsPanel per-person life expectancy', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: /Use SSA age \(86\)/ }));
     expect(onChangeB).toHaveBeenCalledWith(86);
+  });
+});
+
+describe('AssumptionsPanel benefit-reduction scenario', () => {
+  it('is off in the panel until it is switched on, and hides its figures until then', () => {
+    renderPanel();
+    expect(screen.getByLabelText('Price a benefit reduction')).not.toBeChecked();
+    // The year and percent are meaningless while the scenario is off, and a
+    // pair of live-looking number fields reads as a setting that is in force.
+    expect(screen.queryByLabelText('Reduced from')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Percent payable')).not.toBeInTheDocument();
+  });
+
+  it('shows the year and the percent once it is on', () => {
+    renderPanel({ solvency: TRUSTEES_ASSUMPTION });
+    expect(screen.getByLabelText('Price a benefit reduction')).toBeChecked();
+    expect(screen.getByLabelText('Reduced from')).toHaveValue(2032);
+    expect(screen.getByLabelText('Percent payable')).toHaveValue(78);
+  });
+
+  it('switches on without losing the figures already typed', async () => {
+    const onSolvencyChange = vi.fn();
+    renderPanel({
+      solvency: { enabled: false, fromYear: 2040, payablePercent: 90 },
+      onSolvencyChange,
+    });
+    await userEvent.click(screen.getByLabelText('Price a benefit reduction'));
+    expect(onSolvencyChange).toHaveBeenCalledWith({
+      enabled: true,
+      fromYear: 2040,
+      payablePercent: 90,
+    });
+  });
+
+  it('flags the scenario where the panel is shut, not only inside it', () => {
+    // The scenario adds a page to the exported report. An adviser must never
+    // learn that it was on from the PDF they have already sent.
+    renderPanel({ solvency: TRUSTEES_ASSUMPTION, expanded: false });
+    expect(screen.getByTestId('solvency-flag')).toBeInTheDocument();
+    renderPanel({ expanded: false });
+    expect(screen.queryAllByTestId('solvency-flag')).toHaveLength(1);
   });
 });
 

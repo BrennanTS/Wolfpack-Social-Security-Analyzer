@@ -191,7 +191,10 @@ export function ReportDocument({
       case 'disclosure':
         return DisclosureBlock();
       case 'answer':
-        return AnswerBlock({ analysis });
+        return AnswerBlock({
+          analysis,
+          solvency: pricesReduction ? solvency?.assumption : undefined,
+        });
       case 'changes':
         return ChangesBlock({ analysis });
       case 'survivor':
@@ -211,13 +214,25 @@ export function ReportDocument({
       case 'terms':
         return TermsBlock({ analysis });
       case 'methodology':
-        return MethodologyBlock({ appendix: <MethodologyAppendix analysis={analysis} /> });
+        return MethodologyBlock({
+          appendix: (
+            <MethodologyAppendix
+              analysis={analysis}
+              solvency={pricesReduction ? solvency?.assumption : undefined}
+            />
+          ),
+        });
       default:
         return null;
     }
   };
 
   const runs = layoutRuns(layout, shape);
+  // Whether this report really carries the reduction page: the adviser has
+  // the scenario on AND the chosen layout places the block. Read by the
+  // assumptions page, which says a scenario is on — a claim it must not make
+  // about a page the reader cannot turn to.
+  const pricesReduction = Boolean(solvency) && runs.some((run) => run.includes('solvency'));
   // The document title goes on the first sheet that is not a cover: a cover
   // already carries the title, and printing it twice on one page reads as a
   // template nobody finished.

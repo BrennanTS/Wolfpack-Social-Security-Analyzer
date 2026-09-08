@@ -10,7 +10,7 @@ import {
   BLANK_VIEW_EXTRAS,
 } from './shareLink';
 import { DEFAULT_TARGET_RANGE } from './gridTarget';
-import { DEFAULT_SOLVENCY } from './solvency';
+import { DEFAULT_SOLVENCY, TRUSTEES_ASSUMPTION } from './solvency';
 import {
   addScenario,
   DEFAULT_SCENARIO_SET,
@@ -567,18 +567,30 @@ describe('the rest of the view', () => {
     expect(params.get('gt')).toBeNull();
   });
 
-  it('carries a benefit reduction the adviser chose, and stays quiet about the default', () => {
-    // An ordinary link keeps no `sv` at all; one where the adviser moved off
-    // the trustees' projection says so, because the page prices differently.
-    const asTrustees = toViewParams(complete(), { ...BLANK_VIEW_EXTRAS, solvency: DEFAULT_SOLVENCY });
-    expect(asTrustees.get('sv')).toBeNull();
+  it('carries the reduction scenario only while it is switched on', () => {
+    // The parameter's presence IS the on switch. An adviser who never touched
+    // the scenario shares a link that cannot turn it on for the recipient,
+    // and one who did shares the figures they were looking at.
+    const off = toViewParams(complete(), { ...BLANK_VIEW_EXTRAS, solvency: DEFAULT_SOLVENCY });
+    expect(off.get('sv')).toBeNull();
+    expect(readViewExtras(off).solvency).toBeUndefined();
+
+    const trustees = toViewParams(complete(), {
+      ...BLANK_VIEW_EXTRAS,
+      solvency: TRUSTEES_ASSUMPTION,
+    });
+    expect(trustees.get('sv')).toBe('2032-78');
 
     const chosen = toViewParams(complete(), {
       ...BLANK_VIEW_EXTRAS,
-      solvency: { fromYear: 2040, payablePercent: 90 },
+      solvency: { enabled: true, fromYear: 2040, payablePercent: 90 },
     });
     expect(chosen.get('sv')).toBe('2040-90');
-    expect(readViewExtras(chosen).solvency).toEqual({ fromYear: 2040, payablePercent: 90 });
+    expect(readViewExtras(chosen).solvency).toEqual({
+      enabled: true,
+      fromYear: 2040,
+      payablePercent: 90,
+    });
   });
 
   it('drops a reduction that is not one, rather than pricing a number nobody chose', () => {
