@@ -133,6 +133,8 @@ interface FixtureScenario {
   mode: string;
   inputs: {
     asOf: string;
+    /** Read only to exclude widowed households from the pin list below. */
+    status: 'single' | 'married' | 'widowed';
     // `piaMonthly`, which is what the fixture calls it — NOT `monthlyBenefit`.
     // The first draft used the latter; with the tests now type-checked that
     // was a compile error rather than 24 pins silently comparing against a
@@ -178,8 +180,15 @@ describe('the vendored optimizer is unchanged', () => {
   it('pins every full non-widowed scenario, so none can be quietly dropped', () => {
     // Without this, deleting a `PINS` entry would look identical to a passing
     // run — the per-scenario tests below simply would not exist.
+    // Widowed households are excluded because they are optimized by
+    // bestWidowedOutcome's two-date search, not by the expectedNPVSingle /
+    // expectedNPVCoupleOptimized entry points this file pins. Filter on the
+    // STATUS, not on an `widowed-` id prefix: a widowed fixture named
+    // anything else (e.g. the sample-hh5/hh15 RIB-LIM pair) slipped through
+    // the prefix form and was demanded here, where engineAgesFor cannot even
+    // compute an answer for it.
     const expected = allScenarios
-      .filter((s) => s.mode === 'full' && !s.id.startsWith('widowed-'))
+      .filter((s) => s.mode === 'full' && s.inputs.status !== 'widowed')
       .map((s) => s.id)
       .sort();
     expect(PINS.map((p) => p.id).sort()).toEqual(expected);

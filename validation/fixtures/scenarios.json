@@ -2879,6 +2879,244 @@
       }
     },
     {
+      "id": "sample-hh5-widowed-1961-deceased-filed-at-fra",
+      "description": "Sample HH5: survivor May 1961 F own PIA $1,500 (FRA 67y0m, survivor-FRA 66y10m), plan-to 90; deceased spouse born Mar 1956, own PIA $2,600, died Mar 2023 aged 67 having filed AT his FRA of 66y4m (Mar 1956 + 66y4m = Jul 2022). The CSV's stated facts fix every input here: 'died 03/2023 at 67' gives the Mar 1956 birth month, and 'had claimed at FRA (no reduction)' gives the Jul 2022 filing month via the 1956 cohort's 66y4m FRA. NO RIB-LIM: because he filed at FRA his own benefit equalled his PIA, so the widow(er)'s limit floor of 82.5% x $2,600 = $2,145 sits BELOW it and never binds; the survivor is paid the full $2,600 (her own $1,266 at her recommended 64y8m filing, plus a survivor top-up of $1,334). This is the control half of the HH5/HH15 pair - see sample-hh15-widowed-1961-riblim-deceased-filed-early, which holds every other input the same and moves only his filing age. ENGINE-RECORDED (read off analyzeHousehold's real output at asOf 2026-01-15, exactly as recommendedFilingAgeByPerson is elsewhere in this file, never hand-picked): own filing age 64y8m, survivor claim age 66y10m (her survivor-FRA, where the survivor benefit stops being reduced and gains nothing by waiting - a survivor benefit earns no delayed credits), straight-sum lifetimeTotal over her plan-to-90 remaining lifetime from max(asOf, death + 1) = Jan 2026 of $758,316. The $125,895 by which this exceeds HH15's $632,421 is the whole value of the floor NOT binding here: $2,600 - $2,145 = $455/month over the ~23 years she collects. Never re-record either total to make the suite pass - the gap between them IS the RIB-LIM behaviour this pair exists to pin.",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "widowed",
+        "people": [
+          {
+            "birthYear": 1961,
+            "birthMonth": 5,
+            "gender": "female",
+            "piaMonthly": 1500,
+            "lifeExpectancy": 90
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025,
+        "deceased": {
+          "birthYear": 1956,
+          "birthMonth": 3,
+          "deathYear": 2023,
+          "deathMonth": 3,
+          "record": {
+            "kind": "pia",
+            "piaMonthly": 2600,
+            "filed": {
+              "year": 2022,
+              "month": 7
+            }
+          }
+        },
+        "alreadyClaimed": {
+          "survivorSince": null,
+          "ownSince": null
+        }
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1050,
+            "63": 1125,
+            "64": 1200,
+            "65": 1300,
+            "66": 1400,
+            "67": 1500,
+            "68": 1620,
+            "69": 1740,
+            "70": 1860
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
+        "spousalTopUpAtFilingAge": null,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 64,
+            "months": 8
+          }
+        ],
+        "survivorClaim": null,
+        "recommendedOwnFilingAge": "64 years, 8 months",
+        "recommendedSurvivorClaimAge": "66 years, 10 months",
+        "lifetimeTotal": 758316,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": false,
+        "assertSummaryCards": false
+      }
+    },
+    {
+      "id": "sample-hh15-widowed-1961-riblim-deceased-filed-early",
+      "description": "Sample HH15: survivor Jun 1961 F own PIA $1,500 (FRA 67y0m, survivor-FRA 66y10m), plan-to 90; deceased spouse born Jan 1960 (FRA 67y0m), own PIA $2,600, filed at exactly 62 (Jan 1960 + 62y = Jan 2022) and died Mar 2023 aged 63. The deceased's birth year is pinned by the CSV's own stated figure rather than chosen freely: 'reduced to roughly $1,820' is 70% of $2,600, and 70% is the reduction for filing a full 60 months early, which requires an FRA of exactly 67 - so the 1960 cohort, not the 1956 one HH5 uses. The engine computes $1,819 (floor(2600 x 0.70) after its cent rounding), matching the CSV's 'roughly $1,820'. RIB-LIM BINDS - the point of the case: his own reduced $1,819 is BELOW the widow(er)'s limit floor of 82.5% x $2,600 = $2,145, so the floor wins and the survivor is paid $2,145 (her own $1,258 at her recommended 64y7m filing, plus a survivor top-up of $887; 1258 + 887 = 2145 = 0.825 x 2600 exactly). She therefore collects MORE than he was ever receiving, which is the counter-intuitive result src/lib/benefitPeriods.ts's SurvivorFloor comment describes and the engine implements at benefit-calculator.ts:484-497. NOTE that the app-layer SurvivorFloor FLAG is null here even though the floor binds: that flag exists to annotate a chart where the survivor's block rises above the deceased's own band, and a widowed household has no deceased band to rise above (he died before asOf), so the flag is structurally null for every widowed scenario. The floor is pinned here through the AMOUNTS instead, via lifetimeTotal. ENGINE-RECORDED (read off analyzeHousehold's real output at asOf 2026-01-15, never hand-picked): own filing age 64y7m, survivor claim age 66y10m (her survivor-FRA), straight-sum lifetimeTotal from max(asOf, death + 1) = Jan 2026 of $632,421 - $125,895 less than sample-hh5-widowed-1961-deceased-filed-at-fra's $758,316, which is exactly the $455/month the floor costs her relative to a deceased who had filed at FRA, over the ~23 years she collects. Never re-record either total to make the suite pass.",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "widowed",
+        "people": [
+          {
+            "birthYear": 1961,
+            "birthMonth": 6,
+            "gender": "female",
+            "piaMonthly": 1500,
+            "lifeExpectancy": 90
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025,
+        "deceased": {
+          "birthYear": 1960,
+          "birthMonth": 1,
+          "deathYear": 2023,
+          "deathMonth": 3,
+          "record": {
+            "kind": "pia",
+            "piaMonthly": 2600,
+            "filed": {
+              "year": 2022,
+              "month": 1
+            }
+          }
+        },
+        "alreadyClaimed": {
+          "survivorSince": null,
+          "ownSince": null
+        }
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1050,
+            "63": 1125,
+            "64": 1200,
+            "65": 1300,
+            "66": 1400,
+            "67": 1500,
+            "68": 1620,
+            "69": 1740,
+            "70": 1860
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
+        "spousalTopUpAtFilingAge": null,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 64,
+            "months": 7
+          }
+        ],
+        "survivorClaim": null,
+        "recommendedOwnFilingAge": "64 years, 7 months",
+        "recommendedSurvivorClaimAge": "66 years, 10 months",
+        "lifetimeTotal": 632421,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": false,
+        "assertSummaryCards": false
+      }
+    },
+    {
       "id": "single-1943-fra66-pia2000",
       "description": "Born May 1943, FRA 66, PIA $2,000, male - earliest full-8%-DRC / FRA-66 cohort",
       "mode": "factorsOnly",
