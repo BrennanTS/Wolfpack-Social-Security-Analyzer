@@ -1,6 +1,7 @@
 import type { BandType, BenefitBand } from './benefitPeriods';
 import { yearsMonthsLabel } from './format';
 import type { Person } from './personAnalysis';
+import { ssaBirthMonth } from './ssaTools';
 
 /**
  * A widow(er)'s income as the STAGES they will actually live through, derived
@@ -35,14 +36,20 @@ export interface WidowedStage {
 /**
  * The person's age at an absolute month index, as a label.
  *
- * Plain month arithmetic rather than the engine's `ageAtSsaDate`. Every
- * recipient this app builds shares one birth day (`DEFAULT_BIRTH_DAY`), so no
- * SSA day-of-month adjustment can separate the two — verified against
- * `survivorClaimDate.age`, which does go through the engine, on the households
- * that produce both.
+ * Plain month arithmetic rather than the engine's `ageAtSsaDate`, but on the
+ * SSA month rather than the calendar one — these are the ages a benefit is
+ * paid at, and SSA attains an age the day before the birthday.
+ *
+ * The note here used to say the two could not differ, because every
+ * recipient the app built shared one birth day. That stopped being true the
+ * moment the day became an input: a survivor born on the 1st attains every
+ * age a month earlier than this used to say, while `survivorClaimDate.age`
+ * (which goes through the engine) moved with them. `ssaBirthMonth` is what
+ * keeps the two agreeing now.
  */
 function ageLabelAt(person: Person, monthIndex: number): string {
-  const months = monthIndex - (person.birthYear * 12 + person.birthMonth - 1);
+  const ssa = ssaBirthMonth(person.birthYear, person.birthMonth, person.birthDay);
+  const months = monthIndex - (ssa.year * 12 + ssa.month - 1);
   const years = Math.floor(months / 12);
   const rest = months % 12;
   return rest === 0 ? String(years) : yearsMonthsLabel(years, rest);

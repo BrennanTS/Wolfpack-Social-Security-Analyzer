@@ -81,6 +81,10 @@ function personAt(r: () => number, id: 'a' | 'b'): Person {
     name: id === 'a' ? 'Alpha' : 'Beta',
     birthYear: pick(r, BIRTH_YEARS),
     birthMonth: between(r, 1, 12),
+    // The 1st is the one day SSA treats differently, so the sweep draws it
+    // deliberately rather than leaving it to a 1-in-31 chance of never being
+    // generated at all. Every other day behaves like the 15th.
+    birthDay: r() < 0.15 ? 1 : 15,
     gender: pick(r, GENDERS),
     piaMonthly: pick(r, PIAS),
     lifeExpectancy: pick(r, LIFE_EXPECTANCIES),
@@ -243,6 +247,7 @@ export function widowedHouseholdAt(index: number): SweepHousehold {
   const deceased: Deceased = {
     birthYear: decBirth.year,
     birthMonth: decBirth.month,
+    birthDay: r() < 0.15 ? 1 : 15,
     deathYear: death.year,
     deathMonth: death.month,
     record,

@@ -23,7 +23,7 @@ const widow: Person = {
   id: 'a',
   name: 'Widow',
   birthYear: 1964,
-  birthMonth: 6,
+  birthMonth: 6, birthDay: 15,
   gender: 'female',
   piaMonthly: 1200,
   lifeExpectancy: 92,
@@ -32,7 +32,7 @@ const widow: Person = {
 /** Husband born Mar 1960, PIA $3,000, died Mar 2024 having never filed. */
 const husband: Deceased = {
   birthYear: 1960,
-  birthMonth: 3,
+  birthMonth: 3, birthDay: 15,
   deathYear: 2024,
   deathMonth: 3,
   record: { kind: 'pia', piaMonthly: 3000, filed: null },
@@ -73,7 +73,7 @@ const divergentFraCase: WidowedInput = {
 describe('widowedSearchRanges', () => {
   it('starts the survivor range at max(asOf, death + 1, SSA age 60)', () => {
     const { survivor } = widowedSearchRanges(free);
-    const recipient = createPiaRecipient(1964, 6, 1200, 'female');
+    const recipient = createPiaRecipient(1964, 6, 15, 1200, 'female');
     const age60 = monthIndexOf(
       recipient.birthdate.dateAtSsaAge(MonthDuration.initFromYearsMonths({ years: 60, months: 0 })),
     );
@@ -116,6 +116,7 @@ describe('widowedSearchRanges', () => {
       const recipient = createPiaRecipient(
         input.survivor.birthYear,
         input.survivor.birthMonth,
+        input.survivor.birthDay,
         input.survivor.piaMonthly,
         input.survivor.gender,
       );
@@ -137,7 +138,7 @@ describe('widowedSearchRanges', () => {
     // age60)" from "max(asOf, death+1)".
     const youngWidow: Person = { ...widow, birthYear: 1970 };
     const { survivor } = widowedSearchRanges({ ...free, survivor: youngWidow });
-    const recipient = createPiaRecipient(1970, 6, 1200, 'female');
+    const recipient = createPiaRecipient(1970, 6, 15, 1200, 'female');
     const age60 = monthIndexOf(
       recipient.birthdate.dateAtSsaAge(MonthDuration.initFromYearsMonths({ years: 60, months: 0 })),
     );
@@ -160,7 +161,7 @@ describe('widowedSearchRanges', () => {
 
   it('ends the survivor range at survivor-FRA, not at retirement FRA', () => {
     const { survivor } = widowedSearchRanges(free);
-    const recipient = createPiaRecipient(1964, 6, 1200, 'female');
+    const recipient = createPiaRecipient(1964, 6, 15, 1200, 'female');
     expect(survivor[1]).toBe(monthIndexOf(recipient.survivorNormalRetirementDate()));
   });
 
@@ -172,7 +173,7 @@ describe('widowedSearchRanges', () => {
     // `Recipient` methods. Swapping `survivorNormalRetirementDate()` for
     // `normalRetirementDate()` at the call site in widowed.ts must fail this.
     const { survivor } = widowedSearchRanges(divergentFraCase);
-    const recipient = createPiaRecipient(1961, 6, 1200, 'female');
+    const recipient = createPiaRecipient(1961, 6, 15, 1200, 'female');
     expect(survivor[1]).toBe(monthIndexOf(recipient.survivorNormalRetirementDate()));
     expect(survivor[1]).not.toBe(monthIndexOf(recipient.normalRetirementDate()));
   });
@@ -182,7 +183,7 @@ describe('widowedSearchRanges', () => {
     // computed from a hardcoded {years: 62, months: 0} is the defect that has
     // kept the `earliest` comparison row from ever rendering.
     const { own } = widowedSearchRanges(free);
-    const recipient = createPiaRecipient(1964, 6, 1200, 'female');
+    const recipient = createPiaRecipient(1964, 6, 15, 1200, 'female');
     const exact62 = monthIndexOf(
       recipient.birthdate.dateAtSsaAge(MonthDuration.initFromYearsMonths({ years: 62, months: 0 })),
     );
@@ -388,6 +389,7 @@ function expectedMax(input: WidowedInput, outcome: WidowedOutcome, m: number): n
   const recipient = createPiaRecipient(
     input.survivor.birthYear,
     input.survivor.birthMonth,
+    input.survivor.birthDay,
     input.survivor.piaMonthly,
     input.survivor.gender,
   );

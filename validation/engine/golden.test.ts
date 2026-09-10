@@ -62,6 +62,11 @@ function toHousehold(inputs: ScenarioInputs): Household {
     name: p.name,
     birthYear: p.birthYear,
     birthMonth: p.birthMonth,
+    // The fixtures predate the birth-day field and record values produced
+    // with `DEFAULT_BIRTH_DAY`. 15 reproduces them exactly; any other day but
+    // the 1st would too, and the 1st would move every date. A fixture that
+    // wants day-1 coverage sets it explicitly.
+    birthDay: p.birthDay ?? 15,
     gender: p.gender,
     piaMonthly: p.piaMonthly,
     lifeExpectancy: p.lifeExpectancy,
@@ -78,7 +83,10 @@ function toHousehold(inputs: ScenarioInputs): Household {
     return {
       status: 'widowed',
       people: [people[0]],
-      deceased: inputs.deceased,
+      // Same reason the people get 15: these fixtures were recorded before
+      // the day existed, and filling it here rather than editing the
+      // fixture file keeps the recorded inputs untouched.
+      deceased: { ...inputs.deceased, birthDay: 15 },
       alreadyClaimed: inputs.alreadyClaimed,
     };
   }
@@ -558,7 +566,7 @@ describe.each(widowedScenarios)('golden scenario (widowed): $id', (scenario) => 
 describe.each(factorScenarios)('golden scenario (factors only): $id', (scenario) => {
   const person = scenario.inputs.people[0];
   const recipient = () =>
-    createPiaRecipient(person.birthYear, person.birthMonth, person.piaMonthly, person.gender);
+    createPiaRecipient(person.birthYear, person.birthMonth, 15, person.piaMonthly, person.gender);
 
   const claimAges = Object.keys(scenario.expected.monthlyByClaimAgeByPerson[0]).map(Number);
 

@@ -36,6 +36,13 @@ export interface Deceased {
   birthYear: number;
   /** 1-12. */
   birthMonth: number;
+  /**
+   * Day of the month, 1-31. Carried for the same reason the survivor's is
+   * (see `Person.birthDay`), and it is not decorative here: the deceased's
+   * full retirement age decides whether they filed early, which decides
+   * whether the widow's limit applies and at what figure.
+   */
+  birthDay: number;
   deathYear: number;
   /** 1-12. */
   deathMonth: number;
@@ -56,7 +63,7 @@ function benefitFor(
   piaMonthly: number,
   filingDate: MonthDate,
 ): number {
-  const recipient = createPiaRecipient(d.birthYear, d.birthMonth, piaMonthly, 'male');
+  const recipient = createPiaRecipient(d.birthYear, d.birthMonth, d.birthDay, piaMonthly, 'male');
   return benefitOnDate(
     recipient,
     filingDate,
@@ -164,7 +171,7 @@ export function deceasedContext(d: Deceased): {
         : monthDateOf(d.record.filed);
 
   return {
-    recipient: createPiaRecipient(d.birthYear, d.birthMonth, piaMonthly, 'male'),
+    recipient: createPiaRecipient(d.birthYear, d.birthMonth, d.birthDay, piaMonthly, 'male'),
     filingDate,
     deathDate,
     piaEstimated: estimated,

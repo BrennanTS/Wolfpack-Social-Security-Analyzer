@@ -32,7 +32,7 @@ afterAll(() => vi.unstubAllGlobals());
 
 const asOf = new Date(2026, 0, 15);
 const john: Person = {
-  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
 
@@ -183,7 +183,7 @@ describe('the recipient the added row is priced with', () => {
     // itself: someone born in 1958 has an FRA of 66 years 8 months, and a
     // benefit taken exactly at FRA is 100% of PIA by definition. A recipient
     // built with a different birth day, month or gender would not land on it.
-    const born1958: Person = { ...john, birthYear: 1958, birthMonth: 3 };
+    const born1958: Person = { ...john, birthYear: 1958, birthMonth: 3, birthDay: 15 };
     const own = analyzePerson(
       born1958,
       formatFilingAge(MonthDuration.initFromYearsMonths({ years: 70, months: 0 })),

@@ -273,11 +273,11 @@ describe('the printed spousal sentence, over real households', () => {
   };
 
   const john: Person = {
-    id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+    id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
     gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
   };
   const jane: Person = {
-    id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
+    id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2, birthDay: 15,
     gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
   };
 
@@ -297,11 +297,11 @@ describe('the printed spousal sentence, over real households', () => {
     // start. Before the absence was modeled as null this printed
     // "beginning at age — — the later of…".
     const young: Person = {
-      id: 'a', name: 'Avery', birthYear: 1976, birthMonth: 6,
+      id: 'a', name: 'Avery', birthYear: 1976, birthMonth: 6, birthDay: 15,
       gender: 'male', piaMonthly: 3000, lifeExpectancy: 85,
     };
     const old: Person = {
-      id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 6,
+      id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 6, birthDay: 15,
       gender: 'female', piaMonthly: 500, lifeExpectancy: 75,
     };
     const analysis = await analyzeHousehold(
@@ -331,11 +331,11 @@ describe('the printed spousal sentence, over real households', () => {
     // file, and Blythe is alive and collecting survivor benefits, so any
     // sentence blaming a missing filing is untrue here.
     const avery: Person = {
-      id: 'a', name: 'Avery', birthYear: 1958, birthMonth: 6,
+      id: 'a', name: 'Avery', birthYear: 1958, birthMonth: 6, birthDay: 15,
       gender: 'male', piaMonthly: 3000, lifeExpectancy: 75,
     };
     const blythe: Person = {
-      id: 'b', name: 'Blythe', birthYear: 1975, birthMonth: 6,
+      id: 'b', name: 'Blythe', birthYear: 1975, birthMonth: 6, birthDay: 15,
       gender: 'female', piaMonthly: 500, lifeExpectancy: 90,
     };
     const analysis = await analyzeHousehold(
@@ -395,11 +395,11 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
   const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
   const equalA: Person = {
-    id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+    id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
     gender: 'male', piaMonthly: 2200, lifeExpectancy: 85,
   };
   const equalB: Person = {
-    id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
+    id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2, birthDay: 15,
     gender: 'female', piaMonthly: 2200, lifeExpectancy: 88,
   };
 
@@ -1088,11 +1088,11 @@ describe('the survivor-gap note over real households', () => {
     // plan-to age belongs to the person who nonetheless outlives the other,
     // because Blake is eleven years older.
     const avery: Person = {
-      id: 'a', name: 'Avery', birthYear: 1975, birthMonth: 1,
+      id: 'a', name: 'Avery', birthYear: 1975, birthMonth: 1, birthDay: 15,
       gender: 'male', piaMonthly: 3000, lifeExpectancy: 72,
     };
     const blake: Person = {
-      id: 'b', name: 'Blake', birthYear: 1962, birthMonth: 12,
+      id: 'b', name: 'Blake', birthYear: 1962, birthMonth: 12, birthDay: 15,
       gender: 'female', piaMonthly: 2400, lifeExpectancy: 84,
     };
     const analysis = await run(avery, blake);
@@ -1120,11 +1120,11 @@ describe('the survivor-gap note over real households', () => {
     // last band pays, in the present tense, while the chart beneath showed him
     // at $0 for those years.
     const avery: Person = {
-      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
+      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3, birthDay: 15,
       gender: 'female', piaMonthly: 1500, lifeExpectancy: 75,
     };
     const blake: Person = {
-      id: 'b', name: 'Blake', birthYear: 1970, birthMonth: 9,
+      id: 'b', name: 'Blake', birthYear: 1970, birthMonth: 9, birthDay: 15,
       gender: 'male', piaMonthly: 1600, lifeExpectancy: 100,
     };
     const analysis = await run(avery, blake);
@@ -1153,11 +1153,11 @@ describe('the survivor-gap note over real households', () => {
     // benefit is payable to anyone under 60, so the chart's $0 is correct for
     // those years — the old note asserted an immediate permanent shortfall.
     const avery: Person = {
-      id: 'a', name: 'Avery', birthYear: 1956, birthMonth: 6,
+      id: 'a', name: 'Avery', birthYear: 1956, birthMonth: 6, birthDay: 15,
       gender: 'female', piaMonthly: 1600, lifeExpectancy: 76,
     };
     const blake: Person = {
-      id: 'b', name: 'Blake', birthYear: 1976, birthMonth: 6,
+      id: 'b', name: 'Blake', birthYear: 1976, birthMonth: 6, birthDay: 15,
       gender: 'male', piaMonthly: 1650, lifeExpectancy: 88,
     };
     const analysis = await run(avery, blake);

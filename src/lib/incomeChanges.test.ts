@@ -10,8 +10,8 @@ const assumptions = { annualCola: 2.54, discountRate: 0.025 };
 const married: Household = {
   status: 'married',
   people: [
-    { id: 'a', name: 'John', birthYear: 1980, birthMonth: 12, gender: 'male', piaMonthly: 3962, lifeExpectancy: 79 },
-    { id: 'b', name: 'Jane', birthYear: 1974, birthMonth: 2, gender: 'female', piaMonthly: 2000, lifeExpectancy: 95 },
+    { id: 'a', name: 'John', birthYear: 1980, birthMonth: 12, birthDay: 15, gender: 'male', piaMonthly: 3962, lifeExpectancy: 79 },
+    { id: 'b', name: 'Jane', birthYear: 1974, birthMonth: 2, birthDay: 15, gender: 'female', piaMonthly: 2000, lifeExpectancy: 95 },
   ],
 };
 

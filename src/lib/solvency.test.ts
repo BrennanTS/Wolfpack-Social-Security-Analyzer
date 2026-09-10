@@ -15,8 +15,8 @@ const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 const married: Household = {
   status: 'married',
   people: [
-    { id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, gender: 'male', piaMonthly: 2400, lifeExpectancy: 85 },
-    { id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2, gender: 'female', piaMonthly: 2100, lifeExpectancy: 88 },
+    { id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15, gender: 'male', piaMonthly: 2400, lifeExpectancy: 85 },
+    { id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2, birthDay: 15, gender: 'female', piaMonthly: 2100, lifeExpectancy: 88 },
   ],
 };
 
@@ -130,7 +130,7 @@ describe('solvencySensitivity', () => {
   it('prices a single claimant too', async () => {
     const single: Household = {
       status: 'single',
-      people: [{ id: 'a', name: 'Priya', birthYear: 1965, birthMonth: 7, gender: 'female', piaMonthly: 3100, lifeExpectancy: 90 }],
+      people: [{ id: 'a', name: 'Priya', birthYear: 1965, birthMonth: 7, birthDay: 15, gender: 'female', piaMonthly: 3100, lifeExpectancy: 90 }],
     };
     const analysis = await analyzeHousehold(single, assumptions, asOf);
     const result = solvencySensitivity(analysis, TRUSTEES_ASSUMPTION)!;

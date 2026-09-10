@@ -12,7 +12,7 @@ const john: Person = {
   id: 'a',
   name: 'John',
   birthYear: 1962,
-  birthMonth: 4,
+  birthMonth: 4, birthDay: 15,
   gender: 'male',
   piaMonthly: 2400,
   lifeExpectancy: 85,

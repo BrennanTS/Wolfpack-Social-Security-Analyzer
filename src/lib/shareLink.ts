@@ -15,6 +15,7 @@ import {
 } from './claimingRows';
 import { DEFAULT_TARGET_RANGE, MAX_TARGET_PERCENT, type TargetRange } from './gridTarget';
 import { decodeCharts, encodeCharts, type ChartsByPerson } from './chartVisibility';
+import { DEFAULT_BIRTH_DAY } from './ssaTools';
 import {
   SOLVENCY_PAYABLE_BOUNDS,
   SOLVENCY_YEAR_BOUNDS,
@@ -263,11 +264,40 @@ function readName(params: URLSearchParams, prefix: 'a' | 'b'): string {
   return raw.trim().slice(0, MAX_NAME);
 }
 
+/**
+ * A birth day from a link.
+ *
+ * `DEFAULT_BIRTH_DAY` when the link describes this person but names no day —
+ * which means it was written before the day was collected. That is not
+ * "unknown": such a link was produced by an app that assumed the 15th, so 15
+ * reproduces exactly the report the link described. Blank would make every
+ * older link incomplete, and the 1st would silently move every date in it.
+ *
+ * Blank when the link does not describe this person at all, so an empty query
+ * string still yields an empty form rather than one carrying a day for
+ * somebody who was never named.
+ *
+ * Out of range falls to the same default rather than clamping, like every
+ * other field here: a hand-edited `ad=99` is not a typo worth rescuing, and
+ * 15 is the honest "some day that is not the 1st".
+ */
+function readBirthDay(
+  params: URLSearchParams,
+  key: string,
+  personIsPresent: boolean,
+): number | '' {
+  const day = intInBounds(params, key, { min: 1, max: 31 });
+  if (day !== '') return day;
+  return personIsPresent ? DEFAULT_BIRTH_DAY : '';
+}
+
 function readPerson(params: URLSearchParams, prefix: 'a' | 'b'): PersonFormFields {
+  const birthYear = intInBounds(params, `${prefix}y`, BIRTH_YEAR_BOUNDS);
   return {
     name: readName(params, prefix),
-    birthYear: intInBounds(params, `${prefix}y`, BIRTH_YEAR_BOUNDS),
+    birthYear,
     birthMonth: intInBounds(params, `${prefix}m`, { min: 1, max: 12 }),
+    birthDay: readBirthDay(params, `${prefix}d`, birthYear !== ''),
     gender: readGender(params, `${prefix}g`),
     monthlyBenefit: readBenefit(params, `${prefix}b`),
     lifeExpectancy: readLifeExpectancy(params, `${prefix}le`),
@@ -283,6 +313,7 @@ function writePerson(
   if (name !== '') params.set(`${prefix}n`, name);
   if (person.birthYear !== '') params.set(`${prefix}y`, String(person.birthYear));
   if (person.birthMonth !== '') params.set(`${prefix}m`, String(person.birthMonth));
+  if (person.birthDay !== '') params.set(`${prefix}d`, String(person.birthDay));
   if (person.gender !== null) params.set(`${prefix}g`, person.gender === 'male' ? 'm' : 'f');
   if (person.monthlyBenefit !== '') params.set(`${prefix}b`, String(person.monthlyBenefit));
   if (person.lifeExpectancy !== null) params.set(`${prefix}le`, String(person.lifeExpectancy));
@@ -297,6 +328,7 @@ function writeWidowed(params: URLSearchParams, form: AnalyzerFormState): void {
   const d = form.deceased;
   if (d.birthYear !== '') params.set('dy', String(d.birthYear));
   if (d.birthMonth !== '') params.set('dm', String(d.birthMonth));
+  if (d.birthDay !== '') params.set('dd', String(d.birthDay));
   if (d.deathYear !== '') params.set('ddy', String(d.deathYear));
   if (d.deathMonth !== '') params.set('ddm', String(d.deathMonth));
   params.set('dk', d.recordKind === 'checkAmount' ? 'c' : 'p');
@@ -319,10 +351,12 @@ function readWidowed(params: URLSearchParams): {
 } {
   const hadFiled = params.get('df');
   const MONTH_BOUNDS = { min: 1, max: 12 };
+  const decBirthYear = num(params, 'dy') ?? '';
   return {
     deceased: {
-      birthYear: num(params, 'dy') ?? '',
+      birthYear: decBirthYear,
       birthMonth: intInBounds(params, 'dm', MONTH_BOUNDS),
+      birthDay: readBirthDay(params, 'dd', decBirthYear !== ''),
       deathYear: num(params, 'ddy') ?? '',
       deathMonth: intInBounds(params, 'ddm', MONTH_BOUNDS),
       recordKind: params.get('dk') === 'c' ? 'checkAmount' : 'pia',

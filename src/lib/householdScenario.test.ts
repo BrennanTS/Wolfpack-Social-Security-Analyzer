@@ -28,11 +28,11 @@ const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
 const john: Person = {
-  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
 const jane: Person = {
-  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 9,
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 9, birthDay: 15,
   gender: 'female', piaMonthly: 1200, lifeExpectancy: 90,
 };
 

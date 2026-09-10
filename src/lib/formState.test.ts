@@ -19,7 +19,7 @@ import { BLANK_DECEASED } from './widowedForm';
 const completeA = {
   name: 'John',
   birthYear: 1962,
-  birthMonth: 4,
+  birthMonth: 4, birthDay: 15,
   gender: 'male' as const,
   monthlyBenefit: 2400,
   lifeExpectancy: 85,
@@ -27,7 +27,7 @@ const completeA = {
 const completeB = {
   name: '',
   birthYear: 1964,
-  birthMonth: 2,
+  birthMonth: 2, birthDay: 15,
   gender: 'female' as const,
   monthlyBenefit: 2100,
   lifeExpectancy: null,
@@ -139,11 +139,11 @@ describe('isBenefitInRange', () => {
 
 describe('at least one person must have a positive benefit', () => {
   const earner = {
-    name: '', birthYear: 1962, birthMonth: 4,
+    name: '', birthYear: 1962, birthMonth: 4, birthDay: 15,
     gender: 'male' as const, monthlyBenefit: 2400, lifeExpectancy: 85,
   };
   const noRecord = {
-    name: '', birthYear: 1964, birthMonth: 2,
+    name: '', birthYear: 1964, birthMonth: 2, birthDay: 15,
     gender: 'female' as const, monthlyBenefit: 0, lifeExpectancy: 85,
   };
   const base = BLANK_FORM;
@@ -211,11 +211,11 @@ describe('per-person life expectancy', () => {
   // Absolute values are deliberately not asserted: getCurrentAge reads the
   // wall clock, so an exact expectation would rot. See the plan's note.
   const male: PersonFormFields = {
-    name: '', birthYear: 1960, birthMonth: 6, gender: 'male',
+    name: '', birthYear: 1960, birthMonth: 6, birthDay: 15, gender: 'male',
     monthlyBenefit: 2500, lifeExpectancy: null,
   };
   const female: PersonFormFields = {
-    name: '', birthYear: 1960, birthMonth: 6, gender: 'female',
+    name: '', birthYear: 1960, birthMonth: 6, birthDay: 15, gender: 'female',
     monthlyBenefit: 1200, lifeExpectancy: null,
   };
 
@@ -268,7 +268,7 @@ describe('per-person life expectancy', () => {
 describe('reseedLifeExpectancy', () => {
   // Both born 1960 — see the note above on why absolute ages are not asserted.
   const person: PersonFormFields = {
-    name: 'Jane', birthYear: 1960, birthMonth: 6, gender: 'female',
+    name: 'Jane', birthYear: 1960, birthMonth: 6, birthDay: 15, gender: 'female',
     monthlyBenefit: 2100, lifeExpectancy: 95,
   };
 
@@ -291,7 +291,7 @@ describe('reseedLifeExpectancy', () => {
     // on that horizon, re-seeding would move the RECOMMENDATION from a table
     // the adviser never chose — silently, on an unrelated correction.
     expect(reseedLifeExpectancy(person, { ...person, birthYear: 1955 }).lifeExpectancy).toBe(95);
-    expect(reseedLifeExpectancy(person, { ...person, birthMonth: 1 }).lifeExpectancy).toBe(95);
+    expect(reseedLifeExpectancy(person, { ...person, birthMonth: 1, birthDay: 15 }).lifeExpectancy).toBe(95);
     expect(reseedLifeExpectancy(person, { ...person, gender: 'male' }).lifeExpectancy).toBe(95);
   });
 
@@ -309,7 +309,7 @@ describe('reseedLifeExpectancy', () => {
 describe('reseedLifeExpectancy', () => {
   // Both born 1960 — see the note above on why absolute ages are not asserted.
   const person: PersonFormFields = {
-    name: 'Jane', birthYear: 1960, birthMonth: 6, gender: 'female',
+    name: 'Jane', birthYear: 1960, birthMonth: 6, birthDay: 15, gender: 'female',
     monthlyBenefit: 2100, lifeExpectancy: 95,
   };
 
@@ -334,11 +334,11 @@ describe('reseedLifeExpectancy', () => {
 
 describe('widowed form state', () => {
   const survivor = {
-    name: '', birthYear: 1964, birthMonth: 6, gender: 'female' as const,
+    name: '', birthYear: 1964, birthMonth: 6, birthDay: 15, gender: 'female' as const,
     monthlyBenefit: 1200, lifeExpectancy: 92,
   };
   const deceased = {
-    birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+    birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
     recordKind: 'pia' as const, piaMonthly: 3000, hadFiled: false,
     checkAmount: '' as const, filedYear: '' as const, filedMonth: '' as const,
   };

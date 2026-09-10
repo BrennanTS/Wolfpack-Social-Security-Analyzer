@@ -13,11 +13,14 @@
  */
 import { deceasedPia, type Deceased, type DeceasedRecord, type YearMonth } from './deceased';
 import type { AlreadyClaimed } from './widowed';
+import { deceasedBirthDateBounds, isBirthDateInRange, toBirthDateInput } from './birthDate';
 
 export interface DeceasedFormFields {
   birthYear: number | '';
   /** 1-12. */
   birthMonth: number | '';
+  /** Day of the month. Required, like the survivor's — see `Deceased.birthDay`. */
+  birthDay: number | '';
   deathYear: number | '';
   /** 1-12. */
   deathMonth: number | '';
@@ -52,6 +55,7 @@ export interface AlreadyClaimedFormFields {
 export const BLANK_DECEASED: DeceasedFormFields = {
   birthYear: '',
   birthMonth: '',
+  birthDay: '',
   deathYear: '',
   deathMonth: '',
   recordKind: 'pia',
@@ -129,8 +133,12 @@ function pair(year: number | '', month: number | ''): YearMonth | null {
   return { year, month };
 }
 
-export function isWidowedComplete(d: DeceasedFormFields): boolean {
-  if (d.birthYear === '' || d.birthMonth === '') return false;
+export function isWidowedComplete(d: DeceasedFormFields, asOf: Date = new Date()): boolean {
+  if (d.birthYear === '' || d.birthMonth === '' || d.birthDay === '') return false;
+  // Range-checked here for the reason `isPersonComplete` gives: the date
+  // input can be typed outside the years it offers, and the engine throws on
+  // a year before 1900 rather than returning something wrong.
+  if (!isBirthDateInRange(toBirthDateInput(d), deceasedBirthDateBounds(asOf))) return false;
   if (d.deathYear === '' || d.deathMonth === '') return false;
 
   if (d.recordKind === 'checkAmount') {
@@ -260,6 +268,7 @@ export function toDeceased(d: DeceasedFormFields): Deceased {
   return {
     birthYear: d.birthYear as number,
     birthMonth: d.birthMonth as number,
+    birthDay: d.birthDay as number,
     deathYear: d.deathYear as number,
     deathMonth: d.deathMonth as number,
     record: toRecord(d),

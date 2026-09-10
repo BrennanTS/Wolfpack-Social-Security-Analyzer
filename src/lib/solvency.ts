@@ -185,7 +185,7 @@ export function solvencySensitivity(
 
   const people: Person[] = analysis.people.map((p) => p.person);
   const recipients = people.map((p) =>
-    createPiaRecipient(p.birthYear, p.birthMonth, p.piaMonthly, p.gender),
+    createPiaRecipient(p.birthYear, p.birthMonth, p.birthDay, p.piaMonthly, p.gender),
   );
   const labels = analysis.people.map((p, i) => p.person.name || (i === 0 ? 'Client' : 'Spouse'));
   const cutFraction = 1 - assumption.payablePercent / 100;

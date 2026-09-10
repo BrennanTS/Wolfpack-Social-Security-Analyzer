@@ -11,6 +11,7 @@ import {
   createPiaRecipient,
   fraFromBirthYear,
   isSsaClaimAgeEligible,
+  ssaBirthMonth,
   lifetimeNpvToAge,
   ssaMonthlyBenefitAtAge,
   ssaMonthlyBenefitAtFilingAge,
@@ -26,7 +27,27 @@ export interface Person {
   id: 'a' | 'b';
   name?: string;
   birthYear: number;
+  /** 1-12, not JS's 0-11. */
   birthMonth: number;
+  /**
+   * Day of the month, 1-31.
+   *
+   * It matters for one reason, and only for people born on the 1st: SSA
+   * follows the common-law rule that you attain an age the day BEFORE your
+   * birthday, so someone born on the 1st attains their age in the previous
+   * month. Every other day of the month behaves identically — measured
+   * across days 2, 3, 15 and 28, the engine returns the same normal
+   * retirement date to the month.
+   *
+   * The consequence is not cosmetic. Born 1 January 1960, SSA reads December
+   * 1959, which is a different full-retirement-age bracket: 66 years 10
+   * months rather than 67. The app said 67 until this field existed.
+   *
+   * Required, deliberately. An optional day defaults to "not the 1st", which
+   * is the wrong answer for exactly the people this field exists to serve,
+   * and silence is how they would keep getting it.
+   */
+  birthDay: number;
   gender: Gender;
   piaMonthly: number;
   lifeExpectancy: number;
@@ -93,8 +114,31 @@ export interface PersonAnalysis {
   ssaSuggestedLifeExpectancy: number;
 }
 
-export function getFullRetirementAge(birthYear: number): FraResult {
-  const { years, months } = fraFromBirthYear(birthYear);
+/**
+ * The full retirement age for a birthday.
+ *
+ * Looked up from the SSA birth YEAR, which is not always the calendar one.
+ * Someone born 1 January 1960 attains their ages a day earlier, in December
+ * 1959, and the FRA schedule reads them as a 1959 birth: 66 years 10 months,
+ * not 67. Passing only the year gets that person wrong by two months, and
+ * every date built on their FRA with them.
+ *
+ * `birthMonth` and `birthDay` are optional only because the form asks for
+ * them one at a time and this drives a live hint beside the fields. Without
+ * them the calendar year is used, which is right for every day but the 1st —
+ * so the hint can be provisional for one keystroke, and is settled the
+ * moment the day is chosen.
+ */
+export function getFullRetirementAge(
+  birthYear: number,
+  birthMonth?: number,
+  birthDay?: number,
+): FraResult {
+  const year =
+    birthMonth === undefined || birthDay === undefined
+      ? birthYear
+      : ssaBirthMonth(birthYear, birthMonth, birthDay).year;
+  const { years, months } = fraFromBirthYear(year);
   return { years, months };
 }
 
@@ -125,6 +169,7 @@ export function analyzePerson(
   const recipient = createPiaRecipient(
     person.birthYear,
     person.birthMonth,
+    person.birthDay,
     person.piaMonthly,
     person.gender,
   );
@@ -152,7 +197,7 @@ export function analyzePerson(
 
   return {
     person,
-    fra: getFullRetirementAge(person.birthYear),
+    fra: getFullRetirementAge(person.birthYear, person.birthMonth, person.birthDay),
     currentAge,
     claimingOptions,
     filingAge,

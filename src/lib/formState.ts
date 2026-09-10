@@ -3,6 +3,11 @@ import type { DollarsMode } from './dollarsMode';
 import { DEFAULT_PLAN_TO_AGE, isBenefitInRange } from './formBounds';
 import { analyzeHousehold, type Household, type HouseholdAnalysis } from './household';
 import { getCurrentAge, type Gender, type Person } from './personAnalysis';
+import {
+  claimantBirthDateBounds,
+  isBirthDateInRange,
+  toBirthDateInput,
+} from './birthDate';
 import { getSuggestedLifeExpectancy } from './lifeExpectancy';
 import { longevitySensitivity, type LongevitySensitivity } from './longevity';
 import { DEFAULT_SCENARIO_SET, type ScenarioSet } from './scenario';
@@ -22,6 +27,12 @@ export interface PersonFormFields {
   name: string;
   birthYear: number | '';
   birthMonth: number | '';
+  /**
+   * Day of the month. Required, and blank until chosen — see
+   * `Person.birthDay` for why the 1st is the day that matters and why an
+   * assumed value would fail exactly the people this field is for.
+   */
+  birthDay: number | '';
   gender: Gender | null;
   monthlyBenefit: number | '';
   /**
@@ -75,6 +86,7 @@ const BLANK_PERSON: PersonFormFields = {
   name: '',
   birthYear: '',
   birthMonth: '',
+  birthDay: '',
   gender: null,
   monthlyBenefit: '',
   // Set, not null. `reseedLifeExpectancy` no longer fills this in from the
@@ -97,9 +109,22 @@ export const BLANK_FORM: AnalyzerFormState = {
 
 export { isBenefitInRange, MAX_BENEFIT, MIN_BENEFIT } from './formBounds';
 
-/** A person is complete when identity is present and the benefit is in range. */
-function isPersonComplete(p: PersonFormFields): boolean {
-  if (p.birthYear === '' || p.birthMonth === '' || p.gender === null) return false;
+/**
+ * A person is complete when identity is present and in range, and the benefit
+ * is in range.
+ *
+ * The birth date is range-checked HERE and not only in the control. While the
+ * year came from a select, out of range was unreachable and this function did
+ * not check it; a date input made it typeable, and `Birthdate.FromYMD` throws
+ * on a year before 1900 rather than returning something wrong — so a typed
+ * 1875 took the whole app down instead of being refused. The control's
+ * `min`/`max` mark such a date invalid but cannot stop it being entered, which
+ * is exactly why the gate has to agree with them rather than trust them.
+ */
+function isPersonComplete(p: PersonFormFields, asOf: Date): boolean {
+  if (p.birthYear === '' || p.birthMonth === '' || p.birthDay === '') return false;
+  if (!isBirthDateInRange(toBirthDateInput(p), claimantBirthDateBounds(asOf))) return false;
+  if (p.gender === null) return false;
   if (p.monthlyBenefit === '') return false;
   return isBenefitInRange(p.monthlyBenefit);
 }
@@ -117,12 +142,12 @@ function isPersonComplete(p: PersonFormFields): boolean {
  */
 export function isFormComplete(form: AnalyzerFormState, asOf: Date = new Date()): boolean {
   if (form.maritalStatus === null || form.personA.lifeExpectancy === null) return false;
-  if (!isPersonComplete(form.personA)) return false;
+  if (!isPersonComplete(form.personA, asOf)) return false;
   // Married analyses require real spouse data — never defaulted from person A.
-  if (form.maritalStatus === 'married' && !isPersonComplete(form.personB)) return false;
+  if (form.maritalStatus === 'married' && !isPersonComplete(form.personB, asOf)) return false;
 
   if (form.maritalStatus === 'widowed') {
-    if (!isWidowedComplete(form.deceased)) return false;
+    if (!isWidowedComplete(form.deceased, asOf)) return false;
     // An impossible combination must not reach the engine — several of these
     // produce a throw rather than a wrong answer.
     const { birthYear, birthMonth } = form.personA;
@@ -182,6 +207,7 @@ function toPerson(fields: PersonFormFields, id: 'a' | 'b'): Person {
     name: fields.name.trim() || undefined,
     birthYear: fields.birthYear as number,
     birthMonth: fields.birthMonth as number,
+    birthDay: fields.birthDay as number,
     gender: fields.gender as Gender,
     piaMonthly: fields.monthlyBenefit as number,
     // `DEFAULT_PLAN_TO_AGE`, not the SSA suggestion — see the field's own

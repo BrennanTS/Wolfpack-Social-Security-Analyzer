@@ -83,7 +83,7 @@ function analysisWith(
 ): HouseholdAnalysis {
   const rep = {
     person: {
-      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3,
+      id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3, birthDay: 15,
       gender: 'female', piaMonthly: 1500, lifeExpectancy: 85,
     },
     fra: { years: 66, months: 6 },
@@ -687,8 +687,8 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
  */
 describe('CombinedIncomeBars — the printed combined-income decomposition', () => {
   const people: Person[] = [
-    { id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3, gender: 'female', piaMonthly: 1500, lifeExpectancy: 85 },
-    { id: 'b', name: 'Blake', birthYear: 1959, birthMonth: 7, gender: 'male', piaMonthly: 1000, lifeExpectancy: 85 },
+    { id: 'a', name: 'Avery', birthYear: 1957, birthMonth: 3, birthDay: 15, gender: 'female', piaMonthly: 1500, lifeExpectancy: 85 },
+    { id: 'b', name: 'Blake', birthYear: 1959, birthMonth: 7, birthDay: 15, gender: 'male', piaMonthly: 1000, lifeExpectancy: 85 },
   ];
 
   it('prints a legend entry per benefit type, not per person', () => {

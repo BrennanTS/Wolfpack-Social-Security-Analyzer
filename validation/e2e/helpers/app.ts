@@ -26,8 +26,12 @@ export async function fillScenarioForm(page: Page, inputs: ScenarioInputs) {
   for (const [i, person] of inputs.people.entries()) {
     const prefix = i === 0 ? 'a' : 'b';
     if (person.name) await page.locator(`#${prefix}-name`).fill(person.name);
-    await page.locator(`#${prefix}-birth-month`).selectOption(String(person.birthMonth));
-    await page.locator(`#${prefix}-birth`).selectOption(String(person.birthYear));
+    // One date input, in the only format `input[type=date]` accepts. The
+    // fixtures predate the birth day, so they get the 15th — the day their
+    // recorded values were produced with.
+    const mm = String(person.birthMonth).padStart(2, '0');
+    const dd = String(person.birthDay ?? 15).padStart(2, '0');
+    await page.locator(`#${prefix}-birth`).fill(`${person.birthYear}-${mm}-${dd}`);
     await page
       .getByRole('group', { name: /gender/i })
       .nth(i)

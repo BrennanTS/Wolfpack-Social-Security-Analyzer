@@ -163,6 +163,7 @@ export function buildClaimingRows(
     const recipient = createPiaRecipient(
       person.birthYear,
       person.birthMonth,
+      person.birthDay,
       person.piaMonthly,
       person.gender,
     );

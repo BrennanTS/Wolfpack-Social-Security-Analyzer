@@ -39,6 +39,7 @@ describe('the widowed generator', () => {
         {
           birthYear: deceased.birthYear,
           birthMonth: deceased.birthMonth,
+          birthDay: deceased.birthDay,
           deathYear: deceased.deathYear,
           deathMonth: deceased.deathMonth,
           recordKind: deceased.record.kind === 'pia' ? 'pia' : 'checkAmount',

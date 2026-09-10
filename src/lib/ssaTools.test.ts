@@ -37,7 +37,7 @@ describe('fraFromBirthYear (SSA full retirement age schedule)', () => {
 
 describe('ssaMonthlyBenefitAtAge (reduction / delayed credits)', () => {
   // PIA of $2,500 with FRA 67 (born 1960) gives clean reference percentages.
-  const recipient = createPiaRecipient(1960, 6, 2500, 'female');
+  const recipient = createPiaRecipient(1960, 6, 15, 2500, 'female');
 
   it('pays 100% of PIA at full retirement age', () => {
     const { benefit, percentOfPia } = ssaMonthlyBenefitAtAge(recipient, 67);
@@ -84,8 +84,8 @@ describe('the 1959/1960 FRA cohort boundary reaches the benefit', () => {
   //   born Jun 1960, FRA 67y0m: 60 months early
   //     = 36 × 5/9% + 24 × 5/12% = 30% → 2500 × 0.70 = 1750.00
   // The engine floors to whole dollars, so 1770 and 1750.
-  const cohort1959 = createPiaRecipient(1959, 6, 2500, 'female');
-  const cohort1960 = createPiaRecipient(1960, 6, 2500, 'female');
+  const cohort1959 = createPiaRecipient(1959, 6, 15, 2500, 'female');
+  const cohort1960 = createPiaRecipient(1960, 6, 15, 2500, 'female');
 
   it('gives the two cohorts different FRAs', () => {
     expect(fraFromBirthYear(1959)).toMatchObject({ years: 66, months: 10 });
@@ -125,7 +125,7 @@ describe('monthDateFrom', () => {
 
 describe('isSsaClaimAgeEligible with an injected date', () => {
   it('treats a claim age as reached only once the reference date passes it', () => {
-    const r = createPiaRecipient(1960, 6, 2500, 'female'); // born Jun 1960
+    const r = createPiaRecipient(1960, 6, 15, 2500, 'female'); // born Jun 1960
     expect(isSsaClaimAgeEligible(r, 65, new Date(2024, 5, 1))).toBe(false);
     expect(isSsaClaimAgeEligible(r, 65, new Date(2026, 5, 1))).toBe(true);
   });
@@ -153,7 +153,7 @@ describe('ranked strategies', () => {
   const asOf = new Date(2026, 0, 15);
 
   it('returns single strategies sorted best-first', () => {
-    const r = createPiaRecipient(1962, 6, 2500, 'female');
+    const r = createPiaRecipient(1962, 6, 15, 2500, 'female');
     const ranked = rankedSingleStrategies(r, 0.025, 85, asOf);
     expect(ranked.length).toBeGreaterThan(1);
     expect(ranked[0].filingAges).toHaveLength(1);
@@ -163,16 +163,16 @@ describe('ranked strategies', () => {
   });
 
   it('returns couple strategies with one filing age per person, sorted best-first', () => {
-    const a = createPiaRecipient(1962, 6, 3200, 'male');
-    const b = createPiaRecipient(1964, 2, 2100, 'female');
+    const a = createPiaRecipient(1962, 6, 15, 3200, 'male');
+    const b = createPiaRecipient(1964, 2, 15, 2100, 'female');
     const ranked = rankedCoupleStrategies(a, b, 0.025, [85, 88], asOf);
     expect(ranked[0].filingAges).toHaveLength(2);
     expect(ranked[0].expectedNpv).toBeGreaterThanOrEqual(ranked[1].expectedNpv);
   });
 
   it('finds an exact whole-year combination and returns null when absent', () => {
-    const a = createPiaRecipient(1962, 6, 3200, 'male');
-    const b = createPiaRecipient(1964, 2, 2100, 'female');
+    const a = createPiaRecipient(1962, 6, 15, 3200, 'male');
+    const b = createPiaRecipient(1964, 2, 15, 2100, 'female');
     const ranked = rankedCoupleStrategies(a, b, 0.025, [85, 88], asOf);
 
     const both70 = findStrategyByAges(ranked, [
@@ -204,7 +204,7 @@ describe('ranked strategies', () => {
    * and the same present value to the cent.
    */
   describe('the plan-to age reaches the recommendation', () => {
-    const r = () => createPiaRecipient(1965, 12, 3962, 'male');
+    const r = () => createPiaRecipient(1965, 12, 15, 3962, 'male');
 
     it('moves the recommended filing age', () => {
       const short = rankedSingleStrategies(r(), 0.025, 70, asOf)[0];
@@ -231,8 +231,8 @@ describe('ranked strategies', () => {
       // because delaying raises the survivor benefit she inherits, and she
       // claims early either way, because she inherits it. That looked like a
       // finding and was not.
-      const a = () => createPiaRecipient(1962, 4, 2400, 'male');
-      const b = () => createPiaRecipient(1964, 9, 1200, 'female');
+      const a = () => createPiaRecipient(1962, 4, 15, 2400, 'male');
+      const b = () => createPiaRecipient(1964, 9, 15, 1200, 'female');
       const ages = (planTo: [number, number]) =>
         rankedCoupleStrategies(a(), b(), 0.025, planTo, asOf)[0].filingAges.map((f) => f.label);
 
@@ -254,7 +254,7 @@ describe('ranked strategies', () => {
       // `{years: N, months: 6}` and `lifetimeNpvToAge` stops at
       // `{years: N, months: 0}`. Anything other than exactly six months would
       // mean the horizon is not the one this app thinks it is.
-      const r = createPiaRecipient(1965, 4, 3000, 'male');
+      const r = createPiaRecipient(1965, 4, 15, 3000, 'male');
       const ranked = rankedSingleStrategies(r, 0, 85, asOf);
 
       for (const age of [64, 67, 70]) {

@@ -157,7 +157,7 @@ const byId = new Map(allScenarios.map((s) => [s.id, s]));
 async function engineAnswer(scenario: FixtureScenario) {
   const asOf = new Date(`${scenario.inputs.asOf}T00:00:00`);
   const recipients = scenario.inputs.people.map((p) =>
-    createPiaRecipient(p.birthYear, p.birthMonth, p.piaMonthly, p.gender),
+    createPiaRecipient(p.birthYear, p.birthMonth, 15, p.piaMonthly, p.gender),
   );
   const dists = await Promise.all(
     recipients.map((r) => getDeathProbabilityDistribution(r, asOf.getFullYear())),

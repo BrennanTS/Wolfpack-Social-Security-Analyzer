@@ -24,7 +24,7 @@ const survivorBirth = { year: 1964, month: 6 };
 const olderBirth = { year: 1958, month: 6 };
 
 const filled: DeceasedFormFields = {
-  birthYear: 1960, birthMonth: 3,
+  birthYear: 1960, birthMonth: 3, birthDay: 15,
   deathYear: 2024, deathMonth: 3,
   recordKind: 'pia',
   piaMonthly: 3000,

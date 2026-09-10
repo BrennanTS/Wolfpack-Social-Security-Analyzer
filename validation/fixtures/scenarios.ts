@@ -16,6 +16,13 @@ export interface ScenarioPerson {
   name?: string;
   birthYear: number;
   birthMonth: number;
+  /**
+   * Day of the month. Optional, and absent in every fixture recorded before
+   * the field existed — those default to 15, which is the day their values
+   * were recorded with, so they reproduce exactly. Set it to 1 to exercise
+   * the one day SSA treats differently (see `Person.birthDay`).
+   */
+  birthDay?: number;
   gender: 'female' | 'male';
   piaMonthly: number;
   lifeExpectancy: number;

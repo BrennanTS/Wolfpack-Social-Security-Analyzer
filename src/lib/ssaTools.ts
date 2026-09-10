@@ -15,8 +15,41 @@ import { strategySumCentsSingle } from '$lib/strategy/calculations/strategy-calc
 import { yearsMonthsLabel } from './format';
 import type { Gender } from './lifeExpectancy';
 
-/** Default birth day when the UI only collects month/year (ssa.tools convention). */
+/**
+ * The day assumed for a birthday that did not record one.
+ *
+ * 15 rather than 1, and the difference is load-bearing: the 1st is the one
+ * day SSA treats specially (see `Person.birthDay`), so 1 would have silently
+ * moved every date. 15 means "some day that is not the 1st", which is what a
+ * record without a day actually tells us, and is right for 29 days out of 30.
+ *
+ * Only reached by links and records written before the day was collected.
+ * New entry requires the real day.
+ */
 export const DEFAULT_BIRTH_DAY = 15;
+
+/**
+ * The month SSA counts a birthday in.
+ *
+ * SSA follows the common-law rule that a person attains an age the day before
+ * their birthday, so a birthday on the 1st is attained in the previous month.
+ * Every other day lands in its own month.
+ *
+ * Exported because the app does its own month arithmetic in several places
+ * (`filingDates.filingMonth`, the widowed stage labels) and every one of them
+ * has to answer this question the same way the engine does. The engine's own
+ * version is `Birthdate.ssaBirthMonthDate`.
+ */
+export function ssaBirthMonth(
+  birthYear: number,
+  birthMonth: number,
+  birthDay: number,
+): { year: number; month: number } {
+  if (birthDay !== 1) return { year: birthYear, month: birthMonth };
+  return birthMonth === 1
+    ? { year: birthYear - 1, month: 12 }
+    : { year: birthYear, month: birthMonth - 1 };
+}
 
 /** ssa.tools default — 20-year TIPS yield proxy. */
 export const DEFAULT_DISCOUNT_RATE = 0.025;
@@ -44,11 +77,12 @@ export interface FilingAgeDisplay {
 export function createPiaRecipient(
   birthYear: number,
   birthMonth: number,
+  birthDay: number,
   piaMonthly: number,
   gender: Gender,
 ): Recipient {
   const recipient = new Recipient();
-  recipient.birthdate = Birthdate.FromYMD(birthYear, birthMonth - 1, DEFAULT_BIRTH_DAY);
+  recipient.birthdate = Birthdate.FromYMD(birthYear, birthMonth - 1, birthDay);
   recipient.setPia(Money.from(piaMonthly));
   recipient.gender = gender === 'male' ? 'male' : 'female';
   return recipient;

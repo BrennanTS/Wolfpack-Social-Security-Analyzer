@@ -5,6 +5,12 @@ import type {
   WidowedFieldError,
   WidowedErrors,
 } from '../lib/widowedForm';
+import {
+  deceasedBirthDateBounds,
+  fromBirthDateInput,
+  isBirthDateInRange,
+  toBirthDateInput,
+} from '../lib/birthDate';
 
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -86,6 +92,10 @@ export function DeceasedFields({
   const setAlreadyClaimed = (patch: Partial<AlreadyClaimedFormFields>) =>
     onAlreadyClaimedChange({ ...alreadyClaimed, ...patch });
 
+  const decBirthValue = toBirthDateInput(deceased);
+  const decBirthBounds = deceasedBirthDateBounds();
+  const decBirthOutOfRange = !isBirthDateInRange(decBirthValue, decBirthBounds);
+
   // Buffered locally for the same reason `PersonFields`' benefit field is: a
   // controlled input whose value never advances between keystrokes forces
   // React to snap the DOM value back to the stale prop after every keystroke.
@@ -112,30 +122,24 @@ export function DeceasedFields({
 
         <div className="field">
           <label htmlFor="dec-birth">Date of Birth</label>
-          <div className="birth-row">
-            <select
-              id="dec-birth-month"
-              value={deceased.birthMonth}
-              onChange={(e) => {
-                const month = e.target.value === '' ? '' : Number(e.target.value);
-                setDeceased({ birthMonth: month });
-              }}
-              aria-label="Deceased spouse birth month"
-            >
-              {MONTH_OPTIONS}
-            </select>
-            <select
-              id="dec-birth"
-              value={deceased.birthYear}
-              onChange={(e) => {
-                const year = e.target.value === '' ? '' : Number(e.target.value);
-                setDeceased({ birthYear: year });
-              }}
-              aria-label="Deceased spouse birth year"
-            >
-              {YEAR_OPTIONS}
-            </select>
-          </div>
+          {/* A date input, like the living claimants'. The death and filing
+              dates below stay month-and-year selects: those genuinely are
+              month-only facts, and a day picker would invent a precision we
+              never ask for. */}
+          <input
+            id="dec-birth"
+            type="date"
+            className="text-input"
+            value={decBirthValue}
+            min={decBirthBounds.min}
+            max={decBirthBounds.max}
+            aria-label="Deceased spouse date of birth"
+            aria-invalid={decBirthOutOfRange || undefined}
+            onChange={(e) => setDeceased(fromBirthDateInput(e.target.value))}
+          />
+          {decBirthOutOfRange && (
+            <span className="field-hint">Enter a date of birth within the last 110 years.</span>
+          )}
         </div>
 
         <div className="field" data-testid="dec-death-field">

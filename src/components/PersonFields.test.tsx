@@ -8,7 +8,7 @@ import type { PersonFormFields } from '../lib/formState';
 // here instead of at runtime. `null` life expectancy means "use the SSA
 // suggestion", which is what a blank form carries.
 const blank: PersonFormFields = {
-  name: '', birthYear: '', birthMonth: '',
+  name: '', birthYear: '', birthMonth: '', birthDay: '',
   gender: null, monthlyBenefit: '', lifeExpectancy: null,
 };
 
@@ -91,7 +91,7 @@ describe('PersonFields', () => {
 
 describe('yearly-entry nudge', () => {
   const blank: PersonFormFields = {
-    name: '', birthYear: '', birthMonth: '',
+    name: '', birthYear: '', birthMonth: '', birthDay: '',
     gender: null, monthlyBenefit: '', lifeExpectancy: null,
   };
 
@@ -164,3 +164,43 @@ describe('yearly-entry nudge', () => {
     expect(screen.queryByTestId('yearly-entry-nudge')).toBeNull();
   });
 });
+
+describe('a birth date typed outside the offered years', () => {
+  it('renders instead of throwing, and says why', () => {
+    // `fraFromBirthYear` builds a `Birthdate`, which THROWS below 1900 rather
+    // than returning something wrong. The age/FRA hint renders on every
+    // keystroke, before any completeness gate has a say, so this took the
+    // whole app down from inside a render — a blank page, not a bad figure.
+    const typed: PersonFormFields = {
+      ...blank,
+      birthYear: 1875,
+      birthMonth: 12,
+      birthDay: 15,
+      gender: 'male',
+    };
+    expect(() =>
+      render(<PersonFields person={typed} index={0} onChange={vi.fn()} />),
+    ).not.toThrow();
+    expect(screen.getByText(/between 18 and 87 years old/i)).toBeInTheDocument();
+    // The hint it cannot compute is absent rather than wrong.
+    expect(screen.queryByText(/FRA/)).not.toBeInTheDocument();
+  });
+
+  it('keeps what was typed rather than blanking the field', () => {
+    // `min`/`max` mark it invalid but cannot stop it being entered, and
+    // clearing a controlled input mid-entry is how it starts fighting its
+    // user.
+    const typed: PersonFormFields = {
+      ...blank,
+      birthYear: 1875,
+      birthMonth: 12,
+      birthDay: 15,
+      gender: 'male',
+    };
+    render(<PersonFields person={typed} index={0} onChange={vi.fn()} />);
+    const field = screen.getByLabelText('Client date of birth');
+    expect(field).toHaveValue('1875-12-15');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+  });
+});
+

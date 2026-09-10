@@ -14,10 +14,18 @@ const person = (
   pia: number,
   gender: 'male' | 'female',
   lifeExpectancy: number,
-): Person => ({ id, birthYear, birthMonth, gender, piaMonthly: pia, lifeExpectancy });
+): Person => ({
+  id,
+  birthYear,
+  birthMonth,
+  birthDay: 15,
+  gender,
+  piaMonthly: pia,
+  lifeExpectancy,
+});
 
 const recipientFor = (p: Person) =>
-  createPiaRecipient(p.birthYear, p.birthMonth, p.piaMonthly, p.gender);
+  createPiaRecipient(p.birthYear, p.birthMonth, p.birthDay, p.piaMonthly, p.gender);
 
 describe('householdPeriods — single', () => {
   it('produces personal bands only', () => {

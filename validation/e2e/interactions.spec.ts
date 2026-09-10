@@ -12,7 +12,7 @@ import { expect, fillScenarioForm, test } from './helpers/app';
 const john = {
   name: 'John',
   birthYear: 1962,
-  birthMonth: 4,
+  birthMonth: 4, birthDay: 15,
   gender: 'male' as const,
   piaMonthly: 2400,
   lifeExpectancy: 85,
@@ -20,7 +20,7 @@ const john = {
 const jane = {
   name: 'Jane',
   birthYear: 1964,
-  birthMonth: 2,
+  birthMonth: 2, birthDay: 15,
   gender: 'female' as const,
   piaMonthly: 2100,
   lifeExpectancy: 88,

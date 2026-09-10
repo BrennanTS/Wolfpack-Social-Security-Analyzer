@@ -37,7 +37,7 @@ function buildAnalysis(over: Partial<HouseholdAnalysis> = {}): HouseholdAnalysis
     people: [
       {
         person: {
-          id: 'a', name: 'Mary', birthYear: 1964, birthMonth: 6,
+          id: 'a', name: 'Mary', birthYear: 1964, birthMonth: 6, birthDay: 15,
           gender: 'female', piaMonthly: 1200, lifeExpectancy: 90,
         },
         fra: { years: 67, months: 0 },
@@ -72,7 +72,7 @@ function buildAnalysis(over: Partial<HouseholdAnalysis> = {}): HouseholdAnalysis
     asOf: new Date(2026, 0, 15),
     piaEstimated: false,
     deceased: {
-      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 8,
+      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 8,
       piaMonthly: 3000, filed: { year: 2022, month: 6 },
     },
     ...over,
@@ -194,7 +194,7 @@ describe('WidowedPanel', () => {
     // would state something the adviser never entered.
     renderPanel({
       deceased: {
-        birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 8,
+        birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 8,
         piaMonthly: 3000, filed: null,
       },
     } as Partial<HouseholdAnalysis>);

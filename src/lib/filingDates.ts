@@ -1,5 +1,6 @@
 import type { FilingAgeDisplay } from './ssaTools';
 import type { Person } from './personAnalysis';
+import { ssaBirthMonth } from './ssaTools';
 
 const MONTH_NAMES = [
   'January',
@@ -32,13 +33,22 @@ export interface CalendarMonth {
  * holds — birth month and filing age — not a benefit computation, so it
  * belongs here rather than behind the engine.
  *
- * SSA's own age convention: a person attains age N in the month containing
- * their birthday, and this returns that month. `addMonths` handles the year
- * roll rather than a `% 12` that a reader has to check twice.
+ * SSA's own age convention: a person attains an age the day BEFORE their
+ * birthday, so the month they attain it in is the month of that day — the
+ * same month for every birthday but the 1st, and the previous month for
+ * that one. `ssaBirthMonth` is the single answer to that question, shared
+ * with everything else here that has to ask it; the engine's own version is
+ * `Birthdate.ssaBirthMonthDate`.
+ *
+ * This used to read the calendar birth month directly, which was right for
+ * 30 days out of 31 and put every date a month late for the other one.
+ *
+ * `addMonths` handles the year roll rather than a `% 12` that a reader has
+ * to check twice.
  */
 export function filingMonth(person: Person, age: { years: number; months: number }): CalendarMonth {
   return addMonths(
-    { year: person.birthYear, month: person.birthMonth },
+    ssaBirthMonth(person.birthYear, person.birthMonth, person.birthDay),
     age.years * 12 + age.months,
   );
 }

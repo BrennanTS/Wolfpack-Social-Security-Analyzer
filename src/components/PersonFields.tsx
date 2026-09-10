@@ -3,16 +3,14 @@ import { detectYearlyEntry } from '../lib/benefitEntry';
 import { formatAgeDisplay, formatCurrency, fraLabel, personLabel } from '../lib/format';
 import { genderLabel } from '../lib/lifeExpectancy';
 import { getCurrentAge, getFullRetirementAge } from '../lib/personAnalysis';
+import {
+  claimantBirthDateBounds,
+  fromBirthDateInput,
+  isBirthDateInRange,
+  toBirthDateInput,
+} from '../lib/birthDate';
 import { isBenefitInRange, MAX_BENEFIT, MIN_BENEFIT } from '../lib/formBounds';
 import type { PersonFormFields } from '../lib/formState';
-
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-const CURRENT_YEAR = new Date().getFullYear();
-const BIRTH_YEARS = Array.from({ length: 70 }, (_, i) => CURRENT_YEAR - 18 - i);
 
 interface PersonFieldsProps {
   person: PersonFormFields;
@@ -25,11 +23,26 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
   const idPrefix = index === 0 ? 'a' : 'b';
   const set = (patch: Partial<PersonFormFields>) => onChange({ ...person, ...patch });
 
+  const birthDateValue = toBirthDateInput(person);
+  const birthBounds = claimantBirthDateBounds();
+  const birthOutOfRange = !isBirthDateInRange(birthDateValue, birthBounds);
+
+  // Both gated on the date being in range, and that is not cosmetic:
+  // `fraFromBirthYear` builds a `Birthdate`, which THROWS on a year before
+  // 1900 rather than returning something wrong. This hint renders on every
+  // keystroke, before any completeness gate has a say, so a typed 1875 took
+  // the whole app down from inside a render.
+  const birthUsable = !birthOutOfRange && birthDateValue !== '';
   const currentAge =
-    person.birthYear !== '' && person.birthMonth !== ''
+    birthUsable && person.birthYear !== '' && person.birthMonth !== ''
       ? getCurrentAge(person.birthYear, person.birthMonth)
       : null;
-  const fra = person.birthYear !== '' ? getFullRetirementAge(person.birthYear) : null;
+  // Month and day are passed together: a 1 January birthday reads into the
+  // previous year's bracket, so the hint is exact rather than provisional.
+  const fra =
+    birthUsable && person.birthYear !== '' && person.birthMonth !== '' && person.birthDay !== ''
+      ? getFullRetirementAge(person.birthYear, person.birthMonth, person.birthDay)
+      : null;
 
   // Buffered locally rather than reading `person.monthlyBenefit` directly:
   // a controlled input whose value never advances between keystrokes forces
@@ -74,40 +87,30 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
 
       <div className="field">
         <label htmlFor={`${idPrefix}-birth`}>Date of Birth</label>
-        <div className="birth-row">
-          <select
-            id={`${idPrefix}-birth-month`}
-            value={person.birthMonth}
-            onChange={(e) => {
-              const month = e.target.value === '' ? '' : Number(e.target.value);
-              set({ birthMonth: month });
-            }}
-            aria-label={`${label} birth month`}
-          >
-            <option value="">Month</option>
-            {MONTHS.map((m, i) => (
-              <option key={m} value={i + 1}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <select
-            id={`${idPrefix}-birth`}
-            value={person.birthYear}
-            onChange={(e) => {
-              const year = e.target.value === '' ? '' : Number(e.target.value);
-              set({ birthYear: year });
-            }}
-            aria-label={`${label} birth year`}
-          >
-            <option value="">Year</option>
-            {BIRTH_YEARS.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* One control for one fact. Three selects made sense while the app
+            collected a partial birthday; the day made it a complete date, and
+            the browser's own calendar knows which Februaries have 29 days. */}
+        <input
+          id={`${idPrefix}-birth`}
+          type="date"
+          className="text-input"
+          value={birthDateValue}
+          min={birthBounds.min}
+          max={birthBounds.max}
+          aria-label={`${label} date of birth`}
+          aria-invalid={birthOutOfRange || undefined}
+          aria-describedby={birthOutOfRange ? `${idPrefix}-birth-hint` : undefined}
+          onChange={(e) => set(fromBirthDateInput(e.target.value))}
+        />
+        {/* Kept rather than cleared: `min`/`max` mark an out-of-range date
+            invalid but do not stop it being typed, and blanking the field
+            mid-entry is how a controlled input starts fighting its user. The
+            completeness gate refuses it; this says why. */}
+        {birthOutOfRange && (
+          <span className="field-hint" id={`${idPrefix}-birth-hint`}>
+            This analysis covers claimants between 18 and 87 years old.
+          </span>
+        )}
         {currentAge && fra && (
           <div className="age-badge">
             <div>

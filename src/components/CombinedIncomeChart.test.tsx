@@ -26,11 +26,11 @@ const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
 // Mirrors `household.test.ts` exactly rather than inventing new figures.
 const john: Person = {
-  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
 const jane: Person = {
-  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2, birthDay: 15,
   gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
 };
 // john/jane both have substantial records and produce no spousal band (see
@@ -50,11 +50,11 @@ const noRecordSarah: Person = { ...jane, piaMonthly: 0 };
 // begin — but carries $0.00 for every month it runs. This makes it a
 // genuinely optimizer-reachable $0 band, not one that needs forced ages.
 const avery: Person = {
-  id: 'a', name: 'Avery', birthYear: 1960, birthMonth: 6,
+  id: 'a', name: 'Avery', birthYear: 1960, birthMonth: 6, birthDay: 15,
   gender: 'male', piaMonthly: 3000, lifeExpectancy: 85,
 };
 const blythe: Person = {
-  id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 3,
+  id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 3, birthDay: 15,
   gender: 'female', piaMonthly: 1400, lifeExpectancy: 90,
 };
 const zeroSpousalAssumptions = { annualCola: 0, discountRate: 0.025 };

@@ -32,7 +32,7 @@ const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 
 const john: Person = {
-  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
 
@@ -107,7 +107,7 @@ describe('analyzeHousehold — single', () => {
 });
 
 const jane: Person = {
-  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2, birthDay: 15,
   gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
 };
 
@@ -433,11 +433,11 @@ describe('buildMonthlyIncomeSeries', () => {
   // idealization of it.
   it('does not spike the household above its real combined rate at the first death (real household)', async () => {
     const client: Person = {
-      id: 'a', name: 'Client', birthYear: 1958, birthMonth: 2,
+      id: 'a', name: 'Client', birthYear: 1958, birthMonth: 2, birthDay: 15,
       gender: 'male', piaMonthly: 3000, lifeExpectancy: 84,
     };
     const spouse: Person = {
-      id: 'b', name: 'Spouse', birthYear: 1960, birthMonth: 3,
+      id: 'b', name: 'Spouse', birthYear: 1960, birthMonth: 3, birthDay: 15,
       gender: 'female', piaMonthly: 2000, lifeExpectancy: 86,
     };
     const result = await analyzeHousehold(
@@ -644,11 +644,11 @@ describe('engine periods', () => {
     // already filed, so `survivorOwnMonthly` is a live amount rather than
     // null. The under-60 variant is its own branch.
     const older: Person = {
-      id: 'a', name: 'Avery', birthYear: 1975, birthMonth: 1,
+      id: 'a', name: 'Avery', birthYear: 1975, birthMonth: 1, birthDay: 15,
       gender: 'male', piaMonthly: 3000, lifeExpectancy: 72,
     };
     const younger: Person = {
-      id: 'b', name: 'Blake', birthYear: 1962, birthMonth: 12,
+      id: 'b', name: 'Blake', birthYear: 1962, birthMonth: 12, birthDay: 15,
       gender: 'female', piaMonthly: 2400, lifeExpectancy: 84,
     };
     const result = await analyzeHousehold(
@@ -723,11 +723,11 @@ describe('engine periods', () => {
     // have absorbed the whole entitlement. The PIAs and birth dates — which
     // are what make the entitlement $100 and the cap bite — are unchanged.
     const avery: Person = {
-      id: 'a', name: 'Avery', birthYear: 1960, birthMonth: 6,
+      id: 'a', name: 'Avery', birthYear: 1960, birthMonth: 6, birthDay: 15,
       gender: 'male', piaMonthly: 3000, lifeExpectancy: 72,
     };
     const blythe: Person = {
-      id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 3,
+      id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 3, birthDay: 15,
       gender: 'female', piaMonthly: 1400, lifeExpectancy: 72,
     };
     const result = await analyzeHousehold(
@@ -774,11 +774,11 @@ describe('engine periods', () => {
     // is eligible and never collects. This is why `atFra > 0` cannot be used
     // as a proxy for "there is a start date".
     const avery: Person = {
-      id: 'a', name: 'Avery', birthYear: 1976, birthMonth: 6,
+      id: 'a', name: 'Avery', birthYear: 1976, birthMonth: 6, birthDay: 15,
       gender: 'male', piaMonthly: 3000, lifeExpectancy: 85,
     };
     const blythe: Person = {
-      id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 6,
+      id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 6, birthDay: 15,
       gender: 'female', piaMonthly: 500, lifeExpectancy: 75,
     };
     const result = await analyzeHousehold(
@@ -857,11 +857,11 @@ describe('analyzeHousehold — survivor income per strategy', () => {
  */
 describe('analyzeHousehold — survivor income can FALL with a later filing age', () => {
   const older: Person = {
-    id: 'a', name: 'John', birthYear: 1958, birthMonth: 4,
+    id: 'a', name: 'John', birthYear: 1958, birthMonth: 4, birthDay: 15,
     gender: 'male', piaMonthly: 2400, lifeExpectancy: 78,
   };
   const younger: Person = {
-    id: 'b', name: 'Jane', birthYear: 1968, birthMonth: 2,
+    id: 'b', name: 'Jane', birthYear: 1968, birthMonth: 2, birthDay: 15,
     gender: 'female', piaMonthly: 1200, lifeExpectancy: 90,
   };
 
@@ -1045,11 +1045,11 @@ function canonicalize(analysis: HouseholdAnalysis) {
  */
 describe('analyzeHousehold — survivor claim alternative', () => {
   const ann: Person = {
-    id: 'a', name: 'Ann', birthYear: 1965, birthMonth: 5,
+    id: 'a', name: 'Ann', birthYear: 1965, birthMonth: 5, birthDay: 15,
     gender: 'female', piaMonthly: 1200, lifeExpectancy: 62,
   };
   const bob: Person = {
-    id: 'b', name: 'Bob', birthYear: 1975, birthMonth: 5,
+    id: 'b', name: 'Bob', birthYear: 1975, birthMonth: 5, birthDay: 15,
     gender: 'male', piaMonthly: 2400, lifeExpectancy: 90,
   };
 
@@ -1067,11 +1067,11 @@ describe('analyzeHousehold — survivor claim alternative', () => {
     // that the long-lived spouse has a real age-60 entitlement the baseline
     // bands show nothing of.
     const longLived: Person = {
-      id: 'a', name: 'Ann', birthYear: 1964, birthMonth: 1,
+      id: 'a', name: 'Ann', birthYear: 1964, birthMonth: 1, birthDay: 15,
       gender: 'male', piaMonthly: 2400, lifeExpectancy: 72,
     };
     const survivor: Person = {
-      id: 'b', name: 'Bob', birthYear: 1975, birthMonth: 12,
+      id: 'b', name: 'Bob', birthYear: 1975, birthMonth: 12, birthDay: 15,
       gender: 'female', piaMonthly: 2400, lifeExpectancy: 88,
     };
     const result = await analyzeHousehold(
@@ -1386,14 +1386,14 @@ describe('householdDisplayShape', () => {
 
 describe('analyzeHousehold — widowed', () => {
   const widowPerson: Person = {
-    id: 'a', name: 'Widow', birthYear: 1964, birthMonth: 6,
+    id: 'a', name: 'Widow', birthYear: 1964, birthMonth: 6, birthDay: 15,
     gender: 'female', piaMonthly: 1200, lifeExpectancy: 92,
   };
   const household: Household = {
     status: 'widowed',
     people: [widowPerson],
     deceased: {
-      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
       record: { kind: 'pia', piaMonthly: 3000, filed: null },
     },
     alreadyClaimed: { survivorSince: null, ownSince: null },
@@ -1410,7 +1410,7 @@ describe('analyzeHousehold — widowed', () => {
     status: 'widowed',
     people: [{ ...widowPerson, piaMonthly: 2400, lifeExpectancy: 70 }],
     deceased: {
-      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
       record: { kind: 'pia', piaMonthly: 2450, filed: null },
     },
     alreadyClaimed: { survivorSince: null, ownSince: null },
@@ -1600,7 +1600,7 @@ describe('analyzeHousehold — widowed', () => {
       status: 'widowed',
       people: [zeroPerson],
       deceased: {
-        birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+        birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
         record: { kind: 'pia', piaMonthly: 0, filed: null },
       },
       alreadyClaimed: { survivorSince: null, ownSince: null },
@@ -1686,6 +1686,7 @@ describe('analyzeHousehold — widowed', () => {
       createPiaRecipient(
         household.people[0].birthYear,
         household.people[0].birthMonth,
+        household.people[0].birthDay,
         household.people[0].piaMonthly,
         household.people[0].gender,
       ),
@@ -1713,7 +1714,7 @@ describe('analyzeHousehold — widowed', () => {
       status: 'widowed',
       people: [{ ...widowPerson, piaMonthly: 2400, lifeExpectancy: 90 }],
       deceased: {
-        birthYear: 1959, birthMonth: 3, deathYear: 2023, deathMonth: 9,
+        birthYear: 1959, birthMonth: 3, birthDay: 15, deathYear: 2023, deathMonth: 9,
         record: { kind: 'pia', piaMonthly: 1800, filed: null },
       },
       alreadyClaimed: { survivorSince: null, ownSince: null },

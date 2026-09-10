@@ -27,11 +27,11 @@ import { BLANK_ALREADY_CLAIMED, BLANK_DECEASED } from './widowedForm';
 const married: AnalyzerFormState = {
   ...BLANK_FORM,
   personA: {
-    name: 'John', birthYear: 1962, birthMonth: 4, gender: 'male',
+    name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15, gender: 'male',
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
   personB: {
-    name: 'Jane', birthYear: 1964, birthMonth: 2, gender: 'female',
+    name: 'Jane', birthYear: 1964, birthMonth: 2, birthDay: 15, gender: 'female',
     // Was null. A person with no plan-to age set now carries the default
     // rather than nothing, so a round trip returns the default rather than
     // the null this fixture used to assert — the field never travels as
@@ -50,7 +50,7 @@ const married: AnalyzerFormState = {
 const single: AnalyzerFormState = {
   ...BLANK_FORM,
   personA: {
-    name: 'John', birthYear: 1962, birthMonth: 4, gender: 'male',
+    name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15, gender: 'male',
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
   maritalStatus: 'single',
@@ -217,11 +217,11 @@ describe('per-person life expectancy params', () => {
   const form: AnalyzerFormState = {
     ...BLANK_FORM,
     personA: {
-      name: '', birthYear: 1960, birthMonth: 6, gender: 'male',
+      name: '', birthYear: 1960, birthMonth: 6, birthDay: 15, gender: 'male',
       monthlyBenefit: 2500, lifeExpectancy: 85,
     },
     personB: {
-      name: '', birthYear: 1962, birthMonth: 3, gender: 'female',
+      name: '', birthYear: 1962, birthMonth: 3, birthDay: 15, gender: 'female',
       monthlyBenefit: 1200, lifeExpectancy: 92,
     },
     maritalStatus: 'married',
@@ -286,11 +286,11 @@ describe('widowed share links', () => {
     ...BLANK_FORM,
     maritalStatus: 'widowed',
     personA: {
-      name: '', birthYear: 1964, birthMonth: 6, gender: 'female',
+      name: '', birthYear: 1964, birthMonth: 6, birthDay: 15, gender: 'female',
       monthlyBenefit: 1200, lifeExpectancy: 92,
     },
     deceased: {
-      birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
       recordKind: 'pia', piaMonthly: 3000, hadFiled: true,
       checkAmount: '', filedYear: 2022, filedMonth: 5,
     },
@@ -504,7 +504,7 @@ describe('scenario share links', () => {
 describe('the rest of the view', () => {
   const complete = (): AnalyzerFormState => ({
     ...BLANK_FORM,
-    personA: { ...BLANK_FORM.personA, birthYear: 1962, birthMonth: 4, gender: 'male', monthlyBenefit: 2400, lifeExpectancy: 85 },
+    personA: { ...BLANK_FORM.personA, birthYear: 1962, birthMonth: 4, birthDay: 15, gender: 'male', monthlyBenefit: 2400, lifeExpectancy: 85 },
     maritalStatus: 'single',
   });
 
@@ -529,6 +529,35 @@ describe('the rest of the view', () => {
       claimingPrefs: { b: { hidden: ['67'], added: [] } },
     });
     expect(params.get('pbh')).toBeNull();
+  });
+
+  it('carries the birth day, and reads a dayless link as the 15th', () => {
+    // A link with no day was written by an app that assumed the 15th, so 15
+    // reproduces exactly the report that link described. Blank would make
+    // every older link incomplete; the 1st would silently move every date.
+    const params = toShareParams({
+      ...complete(),
+      personA: { ...complete().personA, birthDay: 1 },
+    });
+    expect(params.get('ad')).toBe('1');
+    expect(fromShareParams(params).personA.birthDay).toBe(1);
+
+    const dayless = new URLSearchParams(params);
+    dayless.delete('ad');
+    expect(fromShareParams(dayless).personA.birthDay).toBe(15);
+  });
+
+  it('leaves the day blank when the link names no such person', () => {
+    // An empty query string still has to produce an empty form, rather than
+    // one carrying a birth day for somebody who was never named.
+    expect(fromShareParams(new URLSearchParams()).personA.birthDay).toBe('');
+    expect(fromShareParams(new URLSearchParams()).personB.birthDay).toBe('');
+  });
+
+  it('drops a day that is not one, rather than clamping it', () => {
+    for (const raw of ['0', '32', '99', 'x', '']) {
+      expect(fromShareParams(new URLSearchParams(`ay=1962&ad=${raw}`)).personA.birthDay).toBe(15);
+    }
   });
 
   it('carries the optional charts each person is showing', () => {

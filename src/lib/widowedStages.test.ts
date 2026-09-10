@@ -4,7 +4,7 @@ import type { BenefitBand } from './benefitPeriods';
 import type { Person } from './personAnalysis';
 
 const john: Person = {
-  id: 'a', name: 'John', birthYear: 1967, birthMonth: 1,
+  id: 'a', name: 'John', birthYear: 1967, birthMonth: 1, birthDay: 15,
   gender: 'male', piaMonthly: 3000, lifeExpectancy: 82,
 };
 /** Absolute month index for a year/month, the `BenefitBand` convention. */
@@ -51,7 +51,7 @@ describe('widowedStages — benefits that do not overlap', () => {
 describe('widowedStages — benefits that do overlap', () => {
   // The mirror case, and the one the split was built for: a low-PIA widow
   // whose own benefit runs first and whose survivor benefit stacks on top.
-  const mary: Person = { ...john, name: 'Mary', birthYear: 1964, birthMonth: 6, piaMonthly: 1200 };
+  const mary: Person = { ...john, name: 'Mary', birthYear: 1964, birthMonth: 6, birthDay: 15, piaMonthly: 1200 };
   const periods = [
     band('personal', [2026, 7], [2054, 6], 845),
     band('survivor', [2031, 6], [2054, 6], 1630),

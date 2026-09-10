@@ -26,11 +26,11 @@ const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 // so 2047 sits inside it with full years on both sides — 2046 and 2048 are
 // both real timeline years, not the first or last.
 const john: Person = {
-  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
 const jane: Person = {
-  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2, birthDay: 15,
   gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
 };
 
@@ -144,11 +144,11 @@ describe('incomeCliff', () => {
   // case.
   it('reports a $0 "after" for a real household with a much-younger, not-yet-eligible survivor', async () => {
     const avery: Person = {
-      id: 'a', name: 'Avery', birthYear: 1956, birthMonth: 6,
+      id: 'a', name: 'Avery', birthYear: 1956, birthMonth: 6, birthDay: 15,
       gender: 'female', piaMonthly: 1600, lifeExpectancy: 76,
     };
     const blake: Person = {
-      id: 'b', name: 'Blake', birthYear: 1976, birthMonth: 6,
+      id: 'b', name: 'Blake', birthYear: 1976, birthMonth: 6, birthDay: 15,
       gender: 'male', piaMonthly: 1650, lifeExpectancy: 88,
     };
     const result = await analyzeHousehold(

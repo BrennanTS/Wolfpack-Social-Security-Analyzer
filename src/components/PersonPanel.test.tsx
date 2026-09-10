@@ -13,7 +13,7 @@ import type { FilingAgeChoice } from '../lib/scenario';
 // real row to land on, matching what `analyzePerson` actually produces.
 function buildAnalysis(filingAge: PersonAnalysis['filingAge']): PersonAnalysis {
   return {
-    person: { id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+    person: { id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
               gender: 'male', piaMonthly: 2400, lifeExpectancy: 85 },
     fra: { years: 67, months: 0 },
     currentAge: { years: 63, months: 9 },

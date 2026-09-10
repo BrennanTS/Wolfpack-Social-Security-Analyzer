@@ -7,7 +7,7 @@ import { BLANK_FORM } from '../lib/formState';
 const form = {
   ...BLANK_FORM,
   personA: {
-    name: 'John', birthYear: 1962, birthMonth: 4, gender: 'male' as const,
+    name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15, gender: 'male' as const,
     monthlyBenefit: 2400, lifeExpectancy: 85,
   },
   maritalStatus: 'single' as const,

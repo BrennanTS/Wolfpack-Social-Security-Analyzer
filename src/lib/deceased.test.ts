@@ -4,7 +4,7 @@ import { MonthDuration } from '$lib/month-time';
 import { deceasedContext, deceasedPia, MAX_PIA, type Deceased } from './deceased';
 import { monthIndexOf } from './benefitPeriods';
 
-const base = { birthYear: 1950, birthMonth: 6, deathYear: 2020, deathMonth: 3 };
+const base = { birthYear: 1950, birthMonth: 6, birthDay: 15, deathYear: 2020, deathMonth: 3 };
 
 describe('deceasedPia', () => {
   it('returns a known PIA unchanged and unestimated', () => {

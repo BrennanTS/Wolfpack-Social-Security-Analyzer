@@ -30,18 +30,18 @@ afterAll(() => vi.unstubAllGlobals());
 const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
 const john: Person = {
-  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4,
+  id: 'a', name: 'John', birthYear: 1962, birthMonth: 4, birthDay: 15,
   gender: 'male', piaMonthly: 2400, lifeExpectancy: 85,
 };
 const jane: Person = {
-  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2,
+  id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 2, birthDay: 15,
   gender: 'female', piaMonthly: 2100, lifeExpectancy: 88,
 };
 const widowedHousehold: Household = {
   status: 'widowed',
   people: [jane],
   deceased: {
-    birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 3,
+    birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
     record: { kind: 'pia', piaMonthly: 3000, filed: null },
   },
   alreadyClaimed: { survivorSince: null, ownSince: null },
@@ -386,7 +386,7 @@ describe('ReportDocument composition', () => {
 
   it('says Medicare arrives on its own for someone who has already claimed', async () => {
     const early = await analyzeHousehold(
-      { status: 'single', people: [{ id: 'a', name: 'Priya', birthYear: 1965, birthMonth: 7, gender: 'female', piaMonthly: 3100, lifeExpectancy: 90 }] },
+      { status: 'single', people: [{ id: 'a', name: 'Priya', birthYear: 1965, birthMonth: 7, birthDay: 15, gender: 'female', piaMonthly: 3100, lifeExpectancy: 90 }] },
       assumptions,
       asOf,
     );
@@ -399,7 +399,7 @@ describe('ReportDocument composition', () => {
 
   it('leaves Medicare off for anyone already past 65', async () => {
     const older = await analyzeHousehold(
-      { status: 'single', people: [{ id: 'a', name: 'Ruth', birthYear: 1959, birthMonth: 3, gender: 'female', piaMonthly: 2000, lifeExpectancy: 90 }] },
+      { status: 'single', people: [{ id: 'a', name: 'Ruth', birthYear: 1959, birthMonth: 3, birthDay: 15, gender: 'female', piaMonthly: 2000, lifeExpectancy: 90 }] },
       assumptions,
       asOf,
     );

@@ -14,6 +14,7 @@ const person = (birthYear: number, birthMonth: number): Person => ({
   id: 'a',
   birthYear,
   birthMonth,
+  birthDay: 15,
   gender: 'male',
   piaMonthly: 3000,
   lifeExpectancy: 90,

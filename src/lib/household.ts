@@ -498,7 +498,7 @@ function resolveScenario(
       return findStrategyByAges(
         ranked,
         enginePeople.map((p) => {
-          const fra = getFullRetirementAge(p.birthYear);
+          const fra = getFullRetirementAge(p.birthYear, p.birthMonth, p.birthDay);
           return { years: fra.years, months: fra.months };
         }),
       );
@@ -733,7 +733,13 @@ function withSurvivorIncome(
 }
 
 function createRecipientFor(person: Person) {
-  return createPiaRecipient(person.birthYear, person.birthMonth, person.piaMonthly, person.gender);
+  return createPiaRecipient(
+    person.birthYear,
+    person.birthMonth,
+    person.birthDay,
+    person.piaMonthly,
+    person.gender,
+  );
 }
 
 /**

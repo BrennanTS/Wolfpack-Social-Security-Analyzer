@@ -113,6 +113,7 @@ function context(input: WidowedInput) {
   const recipient = createPiaRecipient(
     survivor.birthYear,
     survivor.birthMonth,
+    survivor.birthDay,
     survivor.piaMonthly,
     survivor.gender,
   );
