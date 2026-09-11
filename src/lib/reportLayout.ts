@@ -176,7 +176,13 @@ export const BLOCKS: readonly BlockMeta[] = [
     id: 'action',
     label: 'Your action plan',
     blurb: 'When to apply, and what to bring',
-    shapes: LIVING,
+    // ALL, not LIVING. A widowed report carried no action plan at all until
+    // the compliance samples were built and the page was noticed missing —
+    // while the block's own copy was written partly for a widow(er)
+    // ("Survivor benefits cannot be applied for online"), and the step with
+    // an actual deadline on it, the $255 lump sum claimable within two years
+    // of the death, reached only the households where nobody had died.
+    shapes: ALL,
     fill: 'small',
     scope: 'household',
   },

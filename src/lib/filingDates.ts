@@ -53,6 +53,19 @@ export function filingMonth(person: Person, age: { years: number; months: number
   );
 }
 
+/**
+ * A `{ year, month }` from an absolute month index.
+ *
+ * The inverse of the index `addMonths` computes, and of the band convention
+ * `benefitPeriods` documents: `calendarYear * 12 + (month - 1)`. Written here
+ * rather than at a call site because getting the off-by-one wrong produces a
+ * date one month out, which reads as plausible and is exactly the error a
+ * reader cannot catch.
+ */
+export function calendarMonthAt(index: number): CalendarMonth {
+  return { year: Math.floor(index / 12), month: (index % 12) + 1 };
+}
+
 /** `{ year, month }` shifted by whole months, forwards or backwards. */
 export function addMonths(from: CalendarMonth, months: number): CalendarMonth {
   const total = from.year * 12 + (from.month - 1) + months;

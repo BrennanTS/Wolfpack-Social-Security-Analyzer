@@ -145,8 +145,8 @@ interface Sample {
   shows?: string;
   /** Whether the survivor section belongs in this report at all. */
   survivorSection: boolean;
-  /** Whether this household's report carries the action plan. See the note below. */
-  actionPlan: boolean;
+  /** Steps this household's action plan must carry, beyond the common ones. */
+  actionSteps?: string[];
 }
 
 const SAMPLES: Sample[] = [
@@ -155,7 +155,6 @@ const SAMPLES: Sample[] = [
     label: 'a single claimant',
     household: single,
     survivorSection: false,
-    actionPlan: true,
   },
   {
     file: 'sample-2-couple-with-spousal-top-up.pdf',
@@ -163,7 +162,8 @@ const SAMPLES: Sample[] = [
     household: couple,
     shows: 'spousal',
     survivorSection: true,
-    actionPlan: true,
+    // A couple plans against a death neither has had, in the future tense.
+    actionSteps: [reportCopy.ACTION_DEATH_STEP],
   },
   {
     file: 'sample-3-widow-widows-limit-binds.pdf',
@@ -172,9 +172,10 @@ const SAMPLES: Sample[] = [
     // The glossary entry that explains the counter-intuitive figures.
     shows: 'The widow’s limit',
     survivorSection: false,
-    // See the note in the test body: a widowed report has no action plan,
-    // which is a gap rather than a design.
-    actionPlan: false,
+    // A widow(er) claims twice, and the death has already happened, so both
+    // of those have to be on the page: the survivor claim as its own dated
+    // step, and the death step in the past tense with the lump-sum deadline.
+    actionSteps: [reportCopy.ACTION_WIDOWED_DEATH_STEP, 'Claim the survivor benefit'],
   },
 ];
 
@@ -215,31 +216,19 @@ describe('sample client reports', () => {
         expect(printed, `${sample.file} is missing: ${required}`).toContain(required);
       }
 
-      // KNOWN GAP, pinned here rather than quietly accepted. The action plan
-      // block is `shapes: LIVING`, so a widowed report does not carry it —
-      // yet its copy is written partly FOR a widow(er): "Survivor benefits
-      // cannot be applied for online" and "Report the death to Social
-      // Security. The survivor benefit does not start on its own. A one-time
-      // lump-sum death payment of $255 is also due to the surviving spouse
-      // and must be claimed within two years."
-      //
-      // So the one household that needs those instructions is the one that
-      // never reads them, and the $255 has a two-year deadline. Found by
-      // building these samples, which is the argument for building them.
-      //
-      // Flagged, not fixed: what a widowed report contains is a product
-      // decision. When it is taken, this assertion fails and says so.
-      if (sample.actionPlan) {
-        expect(printed, `${sample.file} is missing the action plan`).toContain(
-          reportCopy.ACTION_TITLE,
-        );
-      } else {
-        expect(
-          printed,
-          `${sample.file} now HAS an action plan. If that was deliberate, set ` +
-            `actionPlan: true here and check the survivor-specific steps read correctly.`,
-        ).not.toContain(reportCopy.ACTION_TITLE);
+      // Every household gets an action plan. A widowed report carried none
+      // until the compliance samples were built and the page was noticed
+      // missing — while the block's own copy was written partly for a
+      // widow(er), and the one step with a deadline attached (the $255 lump
+      // sum, claimable within two years of the death) reached only the
+      // households where nobody had died.
+      expect(printed, `${sample.file} is missing the action plan`).toContain(
+        reportCopy.ACTION_TITLE,
+      );
+      for (const step of sample.actionSteps ?? []) {
+        expect(printed, `${sample.file} is missing an action step`).toContain(step);
       }
+
       // Each sample has to demonstrate the thing it was chosen for, or it is
       // a sample of nothing in particular.
       if (sample.shows !== undefined) {

@@ -568,3 +568,59 @@ function appendixProps(
   walk(node);
   return found;
 }
+
+/**
+ * The action plan reaches every household, including the one it was written
+ * for and used to miss.
+ */
+describe('ReportDocument — the action plan for a widow(er)', () => {
+  let widowed: HouseholdAnalysis;
+
+  beforeAll(async () => {
+    widowed = await analyzeHousehold(widowedHousehold, assumptions, asOf);
+  });
+
+  it('carries an action plan at all', async () => {
+    // It did not, until the compliance samples were built and the page was
+    // noticed missing: the `action` block was `shapes: LIVING`.
+    const text = collectText(
+      ReportDocument({ analysis: widowed, layout: CLIENT_LAYOUT }),
+    ).join(' ');
+    expect(text).toContain(copy.ACTION_TITLE);
+  });
+
+  it('gives the death step in the past tense, with the lump-sum deadline', () => {
+    // The forward-looking version is for a couple planning against a death
+    // neither has had. This reader has had it, and the $255 expires two
+    // years from it — the one step on the page with a clock already running.
+    const text = collectText(
+      ReportDocument({ analysis: widowed, layout: CLIENT_LAYOUT }),
+    ).join(' ');
+    expect(text).toContain(copy.ACTION_WIDOWED_DEATH_STEP);
+    expect(text).not.toContain(copy.ACTION_DEATH_STEP);
+  });
+
+  it('dates both claims, not just the one on their own record', () => {
+    // A widow(er) claims twice. An action plan showing one date of two
+    // describes a different decision from the one the report just made.
+    const text = collectText(
+      ReportDocument({ analysis: widowed, layout: CLIENT_LAYOUT }),
+    ).join(' ');
+    expect(text).toContain('Apply on your own record');
+    expect(text).toContain('Claim the survivor benefit');
+    expect(widowed.selected.survivorClaimDate, 'the fixture should reach a survivor claim')
+      .not.toBeNull();
+    expect(text).toContain(widowed.selected.survivorClaimDate!.age);
+  });
+
+  it('says "As soon as you can" rather than naming a month already gone', () => {
+    // The apply month is the filing month less three, so a household whose
+    // best filing age is close to today gets an instruction dated last year.
+    // Nobody can act on it, and it reads as a stale report.
+    const text = collectText(
+      ReportDocument({ analysis: widowed, layout: CLIENT_LAYOUT }),
+    ).join(' ');
+    expect(text).toContain('As soon as you can');
+  });
+});
+

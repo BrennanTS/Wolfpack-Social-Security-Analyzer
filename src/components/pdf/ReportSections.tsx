@@ -6,11 +6,13 @@ import {
   type SolvencyAssumption,
   type SolvencySensitivity,
 } from '../../lib/solvency';
+import { householdDisplayShape } from '../../lib/household';
 import { incomeChanges } from '../../lib/incomeChanges';
 import { dataVintageLine } from '../../lib/dataVintage';
 import { monthDateAt } from '../../lib/benefitPeriods';
 import {
   applyMonth,
+  calendarMonthAt,
   filingMonth,
   monthYearLabel,
   shortMonthYearLabel,
@@ -362,13 +364,20 @@ export function ActionBlock({
   const at = (when: CalendarMonth) => when.year * 12 + when.month;
   const asOfIndex = analysis.asOf.getFullYear() * 12 + analysis.asOf.getMonth() + 1;
 
+  const widowed = householdDisplayShape(analysis.status) === 'widowed';
+
   const dated = people.flatMap((person, i) => {
     const starts = filingMonth(person, analysis.selected.filingAges[i]);
     const rows = [
       {
         when: applyMonth(starts),
         who: names[i],
-        what: `Apply, so payments start in ${monthYearLabel(starts)}.`,
+        // A widow(er) makes two claims, and naming this one "Apply" without
+        // saying which would read as the only thing they have to do — the
+        // survivor claim below is the other half, and usually the earlier.
+        what: widowed
+          ? `Apply on your own record, so those payments start in ${monthYearLabel(starts)}.`
+          : `Apply, so payments start in ${monthYearLabel(starts)}.`,
       },
     ];
     // Medicare at 65, which this report would otherwise never mention. Left
@@ -385,10 +394,38 @@ export function ActionBlock({
     return rows;
   });
 
+  // The survivor claim: the widow(er)'s OTHER date, and the one the vendored
+  // engine does not model as a separate decision. `filingAges` carries their
+  // own filing age; this carries the rest of the answer, and an action plan
+  // showing one date of two describes a different decision.
+  const survivorClaim = widowed ? analysis.selected.survivorClaimDate : null;
+  if (survivorClaim !== null) {
+    const claimMonth = calendarMonthAt(survivorClaim.monthIndex);
+    dated.push({
+      when: applyMonth(claimMonth),
+      who: names[0],
+      what:
+        `Claim the survivor benefit, so it starts in ${monthYearLabel(claimMonth)} ` +
+        `(age ${survivorClaim.age}). This cannot be done online.`,
+    });
+  }
+
   const steps: { when: string; who: string; what: string }[] = [
     ...dated
       .sort((a, b) => at(a.when) - at(b.when))
-      .map((row) => ({ ...row, when: monthYearLabel(row.when) })),
+      .map((row) => ({
+        ...row,
+        // A step whose apply-by month has already passed is dated "now", not
+        // given a date in the past. The apply month is the filing month less
+        // three months, so a household whose best filing age is close to
+        // today is told to have applied last October — an instruction nobody
+        // can follow, and the reader's most likely conclusion is that the
+        // report is out of date. Same principle the Medicare rows above
+        // already follow by omitting themselves once 65 has gone by; this
+        // row cannot omit itself, because applying is the one thing the
+        // report exists to prompt.
+        when: at(row.when) <= asOfIndex ? 'As soon as you can' : monthYearLabel(row.when),
+      })),
     {
       when: 'After applying',
       who: people.length === 2 ? 'Each of you' : 'You',
@@ -398,6 +435,11 @@ export function ActionBlock({
   ];
   if (people.length === 2) {
     steps.push({ when: 'If one of you dies', who: 'The survivor', what: copy.ACTION_DEATH_STEP });
+  } else if (widowed) {
+    // The same facts, past tense. The lump sum has a two-year limit running
+    // from the death, so for this reader it is the step most likely to have
+    // a deadline already ticking.
+    steps.push({ when: 'As soon as you can', who: 'You', what: copy.ACTION_WIDOWED_DEATH_STEP });
   }
 
   return (

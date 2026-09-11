@@ -180,6 +180,22 @@ export const ACTION_DEATH_STEP =
   'A one-time lump-sum death payment of $255 is also due to the surviving spouse and ' +
   'must be claimed within two years.';
 
+/**
+ * The death step for a household where the death has already happened.
+ *
+ * `ACTION_DEATH_STEP` is written forward, for a couple planning against a
+ * death neither has had. A widow(er) needs the same facts in the past tense
+ * and needs them MORE: the survivor benefit still does not start on its own,
+ * and the lump sum still expires. The two-year limit is stated against the
+ * date of death rather than left vague, because a reader has to be able to
+ * work out whether it has already run out.
+ */
+export const ACTION_WIDOWED_DEATH_STEP =
+  'If you have not already done so, report the death to Social Security and ask about the ' +
+  'survivor benefit. It does not start on its own. A one-time lump-sum death payment of ' +
+  '$255 is also due to a surviving spouse, and it must be claimed within two years of the ' +
+  'death.';
+
 export const ACTION_REVIEW_NOTE =
   'Review this once a year, and sooner if your health, your marriage, or your plans for ' +
   'work change.';
