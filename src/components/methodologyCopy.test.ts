@@ -883,7 +883,11 @@ describe('combinedIncomeCaption', () => {
 
     it('says the personal band keeps compounding on its own in nominal dollars, with the increment framing intact', () => {
       const nominal = combinedIncomeCaption(null, 'nominal');
-      expect(nominal).toMatch(/personal band keeps growing at the assumed COLA/i);
+      // The CLAIM, not the wording: the band keeps growing on its own. It
+      // used to say "at the assumed COLA", an acronym this caption meets
+      // pages before the terms page introduces it.
+      expect(nominal).toMatch(/personal band keeps growing with the yearly cost-of-living/i);
+      expect(nominal).not.toMatch(/\bCOLA\b/);
       expect(nominal).toContain(
         'A survivor segment is the increment above the personal band beneath it',
       );

@@ -8,6 +8,7 @@ import {
   pdfSurface,
   personPdfSurface,
   personScreenSurface,
+  reportSurface,
   screenSurface,
   type Line,
 } from './surfaces';
@@ -82,6 +83,7 @@ describe('client-facing copy corpus', () => {
       keep(screenSurface(analysis, 'real'));
       keep(screenSurface(analysis, 'nominal'));
       keep(pdfSurface(analysis));
+      keep(reportSurface(analysis));
       for (let person = 0; person < analysis.people.length; person++) {
         keep(personScreenSurface(analysis, person));
         keep(personPdfSurface(analysis, person));
@@ -96,6 +98,7 @@ describe('client-facing copy corpus', () => {
       const analysis = await analyze(household);
       keep(screenSurface(analysis, 'real'));
       keep(pdfSurface(analysis));
+      keep(reportSurface(analysis));
       keep(personScreenSurface(analysis, 0));
       keep(personPdfSurface(analysis, 0));
     }

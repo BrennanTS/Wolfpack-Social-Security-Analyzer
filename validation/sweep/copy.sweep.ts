@@ -23,6 +23,7 @@ import {
   pdfSurface,
   personPdfSurface,
   personScreenSurface,
+  reportSurface,
   screenSurface,
   type Line,
 } from './surfaces';
@@ -256,16 +257,24 @@ const BARRED_ON_CLIENT_SURFACES = [
 ];
 
 /**
- * The surfaces where technical language is allowed, because explaining the
- * method IS their job.
+ * The surfaces where a technical term may appear, because naming it IS their
+ * job.
  *
  * Matched on the SOURCE rather than on permitted phrases: an allowlist of
  * sentences would bless a term smuggled in beside one, which is the same
  * reasoning `engineBrand.test.ts` gives for exempting its two panels by path.
- * Both of these sit under a heading that announces itself as methodology, and
- * both are read after the answer rather than instead of it.
+ *
+ *  - The methodology surfaces explain the method, sit under a heading that
+ *    announces itself as such, and are read after the answer rather than
+ *    instead of it.
+ *  - The terms page is where every one of these words is INTRODUCED, in plain
+ *    words before it is named: "What you would be paid each month if you
+ *    claimed at your full retirement age ... (Social Security calls this your
+ *    primary insurance amount, or PIA.)" Barring the acronym there would bar
+ *    the definition that makes it safe everywhere else.
+ *    `reportCopy.test.ts` exempts the same bodies, for the same reason.
  */
-const METHODOLOGY_SURFACES = /MethodologyAppendix|spousalMethodologyCopy/;
+const TERM_BEARING_SURFACES = /MethodologyAppendix|spousalMethodologyCopy|report\/Terms/;
 
 /**
  * The per-SURFACE half of the jargon rule.
@@ -290,6 +299,7 @@ describe('no jargon on a client surface', () => {
       const lines = [
         ...screenSurface(analysis, 'real'),
         ...pdfSurface(analysis),
+        ...reportSurface(analysis),
         ...analysis.people.flatMap((_, i) => [
           ...personScreenSurface(analysis, i),
           ...personPdfSurface(analysis, i),
@@ -297,7 +307,7 @@ describe('no jargon on a client surface', () => {
       ];
 
       for (const line of lines) {
-        if (METHODOLOGY_SURFACES.test(line.source)) continue;
+        if (TERM_BEARING_SURFACES.test(line.source)) continue;
         for (const barred of BARRED_ON_CLIENT_SURFACES) {
           const hit =
             typeof barred === 'string'

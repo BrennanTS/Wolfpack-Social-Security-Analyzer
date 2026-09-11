@@ -78,18 +78,31 @@ export function widowedLifetimeCaption(planToAge: number): string {
  * already handles for a survivor gap.
  */
 export function widowedIncomeCaption(mode: DollarsMode = 'real', overlaps = true): string {
+  // Stated only when the basis is the UNUSUAL one.
+  //
+  // Both surfaces that render this caption render `widowedLifetimeCaption`
+  // above it on the same page, and that sentence already says the page is in
+  // today's dollars before any cost-of-living adjustment. Repeating it ten
+  // lines later taught the reader that the second caption was not telling
+  // them anything new — and this caption's real content ("the two benefits
+  // are one payment, and SSA pays the larger") is the part that got buried.
+  //
+  // Nominal is different: it is the basis a reader has to opt into, it
+  // contradicts the page's default, and it must be flagged wherever it
+  // appears. Spelled out rather than "the assumed COLA", because this sits
+  // under a chart and the acronym is introduced pages later.
   const dollarsClause =
     mode === 'nominal'
-      ? 'Amounts are in future (nominal) dollars: today’s figures compounded forward at the ' +
-        'assumed COLA, rather than today’s purchasing power.'
-      : 'Amounts are in today’s dollars, before any cost-of-living adjustment.';
+      ? ' Amounts are in future (nominal) dollars: today’s figures compounded forward at ' +
+        'the assumed yearly cost-of-living increase, rather than today’s purchasing power.'
+      : '';
   const shape = overlaps
     ? 'The survivor segment is the increment above the personal band beneath it, not a second ' +
       'check: the two benefits are one payment, and SSA pays the larger.'
     : 'The two benefits never run together here. SSA pays the larger, and this person’s own ' +
       'record is worth more than the survivor benefit, so the survivor benefit stops the month ' +
       'their own begins.';
-  return `${shape} ${dollarsClause}`;
+  return `${shape}${dollarsClause}`;
 }
 
 /**

@@ -371,15 +371,20 @@ export function combinedIncomeCaption(
     ? ' No survivor segment is included for this household. See the note below.'
     : '';
   // Real: the band genuinely stays flat (the engine applies no COLA), so the
-  // increment framing can say so. Nominal: the band keeps growing at the
-  // assumed COLA on its own — exactly as it would with no survivor segment
-  // present at all — and the survivor segment stacked on top is still only
-  // the increase over THAT trajectory, not over a flat line.
+  // increment framing can say so. Nominal: the band keeps growing on its own
+  // — exactly as it would with no survivor segment present at all — and the
+  // survivor segment stacked on top is still only the increase over THAT
+  // trajectory, not over a flat line.
+  //
+  // "the yearly cost-of-living increase", not "the assumed COLA": this
+  // caption sits under a chart, and in the client report that chart comes
+  // pages before the terms page where the acronym is introduced. The other
+  // branch of this very function already writes it out in full.
   const bandContinuityClause =
     mode === 'nominal'
-      ? 'that personal band keeps growing at the assumed COLA on its own, exactly as it ' +
-        'would without the survivor segment, and the survivor segment stacked on top of it ' +
-        'is only the increase over that.'
+      ? 'that personal band keeps growing with the yearly cost-of-living increase on its ' +
+        'own, exactly as it would without the survivor segment, and the survivor segment ' +
+        'stacked on top of it is only the increase over that.'
       : 'that personal band keeps paying what it already was, and the survivor segment ' +
         'stacked on top of it is only the increase.';
   // This is the other sentence in the caption that `mode` can falsify: the
