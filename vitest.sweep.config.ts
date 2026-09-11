@@ -21,6 +21,12 @@ export default defineConfig({
     name: 'sweep',
     environment: 'jsdom',
     include: ['validation/sweep/**/*.sweep.ts', 'validation/sweep/**/*.sweep.tsx'],
+    // `corpus.sweep.ts` shares this config for its TypeScript and its life
+    // table stubs, but it is not a sweep and not a test — it asserts nothing
+    // and WRITES a tracked file. Left in the default run it would dirty the
+    // working tree every time someone checked the invariants. Run it on its
+    // own: `npm run copy:corpus`.
+    exclude: ['validation/sweep/corpus.sweep.ts'],
     setupFiles: ['./src/testSetup.ts'],
     // A single sweep file walks thousands of households; the default 5s cap
     // is for unit tests.

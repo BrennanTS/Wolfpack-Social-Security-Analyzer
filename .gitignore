@@ -30,3 +30,7 @@ validation/crosscheck/report-*.json
 
 # Brainstorming session mockups
 .superpowers/
+
+# v8 coverage output (npm run coverage). The thresholds live in
+# vitest.config.ts; the report itself is a local artifact.
+coverage/

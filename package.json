@@ -10,7 +10,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage.enabled --coverage.provider=v8 --coverage.include='src/**' --coverage.exclude='src/vendor/**' --coverage.exclude='**/*.test.*'",
+    "coverage": "vitest run --coverage.enabled",
     "test:e2e": "playwright test",
     "test:e2e:dev": "PW_DEV=1 playwright test",
     "validate": "npm run typecheck && npm run lint && npm run test && npm run test:e2e",
@@ -21,7 +21,8 @@
     "record:app": "node validation/scripts/record.mjs app",
     "prepare": "git config core.hooksPath .githooks",
     "preview": "vite preview",
-    "sweep": "vitest run --config vitest.sweep.config.ts"
+    "sweep": "vitest run --config vitest.sweep.config.ts",
+    "copy:corpus": "vitest run --config vitest.corpus.config.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
