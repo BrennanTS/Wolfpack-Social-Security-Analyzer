@@ -436,7 +436,7 @@ describe('HouseholdSection — the spousal sentence on a PIA tie', () => {
     const text = collectText(
       HouseholdSection({ analysis: tieAnalysis(), footerText: 'f' }),
     ).join(' ');
-    expect(text).toContain('Both spouses have the same Primary Insurance Amount');
+    expect(text).toContain('Both spouses have the same full benefit at full retirement age');
     // The sentence print used to take instead, presupposing a higher and a
     // lower earner this household does not have.
     expect(text).not.toContain("half of the higher earner's PIA");
@@ -451,7 +451,7 @@ describe('HouseholdSection — the spousal sentence on a PIA tie', () => {
         appendix: MethodologyAppendix({ analysis }),
       }),
     ).join(' ');
-    expect(text).toContain('Both spouses have the same Primary Insurance Amount');
+    expect(text).toContain('Both spouses have the same full benefit at full retirement age');
     expect(text).not.toContain("half of the higher earner's PIA");
   });
 
@@ -468,7 +468,7 @@ describe('HouseholdSection — the spousal sentence on a PIA tie', () => {
     } as unknown as HouseholdAnalysis;
     const text = collectText(HouseholdSection({ analysis, footerText: 'f' })).join(' ');
     expect(text).toContain("The lower earner's spousal top-up is");
-    expect(text).not.toContain('Both spouses have the same Primary Insurance Amount');
+    expect(text).not.toContain('Both spouses have the same full benefit at full retirement age');
   });
 });
 

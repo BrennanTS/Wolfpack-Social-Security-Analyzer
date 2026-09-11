@@ -233,6 +233,94 @@ const WIDOWED_SHARED: [screen: string, pdf: string][] = [
   ['WidowedPanel.piaEstimateNote', 'pdf/WidowedSection.piaEstimateNote'],
 ];
 
+/**
+ * Terms a reader would have to look up, barred from every surface a CLIENT
+ * reads.
+ *
+ * `present value` is deliberately absent: it is a concept a sentence can
+ * explain in passing, and the report's own terms page now does. The rest are
+ * either engine vocabulary (`optimizer`), actuarial vocabulary
+ * (`mortality-weighted`), or an acronym that means nothing to a reader who
+ * has not met it (`PIA`, `FRA`, `RIB-LIM`).
+ */
+const BARRED_ON_CLIENT_SURFACES = [
+  'optimizer',
+  'optimized',
+  'mortality',
+  'undiscounted',
+  'net present',
+  'RIB-LIM',
+  /\bPIA\b/,
+  /\bFRA\b/,
+  'Primary Insurance Amount',
+];
+
+/**
+ * The surfaces where technical language is allowed, because explaining the
+ * method IS their job.
+ *
+ * Matched on the SOURCE rather than on permitted phrases: an allowlist of
+ * sentences would bless a term smuggled in beside one, which is the same
+ * reasoning `engineBrand.test.ts` gives for exempting its two panels by path.
+ * Both of these sit under a heading that announces itself as methodology, and
+ * both are read after the answer rather than instead of it.
+ */
+const METHODOLOGY_SURFACES = /MethodologyAppendix|spousalMethodologyCopy/;
+
+/**
+ * The per-SURFACE half of the jargon rule.
+ *
+ * `reportCopy.test.ts` bars these words too, but it reads one module's
+ * exported strings. Most client-facing prose is assembled at run time from
+ * `household.ts`, `methodologyCopy.ts` and `widowedCopy.ts` — none of which
+ * that test sees — so "not a present value" reached the printed report from
+ * three components while a test asserted the term was banned. The two guards
+ * are complementary: that one sees every literal in one module, this one sees
+ * every sentence that actually renders, whoever assembled it.
+ *
+ * It lives here rather than in the unit suite because it needs real analyses
+ * to produce the sentences at all.
+ */
+describe('no jargon on a client surface', () => {
+  it(`uses no term a reader would look up, across ${COUNT} + ${WIDOWED_COUNT} households`, async () => {
+    const findings: Finding[] = [];
+
+    for (const { index, household, label } of corpus()) {
+      const analysis = await analyze(household);
+      const lines = [
+        ...screenSurface(analysis, 'real'),
+        ...pdfSurface(analysis),
+        ...analysis.people.flatMap((_, i) => [
+          ...personScreenSurface(analysis, i),
+          ...personPdfSurface(analysis, i),
+        ]),
+      ];
+
+      for (const line of lines) {
+        if (METHODOLOGY_SURFACES.test(line.source)) continue;
+        for (const barred of BARRED_ON_CLIENT_SURFACES) {
+          const hit =
+            typeof barred === 'string'
+              ? line.text.toLowerCase().includes(barred.toLowerCase())
+              : barred.test(line.text);
+          if (!hit) continue;
+          findings.push({
+            index,
+            label,
+            detail: `${line.source} — ${String(barred)}: "${line.text}"`,
+          });
+        }
+      }
+    }
+
+    // Deduplicated for the message: the same sentence fails on hundreds of
+    // households and the reader needs the distinct sentences, not the count.
+    const distinct = [...new Map(findings.map((f) => [f.detail, f])).values()];
+    console.log(summarize('no jargon on a client surface', distinct, 12));
+    expect(distinct, distinct.map((f) => f.detail).join('\n')).toHaveLength(0);
+  }, 600_000);
+});
+
 describe('screen and print agree', () => {
   it(`state the same sentences in real dollars across ${COUNT} + ${WIDOWED_COUNT} households`, async () => {
     const findings: Finding[] = [];

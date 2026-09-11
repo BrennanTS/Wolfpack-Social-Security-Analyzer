@@ -8,7 +8,13 @@ import { unprintableInPdf } from '../../lib/pdfSafeText';
  * over everything the module exports rather than sentence by sentence.
  */
 const BARRED = [
-  'present value',
+  // 'present value' is deliberately absent. It was barred, and the same
+  // words reached the printed report anyway from `household.ts` and
+  // `methodologyCopy.ts`, which this file never sees — a rule enforced per
+  // module rather than per surface. The decision was to ALLOW it and explain
+  // it: it names a real distinction the report has to draw, and the terms
+  // page now introduces it under "Lifetime value".
+  // `validation/sweep/copy.sweep.ts` enforces the rest per surface.
   'discount',
   'optimizer',
   'optimal',

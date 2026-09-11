@@ -488,13 +488,18 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
     // Says PIAs match, not records match: `isPiaTie` (`household.ts`) is an
     // exact PIA comparison, and two equal PIAs can come from very different
     // earnings histories — the test fixture for this branch pairs different
-    // birth years and different genders with only the PIA forced equal. "PIA"
-    // is stated explicitly rather than the vaguer "benefit" so this cannot be
-    // misread as also claiming their eventual filing benefits are equal,
-    // which early/delayed filing can make untrue even when PIAs tie exactly.
+    // birth years and different genders with only the PIA forced equal.
+    //
+    // "full benefit at full retirement age" rather than "Primary Insurance
+    // Amount": the precision that phrase was carrying is real — it must not
+    // be misread as claiming their eventual FILING benefits are equal, which
+    // early or delayed filing can make untrue even on an exact tie — but the
+    // terms page names this figure "your full benefit", and a client surface
+    // has to use the name the reader was given. Naming the age keeps the
+    // distinction the acronym was there for.
     return (
-      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner, ` +
-      `and there is no spousal top-up to claim on the other's record.`
+      `Both spouses have the same full benefit at full retirement age, so neither is the ` +
+      `lower earner, and there is no spousal top-up to claim on the other's record.`
     );
   }
   if (spousal.atFra <= 0) {
@@ -531,7 +536,8 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
   return (
     `${subject}'s spousal top-up is ` +
     `${formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo under the recommended ` +
-    `strategy${start}. The unreduced amount at ${subject}'s own FRA is ` +
+    `strategy${start}. The unreduced amount at ${subject}'s own full retirement ` +
+    `age is ` +
     `${formatCurrencyPrecise(spousal.atFra)}/mo.`
   );
 }

@@ -64,7 +64,7 @@ describe('spousalMethodologyCopy', () => {
     );
     expect(copy).toContain("Jane's spousal top-up is $790.00/mo under the recommended strategy");
     expect(copy).toContain("beginning at Jane's age 67");
-    expect(copy).toContain("The unreduced amount at Jane's own FRA is $1,200.00/mo");
+    expect(copy).toContain("The unreduced amount at Jane's own full retirement age is $1,200.00/mo");
   });
 
   it('never describes the top-up as 50% of the other person PIA', () => {
@@ -195,7 +195,7 @@ describe('spousalSummary', () => {
     );
     expect(copy).toContain('never begins under the recommended strategy');
     expect(copy).toContain('both spouses have filed and both are still living');
-    expect(copy).toContain("The unreduced amount at the lower earner's own FRA is $1,000.00/mo");
+    expect(copy).toContain("The unreduced amount at the lower earner's own full retirement age is $1,000.00/mo");
     // The specific false claims this replaced.
     expect(copy).not.toContain('does not file');
     expect(copy).not.toMatch(/within .*lifetime/);
@@ -238,7 +238,7 @@ describe('spousalSummary', () => {
         null,
       );
       expect(copy).toBe(
-        `Both spouses have the same Primary Insurance Amount, so neither is the lower earner, and ` +
+        `Both spouses have the same full benefit at full retirement age, so neither is the lower earner, and ` +
           `there is no spousal top-up to claim on the other's record.`,
       );
     }
@@ -432,7 +432,7 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
     // this also re-proves the overclaim fix — "identical records" would fail
     // this exact match too.
     expect(forwardCopy).toContain(
-      `Both spouses have the same Primary Insurance Amount, so neither is the lower earner, and ` +
+      `Both spouses have the same full benefit at full retirement age, so neither is the lower earner, and ` +
         `there is no spousal top-up to claim on the other's record.`,
     );
   });

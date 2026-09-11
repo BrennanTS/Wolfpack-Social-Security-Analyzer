@@ -1728,10 +1728,15 @@ export async function analyzeHousehold(
     finalIndexByPersonId,
     recommendation: `Claim at age ${selected.filingAges[0].label}`,
     recommendationDetail: selectedRow.isOptimal
-      ? `The optimizer recommends filing at age ${optimal.filingAges[0].label} ` +
-        `(${formatCurrency(people[0].monthlyAtFilingAge)}/month) for the highest household ` +
-        `value, ${formatCurrency(optimal.expectedNpv)}, assuming they live to age ` +
-        `${person.lifeExpectancy}.`
+      // "The optimizer recommends" named the engine and instructed the
+        // reader in the same breath. The married branch has always read
+        // "Filing at these ages is worth $X to the two of you"; this is the
+        // same sentence for one person, so the two surfaces stop describing
+        // the same finding in two different voices.
+      ? `Filing at age ${optimal.filingAges[0].label} is worth ` +
+        `${formatCurrency(optimal.expectedNpv)} over your lifetime, more than any other ` +
+        `age, and pays ${formatCurrency(people[0].monthlyAtFilingAge)} a month, assuming ` +
+        `you live to age ${person.lifeExpectancy}.`
       : selectedScenarioDetail(
           [personLabel(person.name, 0)],
           [selected.filingAges[0].label],

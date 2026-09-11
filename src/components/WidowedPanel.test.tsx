@@ -152,9 +152,15 @@ describe('WidowedPanel', () => {
     const table = screen.getByTestId('widowed-strategy-table');
     expect(within(table).getByText('Lifetime total')).toBeInTheDocument();
     expect(within(table).queryByText('Combined PV')).not.toBeInTheDocument();
-    expect(screen.getByTestId('widowed-lifetime-caption')).toHaveTextContent(
-      /not the mortality-weighted present value/i,
-    );
+    // Pinned as the CLAIM rather than the phrasing: this column is a
+    // straight sum, the other tables are not, and the reader is told the two
+    // cannot be compared. The sentence used to name the method
+    // ("mortality-weighted", "undiscounted") on a page a widow(er) reads;
+    // what it has to do is draw the distinction, not the jargon.
+    const caption = screen.getByTestId('widowed-lifetime-caption');
+    expect(caption).toHaveTextContent(/straight sum/i);
+    expect(caption).toHaveTextContent(/present value/i);
+    expect(caption).toHaveTextContent(/not comparable/i);
   });
 
   it('reads the money column off `lifetimeTotal`, not `expectedNpv`', () => {

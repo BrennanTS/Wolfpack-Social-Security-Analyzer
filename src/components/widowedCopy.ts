@@ -49,13 +49,20 @@ export const WIDOWED_HEADERS = {
  * that one's, and they are not comparable: a lifetime sum through the plan-to
  * age is strictly larger than a mortality-weighted present value of the same
  * stream. Saying so is cheaper than being asked.
+ *
+ * That difference is now stated in WORDS rather than by naming the method.
+ * "Mortality-weighted" and "undiscounted" told a reader who already knew the
+ * terms something they could have guessed, and told everyone else nothing at
+ * all — while sitting on the page a widow(er) reads. "Present value" stays,
+ * because a sentence can explain it in passing and the terms page now does.
  */
 export function widowedLifetimeCaption(planToAge: number): string {
   return (
     `Lifetime total is a straight sum of every dollar paid through age ${planToAge}, in ` +
-    `today’s dollars, undiscounted, and before any cost-of-living adjustment. It is not ` +
-    `the mortality-weighted present value the married and single tables show, and the two ` +
-    `figures are not comparable.`
+    `today’s dollars, before any cost-of-living adjustment. The married and single tables ` +
+    `show a present value instead, which counts a payment far in the future as worth less ` +
+    `than the same payment today and allows for the chance of not living to receive it. ` +
+    `The two figures are not comparable.`
   );
 }
 

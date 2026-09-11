@@ -345,6 +345,19 @@ export const KEY_TERMS: Term[] = [
       'says by then. (Social Security calls this a cost-of-living adjustment, or COLA.)',
   },
   {
+    // Added when the term was allowed onto client surfaces. It is easy to
+    // explain in two sentences, and the report uses it in two places where
+    // the alternative was either a wrong word or a paragraph — so it is
+    // introduced here rather than avoided.
+    term: 'Lifetime value',
+    body:
+      'A single figure for a stream of payments spread over decades. A dollar arriving ' +
+      'in thirty years is worth less than a dollar today, because today’s dollar could ' +
+      'be spent or invested in the meantime, so later payments are counted for less. ' +
+      'That is why two plans paying the same total can be worth different amounts here. ' +
+      '(This is called a present value.)',
+  },
+  {
     term: 'Spousal benefit',
     body:
       'If your own benefit is small, you may be topped up to as much as half of your ' +
