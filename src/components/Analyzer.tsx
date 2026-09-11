@@ -59,6 +59,7 @@ import {
 import { PersonFields } from './PersonFields';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
+import { ValidationPanel } from './ValidationPanel';
 import { SettingsDrawer, SettingsDrawerToggle } from './SettingsDrawer';
 import { CopyLinkButton } from './CopyLinkButton';
 import { spousalMethodologyCopy } from './methodologyCopy';
@@ -202,6 +203,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [validationOpen, setValidationOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
@@ -846,6 +848,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
       </main>
 
       <ResourcesPanel open={resourcesOpen} onClose={() => setResourcesOpen(false)} />
+      <ValidationPanel open={validationOpen} onClose={() => setValidationOpen(false)} />
       <AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <MenuPanel
         open={menuOpen}
@@ -866,6 +869,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         }}
         onOpenAbout={() => setAboutOpen(true)}
         onOpenResources={() => setResourcesOpen(true)}
+        onOpenValidation={() => setValidationOpen(true)}
         layouts={reportLayouts}
         shape={analysis ? householdDisplayShape(analysis.status) : undefined}
         onEditLayout={() => {

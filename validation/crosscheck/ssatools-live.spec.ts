@@ -30,6 +30,7 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { test, expect, type Page } from '@playwright/test';
 import { loadScenarios, type GoldenScenario } from '../fixtures/scenarios';
+import { ssaToolsCalculatorUrl } from '../../src/lib/ssaToolsLink';
 
 const { tolerances, scenarios } = loadScenarios();
 
@@ -56,33 +57,16 @@ interface LiveResult {
 const reports: ScenarioReport[] = [];
 
 /**
- * The date handed to ssa.tools: the fixture's own birth day where it has one.
+ * The URL for a scenario, built by the SAME function the app's validation
+ * panel uses (`src/lib/ssaToolsLink.ts`).
  *
- * The 2nd is a FALLBACK, for fixtures recorded before the day existed, not a
- * substitution applied to everybody. It has to be the 1st or the 2nd for the
- * "62y 0m" row to appear at all — SSA pays a month only to someone 62
- * throughout it — and among those two the 2nd is the one that behaves like
- * every ordinary day.
- *
- * Passing the real day matters for exactly one case and matters a lot there:
- * SSA reads a 1 January birthday into the PREVIOUS cohort (FRA 66y10m rather
- * than 67), so substituting the 2nd would have compared a day-1 fixture
- * against a day-2 stranger. Day 1 still satisfies the whole-month rule, so
- * the row we parse is present either way — verified against the live site.
+ * Shared deliberately. The panel offers an adviser a link to check a figure
+ * against ssa.tools; if these two built the address separately, what the
+ * adviser opened would merely resemble what this suite verified. One builder
+ * makes them the same claim.
  */
-function isoDob(person: { birthYear: number; birthMonth: number; birthDay?: number }): string {
-  const day = person.birthDay ?? 2;
-  return `${person.birthYear}-${String(person.birthMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
 function calculatorUrl(scenario: GoldenScenario): string {
-  const { inputs } = scenario;
-  const [person, spouse] = inputs.people;
-  let url = `https://ssa.tools/calculator#pia1=${person.piaMonthly}&dob1=${isoDob(person)}`;
-  if (inputs.status === 'married' && spouse) {
-    url += `&pia2=${spouse.piaMonthly}&dob2=${isoDob(spouse)}`;
-  }
-  return url;
+  return ssaToolsCalculatorUrl(scenario.inputs.people);
 }
 
 /**
@@ -170,7 +154,7 @@ function parseSpousalTopup(md: string): number | null {
   return m ? Number(m[1].replace(/,/g, '')) : null;
 }
 
-// Every full-mode scenario, day-1 birthdays included: `isoDob` sends each
+// Every full-mode scenario, day-1 birthdays included: `ssaToolsDob` sends each
 // fixture's own day, so there is no longer a case the substitution would
 // misrepresent.
 const crossScenarios = scenarios.filter((s) => s.mode === 'full');

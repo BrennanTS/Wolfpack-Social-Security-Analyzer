@@ -1,0 +1,719 @@
+{
+  "generatedFrom": "1.3.0",
+  "scenarios": [
+    {
+      "id": "single-1960-fra67-pia2500",
+      "label": "Single claimant, born 6/15/1960",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 6,
+          "piaMonthly": 2500
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1750,
+        "67": 2500,
+        "70": 3100
+      }
+    },
+    {
+      "id": "single-1960-low-pia500",
+      "label": "Single claimant, born 6/15/1960",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 6,
+          "piaMonthly": 500
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 350,
+        "67": 500,
+        "70": 620
+      }
+    },
+    {
+      "id": "single-1960-max-pia5000",
+      "label": "Single claimant, born 6/15/1960",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 6,
+          "piaMonthly": 5000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 3500,
+        "67": 5000,
+        "70": 6200
+      }
+    },
+    {
+      "id": "single-1961-fra67-pia3500",
+      "label": "Single claimant, born 9/15/1961",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1961,
+          "birthMonth": 9,
+          "piaMonthly": 3500
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2450,
+        "67": 3500,
+        "70": 4340
+      }
+    },
+    {
+      "id": "single-1962-fra67-pia5000",
+      "label": "Single claimant, born 1/15/1962",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1962,
+          "birthMonth": 1,
+          "piaMonthly": 5000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 3500,
+        "67": 5000,
+        "70": 6200
+      }
+    },
+    {
+      "id": "single-1963-fra67-pia1500",
+      "label": "Single claimant, born 4/15/1963",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1963,
+          "birthMonth": 4,
+          "piaMonthly": 1500
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1050,
+        "67": 1500,
+        "70": 1860
+      }
+    },
+    {
+      "id": "single-1965-fra67-pia4000",
+      "label": "Single claimant, born 2/15/1965",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1965,
+          "birthMonth": 2,
+          "piaMonthly": 4000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2800,
+        "67": 4000,
+        "70": 4960
+      }
+    },
+    {
+      "id": "single-1966-fra67-pia1234",
+      "label": "Single claimant, born 8/15/1966",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1966,
+          "birthMonth": 8,
+          "piaMonthly": 1234
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 863,
+        "67": 1234,
+        "70": 1530
+      }
+    },
+    {
+      "id": "single-1959-fra66y10m-pia2400",
+      "label": "Single claimant, born 11/15/1959",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1959,
+          "birthMonth": 11,
+          "piaMonthly": 2400
+        }
+      ],
+      "fra": [
+        "66 years, 10 months"
+      ],
+      "monthly": {
+        "62": 1700,
+        "67": 2432,
+        "70": 3008
+      }
+    },
+    {
+      "id": "married-1960-spouse-no-record",
+      "label": "Married couple, born 6/15/1960",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 6,
+          "piaMonthly": 2500
+        },
+        {
+          "birthYear": 1962,
+          "birthMonth": 3,
+          "piaMonthly": 0
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1750,
+        "67": 2500,
+        "70": 3100
+      }
+    },
+    {
+      "id": "married-1960-partial-topup",
+      "label": "Married couple, born 6/15/1960",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 6,
+          "piaMonthly": 2500
+        },
+        {
+          "birthYear": 1961,
+          "birthMonth": 5,
+          "piaMonthly": 1000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1750,
+        "67": 2500,
+        "70": 3100
+      }
+    },
+    {
+      "id": "married-1964-dual-high-earners",
+      "label": "Married couple, born 7/15/1964",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1964,
+          "birthMonth": 7,
+          "piaMonthly": 3000
+        },
+        {
+          "birthYear": 1964,
+          "birthMonth": 2,
+          "piaMonthly": 3000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2100,
+        "67": 3000,
+        "70": 3720
+      }
+    },
+    {
+      "id": "married-1962-spouse-higher-earner",
+      "label": "Married couple, born 10/15/1962",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1962,
+          "birthMonth": 10,
+          "piaMonthly": 2000
+        },
+        {
+          "birthYear": 1960,
+          "birthMonth": 8,
+          "piaMonthly": 4000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1400,
+        "67": 2000,
+        "70": 2480
+      }
+    },
+    {
+      "id": "married-1965-younger-spouse-no-record",
+      "label": "Married couple, born 3/15/1965",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1965,
+          "birthMonth": 3,
+          "piaMonthly": 3600
+        },
+        {
+          "birthYear": 1967,
+          "birthMonth": 9,
+          "piaMonthly": 0
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2520,
+        "67": 3600,
+        "70": 4464
+      }
+    },
+    {
+      "id": "married-1962-same-sex-both-male",
+      "label": "Married couple, born 4/15/1962",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1962,
+          "birthMonth": 4,
+          "piaMonthly": 3200
+        },
+        {
+          "birthYear": 1964,
+          "birthMonth": 2,
+          "piaMonthly": 2100
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2240,
+        "67": 3200,
+        "70": 3968
+      }
+    },
+    {
+      "id": "married-1963-spouse-claims-early",
+      "label": "Married couple, born 1/15/1963",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1963,
+          "birthMonth": 1,
+          "piaMonthly": 3600
+        },
+        {
+          "birthYear": 1966,
+          "birthMonth": 7,
+          "piaMonthly": 600
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2520,
+        "67": 3600,
+        "70": 4464
+      }
+    },
+    {
+      "id": "married-1958-widow-claims-late",
+      "label": "Married couple, born 2/15/1958",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1958,
+          "birthMonth": 2,
+          "piaMonthly": 2400
+        },
+        {
+          "birthYear": 1974,
+          "birthMonth": 5,
+          "piaMonthly": 1200
+        }
+      ],
+      "fra": [
+        "66 years, 8 months"
+      ],
+      "monthly": {
+        "62": 1720,
+        "67": 2464,
+        "70": 3040
+      }
+    },
+    {
+      "id": "married-1960-widow-already-filed",
+      "label": "Married couple, born 6/15/1960",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 6,
+          "piaMonthly": 1500
+        },
+        {
+          "birthYear": 1966,
+          "birthMonth": 6,
+          "piaMonthly": 3000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1050,
+        "67": 1500,
+        "70": 1860
+      }
+    },
+    {
+      "id": "married-1964-tie-no-survivor-band",
+      "label": "Married couple, born 12/15/1964",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1964,
+          "birthMonth": 12,
+          "piaMonthly": 3000
+        },
+        {
+          "birthYear": 1961,
+          "birthMonth": 11,
+          "piaMonthly": 3000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2100,
+        "67": 3000,
+        "70": 3720
+      }
+    },
+    {
+      "id": "sample-hh19a-single-1960-jan1-prior-cohort",
+      "label": "Single claimant, born 1/1/1960",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 1,
+          "birthDay": 1,
+          "piaMonthly": 2400
+        }
+      ],
+      "fra": [
+        "66 years, 10 months"
+      ],
+      "monthly": {
+        "62": 1700,
+        "67": 2432,
+        "70": 3008
+      }
+    },
+    {
+      "id": "sample-hh19b-single-1960-jan2-own-cohort",
+      "label": "Single claimant, born 1/2/1960",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 1,
+          "birthDay": 2,
+          "piaMonthly": 2400
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1680,
+        "67": 2400,
+        "70": 2976
+      }
+    },
+    {
+      "id": "sample-hh20-single-1962-jun1-cohort-unchanged",
+      "label": "Single claimant, born 6/1/1962",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1962,
+          "birthMonth": 6,
+          "birthDay": 1,
+          "piaMonthly": 2400
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1680,
+        "67": 2400,
+        "70": 2976
+      }
+    },
+    {
+      "id": "sample-hh21-single-1959-jan1-prior-cohort",
+      "label": "Single claimant, born 1/1/1959",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1959,
+          "birthMonth": 1,
+          "birthDay": 1,
+          "piaMonthly": 2400
+        }
+      ],
+      "fra": [
+        "66 years, 8 months"
+      ],
+      "monthly": {
+        "62": 1720,
+        "67": 2464,
+        "70": 3040
+      }
+    },
+    {
+      "id": "sample-hh1-single-1962-pia2400-delay70",
+      "label": "Single claimant, born 4/15/1962",
+      "status": "single",
+      "people": [
+        {
+          "birthYear": 1962,
+          "birthMonth": 4,
+          "piaMonthly": 2400
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1680,
+        "67": 2400,
+        "70": 2976
+      }
+    },
+    {
+      "id": "sample-hh2-married-1960-dual-high-earners",
+      "label": "Married couple, born 2/15/1960",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1960,
+          "birthMonth": 2,
+          "piaMonthly": 3200
+        },
+        {
+          "birthYear": 1961,
+          "birthMonth": 9,
+          "piaMonthly": 3000
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2240,
+        "67": 3200,
+        "70": 3968
+      }
+    },
+    {
+      "id": "sample-hh3-married-1959-reduced-spousal",
+      "label": "Married couple, born 7/15/1959",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1959,
+          "birthMonth": 7,
+          "piaMonthly": 3600
+        },
+        {
+          "birthYear": 1963,
+          "birthMonth": 11,
+          "piaMonthly": 700
+        }
+      ],
+      "fra": [
+        "66 years, 10 months"
+      ],
+      "monthly": {
+        "62": 2550,
+        "67": 3648,
+        "70": 4512
+      }
+    },
+    {
+      "id": "sample-hh4-married-1955-wide-age-gap",
+      "label": "Married couple, born 3/15/1955",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1955,
+          "birthMonth": 3,
+          "piaMonthly": 2800
+        },
+        {
+          "birthYear": 1968,
+          "birthMonth": 6,
+          "piaMonthly": 1900
+        }
+      ],
+      "fra": [
+        "66 years, 2 months"
+      ],
+      "monthly": {
+        "62": 2076,
+        "67": 2986,
+        "70": 3658
+      }
+    },
+    {
+      "id": "sample-hh13-married-1962-two-max-earners",
+      "label": "Married couple, born 4/15/1962",
+      "status": "married",
+      "people": [
+        {
+          "birthYear": 1962,
+          "birthMonth": 4,
+          "piaMonthly": 4000
+        },
+        {
+          "birthYear": 1962,
+          "birthMonth": 10,
+          "piaMonthly": 3900
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 2800,
+        "67": 4000,
+        "70": 4960
+      }
+    },
+    {
+      "id": "widowed-1964-own-first-then-survivor-fra",
+      "label": "Widow(er), born 6/15/1964",
+      "status": "widowed",
+      "people": [
+        {
+          "birthYear": 1964,
+          "birthMonth": 6,
+          "piaMonthly": 1200
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 840,
+        "67": 1200,
+        "70": 1488
+      }
+    },
+    {
+      "id": "widowed-1964-survivor-first-then-own-70",
+      "label": "Widow(er), born 6/15/1964",
+      "status": "widowed",
+      "people": [
+        {
+          "birthYear": 1964,
+          "birthMonth": 6,
+          "piaMonthly": 2400
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1680,
+        "67": 2400,
+        "70": 2976
+      }
+    },
+    {
+      "id": "sample-hh5-widowed-1961-deceased-filed-at-fra",
+      "label": "Widow(er), born 5/15/1961",
+      "status": "widowed",
+      "people": [
+        {
+          "birthYear": 1961,
+          "birthMonth": 5,
+          "piaMonthly": 1500
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1050,
+        "67": 1500,
+        "70": 1860
+      }
+    },
+    {
+      "id": "sample-hh15-widowed-1961-riblim-deceased-filed-early",
+      "label": "Widow(er), born 6/15/1961",
+      "status": "widowed",
+      "people": [
+        {
+          "birthYear": 1961,
+          "birthMonth": 6,
+          "piaMonthly": 1500
+        }
+      ],
+      "fra": [
+        "67"
+      ],
+      "monthly": {
+        "62": 1050,
+        "67": 1500,
+        "70": 1860
+      }
+    }
+  ]
+}

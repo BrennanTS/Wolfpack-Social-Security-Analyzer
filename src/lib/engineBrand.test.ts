@@ -37,14 +37,23 @@ const SCANNED_DIRS = ['src/components'];
 const SCANNED_FILES = ['src/lib/household.ts', 'src/lib/formState.ts', 'src/lib/ssaTools.ts'];
 
 /**
- * The two panels whose entire purpose is naming the engine. Exempt by path:
+ * The panels whose entire purpose is naming the engine. Exempt by path:
  * anything they say is deliberate, and the alternative — listing the exact
  * sentences they are allowed to contain — would pass a parenthetical smuggled
  * in beside them.
+ *
+ * `ValidationPanel` joined them when the app began showing what it is checked
+ * against. Naming ssa.tools there is the entire point: the panel offers a
+ * link to an INDEPENDENT calculator so a reader can verify a figure without
+ * taking this app's word for it, and a check you cannot name is not a check
+ * anyone can follow. That is the opposite of the defect this guard exists for
+ * — an engine brand surfacing in the ANALYSIS, where it reads as attribution
+ * for the recommendation rather than as a reference.
  */
 const EXEMPT_PATHS = new Set([
   'src/components/AboutPanel.tsx',
   'src/components/ResourcesPanel.tsx',
+  'src/components/ValidationPanel.tsx',
 ]);
 
 const BRAND = /ssa\.tools/i;

@@ -3972,3 +3972,150 @@ tbody tr:hover {
   line-height: 1.5;
   color: var(--text-subtle);
 }
+
+/* ─── Crash screen (ErrorBoundary) ─── */
+
+/*
+ * Deliberately plain, and deliberately not dependent on much: this renders
+ * when the app has already failed once, so it uses the base tokens and no
+ * component the boundary is meant to protect.
+ */
+.crash-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.crash-card {
+  max-width: 520px;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.crash-card h1 {
+  margin: 0 0 12px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.crash-card p {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* The error text itself: monospaced so a stray character is visible, and
+   selectable so it can be pasted into a message. */
+.crash-detail {
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--text);
+  background: var(--fill);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+
+.crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 12px;
+}
+
+.crash-actions button {
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--cream);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+/* `--ink` and `--cream` hold their light values in BOTH themes — this repo
+   has shipped dark-on-dark three times by pairing them in a dark block. The
+   secondary button therefore uses text/surface tokens, which do flip. */
+.crash-actions .crash-reset {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+.crash-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-subtle);
+}
+
+/* ─── Validation panel ─── */
+
+.menu-note-caveat {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-subtle);
+}
+
+.validation-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.validation-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.validation-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.validation-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* The three claim ages wrap on a narrow drawer rather than scrolling. */
+.validation-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.75rem;
+  color: var(--text);
+}
+
+.validation-age {
+  color: var(--text-subtle);
+}
+
+.validation-check {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gold-dark);
+  text-decoration: none;
+}
+
+.validation-check:hover {
+  text-decoration: underline;
+}

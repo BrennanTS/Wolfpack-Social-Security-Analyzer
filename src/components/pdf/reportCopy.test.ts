@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as copy from './reportCopy';
+import { unprintableInPdf } from '../../lib/pdfSafeText';
 
 /**
  * The whole point of the report's client half is that it can be read without a
@@ -184,3 +185,41 @@ describe('how definite the report allows itself to be', () => {
     expect(body).toContain('one input');
   });
 });
+
+/**
+ * Every character the report prints has to exist in the font that prints it.
+ *
+ * react-pdf's standard-14 fonts stop just past Latin-1, and a character
+ * outside that does not fail loudly — it prints as some other glyph, or as
+ * nothing. `Age 62 → Age 67` printed as "Age 62 ' Age67" for months: the
+ * arrow became a stray apostrophe and ate the space after it. Nothing caught
+ * it, because every assertion ran against the React element tree, where the
+ * arrow is simply the arrow.
+ *
+ * `unprintableInPdf` was written after that defect and then never called by
+ * anything — dead code guarding nothing, at 0% coverage, while the class it
+ * exists to prevent stayed open. This is the call site.
+ */
+describe('everything this module prints, printed', () => {
+  it('uses no character the report\'s fonts cannot render', () => {
+    for (const line of allCopy()) {
+      const bad = unprintableInPdf(line);
+      expect(
+        bad,
+        `Unprintable ${JSON.stringify(bad)} in: ${JSON.stringify(line.slice(0, 120))}. ` +
+          "react-pdf's standard-14 fonts stop past Latin-1, so this prints as " +
+          'some other glyph or as nothing at all. Use a Latin-1 equivalent, or ' +
+          'add the character to ALLOWED_ABOVE_LATIN1 in pdfSafeText.ts after ' +
+          'checking how it actually prints.',
+      ).toEqual([]);
+    }
+  });
+
+  it('catches the arrow that started this', () => {
+    // A guard nobody has seen reject anything is a guard nobody can trust.
+    expect(unprintableInPdf('Age 62 \u2192 Age 67')).toEqual(['\u2192']);
+    // And the typography this copy genuinely uses stays allowed.
+    expect(unprintableInPdf('you\u2019re \u201cbest\u201d \u2014 age 70\u2026')).toEqual([]);
+  });
+});
+

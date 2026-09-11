@@ -47,6 +47,7 @@ function renderMenu(overrides: Partial<Parameters<typeof MenuPanel>[0]> = {}) {
     onEditTheme: vi.fn(),
     onOpenAbout: vi.fn(),
     onOpenResources: vi.fn(),
+    onOpenValidation: vi.fn(),
     layouts: stubLayouts(),
     onEditLayout: vi.fn(),
     ...overrides,

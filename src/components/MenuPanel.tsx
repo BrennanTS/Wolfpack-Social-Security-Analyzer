@@ -40,6 +40,8 @@ interface MenuPanelProps {
   onEditTheme: () => void;
   onOpenAbout: () => void;
   onOpenResources: () => void;
+  /** The worked households this analysis is tested against. */
+  onOpenValidation: () => void;
   layouts: ReturnType<typeof useReportLayouts>;
   /** Opens the layout editor, which needs more room than this drawer has. */
   onEditLayout: () => void;
@@ -69,6 +71,7 @@ export function MenuPanel({
   onEditTheme,
   onOpenAbout,
   onOpenResources,
+  onOpenValidation,
   layouts,
   shape,
   onEditLayout,
@@ -196,6 +199,16 @@ export function MenuPanel({
                 }}
               >
                 Resources
+              </button>
+              <button
+                type="button"
+                className="menu-link"
+                onClick={() => {
+                  onClose();
+                  onOpenValidation();
+                }}
+              >
+                How this is checked
               </button>
             </div>
           </section>
