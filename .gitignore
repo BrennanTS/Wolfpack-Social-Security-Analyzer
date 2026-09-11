@@ -34,3 +34,7 @@ validation/crosscheck/report-*.json
 # v8 coverage output (npm run coverage). The thresholds live in
 # vitest.config.ts; the report itself is a local artifact.
 coverage/
+
+# The compliance copy schedule is generated (npm run copy:schedule) and
+# stamped with a date, so committing it would churn. Regenerate to send.
+validation/copy/copy-schedule.docx

@@ -22,7 +22,8 @@
     "prepare": "git config core.hooksPath .githooks",
     "preview": "vite preview",
     "sweep": "vitest run --config vitest.sweep.config.ts",
-    "copy:corpus": "vitest run --config vitest.corpus.config.ts"
+    "copy:corpus": "vitest run --config vitest.corpus.config.ts",
+    "copy:schedule": "vitest run --config vitest.corpus.config.ts validation/sweep/schedule.sweep.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
@@ -40,6 +41,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.11",
+    "docx": "^9.7.1",
     "jsdom": "^26.1.0",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",

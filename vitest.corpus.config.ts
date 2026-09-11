@@ -1,5 +1,5 @@
 /**
- * The copy corpus generator, on its own config.
+ * The copy corpus and the compliance schedule, on their own config.
  *
  * It shares the sweep's TypeScript setup, life-table stubbing and long
  * timeout, but it is not a sweep: it asserts nothing and it WRITES a tracked
@@ -23,8 +23,10 @@ export default defineConfig({
   test: {
     name: 'corpus',
     environment: 'jsdom',
-    include: ['validation/sweep/corpus.sweep.ts'],
+    include: ['validation/sweep/corpus.sweep.ts', 'validation/sweep/schedule.sweep.ts'],
     setupFiles: ['./src/testSetup.ts'],
+    // These write files and report what they wrote; the summary is the point.
+    disableConsoleIntercept: true,
     testTimeout: 600_000,
     hookTimeout: 600_000,
   },

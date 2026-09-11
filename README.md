@@ -99,6 +99,33 @@ what to act on.
 blocking test that fails differently on identical input teaches people to
 ignore the suite.
 
+### The compliance copy schedule
+
+```bash
+npm run copy:schedule    # writes validation/copy/copy-schedule.docx
+```
+
+A Word document of every sentence the **client report** can print, in the
+order a reader meets them, with a column to sign off in.
+
+It exists because a reviewer handed one exported PDF has approved one
+household's wording. The report says materially different things depending on
+the household — a widow's limit that binds, a spousal top-up that never
+begins, a chart honestly showing nothing where SSA would pay something — and
+the variants a single sample omits are disproportionately the conditional,
+liability-adjacent ones. Each row therefore carries a "When it appears" note
+saying which households see it.
+
+It includes the **default report theme's disclosures as shipped**, the
+bracketed regulatory placeholder among them, since that is what an unedited
+install prints and the paragraph a firm is expected to replace.
+
+Section order and the "when it appears" notes live in
+`validation/copy/sections.ts`; the generator fails rather than writing a
+document if any section's copy stops rendering, so a section cannot quietly
+vanish from something being signed off. The document is stamped with the app
+version and the date, so an approval is traceable to what was approved.
+
 ## Stack
 
 React 19 · TypeScript · Vite · Recharts · @react-pdf/renderer
