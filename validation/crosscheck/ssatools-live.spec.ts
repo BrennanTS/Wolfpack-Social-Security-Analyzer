@@ -14,9 +14,13 @@
  * the machine-readable "Copy for AI assistant" markdown report:
  *   - the worker's ("Self") "Monthly benefit by filing age" table, and
  *   - for married scenarios, the "Spousal benefits" section's FRA top-up.
- * The birth day is fixed at the 2nd so the "62y 0m" row is present (SSA's
- * "eligible the whole month" rule omits it for later-in-month birthdays); the
- * whole-year factors are day-independent, so no value changes.
+ * Each fixture's own birth day is sent, falling back to the 2nd where a
+ * fixture predates the field. It must be the 1st or 2nd for the "62y 0m" row
+ * to exist at all (SSA's "62 throughout the month" rule omits it for
+ * later-in-month birthdays), and the whole-year factors are identical across
+ * days 2-28 — so the fallback changes no value, while a real 1st is passed
+ * through rather than flattened, which is the one day that would change the
+ * claimant's FRA cohort.
  *
  * Only 'full' scenarios are cross-checked (they carry the birth month and have
  * unambiguous PIA-driven values). If the report can't be read or parsed (a site
@@ -51,21 +55,32 @@ interface LiveResult {
 
 const reports: ScenarioReport[] = [];
 
-function isoDob(year: number, month: number): string {
-  // Day fixed at the 2nd (see file header). Value-preserving for days 2-28,
-  // and deliberately NOT applied to day-1 birthdays — those are filtered out
-  // by `crosscheckable` before they reach here, because SSA reads a
-  // 1 January birthday into the previous FRA cohort and substituting day 2
-  // would compare the fixture's values against a different claimant's.
-  return `${year}-${String(month).padStart(2, '0')}-02`;
+/**
+ * The date handed to ssa.tools: the fixture's own birth day where it has one.
+ *
+ * The 2nd is a FALLBACK, for fixtures recorded before the day existed, not a
+ * substitution applied to everybody. It has to be the 1st or the 2nd for the
+ * "62y 0m" row to appear at all — SSA pays a month only to someone 62
+ * throughout it — and among those two the 2nd is the one that behaves like
+ * every ordinary day.
+ *
+ * Passing the real day matters for exactly one case and matters a lot there:
+ * SSA reads a 1 January birthday into the PREVIOUS cohort (FRA 66y10m rather
+ * than 67), so substituting the 2nd would have compared a day-1 fixture
+ * against a day-2 stranger. Day 1 still satisfies the whole-month rule, so
+ * the row we parse is present either way — verified against the live site.
+ */
+function isoDob(person: { birthYear: number; birthMonth: number; birthDay?: number }): string {
+  const day = person.birthDay ?? 2;
+  return `${person.birthYear}-${String(person.birthMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 function calculatorUrl(scenario: GoldenScenario): string {
   const { inputs } = scenario;
   const [person, spouse] = inputs.people;
-  let url = `https://ssa.tools/calculator#pia1=${person.piaMonthly}&dob1=${isoDob(person.birthYear, person.birthMonth)}`;
+  let url = `https://ssa.tools/calculator#pia1=${person.piaMonthly}&dob1=${isoDob(person)}`;
   if (inputs.status === 'married' && spouse) {
-    url += `&pia2=${spouse.piaMonthly}&dob2=${isoDob(spouse.birthYear, spouse.birthMonth)}`;
+    url += `&pia2=${spouse.piaMonthly}&dob2=${isoDob(spouse)}`;
   }
   return url;
 }
@@ -155,9 +170,10 @@ function parseSpousalTopup(md: string): number | null {
   return m ? Number(m[1].replace(/,/g, '')) : null;
 }
 
-// `crosscheckable` is false only where the day-2 substitution above would
-// change the claimant (a 1 January birthday). Everything else full-mode runs.
-const crossScenarios = scenarios.filter((s) => s.mode === 'full' && s.crosscheckable !== false);
+// Every full-mode scenario, day-1 birthdays included: `isoDob` sends each
+// fixture's own day, so there is no longer a case the substitution would
+// misrepresent.
+const crossScenarios = scenarios.filter((s) => s.mode === 'full');
 
 test.describe('ssa.tools live cross-check', () => {
   for (const scenario of crossScenarios) {

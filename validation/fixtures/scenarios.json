@@ -107,8 +107,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1960-low-pia500",
@@ -209,8 +208,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1960-max-pia5000",
@@ -311,8 +309,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1961-fra67-pia3500",
@@ -413,8 +410,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1962-fra67-pia5000",
@@ -515,8 +511,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1963-fra67-pia1500",
@@ -617,8 +612,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1965-fra67-pia4000",
@@ -719,8 +713,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1966-fra67-pia1234",
@@ -821,8 +814,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1959-fra66y10m-pia2400",
@@ -923,8 +915,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1960-spouse-no-record",
@@ -1036,8 +1027,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1960-partial-topup",
@@ -1149,8 +1139,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1964-dual-high-earners",
@@ -1262,8 +1251,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1962-spouse-higher-earner",
@@ -1375,8 +1363,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1965-younger-spouse-no-record",
@@ -1488,8 +1475,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1962-same-sex-both-male",
@@ -1628,8 +1614,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1963-spouse-claims-early",
@@ -1768,8 +1753,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1958-widow-claims-late",
@@ -1884,8 +1868,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1960-widow-already-filed",
@@ -1997,8 +1980,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "married-1964-tie-no-survivor-band",
@@ -2113,8 +2095,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "sample-hh19a-single-1960-jan1-prior-cohort",
@@ -2216,8 +2197,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": false
+      }
     },
     {
       "id": "sample-hh19b-single-1960-jan2-own-cohort",
@@ -2319,8 +2299,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "sample-hh1-single-1962-pia2400-delay70",
@@ -2421,8 +2400,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "sample-hh2-married-1960-dual-high-earners",
@@ -2534,8 +2512,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "sample-hh3-married-1959-reduced-spousal",
@@ -2647,8 +2624,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "sample-hh4-married-1955-wide-age-gap",
@@ -2760,8 +2736,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "sample-hh13-married-1962-two-max-earners",
@@ -2873,8 +2848,7 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "widowed-1964-own-first-then-survivor-fra",
@@ -2991,8 +2965,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "widowed-1964-survivor-first-then-own-70",
@@ -3109,8 +3082,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "sample-hh5-widowed-1961-deceased-filed-at-fra",
@@ -3230,8 +3202,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "sample-hh15-widowed-1961-riblim-deceased-filed-early",
@@ -3351,8 +3322,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1943-fra66-pia2000",
@@ -3447,8 +3417,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1950-fra66-pia1800",
@@ -3543,8 +3512,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1953-fra66-pia4500",
@@ -3639,8 +3607,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1954-fra66-pia3000",
@@ -3735,8 +3702,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1954-fra66-pia1234",
@@ -3831,8 +3797,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1955-fra66y2m-pia2500",
@@ -3927,8 +3892,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1956-fra66y4m-pia2200",
@@ -4023,8 +3987,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1957-fra66y6m-pia2000",
@@ -4119,8 +4082,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     },
     {
       "id": "single-1958-fra66y8m-pia2800",
@@ -4215,8 +4177,7 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      },
-      "crosscheckable": true
+      }
     }
   ]
 }
