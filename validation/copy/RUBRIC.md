@@ -38,9 +38,21 @@ A firm hands this to a client. It analyses; it does not instruct.
 ## 3. Understandable without a glossary
 
 - Second person. "You file at 70", not "Client files at age 70".
-- No term a reader would have to look up. `PIA`, `FRA`, `present value`,
-  `discount rate`, `mortality-weighted`, `RIB-LIM` and `optimizer` appear
-  only on the terms page, where each is introduced in plain words first.
+- No term a reader would have to look up. `PIA`, `FRA`, `discount rate`,
+  `mortality-weighted`, `RIB-LIM` and `optimizer` appear only on the terms
+  page, where each is introduced in plain words first.
+- `present value` is the exception, and it is permitted anywhere. It names a
+  distinction the report genuinely has to draw — a lifetime sum and a
+  discounted figure are different quantities and must not be confused — and
+  the alternatives were a wrong word or a paragraph. The terms page
+  introduces it under "Lifetime value". Barring it did not work: the same
+  words reached the printed report from three components while a test
+  asserted the term was banned, because that test read one module and the
+  sentences were assembled in others.
+- The per-surface half of this rule is enforced by
+  `validation/sweep/copy.sweep.ts`, which reads what actually renders.
+  Methodology surfaces are exempt by source: explaining the method is their
+  job.
 - Every figure carries a unit and a horizon: a month, a year, over your
   lifetimes.
 - Prefer a short sentence to a subordinate clause. If a sentence needs two
