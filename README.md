@@ -145,6 +145,24 @@ produces the same reports.
 Each sample asserts it still demonstrates what it was chosen for, so a
 sample cannot silently become a sample of nothing in particular.
 
+### What lives in `validation/copy/`, and what is kept
+
+| File | Committed? | Why |
+| --- | --- | --- |
+| `RUBRIC.md` | yes | The standard. Changing what "good" means should be a diff somebody can argue with. |
+| `sections.ts` | yes | Section order and the "when it appears" notes for the schedule. Same reason. |
+| `corpus.md` | yes | Generated, but committed **because the diff is the point**: a pull request shows exactly which client-facing sentences a change moved. |
+| `review-<date>.md` | yes | The record of a judgment made on a date. |
+| `copy-schedule.docx` | no | An output for sending. Date-stamped, so committing it would churn. |
+| `samples/*.pdf` | no | Same. Regenerate when you send. |
+
+**Reviews are annotated, never regenerated or deleted.** When a finding is
+acted on, add a `Resolution:` line naming the commit; when it is declined,
+say so and why. A review whose findings have no outcome cannot be trusted by
+the next reader, and one that is quietly rewritten cannot be traced to the
+approval it supported. Reviews that are fully closed keep a status line at
+the top saying so.
+
 ## Stack
 
 React 19 · TypeScript · Vite · Recharts · @react-pdf/renderer
