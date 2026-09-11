@@ -32,21 +32,32 @@ export const BLANK_BIRTH_DATE: BirthDateParts = {
  *
  * Empty unless all three parts are present: a date input has no way to show
  * half a date, so a partial record has to read as no date at all.
+ *
+ * The YEAR is padded to four digits like the other two parts. `yyyy-mm-dd` is
+ * a fixed-width format, and a year that arrives short — which it does on every
+ * keystroke while someone types one, since the control reports `0001` after
+ * the first digit — produces `1-06-15`, which is not a date the control can
+ * accept. Assigning it back blanks the whole field, taking the month and day
+ * the reader had already entered with it.
  */
 export function toBirthDateInput({ birthYear, birthMonth, birthDay }: BirthDateParts): string {
   if (birthYear === '' || birthMonth === '' || birthDay === '') return '';
+  const yyyy = String(birthYear).padStart(4, '0');
   const mm = String(birthMonth).padStart(2, '0');
   const dd = String(birthDay).padStart(2, '0');
-  return `${birthYear}-${mm}-${dd}`;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 /**
  * The parts of a `yyyy-mm-dd` the control reported.
  *
- * Blank for anything that is not a real date. The browser will not report a
- * partial or impossible one — it fires only when the date is complete and the
- * calendar has one — so this is a guard against a pasted or programmatic
- * value rather than against ordinary typing.
+ * Blank for anything that is not a real date.
+ *
+ * It DOES fire during ordinary typing, contrary to what this comment used to
+ * claim. A year is entered a digit at a time and the control reports a
+ * complete date at every step — `0001-06-15`, then `0019-…`, `0196-…`,
+ * `1960-…` — so a year of 1 is not a pasted curiosity, it is what every
+ * reader's first keystroke in the year looks like.
  *
  * Deliberately does NOT range-check. A date outside the offered years is a
  * real date the reader typed, and blanking the field as they type is how a
@@ -64,6 +75,11 @@ export function fromBirthDateInput(value: string): BirthDateParts {
   // `Birthdate.FromYMD` throws on those rather than returning something
   // wrong, so an impossible date must never reach the analysis.
   const probe = new Date(Date.UTC(year, month - 1, day));
+  // `Date.UTC` reads 0-99 as 1900-1999, so year 1 comes back as 1901 and the
+  // check below would reject it — blanking the field on the reader's first
+  // year keystroke and taking their month and day with it. Undo that one
+  // legacy remap; every other year is already itself.
+  if (year >= 0 && year <= 99) probe.setUTCFullYear(year);
   if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1) {
     return BLANK_BIRTH_DATE;
   }

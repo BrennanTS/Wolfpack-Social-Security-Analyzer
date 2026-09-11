@@ -188,6 +188,16 @@ export interface GoldenScenario {
   inputs: ScenarioInputs;
   expected: ScenarioExpected;
   e2e: { assertTable: boolean; assertSummaryCards: boolean };
+  /**
+   * Whether the live ssa.tools cross-check may run this scenario.
+   *
+   * That suite substitutes the 2nd of the month for every birthday, which
+   * preserves every whole-year value for days 2-28 but not for the 1st: SSA
+   * reads a 1 January birthday into the previous FRA cohort, so substituting
+   * day 2 there compares the fixture against a different claimant. Absent
+   * means true; only day-1 scenarios set it false.
+   */
+  crosscheckable?: boolean;
 }
 
 /** Schema version 2: the people[]/asOf household shape (see ScenarioInputs).

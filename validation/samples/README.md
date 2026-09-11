@@ -5,15 +5,17 @@ scenarios we would like the analyzer to handle. This file records which ones
 are currently expressible as golden fixtures and which need product features
 the engine or form does not have yet.
 
-Last re-audited **2026-09-09**, after widowed-household support shipped. Two
-cases (HH5, HH15) moved from "not modeled" to added on that pass.
+Last re-audited **2026-09-10**, after the birth-day input shipped. HH19 moved
+from "not reachable" to added on that pass; HH5 and HH15 moved on the previous
+one, when widowed-household support shipped.
 
 ## What the engine actually models
 
 The app takes the **PIA (benefit at FRA) as a direct input** — it does not work
-from an earnings record. For each person it takes birth **month + year** (no
-day), gender, PIA and a plan-to age, plus COLA / discount-rate assumptions.
-Filing status is **Single, Married, or Widowed**.
+from an earnings record. For each person it takes a full **date of birth**
+(day included, since SSA reads a 1 January birthday into the previous year's
+FRA cohort), gender, PIA and a plan-to age, plus COLA / discount-rate
+assumptions. Filing status is **Single, Married, or Widowed**.
 
 From those inputs it models: the FRA schedule, the early-claim reduction and
 delayed-retirement credits, the **spousal top-up** (`max(0, higherPIA/2 −
@@ -56,7 +58,7 @@ wall-clock time.
 | 16 | MFJ | Deemed filing forced (post-1954) | ❌ **Feature absent** | Deemed-filing rule not modeled. The household's spousal top-up ($500 for the lower earner) is computable, but the deemed-filing *behavior* the case targets is not. |
 | 17 | MFJ | Child-in-care spousal, unreduced | ❌ **Not modeled** | No child-in-care rule (unreduced spousal before FRA) |
 | 18 | Single | Earnings test in the FRA year | ❌ **Not modeled** | No earnings test (higher exempt amount, 1-for-3, stop at FRA month) |
-| 19 | Single | January 1/2 birthday boundary | ❌ **Not reachable** | The engine *does* model SSA's "attained the day before your birthday" rule (`src/vendor/ssa-tools/birthday.ts`), but the form collects only month + year and hardcodes the day to the 15th (`DEFAULT_BIRTH_DAY`, `src/lib/ssaTools.ts`), so no Jan-1 vs Jan-2 case can be produced. Needs a birth-day input. |
+| 19 | Single | January 1/2 birthday boundary | ✅ **Added** (a pair) | `sample-hh19a-single-1960-jan1-prior-cohort` + `sample-hh19b-single-1960-jan2-own-cohort` — twins born one day apart. Jan 1 reads into the **1959** cohort (FRA **66y10m**); Jan 2 stays in 1960 (FRA **67**). The only fixtures not born on the 15th, and so the only golden coverage of the birth day. |
 | 20 | MFJ | Survivor remarriage after 60 | ❌ **Not modeled** | Widowed status and survivor math now exist; still blocked by the **remarriage-after-60 rule** and survivor-on-a-former-spouse's-record alone |
 
 Legend: ✅ added as a golden fixture (validated by the engine suite, and — where
@@ -65,7 +67,7 @@ ssa.tools cross-check) · ❌ needs a product feature that does not exist yet.
 
 ## Coverage summary
 
-- **7 of 20** added as fixtures: HH1, HH2, HH3, HH4, HH5, HH13, HH15 (see
+- **8 of 20** added as fixtures: HH1, HH2, HH3, HH4, HH5, HH13, HH15, HH19 (see
   [`../scripts/gen-fixtures.mjs`](../scripts/gen-fixtures.mjs), regenerate with
   `npm run fixtures:gen`).
 - **HH5 and HH15 are a matched pair.** Their only material difference is when
@@ -84,7 +86,14 @@ ssa.tools cross-check) · ❌ needs a product feature that does not exist yet.
   "benefit at FRA == PIA").
 - HH4 needs `asOf: "2024-01-15"` specifically, since the 1955 cohort ages out
   of the optimizer (turns 70) under the default `asOf` the other fixtures use.
-- The remaining 13 are out of scope for the current model.
+- **HH19 is a pair, and has to be.** The whole case is that one day moves the
+  FRA by ten months, which cannot be stated by a single fixture. Holding PIA
+  ($2,400), gender, marital status and birth month fixed makes the difference
+  attributable to the day and nothing else: at 62 the Jan-1 twin gets $1,700
+  against his brother's $1,680, at FRA $2,432 against $2,400, at 70 $3,008
+  against $2,976. The `a` twin is **not** cross-checked against ssa.tools
+  (`crosscheckable: false`) — see below.
+- The remaining 12 are out of scope for the current model.
 
 ### Why the widowed fixtures skip the UI suite
 
@@ -96,6 +105,21 @@ is no way for it to enter a widowed household. Every Vitest expectation still
 runs, and the survivor's own benefit table is still cross-checked against live
 ssa.tools as a single worker. Teaching the form driver the widowed intake
 would turn the UI assertions back on for four fixtures.
+
+### Why the Jan-1 twin skips the live cross-check
+
+`validation/crosscheck/ssatools-live.spec.ts` substitutes the **2nd** of the
+month for every birthday it sends to ssa.tools, because ssa.tools omits the
+`62y 0m` row for later-in-month birthdays and the whole-year factors are
+otherwise day-independent. That substitution is value-preserving for days
+2-28 — and *not* for the 1st, where SSA's day-before attainment rule changes
+which FRA cohort the claimant is in. Sending day 2 for a Jan-1 fixture would
+quietly compare its values against a different person's and pass.
+
+So the fixture schema now carries `crosscheckable`, and the Jan-1 twin sets it
+false. Its brother (born on the 2nd, which is what the suite substitutes
+anyway) is cross-checked normally, so the pair still keeps one side verified
+against the live oracle.
 
 ### A note on the engine-recorded values
 
@@ -133,6 +157,3 @@ Grouped so a future feature unlocks several cases at once:
 7. **Restricted application / deemed filing** (HH10, HH16): the pre-1954
    grandfathered restricted-application path and the post-1954 forced
    deemed-filing path.
-8. **Birth-day input** (HH19): collect the day of birth (or expose it in the
-   fixture harness) so the engine's existing Jan-1/2 attainment rule can be
-   exercised.

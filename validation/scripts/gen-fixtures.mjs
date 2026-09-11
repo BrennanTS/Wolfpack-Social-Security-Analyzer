@@ -106,6 +106,23 @@ function fraLabel(y) {
   const { years, months } = fraParts(y);
   return months === 0 ? `${years}` : `${years} years, ${months} months`;
 }
+/**
+ * The birth year SSA's schedules read a person into.
+ *
+ * SSA deems an age attained the day BEFORE the birthday. For someone born on
+ * 1 January that lands every attainment in December of the previous year, so
+ * they are read into the PREVIOUS year's FRA cohort: born 1 Jan 1960 uses the
+ * 1959 schedule (66y10m), not 1960's (67). Their twin born 1 Jan + 1 day gets
+ * 67. That one-day, ten-month cliff is the whole of sample case HH19.
+ *
+ * Only 1 January moves the COHORT. Being born on the 1st of any other month
+ * shifts attainment into the previous month, which changes the DATE a filing
+ * age falls on but not which year's FRA schedule applies, and this file's
+ * expectations are all keyed by whole-year claim age rather than by date.
+ */
+function ssaCohortYear(birthYear, birthMonth, birthDay) {
+  return birthMonth === 1 && birthDay === 1 ? birthYear - 1 : birthYear;
+}
 function factor(birthYear, claimAge) {
   const delta = claimAge * 12 - fraMonths(birthYear); // <0 early, >0 delayed
   if (delta < 0) {
@@ -140,10 +157,13 @@ const AGES = [62, 63, 64, 65, 66, 67, 68, 69, 70];
 const PAIRS = [[62, 67], [62, 70], [67, 70]];
 
 function build(spec) {
+  // Every FRA and factor below is keyed by the SSA COHORT year, not the raw
+  // birth year — they differ for a 1 January birthday. See ssaCohortYear.
+  const cohortYear = ssaCohortYear(spec.birthYear, spec.birthMonth, spec.birthDay);
   const monthlyByClaimAge = {};
   const percentOfPiaByClaimAge = {};
   for (const age of AGES) {
-    const b = monthly(spec.pia, spec.birthYear, age);
+    const b = monthly(spec.pia, cohortYear, age);
     monthlyByClaimAge[age] = b;
     percentOfPiaByClaimAge[age] = percentOfPia(b, spec.pia);
   }
@@ -166,7 +186,11 @@ function build(spec) {
     const spouseMonthlyByClaimAge = {};
     const spousePercentOfPiaByClaimAge = {};
     for (const age of AGES) {
-      const b = monthly(spec.spousePia ?? 0, spec.spouseBirthYear, age);
+      const b = monthly(
+        spec.spousePia ?? 0,
+        ssaCohortYear(spec.spouseBirthYear, spec.spouseBirthMonth, spec.spouseBirthDay),
+        age,
+      );
       spouseMonthlyByClaimAge[age] = b;
       spousePercentOfPiaByClaimAge[age] = percentOfPia(b, spec.spousePia ?? 0);
     }
@@ -310,10 +334,18 @@ function build(spec) {
   if (spec.mode === 'full') invariants.push('expectedPvPositive');
   if (spec.extraInvariants) invariants.push(...spec.extraInvariants);
 
+  // birthDay is emitted only when it is not the default 15 that every
+  // scenario predating the birth-day input was recorded with. Consumers
+  // (golden.test.ts, the Playwright form driver, scenarios.ts's type) all
+  // default an absent day to 15, so the day is stated exactly where it
+  // MATTERS and every older fixture stays byte-identical.
+  const dayOf = (day) => (day === undefined || day === 15 ? {} : { birthDay: day });
+
   const people = [
     {
       birthYear: spec.birthYear,
       birthMonth: spec.birthMonth,
+      ...dayOf(spec.birthDay),
       gender: spec.gender,
       piaMonthly: spec.pia,
       lifeExpectancy: spec.life ?? 85,
@@ -323,6 +355,7 @@ function build(spec) {
     people.push({
       birthYear: spec.spouseBirthYear,
       birthMonth: spec.spouseBirthMonth,
+      ...dayOf(spec.spouseBirthDay),
       // Every married spec until now happened to describe an opposite-sex
       // couple, so defaulting to "not the worker's gender" was a convenient
       // shortcut. A scenario can override with spec.spouseGender when that
@@ -349,7 +382,7 @@ function build(spec) {
       ...(spec.widowed ? { deceased: spec.deceased, alreadyClaimed: spec.alreadyClaimed } : {}),
     },
     expected: {
-      fraByPerson: [{ ...fraParts(spec.birthYear), label: fraLabel(spec.birthYear) }],
+      fraByPerson: [{ ...fraParts(cohortYear), label: fraLabel(cohortYear) }],
       monthlyByClaimAgeByPerson,
       percentOfPiaByClaimAgeByPerson,
       breakEvensByPerson: [breakEvens],
@@ -377,6 +410,14 @@ function build(spec) {
       assertTable: spec.mode === 'full' && spec.uiTestable !== false,
       assertSummaryCards: spec.mode === 'full' && spec.uiTestable !== false,
     },
+    // Whether the live ssa.tools cross-check may run this scenario. It
+    // substitutes the 2nd of the month for every birthday, which preserves
+    // every whole-year value for days 2-28 but NOT for the 1st: SSA's
+    // day-before attainment rule puts a 1 January birthday in the previous
+    // FRA cohort, so a substituted day 2 would compare a day-1 scenario's
+    // values against a different person's. Opt those out explicitly rather
+    // than letting the suite silently validate the wrong claimant.
+    crosscheckable: spec.crosscheckable !== false,
   };
 }
 
@@ -452,7 +493,17 @@ const specs = [
 
   // Sample cases from validation/samples/sample-cases.csv (expressible subset;
   // the rest need features the engine/UI does not model - see samples/README.md).
-  // Note: dates use the CSV's month/year; the engine takes no birth DAY.
+
+  // HH19, as a PAIR of twins born one day apart - the only way to state the
+  // case, since the whole of it is that one day moves the FRA by ten months.
+  // These are the ONLY fixtures in this file that are not born on the 15th,
+  // and so the only golden coverage of the birth day the form now collects.
+  // Both are single, male, PIA $2,400, so the day is the single variable.
+  { id: 'sample-hh19a-single-1960-jan1-prior-cohort', mode: 'full', crosscheckable: false, birthYear: 1960, birthMonth: 1, birthDay: 1, gender: 'male', hasSpouse: false, pia: 2400,
+    description: "Sample HH19 (a of 2): born 1 JANUARY 1960, male, PIA $2,400, single. SSA deems an age attained the day BEFORE the birthday, so this claimant attains every age in December and is read into the 1959 cohort: FRA 66y10m, NOT the 67 his 1960 birth year would suggest. Independently derivable from SSA's published schedule, exactly like every other expectation in this file - ssaCohortYear() in this script applies the attainment rule, and the golden suite confirms the app's own getFullRetirementAge(birthYear, birthMonth, birthDay) agrees. Its twin sample-hh19b-single-1960-jan2-own-cohort holds everything else fixed and moves the birthday one day later, to 2 January, which lands in the 1960 cohort and FRA 67. Compare the two tables: at 62 this claimant is 58 months early against a 802-month FRA where his twin is 60 months early against 804, so he keeps more of his PIA at every age before FRA and earns credits from ten months sooner. NOT cross-checked against ssa.tools: that suite substitutes the 2nd of the month for every birthday (see its isoDob), which is value-preserving for days 2-28 but NOT for the 1st - substituting day 2 here would silently move this claimant into the 1960 cohort and compare his day-1 values against a day-2 stranger's. crosscheckable: false says so explicitly rather than leaving it to the reader." },
+  { id: 'sample-hh19b-single-1960-jan2-own-cohort', mode: 'full', birthYear: 1960, birthMonth: 1, birthDay: 2, gender: 'male', hasSpouse: false, pia: 2400,
+    description: "Sample HH19 (b of 2): the control twin, born 2 JANUARY 1960 - one day after sample-hh19a-single-1960-jan1-prior-cohort and otherwise identical (male, PIA $2,400, single). Attainment the day before a 2 January birthday is still 1 January of the same year, so this claimant stays in the 1960 cohort and gets FRA 67. The pair is the fixture form of the CSV's own note: 'Compare against a 01/02/1960 twin, who would get FRA 67.' Holding PIA, gender, marital status and birth month fixed makes the ten-month FRA difference attributable to the one day and nothing else. This twin IS cross-checkable - day 2 is exactly what the ssa.tools suite substitutes anyway - so between them the pair pins the boundary in the golden suite and keeps one side verified against the live oracle." },
+
   { id: 'sample-hh1-single-1962-pia2400-delay70', mode: 'full', birthYear: 1962, birthMonth: 4, birthDay: 15, gender: 'male', hasSpouse: false, pia: 2400,
     description: 'Sample HH1: baseline single, born Apr 1962 M PIA $2,400, FRA 67 - clean delayed-credit math from FRA to 70' },
   { id: 'sample-hh2-married-1960-dual-high-earners', mode: 'full', birthYear: 1960, birthMonth: 2, birthDay: 15, gender: 'male', hasSpouse: true, pia: 3200,

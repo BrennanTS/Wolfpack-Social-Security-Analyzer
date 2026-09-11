@@ -52,7 +52,11 @@ interface LiveResult {
 const reports: ScenarioReport[] = [];
 
 function isoDob(year: number, month: number): string {
-  // Day fixed at the 2nd (see file header).
+  // Day fixed at the 2nd (see file header). Value-preserving for days 2-28,
+  // and deliberately NOT applied to day-1 birthdays — those are filtered out
+  // by `crosscheckable` before they reach here, because SSA reads a
+  // 1 January birthday into the previous FRA cohort and substituting day 2
+  // would compare the fixture's values against a different claimant's.
   return `${year}-${String(month).padStart(2, '0')}-02`;
 }
 
@@ -151,7 +155,9 @@ function parseSpousalTopup(md: string): number | null {
   return m ? Number(m[1].replace(/,/g, '')) : null;
 }
 
-const crossScenarios = scenarios.filter((s) => s.mode === 'full');
+// `crosscheckable` is false only where the day-2 substitution above would
+// change the claimant (a 1 January birthday). Everything else full-mode runs.
+const crossScenarios = scenarios.filter((s) => s.mode === 'full' && s.crosscheckable !== false);
 
 test.describe('ssa.tools live cross-check', () => {
   for (const scenario of crossScenarios) {

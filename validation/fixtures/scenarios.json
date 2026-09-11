@@ -107,7 +107,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1960-low-pia500",
@@ -208,7 +209,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1960-max-pia5000",
@@ -309,7 +311,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1961-fra67-pia3500",
@@ -410,7 +413,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1962-fra67-pia5000",
@@ -511,7 +515,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1963-fra67-pia1500",
@@ -612,7 +617,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1965-fra67-pia4000",
@@ -713,7 +719,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1966-fra67-pia1234",
@@ -814,7 +821,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1959-fra66y10m-pia2400",
@@ -915,7 +923,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1960-spouse-no-record",
@@ -1027,7 +1036,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1960-partial-topup",
@@ -1139,7 +1149,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1964-dual-high-earners",
@@ -1251,7 +1262,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1962-spouse-higher-earner",
@@ -1363,7 +1375,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1965-younger-spouse-no-record",
@@ -1475,7 +1488,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1962-same-sex-both-male",
@@ -1614,7 +1628,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1963-spouse-claims-early",
@@ -1753,7 +1768,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1958-widow-claims-late",
@@ -1868,7 +1884,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1960-widow-already-filed",
@@ -1980,7 +1997,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "married-1964-tie-no-survivor-band",
@@ -2095,7 +2113,214 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
+    },
+    {
+      "id": "sample-hh19a-single-1960-jan1-prior-cohort",
+      "description": "Sample HH19 (a of 2): born 1 JANUARY 1960, male, PIA $2,400, single. SSA deems an age attained the day BEFORE the birthday, so this claimant attains every age in December and is read into the 1959 cohort: FRA 66y10m, NOT the 67 his 1960 birth year would suggest. Independently derivable from SSA's published schedule, exactly like every other expectation in this file - ssaCohortYear() in this script applies the attainment rule, and the golden suite confirms the app's own getFullRetirementAge(birthYear, birthMonth, birthDay) agrees. Its twin sample-hh19b-single-1960-jan2-own-cohort holds everything else fixed and moves the birthday one day later, to 2 January, which lands in the 1960 cohort and FRA 67. Compare the two tables: at 62 this claimant is 58 months early against a 802-month FRA where his twin is 60 months early against 804, so he keeps more of his PIA at every age before FRA and earns credits from ten months sooner. NOT cross-checked against ssa.tools: that suite substitutes the 2nd of the month for every birthday (see its isoDob), which is value-preserving for days 2-28 but NOT for the 1st - substituting day 2 here would silently move this claimant into the 1960 cohort and compare his day-1 values against a day-2 stranger's. crosscheckable: false says so explicitly rather than leaving it to the reader.",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1960,
+            "birthMonth": 1,
+            "birthDay": 1,
+            "gender": "male",
+            "piaMonthly": 2400,
+            "lifeExpectancy": 85
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 66,
+            "months": 10,
+            "label": "66 years, 10 months"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1700,
+            "63": 1820,
+            "64": 1946,
+            "65": 2106,
+            "66": 2266,
+            "67": 2432,
+            "68": 2624,
+            "69": 2816,
+            "70": 3008
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70.8,
+            "63": 75.8,
+            "64": 81.1,
+            "65": 87.8,
+            "66": 94.4,
+            "67": 101.3,
+            "68": 109.3,
+            "69": 117.3,
+            "70": 125.3
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.7
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
+        "spousalTopUpAtFilingAge": null,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 68,
+            "months": 1
+          }
+        ],
+        "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": true,
+        "assertSummaryCards": true
+      },
+      "crosscheckable": false
+    },
+    {
+      "id": "sample-hh19b-single-1960-jan2-own-cohort",
+      "description": "Sample HH19 (b of 2): the control twin, born 2 JANUARY 1960 - one day after sample-hh19a-single-1960-jan1-prior-cohort and otherwise identical (male, PIA $2,400, single). Attainment the day before a 2 January birthday is still 1 January of the same year, so this claimant stays in the 1960 cohort and gets FRA 67. The pair is the fixture form of the CSV's own note: 'Compare against a 01/02/1960 twin, who would get FRA 67.' Holding PIA, gender, marital status and birth month fixed makes the ten-month FRA difference attributable to the one day and nothing else. This twin IS cross-checkable - day 2 is exactly what the ssa.tools suite substitutes anyway - so between them the pair pins the boundary in the golden suite and keeps one side verified against the live oracle.",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1960,
+            "birthMonth": 1,
+            "birthDay": 2,
+            "gender": "male",
+            "piaMonthly": 2400,
+            "lifeExpectancy": 85
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1680,
+            "63": 1800,
+            "64": 1920,
+            "65": 2080,
+            "66": 2240,
+            "67": 2400,
+            "68": 2592,
+            "69": 2784,
+            "70": 2976
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
+        "spousalTopUpAtFilingAge": null,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 68,
+            "months": 0
+          }
+        ],
+        "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": true,
+        "assertSummaryCards": true
+      },
+      "crosscheckable": true
     },
     {
       "id": "sample-hh1-single-1962-pia2400-delay70",
@@ -2196,7 +2421,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "sample-hh2-married-1960-dual-high-earners",
@@ -2308,7 +2534,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "sample-hh3-married-1959-reduced-spousal",
@@ -2420,7 +2647,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "sample-hh4-married-1955-wide-age-gap",
@@ -2532,7 +2760,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "sample-hh13-married-1962-two-max-earners",
@@ -2644,7 +2873,8 @@
       "e2e": {
         "assertTable": true,
         "assertSummaryCards": true
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "widowed-1964-own-first-then-survivor-fra",
@@ -2667,6 +2897,7 @@
         "deceased": {
           "birthYear": 1959,
           "birthMonth": 3,
+          "birthDay": 15,
           "deathYear": 2023,
           "deathMonth": 9,
           "record": {
@@ -2760,7 +2991,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "widowed-1964-survivor-first-then-own-70",
@@ -2783,6 +3015,7 @@
         "deceased": {
           "birthYear": 1959,
           "birthMonth": 3,
+          "birthDay": 15,
           "deathYear": 2023,
           "deathMonth": 9,
           "record": {
@@ -2876,7 +3109,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "sample-hh5-widowed-1961-deceased-filed-at-fra",
@@ -2899,6 +3133,7 @@
         "deceased": {
           "birthYear": 1956,
           "birthMonth": 3,
+          "birthDay": 15,
           "deathYear": 2023,
           "deathMonth": 3,
           "record": {
@@ -2995,7 +3230,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "sample-hh15-widowed-1961-riblim-deceased-filed-early",
@@ -3018,6 +3254,7 @@
         "deceased": {
           "birthYear": 1960,
           "birthMonth": 1,
+          "birthDay": 15,
           "deathYear": 2023,
           "deathMonth": 3,
           "record": {
@@ -3114,7 +3351,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1943-fra66-pia2000",
@@ -3209,7 +3447,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1950-fra66-pia1800",
@@ -3304,7 +3543,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1953-fra66-pia4500",
@@ -3399,7 +3639,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1954-fra66-pia3000",
@@ -3494,7 +3735,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1954-fra66-pia1234",
@@ -3589,7 +3831,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1955-fra66y2m-pia2500",
@@ -3684,7 +3927,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1956-fra66y4m-pia2200",
@@ -3779,7 +4023,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1957-fra66y6m-pia2000",
@@ -3874,7 +4119,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     },
     {
       "id": "single-1958-fra66y8m-pia2800",
@@ -3969,7 +4215,8 @@
       "e2e": {
         "assertTable": false,
         "assertSummaryCards": false
-      }
+      },
+      "crosscheckable": true
     }
   ]
 }

@@ -101,6 +101,44 @@ describe('the birthday as one value', () => {
     });
   });
 
+  it('keeps the month and day while the year is still being typed', () => {
+    // The bug this pins: a year is entered a digit at a time, and the control
+    // reports a COMPLETE date at every step — 0001-06-15 after the first
+    // keystroke, then 0019, 0196, 1960. Two separate faults each blanked the
+    // whole field at that first keystroke, taking the month and day the
+    // reader had already entered:
+    //   - `Date.UTC` reads 0-99 as 1900-1999, so year 1 came back 1901 and
+    //     the round-trip rejected a date the reader had legitimately typed;
+    //   - the year was not padded, so state of year 1 rendered as `1-06-15`,
+    //     which `input[type=date]` cannot accept and clears itself on.
+    // Either one on its own resets the field, so both are asserted here.
+    const typingTheYear = ['0001-06-15', '0019-06-15', '0196-06-15', '1960-06-15'];
+    const expectedYears = [1, 19, 196, 1960];
+
+    typingTheYear.forEach((reported, i) => {
+      const parts = fromBirthDateInput(reported);
+      expect(parts, `the control reported ${reported}; the month and day must survive it`).toEqual({
+        birthYear: expectedYears[i],
+        birthMonth: 6,
+        birthDay: 15,
+      });
+      // What goes back into the control must be a date it can accept, or it
+      // blanks itself and the month and day are gone anyway.
+      const rendered = toBirthDateInput(parts);
+      expect(rendered, `year ${expectedYears[i]} must render four digits`).toMatch(
+        /^\d{4}-\d{2}-\d{2}$/,
+      );
+      expect(fromBirthDateInput(rendered)).toEqual(parts);
+    });
+  });
+
+  it('still refuses a year that is not four digits from anywhere else', () => {
+    // The padding above is about rendering OUT. Reading IN is unchanged: a
+    // short year is not a date, however it arrived.
+    expect(fromBirthDateInput('1-06-15')).toEqual(BLANK_BIRTH_DATE);
+    expect(fromBirthDateInput('196-06-15')).toEqual(BLANK_BIRTH_DATE);
+  });
+
   it('shows nothing until the whole date is there', () => {
     // A date input cannot display half a date, so a partial record has to
     // read as no date at all rather than as some invented one.

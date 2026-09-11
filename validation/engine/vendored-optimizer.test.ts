@@ -110,6 +110,12 @@ const PINS: Pin[] = [
     engineAges: [{ years: 62, months: 2 }, { years: 70, months: 0 }],
   },
   { id: 'sample-hh1-single-1962-pia2400-delay70', engineAges: [{ years: 67, months: 9 }] },
+  // HH19's twins, born one day apart. Their engine answers differ because a
+  // 1 January birthday sits in the previous FRA cohort — the same one-day
+  // cliff the fixtures themselves pin, seen here through the vendored
+  // optimizer rather than the app's.
+  { id: 'sample-hh19a-single-1960-jan1-prior-cohort', engineAges: [{ years: 68, months: 1 }] },
+  { id: 'sample-hh19b-single-1960-jan2-own-cohort', engineAges: [{ years: 68, months: 0 }] },
   {
     id: 'sample-hh2-married-1960-dual-high-earners',
     engineAges: [{ years: 70, months: 0 }, { years: 64, months: 5 }],
@@ -142,6 +148,8 @@ interface FixtureScenario {
     people: {
       birthYear: number;
       birthMonth: number;
+      /** Absent means the 15th, the day every pre-birth-day fixture used. */
+      birthDay?: number;
       gender: 'male' | 'female';
       piaMonthly: number;
     }[];
@@ -157,7 +165,11 @@ const byId = new Map(allScenarios.map((s) => [s.id, s]));
 async function engineAnswer(scenario: FixtureScenario) {
   const asOf = new Date(`${scenario.inputs.asOf}T00:00:00`);
   const recipients = scenario.inputs.people.map((p) =>
-    createPiaRecipient(p.birthYear, p.birthMonth, 15, p.piaMonthly, p.gender),
+    // The DAY matters: SSA reads a 1 January birthday into the previous FRA
+    // cohort, so hardcoding 15 here would build both of HH19's twins as the
+    // same claimant and pin an answer that cannot see the very cliff the
+    // pair exists to catch. Absent still means the 15th.
+    createPiaRecipient(p.birthYear, p.birthMonth, p.birthDay ?? 15, p.piaMonthly, p.gender),
   );
   const dists = await Promise.all(
     recipients.map((r) => getDeathProbabilityDistribution(r, asOf.getFullYear())),
