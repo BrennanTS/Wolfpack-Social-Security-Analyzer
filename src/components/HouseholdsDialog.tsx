@@ -5,7 +5,7 @@ import {
   VALIDATION_SCENARIOS,
   type ValidationScenario,
 } from '../lib/validationSummary';
-import { formatCurrencyPrecise } from '../lib/format';
+import { formatCurrency } from '../lib/format';
 import { usePageScrollLock } from '../hooks/usePageScrollLock';
 
 interface HouseholdsDialogProps {
@@ -22,6 +22,12 @@ interface HouseholdsDialogProps {
  * list is doing. A table across the middle of the screen puts the claiming
  * ages in columns, so a reader can run down one and see the reduction and the
  * credit behave.
+ *
+ * Figures are whole dollars: six columns of `.00` on thirty-two rows is a lot
+ * of ink spent saying nothing, and every pinned figure is a whole dollar
+ * anyway. `validationSummary.test.ts` fails if one stops being — rounding a
+ * figure that HAS cents would print a number that does not match the
+ * ssa.tools page the link beside it opens.
  *
  * The claiming-age columns are read from the data rather than written here:
  * the summary is generated from the golden fixtures, and a panel that names
@@ -130,13 +136,13 @@ function ScenarioRow({ scenario, ages }: { scenario: ValidationScenario; ages: n
       {/* Both people, for a couple. Two married households pin the same first
           earner and differ only in the second, so naming one would print two
           rows identical in every column. */}
-      <td>{scenario.people.map((p) => formatCurrencyPrecise(p.piaMonthly)).join(' and ')}</td>
+      <td>{scenario.people.map((p) => formatCurrency(p.piaMonthly)).join(' and ')}</td>
       <td>{scenario.fra.join(' and ')}</td>
       {ages.map((age) => {
         const amount = scenario.monthly[String(age)];
         return (
           <td className="households-figure" key={age}>
-            {amount === undefined ? 'not pinned' : `${formatCurrencyPrecise(amount)}/mo`}
+            {amount === undefined ? 'not pinned' : `${formatCurrency(amount)}/mo`}
           </td>
         );
       })}

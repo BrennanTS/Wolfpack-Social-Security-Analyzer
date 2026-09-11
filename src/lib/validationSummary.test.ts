@@ -84,6 +84,19 @@ describe('the validation summary the app displays', () => {
     expect(url.startsWith('https://ssa.tools/calculator#')).toBe(true);
   });
 
+  it('pins whole dollars, which is what lets the table round', () => {
+    // `HouseholdsDialog` prints these without cents: six `.00` columns across
+    // thirty-two rows is ink spent saying nothing. That is only honest while
+    // every pinned figure IS a whole dollar — round one that has cents and
+    // the table shows a number the ssa.tools page beside it does not.
+    const figures = VALIDATION_SCENARIOS.flatMap((scenario) => [
+      ...scenario.people.map((person) => person.piaMonthly),
+      ...Object.values(scenario.monthly),
+    ]);
+    expect(figures.length).toBeGreaterThan(100);
+    expect(figures.filter((amount) => !Number.isInteger(amount))).toEqual([]);
+  });
+
   it('counts what it shows', () => {
     const counts = scenarioCounts();
     expect(counts.total).toBe(VALIDATION_SCENARIOS.length);
