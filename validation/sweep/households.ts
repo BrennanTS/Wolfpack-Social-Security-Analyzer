@@ -70,21 +70,50 @@ export interface SweepHousehold {
 }
 
 /**
+ * A birth day that exists in the month it was drawn for.
+ *
+ * `Birthdate.FromYMD` THROWS on 31 February rather than returning something
+ * wrong, so a sweep that drew days blindly would crash rather than report a
+ * finding — and a crash in the generator looks nothing like the invariant
+ * failure the sweep exists to surface.
+ *
+ * The 1st is drawn deliberately rather than left to a 1-in-31 chance, because
+ * it is the one day SSA treats differently (see `Person.birthDay`). The 2nd is
+ * drawn deliberately too, as its neighbour on the other side of that cliff.
+ * The rest spread across the month ends, where the calendar is least uniform:
+ * 28, 29, 30 and 31 exist in different numbers of months, and 29 February
+ * exists in one year in four.
+ */
+const DAY_DRAW = [1, 2, 15, 28, 29, 30, 31];
+
+function daysIn(year: number, month: number): number {
+  if (month === 2) return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28;
+  return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+
+function birthDayFor(r: () => number, year: number, month: number): number {
+  // Weighted so the 1st keeps the share it had before this widened, rather
+  // than being diluted to 1-in-7 and thinning the coverage of the only day
+  // whose behaviour differs.
+  const day = r() < 0.15 ? 1 : pick(r, DAY_DRAW);
+  return Math.min(day, daysIn(year, month));
+}
+
+/**
  * Names travel with the human, not with the slot — `id` is the slot. Swapping
  * entry order must not change what the analysis says about a given person, and
  * a name that changed with the slot would make every label difference look
  * like a real finding.
  */
 function personAt(r: () => number, id: 'a' | 'b'): Person {
+  const year = pick(r, BIRTH_YEARS);
+  const month = between(r, 1, 12);
   return {
     id,
     name: id === 'a' ? 'Alpha' : 'Beta',
-    birthYear: pick(r, BIRTH_YEARS),
-    birthMonth: between(r, 1, 12),
-    // The 1st is the one day SSA treats differently, so the sweep draws it
-    // deliberately rather than leaving it to a 1-in-31 chance of never being
-    // generated at all. Every other day behaves like the 15th.
-    birthDay: r() < 0.15 ? 1 : 15,
+    birthYear: year,
+    birthMonth: month,
+    birthDay: birthDayFor(r, year, month),
     gender: pick(r, GENDERS),
     piaMonthly: pick(r, PIAS),
     lifeExpectancy: pick(r, LIFE_EXPECTANCIES),
@@ -247,7 +276,7 @@ export function widowedHouseholdAt(index: number): SweepHousehold {
   const deceased: Deceased = {
     birthYear: decBirth.year,
     birthMonth: decBirth.month,
-    birthDay: r() < 0.15 ? 1 : 15,
+    birthDay: birthDayFor(r, decBirth.year, decBirth.month),
     deathYear: death.year,
     deathMonth: death.month,
     record,

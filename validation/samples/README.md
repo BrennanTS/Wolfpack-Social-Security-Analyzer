@@ -91,8 +91,20 @@ ssa.tools cross-check) · ❌ needs a product feature that does not exist yet.
   ($2,400), gender, marital status and birth month fixed makes the difference
   attributable to the day and nothing else: at 62 the Jan-1 twin gets $1,700
   against his brother's $1,680, at FRA $2,432 against $2,400, at 70 $3,008
-  against $2,976. The `a` twin is **not** cross-checked against ssa.tools
-  (`crosscheckable: false`) — see below.
+  against $2,976. Both twins are cross-checked against ssa.tools on their
+  real days — see below.
+- **HH20 is HH19's negative control.** Born 1 June 1962: day 1, but not
+  January, so the attainment rule shifts the month without shifting the
+  cohort. Its FRA stays 67 and every figure matches an ordinary mid-month
+  1962 claimant's ($1,680 / $2,400 / $2,976, identical to HH1). That sameness
+  is the assertion: it pins that the day-1 exception applies to January
+  alone. HH19a on its own cannot tell "the rule stopped working" apart from
+  "the rule fires on every 1st".
+- **HH21 is the same cliff at a second FRA seam.** Born 1 January 1959, read
+  as the 1958 cohort: FRA 66y8m, not the 66y10m its birth year suggests.
+  HH19a pins the rule where the schedule stops moving and settles at 67;
+  HH21 pins it where both cohorts are still climbing, which is where an
+  off-by-one bracket would hide while HH19a still passed.
 - The remaining 12 are out of scope for the current model.
 
 ### Why the widowed fixtures skip the UI suite
@@ -106,20 +118,28 @@ runs, and the survivor's own benefit table is still cross-checked against live
 ssa.tools as a single worker. Teaching the form driver the widowed intake
 would turn the UI assertions back on for four fixtures.
 
-### Why the Jan-1 twin skips the live cross-check
+### How the live cross-check handles the birth day
 
-`validation/crosscheck/ssatools-live.spec.ts` substitutes the **2nd** of the
-month for every birthday it sends to ssa.tools, because ssa.tools omits the
-`62y 0m` row for later-in-month birthdays and the whole-year factors are
-otherwise day-independent. That substitution is value-preserving for days
-2-28 — and *not* for the 1st, where SSA's day-before attainment rule changes
-which FRA cohort the claimant is in. Sending day 2 for a Jan-1 fixture would
-quietly compare its values against a different person's and pass.
+`validation/crosscheck/ssatools-live.spec.ts` sends each fixture's **own**
+birth day to ssa.tools, falling back to the **2nd** only for fixtures
+recorded before the field existed. The day it sends has to be the 1st or the
+2nd for the `62y 0m` row to exist at all — ssa.tools omits it for
+later-in-month birthdays, because SSA pays a month only to someone 62
+throughout it — and among those two the 2nd is the one that behaves like an
+ordinary day.
 
-So the fixture schema now carries `crosscheckable`, and the Jan-1 twin sets it
-false. Its brother (born on the 2nd, which is what the suite substitutes
-anyway) is cross-checked normally, so the pair still keeps one side verified
-against the live oracle.
+It used to substitute the 2nd for *everybody*, which is value-preserving for
+days 2-28 and *not* for the 1st, where SSA's day-before attainment rule moves
+the claimant into a different FRA cohort. A `crosscheckable: false` flag
+excluded the Jan-1 fixtures rather than send them a day that would have
+quietly compared them against a different person. Sending the real day
+removed the need for the flag, and the flag is gone.
+
+The gain is not tidiness. Day 1 satisfies the whole-month rule too, so the
+row is present either way — which means the one case the birth-day work
+exists for is now confirmed against an independent implementation instead of
+skipped. ssa.tools states it in as many words for `dob1=1960-01-01`: *"For
+those born in 1959, normal retirement age is 66 years and 10 months."*
 
 ### A note on the engine-recorded values
 

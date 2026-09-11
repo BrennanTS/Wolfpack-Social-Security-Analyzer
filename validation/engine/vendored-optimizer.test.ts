@@ -114,6 +114,14 @@ const PINS: Pin[] = [
   // 1 January birthday sits in the previous FRA cohort — the same one-day
   // cliff the fixtures themselves pin, seen here through the vendored
   // optimizer rather than the app's.
+  // HH20 is the day-1 NEGATIVE control: a 1 June birthday shifts the SSA
+  // month without shifting the cohort, so its FRA stays 67 — but its engine
+  // answer is its own, because the mortality weighting is measured from a
+  // different month than any other 1962 fixture's.
+  { id: 'sample-hh20-single-1962-jun1-cohort-unchanged', engineAges: [{ years: 67, months: 8 }] },
+  // HH21 is the same one-day cliff as HH19a at a second FRA seam (1958 vs
+  // 1959, both still climbing), where an off-by-one bracket would hide.
+  { id: 'sample-hh21-single-1959-jan1-prior-cohort', engineAges: [{ years: 69, months: 1 }] },
   { id: 'sample-hh19a-single-1960-jan1-prior-cohort', engineAges: [{ years: 68, months: 1 }] },
   { id: 'sample-hh19b-single-1960-jan2-own-cohort', engineAges: [{ years: 68, months: 0 }] },
   {

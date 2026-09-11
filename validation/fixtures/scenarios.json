@@ -2099,7 +2099,7 @@
     },
     {
       "id": "sample-hh19a-single-1960-jan1-prior-cohort",
-      "description": "Sample HH19 (a of 2): born 1 JANUARY 1960, male, PIA $2,400, single. SSA deems an age attained the day BEFORE the birthday, so this claimant attains every age in December and is read into the 1959 cohort: FRA 66y10m, NOT the 67 his 1960 birth year would suggest. Independently derivable from SSA's published schedule, exactly like every other expectation in this file - ssaCohortYear() in this script applies the attainment rule, and the golden suite confirms the app's own getFullRetirementAge(birthYear, birthMonth, birthDay) agrees. Its twin sample-hh19b-single-1960-jan2-own-cohort holds everything else fixed and moves the birthday one day later, to 2 January, which lands in the 1960 cohort and FRA 67. Compare the two tables: at 62 this claimant is 58 months early against a 802-month FRA where his twin is 60 months early against 804, so he keeps more of his PIA at every age before FRA and earns credits from ten months sooner. NOT cross-checked against ssa.tools: that suite substitutes the 2nd of the month for every birthday (see its isoDob), which is value-preserving for days 2-28 but NOT for the 1st - substituting day 2 here would silently move this claimant into the 1960 cohort and compare his day-1 values against a day-2 stranger's. crosscheckable: false says so explicitly rather than leaving it to the reader.",
+      "description": "Sample HH19 (a of 2): born 1 JANUARY 1960, male, PIA $2,400, single. SSA deems an age attained the day BEFORE the birthday, so this claimant attains every age in December and is read into the 1959 cohort: FRA 66y10m, NOT the 67 his 1960 birth year would suggest. Independently derivable from SSA's published schedule, exactly like every other expectation in this file - ssaCohortYear() in this script applies the attainment rule, and the golden suite confirms the app's own getFullRetirementAge(birthYear, birthMonth, birthDay) agrees. Its twin sample-hh19b-single-1960-jan2-own-cohort holds everything else fixed and moves the birthday one day later, to 2 January, which lands in the 1960 cohort and FRA 67. Compare the two tables: at 62 this claimant is 58 months early against a 802-month FRA where his twin is 60 months early against 804, so he keeps more of his PIA at every age before FRA and earns credits from ten months sooner. CROSS-CHECKED against ssa.tools on its real day: that suite sends each fixture's own birthDay (see its isoDob) and falls back to the 2nd only for fixtures recorded before the field existed, so this claimant reaches the live site as 1 January and is read into the 1959 cohort there too. ssa.tools states it in as many words - 'For those born in 1959, normal retirement age is 66 years and 10 months' from dob1=1960-01-01 - which makes this scenario the one place the day-1 attainment rule is confirmed against an independent implementation rather than only against our own reading of the schedule.",
       "mode": "full",
       "inputs": {
         "asOf": "2026-01-15",
@@ -2285,6 +2285,210 @@
           {
             "years": 68,
             "months": 0
+          }
+        ],
+        "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": true,
+        "assertSummaryCards": true
+      }
+    },
+    {
+      "id": "sample-hh20-single-1962-jun1-cohort-unchanged",
+      "description": "Sample HH20: the NEGATIVE CONTROL for the day-1 rule. Born 1 JUNE 1962, male, PIA $2,400, single. Day 1, like sample-hh19a-single-1960-jan1-prior-cohort - but in a month that is not January, so the attainment rule shifts the MONTH without shifting the YEAR: this claimant attains every age in May, and May 1962 is still the 1962 cohort. FRA is therefore 67, exactly as it would be for a 15 June birthday, and every figure in the table below is identical to an ordinary mid-month 1962 claimant's. That sameness IS the assertion. ssaCohortYear() in gen-fixtures.mjs and ssaBirthMonth() in src/lib/ssaTools.ts both special-case January alone; a change that made the previous-year rule apply to every 1st - or that dropped the month shift entirely - would move this scenario's FRA to 66y10m and every benefit with it, and hh19a alone could not tell those two mistakes apart. Cross-checked against ssa.tools on its real day (dob1=1962-06-01), so the boundary of the exception is confirmed against an independent implementation and not only against our own reading. The month shift itself is not visible here, because a filing FACTOR depends on months relative to FRA and both dates move together; it is pinned where dates are actually asserted, in src/lib/birthDay.test.ts, which compares filingMonth() against the engine's dateAtSsaAge() across days 1, 2, 15 and 28 in April, January and December.",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1962,
+            "birthMonth": 6,
+            "birthDay": 1,
+            "gender": "male",
+            "piaMonthly": 2400,
+            "lifeExpectancy": 85
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 67,
+            "months": 0,
+            "label": "67"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1680,
+            "63": 1800,
+            "64": 1920,
+            "65": 2080,
+            "66": 2240,
+            "67": 2400,
+            "68": 2592,
+            "69": 2784,
+            "70": 2976
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 70,
+            "63": 75,
+            "64": 80,
+            "65": 86.7,
+            "66": 93.3,
+            "67": 100,
+            "68": 108,
+            "69": 116,
+            "70": 124
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.7
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.4
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.5
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
+        "spousalTopUpAtFilingAge": null,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 68,
+            "months": 8
+          }
+        ],
+        "survivorClaim": null,
+        "recommendedOwnFilingAge": null,
+        "recommendedSurvivorClaimAge": null,
+        "lifetimeTotal": null,
+        "invariants": [
+          "monthlyMonotonicIncreasing",
+          "expectedPvPositive"
+        ]
+      },
+      "e2e": {
+        "assertTable": true,
+        "assertSummaryCards": true
+      }
+    },
+    {
+      "id": "sample-hh21-single-1959-jan1-prior-cohort",
+      "description": "Sample HH21: the day-1 cohort shift at a SECOND FRA seam, so the rule is not pinned only where the schedule happens to end. Born 1 JANUARY 1959, female, PIA $2,400, single. Attainment the day before the birthday puts her in December 1958, so she is read as the 1958 cohort: FRA 66y8m, NOT the 66y10m her 1959 birth year would suggest. Compare single-1959-fra66y10m-pia2400 (born November 1959, mid-month), which IS 66y10m - same birth year, different answer, and the only thing separating them is the day. sample-hh19a-single-1960-jan1-prior-cohort pins the same rule at the 1959/1960 seam where FRA stops moving and settles at 67; this one pins it at a seam where BOTH cohorts are still climbing (66y8m vs 66y10m), which is the case a lookup table with an off-by-one bracket would get wrong while still passing hh19a. Independently derivable from SSA's published schedule exactly like every other expectation here, and cross-checked against ssa.tools on its real day (dob1=1959-01-01).",
+      "mode": "full",
+      "inputs": {
+        "asOf": "2026-01-15",
+        "status": "single",
+        "people": [
+          {
+            "birthYear": 1959,
+            "birthMonth": 1,
+            "birthDay": 1,
+            "gender": "female",
+            "piaMonthly": 2400,
+            "lifeExpectancy": 85
+          }
+        ],
+        "annualCola": 0,
+        "discountRate": 0.025
+      },
+      "expected": {
+        "fraByPerson": [
+          {
+            "years": 66,
+            "months": 8,
+            "label": "66 years, 8 months"
+          }
+        ],
+        "monthlyByClaimAgeByPerson": [
+          {
+            "62": 1720,
+            "63": 1840,
+            "64": 1973,
+            "65": 2133,
+            "66": 2293,
+            "67": 2464,
+            "68": 2656,
+            "69": 2848,
+            "70": 3040
+          }
+        ],
+        "percentOfPiaByClaimAgeByPerson": [
+          {
+            "62": 71.7,
+            "63": 76.7,
+            "64": 82.2,
+            "65": 88.9,
+            "66": 95.5,
+            "67": 102.7,
+            "68": 110.7,
+            "69": 118.7,
+            "70": 126.7
+          }
+        ],
+        "breakEvensByPerson": [
+          [
+            {
+              "earlierAge": 62,
+              "laterAge": 67,
+              "breakEvenAge": 78.6
+            },
+            {
+              "earlierAge": 62,
+              "laterAge": 70,
+              "breakEvenAge": 80.5
+            },
+            {
+              "earlierAge": 67,
+              "laterAge": 70,
+              "breakEvenAge": 82.9
+            }
+          ]
+        ],
+        "spousalTopUpAtFra": null,
+        "spousalTopUpAtFilingAge": null,
+        "startsAtSpouseAge": null,
+        "optimalAgeRangeByPerson": [
+          [
+            62,
+            70
+          ]
+        ],
+        "recommendedFilingAgeByPerson": [
+          {
+            "years": 68,
+            "months": 1
           }
         ],
         "survivorClaim": null,
