@@ -387,3 +387,146 @@ describe('Analyzer', () => {
     );
   });
 });
+
+/**
+ * Starting a new client, and hydrating a saved one.
+ *
+ * `startNewClient` and `applyView` are the same shape of code: a flat list of
+ * a dozen setters that has to stay in step with the state above it. Nothing
+ * in the type system connects them — a field added to the view and forgotten
+ * in the reset compiles, passes every other test, and leaks the previous
+ * client's screen into the next one. `setCharts` had to be added to both by
+ * hand the day optional-chart visibility started travelling.
+ *
+ * So these assert the INVARIANT rather than a list of fields, because a list
+ * drifts exactly the way the code does: no parameter belonging to one
+ * household may survive into the next.
+ *
+ * The remembered view is the observable. `Analyzer` writes the whole
+ * serialized screen to `localStorage` on every edit, which is the same string
+ * a copied link and a saved client carry.
+ */
+describe('starting a new client', () => {
+  const KEY = 'ssa-current-view';
+
+  function useStorage(): Storage {
+    const map = new Map<string, string>();
+    const store = {
+      get length() {
+        return map.size;
+      },
+      clear: () => map.clear(),
+      getItem: (k: string) => map.get(k) ?? null,
+      key: (i: number) => [...map.keys()][i] ?? null,
+      removeItem: (k: string) => map.delete(k),
+      setItem: (k: string, v: string) => void map.set(k, v),
+    } as Storage;
+    Object.defineProperty(window, 'localStorage', {
+      value: store,
+      configurable: true,
+      writable: true,
+    });
+    return store;
+  }
+
+  /** Everything on screen, as the app itself serializes it. */
+  function remembered(store: Storage): URLSearchParams {
+    const raw = store.getItem(KEY);
+    return new URLSearchParams(raw === null ? '' : (JSON.parse(raw) as { params: string }).params);
+  }
+
+  /**
+   * A household with something set in every corner the reset has to reach:
+   * a spouse, hidden claiming rows, optional charts, a switched-off grid
+   * target, and the benefit-reduction scenario.
+   */
+  const RICH =
+    '/?ay=1962&am=4&ad=15&ag=m&ab=2400&ale=85&an=John' +
+    '&m=1&by=1964&bm=2&bd=15&bg=f&bb=2100&ble=88&bn=Jane' +
+    '&pah=63,64&ca=lifetimeHeatmap,monthlyRamp&cb=opportunityCost' +
+    '&gt=off&sv=2040-90&cola=3&dr=3';
+
+  it('hydrates every corner of a shared view', async () => {
+    // `applyView`'s other half: a field the URL carries but the hydration
+    // drops would reopen a client the adviser did not set up.
+    const store = useStorage();
+    window.history.pushState({}, '', RICH);
+    renderAnalyzer();
+    await screen.findByTestId('strategy-table', {}, { timeout: 10000 });
+
+    const params = remembered(store);
+    expect(params.get('an')).toBe('John');
+    expect(params.get('bn')).toBe('Jane');
+    expect(params.get('pah')).toBe('63,64');
+    expect(params.get('ca')).toBe('lifetimeHeatmap,monthlyRamp');
+    expect(params.get('cb')).toBe('opportunityCost');
+    expect(params.get('gt')).toBe('off');
+    expect(params.get('sv')).toBe('2040-90');
+    expect(params.get('cola')).toBe('3');
+  }, 20000);
+
+  it('leaves nothing of one household behind in the next', async () => {
+    // The whole point. Not a list of fields to keep in step with the reset —
+    // an assertion that the reset reached everything the view can carry.
+    const store = useStorage();
+    window.history.pushState({}, '', RICH);
+    renderAnalyzer();
+    await screen.findByTestId('strategy-table', {}, { timeout: 10000 });
+    const before = [...remembered(store).keys()];
+    expect(before.length, 'the rich view should carry a lot').toBeGreaterThan(12);
+
+    await userEvent.click(screen.getByRole('button', { name: 'New client' }));
+    // The form has unsaved work, so it asks first.
+    await userEvent.click(screen.getByRole('button', { name: /Discard and start new/i }));
+
+    // Nothing remembered at all: an empty form is not a view of its own.
+    expect(store.getItem(KEY)).toBeNull();
+    expect(screen.getByLabelText('Client date of birth')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'New client' })).toBeDisabled();
+
+    // The assertion that matters, and it has to come AFTER the next
+    // household starts. While the form is empty the app remembers nothing at
+    // all, so state the reset forgot is invisible — it surfaces the moment
+    // an adviser types the next client's name, and then it is in their link
+    // and their saved record. Checked by introducing the real drift
+    // (removing `setCharts({})` from `startNewClient`): the assertion above
+    // stayed green, this one does not.
+    await userEvent.type(screen.getByLabelText('Name (optional)'), 'Next');
+    const after = remembered(store);
+    expect(after.get('an')).toBe('Next');
+    for (const leaked of ['ca', 'cb', 'pah', 'paa', 'pbh', 'gt', 'sv', 'bn', 'by', 'bb']) {
+      expect(after.get(leaked), `${leaked} survived into the next client`).toBeNull();
+    }
+    // And the assumptions are back at their defaults rather than the last
+    // client's, which a link would otherwise carry silently.
+    expect(after.get('cola')).not.toBe('3');
+    expect(after.get('dr')).not.toBe('3');
+  }, 20000);
+
+  it('asks before discarding, and cancelling changes nothing', async () => {
+    const store = useStorage();
+    window.history.pushState({}, '', RICH);
+    renderAnalyzer();
+    await screen.findByTestId('strategy-table', {}, { timeout: 10000 });
+    const before = store.getItem(KEY);
+
+    await userEvent.click(screen.getByRole('button', { name: 'New client' }));
+    expect(screen.getByText(/Start a new client\?/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+
+    expect(store.getItem(KEY)).toBe(before);
+    // Labelled by the person's NAME once they have one, which is also how a
+    // reader knows which of two date fields they are in.
+    expect(screen.getByLabelText('John date of birth')).toHaveValue('1962-04-15');
+  }, 20000);
+
+  it('cannot be started from an already-empty form', () => {
+    // Guarded rather than hidden, so the button's absence never reads as a
+    // missing feature — and `requestNewClient` returns early regardless.
+    useStorage();
+    window.history.pushState({}, '', '/');
+    renderAnalyzer();
+    expect(screen.getByRole('button', { name: 'New client' })).toBeDisabled();
+  });
+});
+
