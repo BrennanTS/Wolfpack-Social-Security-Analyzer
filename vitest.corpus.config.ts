@@ -23,7 +23,11 @@ export default defineConfig({
   test: {
     name: 'corpus',
     environment: 'jsdom',
-    include: ['validation/sweep/corpus.sweep.ts', 'validation/sweep/schedule.sweep.ts'],
+    include: [
+      'validation/sweep/corpus.sweep.ts',
+      'validation/sweep/schedule.sweep.ts',
+      'validation/sweep/samples.sweep.tsx',
+    ],
     setupFiles: ['./src/testSetup.ts'],
     // These write files and report what they wrote; the summary is the point.
     disableConsoleIntercept: true,

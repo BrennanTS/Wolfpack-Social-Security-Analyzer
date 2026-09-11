@@ -38,3 +38,4 @@ coverage/
 # The compliance copy schedule is generated (npm run copy:schedule) and
 # stamped with a date, so committing it would churn. Regenerate to send.
 validation/copy/copy-schedule.docx
+validation/copy/samples/

@@ -26,7 +26,11 @@ export default defineConfig({
     // and WRITES a tracked file. Left in the default run it would dirty the
     // working tree every time someone checked the invariants. Run it on its
     // own: `npm run copy:corpus`.
-    exclude: ['validation/sweep/corpus.sweep.ts', 'validation/sweep/schedule.sweep.ts'],
+    exclude: [
+      'validation/sweep/corpus.sweep.ts',
+      'validation/sweep/schedule.sweep.ts',
+      'validation/sweep/samples.sweep.tsx',
+    ],
     setupFiles: ['./src/testSetup.ts'],
     // A single sweep file walks thousands of households; the default 5s cap
     // is for unit tests.

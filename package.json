@@ -23,7 +23,8 @@
     "preview": "vite preview",
     "sweep": "vitest run --config vitest.sweep.config.ts",
     "copy:corpus": "vitest run --config vitest.corpus.config.ts",
-    "copy:schedule": "vitest run --config vitest.corpus.config.ts validation/sweep/schedule.sweep.ts"
+    "copy:schedule": "vitest run --config vitest.corpus.config.ts validation/sweep/schedule.sweep.ts",
+    "copy:samples": "vitest run --config vitest.corpus.config.ts validation/sweep/samples.sweep.tsx"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

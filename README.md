@@ -126,6 +126,25 @@ document if any section's copy stops rendering, so a section cannot quietly
 vanish from something being signed off. The document is stamped with the app
 version and the date, so an approval is traceable to what was approved.
 
+Send it with the sample reports:
+
+```bash
+npm run copy:samples     # writes validation/copy/samples/*.pdf
+```
+
+Three client reports from fictional households, chosen to reach copy the
+others cannot: a single claimant (no survivor section, a shorter
+introduction), a couple with a real spousal top-up, and a widow whose
+widow(er)'s limit binds — she is paid $2,145, which is 82.5% of her husband's
+$2,600 and more than the $1,819 he was actually receiving. The schedule
+proves the wording is complete; the samples show it in context, with the
+layout, the figures and the disclosures in place. Both use the CLIENT layout
+and the shipped default theme, with a pinned as-of date so re-running
+produces the same reports.
+
+Each sample asserts it still demonstrates what it was chosen for, so a
+sample cannot silently become a sample of nothing in particular.
+
 ## Stack
 
 React 19 · TypeScript · Vite · Recharts · @react-pdf/renderer
