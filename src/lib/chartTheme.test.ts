@@ -51,28 +51,26 @@ describe('chart series colors', () => {
     CHART_SLATE,
   };
 
-  it('clears 3:1 against both canvases — except CHART_SAGE, which does not', () => {
+  it('clears 3:1 against both the light and the dark canvas', () => {
     // 3:1 is the threshold for a graphical mark, and it has to hold on BOTH
     // because the same hex is drawn on the cream report page and the dark
     // app background — that is the whole reason these are not `var()`.
     //
-    // CHART_SAGE is a KNOWN SHORTFALL, found when this test was written:
-    // #7d9b76 scores 2.80:1 on cream, under the bar the module's own comment
-    // says every series colour is picked to clear. It is fine on dark (6.31)
-    // and in the tooltip (5.98); it is the spousal band on the printed
-    // report that is under-contrast. Left at its current value rather than
-    // changed silently, because the palette is a visual decision and every
-    // report already issued uses this colour. #76936f would clear it at
-    // 3.10:1 while staying recognisably the same green.
-    //
-    // Pinned below so it cannot get WORSE while the decision is open.
+    // CHART_SAGE failed this when the test was written — #7d9b76 scored
+    // 2.80:1 on cream while reading perfectly well on the dark canvas, which
+    // is exactly how a print-only contrast miss survives. It was darkened to
+    // #76936f rather than excused.
     for (const [name, color] of Object.entries(SERIES)) {
-      if (name === 'CHART_SAGE') continue;
       expect(contrast(color, CREAM), `${name} on the light canvas`).toBeGreaterThanOrEqual(3);
       expect(contrast(color, DARK), `${name} on the dark canvas`).toBeGreaterThanOrEqual(3);
     }
-    expect(contrast(CHART_SAGE, DARK)).toBeGreaterThanOrEqual(3);
-    expect(contrast(CHART_SAGE, CREAM)).toBeGreaterThanOrEqual(2.8);
+  });
+
+  it('keeps the sage above the value it was darkened from', () => {
+    // The old #7d9b76 is pinned as a failing reference, so a revert to it
+    // fails here rather than passing quietly.
+    expect(contrast(CHART_SAGE, CREAM)).toBeGreaterThanOrEqual(3);
+    expect(contrast('#7d9b76', CREAM)).toBeLessThan(3);
   });
 
   it('keeps the gold above the threshold the old value failed', () => {

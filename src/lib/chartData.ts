@@ -81,7 +81,18 @@ export function generateOpportunityCostData(
   options: ClaimingOption[],
   shownAge: number,
 ): OpportunityCostRow[] {
-  const shown = options.find((o) => o.age === shownAge)!;
+  const shown = options.find((o) => o.age === shownAge);
+  // Every row is measured AGAINST the shown age, so without it there is no
+  // baseline and therefore nothing to say. Empty rather than a set of zeroes,
+  // which would draw a chart asserting that no age costs anything — a false
+  // statement rather than an absent one.
+  //
+  // Previously a `!`, which is a promise the type does not keep: a claimant
+  // with a single remaining claiming age threw
+  // `Cannot read properties of undefined` out of the chart's render, taking
+  // the tab with it. Reached from both surfaces, since `PdfOpportunityCost`
+  // calls this too.
+  if (shown === undefined) return [];
   return options.map((o) => ({
     age: o.age,
     vsShown: o.lifetimeBenefits - shown.lifetimeBenefits,

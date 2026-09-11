@@ -33,8 +33,19 @@ export const CHART_GRAY_MID = 'var(--chart-gray-mid)';
 export const CHART_AXIS_LINE = 'var(--chart-axis)';
 /** Muted red used to flag shortfalls / life-expectancy markers. */
 export const CHART_RED = 'var(--chart-red)';
-/** Sage — a spousal band drawn on the OTHER spouse's record. */
-export const CHART_SAGE = '#7d9b76';
+/**
+ * Sage — a spousal band drawn on the OTHER spouse's record.
+ *
+ * Darkened from #7d9b76, which scored 2.80:1 on the cream report page: under
+ * the 3:1 a graphical mark needs, and under the bar this module's own comment
+ * claims every series colour clears. It read fine on the dark app canvas
+ * (6.31:1), which is how it survived — the printed page is the surface where
+ * it was too pale, and nothing measured that until `chartTheme.test.ts`.
+ *
+ * 3.10:1 on cream and 5.71:1 on the dark canvas, so it clears on both without
+ * moving far enough to stop reading as the same green.
+ */
+export const CHART_SAGE = '#76936f';
 /** Slate — a survivor band, drawn once the earner they depended on has died. */
 export const CHART_SLATE = '#6f8ba3';
 /**

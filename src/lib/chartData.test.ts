@@ -53,6 +53,21 @@ describe('generateOpportunityCostData', () => {
     expect(rows.find((r) => r.age === 67)).toMatchObject({ vsShown: 0, isShown: true });
     expect(rows.find((r) => r.age === 62)!.vsShown).toBe(-100_000);
   });
+
+  it('says nothing when the shown age is not among the options', () => {
+    // Every row is measured against the shown age, so without it there is no
+    // baseline. This used to be a `!` on the `find`, and a claimant with a
+    // single remaining claiming age threw out of the chart's render — taking
+    // the tab with it, on both the screen and the PDF, which share this.
+    const options = [
+      { age: 62, monthlyBenefit: 1680, percentOfPia: 70, lifetimeBenefits: 463_000, yearsOfPayments: 23, isEligible: true, monthsFromFra: -60 },
+    ];
+    expect(() => generateOpportunityCostData(options, 70)).not.toThrow();
+    expect(generateOpportunityCostData(options, 70)).toEqual([]);
+    // Empty, NOT a row of zeroes: a chart of zeroes asserts that no age costs
+    // anything, which is a false claim rather than an absent one.
+    expect(generateOpportunityCostData([], 70)).toEqual([]);
+  });
 });
 
 describe('generateMonthlyRampData', () => {
