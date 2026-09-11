@@ -328,7 +328,7 @@ describe('Analyzer', () => {
       expect(screen.getByRole('heading', { name: 'Resources' })).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'About' })).not.toBeInTheDocument();
       // And the menu itself stepped aside rather than stacking on top.
-      expect(screen.queryByRole('heading', { name: 'Menu' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('complementary', { name: 'Menu' })).not.toBeInTheDocument();
     });
 
     it(
@@ -406,6 +406,26 @@ describe('Analyzer', () => {
  * serialized screen to `localStorage` on every edit, which is the same string
  * a copied link and a saved client carry.
  */
+describe('the client list', () => {
+  it('opens straight from the header, without the menu in the way', async () => {
+    // It was two clicks and a drawer behind the menu button, which is where
+    // everything an adviser touches once a month lives. This is the one thing
+    // in there they reach for between meetings.
+    renderAnalyzer();
+    await userEvent.click(screen.getByRole('button', { name: /^clients$/i }));
+    expect(screen.getByRole('dialog', { name: 'Clients' })).toBeInTheDocument();
+    // And the menu was never opened to get there.
+    expect(screen.queryByRole('complementary', { name: 'Menu' })).not.toBeInTheDocument();
+  });
+
+  it('says nothing about a count until there is something saved', () => {
+    // The drawer's sentence about how many are saved went with the section.
+    // A "0" badge on the button would be that sentence, only harder to read.
+    renderAnalyzer();
+    expect(screen.getByRole('button', { name: /^clients$/i })).toHaveTextContent(/^Clients$/);
+  });
+});
+
 describe('starting a new client', () => {
   const KEY = 'ssa-current-view';
 

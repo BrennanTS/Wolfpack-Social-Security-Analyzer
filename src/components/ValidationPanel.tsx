@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-  checkOnSsaToolsUrl,
-  scenarioCounts,
-  VALIDATION_SCENARIOS,
-  type ValidationScenario,
-} from '../lib/validationSummary';
-import { formatCurrencyPrecise } from '../lib/format';
+import { scenarioCounts } from '../lib/validationSummary';
+import { HouseholdsDialog } from './HouseholdsDialog';
 
 interface ValidationPanelProps {
   open: boolean;
@@ -18,9 +13,9 @@ interface ValidationPanelProps {
  * Three layers, because three different people ask: an adviser wants one
  * sentence they can repeat to a client, a careful client wants to see a
  * worked example, and a compliance reviewer wants to follow it to an
- * independent source. So the panel opens as a paragraph, expands to the
- * household list, and each household carries a link to ssa.tools built by the
- * same function the automated cross-check uses.
+ * independent source. So the panel is a paragraph, and the households behind
+ * it open as a table in the middle of the screen, each carrying a link to
+ * ssa.tools built by the same function the automated cross-check uses.
  *
  * Everything here is generated from the golden fixtures
  * (`lib/validationSummary`), never typed. The claim has to be one the
@@ -32,16 +27,18 @@ interface ValidationPanelProps {
  * pinned and to what — a fact about the project, checkable by anyone.
  */
 export function ValidationPanel({ open, onClose }: ValidationPanelProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [householdsOpen, setHouseholdsOpen] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    // While the table is up it owns Escape. This panel is behind it, and one
+    // press should close what the reader is looking at, not both.
+    if (!open || householdsOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, householdsOpen]);
 
   if (!open) return null;
 
@@ -101,57 +98,25 @@ export function ValidationPanel({ open, onClose }: ValidationPanelProps) {
           <section className="resources-section">
             <h3>The households</h3>
             <p className="menu-note">
-              Each row is a test case. Follow the link to enter the same person into ssa.tools
-              and compare — it opens with the figures already filled in.
+              Each one pins a date of birth and a benefit amount to what Social
+              Security&rsquo;s own rules produce at each claiming age.
             </p>
             <button
               type="button"
               className="menu-action"
-              onClick={() => setExpanded(!expanded)}
-              aria-expanded={expanded}
+              onClick={() => setHouseholdsOpen(true)}
+              aria-haspopup="dialog"
             >
-              {expanded ? 'Hide the list' : `Show all ${counts.total}`}
+              Show all {counts.total}
             </button>
-            {expanded && (
-              <ul className="validation-list">
-                {VALIDATION_SCENARIOS.map((scenario) => (
-                  <ScenarioRow key={scenario.id} scenario={scenario} />
-                ))}
-              </ul>
-            )}
           </section>
         </div>
       </aside>
-    </>
-  );
-}
 
-/** One worked household: who they are, what it pins, and where to check it. */
-function ScenarioRow({ scenario }: { scenario: ValidationScenario }) {
-  const [first] = scenario.people;
-  return (
-    <li className="validation-row">
-      <span className="validation-label">{scenario.label}</span>
-      <span className="validation-meta">
-        Benefit at full retirement age {formatCurrencyPrecise(first.piaMonthly)} &middot; full
-        retirement age {scenario.fra.join(' and ')}
-      </span>
-      <span className="validation-figures">
-        {Object.entries(scenario.monthly).map(([age, amount]) => (
-          <span key={age}>
-            <span className="validation-age">at {age}</span>{' '}
-            {formatCurrencyPrecise(amount)}/mo
-          </span>
-        ))}
-      </span>
-      <a
-        className="validation-check"
-        href={checkOnSsaToolsUrl(scenario)}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Check on ssa.tools <span aria-hidden="true">&#8599;</span>
-      </a>
-    </li>
+      {/* Over the panel rather than in place of it: thirty-two rows need the
+          width of the screen, and the paragraph that introduced them is worth
+          still being there when the table closes. */}
+      <HouseholdsDialog open={householdsOpen} onClose={() => setHouseholdsOpen(false)} />
+    </>
   );
 }

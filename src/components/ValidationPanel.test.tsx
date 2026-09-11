@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ValidationPanel } from './ValidationPanel';
@@ -27,45 +27,31 @@ describe('ValidationPanel', () => {
     expect(screen.getByText(/affiliated with or endorsed by SSA/i)).toBeInTheDocument();
   });
 
-  it('keeps the household list behind a toggle', () => {
+  it('keeps the household table behind a button', () => {
     // Thirty-two rows is a reference, not an opening argument.
     render(<ValidationPanel open onClose={vi.fn()} />);
-    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('shows every pinned household when asked', async () => {
+  it('opens the table over itself rather than in place of itself', async () => {
+    // The paragraph that introduces the households is worth still being there
+    // when the table closes, so the panel does not step aside for it the way
+    // it does for another drawer.
     render(<ValidationPanel open onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: /Show all/ }));
-    expect(screen.getAllByRole('listitem')).toHaveLength(VALIDATION_SCENARIOS.length);
+    expect(screen.getByRole('dialog', { name: /worked households/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /How this is checked/ })).toBeInTheDocument();
   });
 
-  it('links each household to ssa.tools with that household s own figures', async () => {
-    // The link and the automated cross-check are built by one function, so
-    // what the reader opens is the page the suite diffed — not a lookalike.
-    render(<ValidationPanel open onClose={vi.fn()} />);
+  it('closes the table on Escape without also closing the panel behind it', async () => {
+    // Both listen for Escape. One press should close what the reader is
+    // looking at, not take them two steps back.
+    const onClose = vi.fn();
+    render(<ValidationPanel open onClose={onClose} />);
     await userEvent.click(screen.getByRole('button', { name: /Show all/ }));
-    const rows = screen.getAllByRole('listitem');
-    for (const row of rows) {
-      const link = within(row).getByRole('link', { name: /Check on ssa\.tools/ });
-      expect(link).toHaveAttribute('href', expect.stringContaining('ssa.tools/calculator#pia1='));
-      expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
-    }
-  });
-
-  it('sends a 1 January birthday as the 1st, not a flattened day', async () => {
-    // The one case where a wrong day opens a DIFFERENT claimant: SSA reads a
-    // 1 January birthday into the previous FRA cohort.
-    render(<ValidationPanel open onClose={vi.fn()} />);
-    await userEvent.click(screen.getByRole('button', { name: /Show all/ }));
-    const row = screen.getAllByRole('listitem').find((li) => li.textContent?.includes('1/1/1960'));
-    expect(row, 'a day-1 household should be listed').toBeDefined();
-    expect(within(row!).getByRole('link')).toHaveAttribute(
-      'href',
-      expect.stringContaining('dob1=1960-01-01'),
-    );
-    // And that household's FRA is the previous cohort's, which is the whole
-    // reason it is pinned.
-    expect(row!.textContent).toContain('66 years, 10 months');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('closes on Escape', async () => {

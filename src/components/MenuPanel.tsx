@@ -31,10 +31,6 @@ function summarize(
 interface MenuPanelProps {
   open: boolean;
   onClose: () => void;
-  /** How many households this browser has saved, for the section's one line. */
-  clientCount: number;
-  /** Opens the client list, which is a task rather than a setting. */
-  onOpenClients: () => void;
   themes: ReturnType<typeof useReportThemes>;
   /** Opens the theme editor, which needs the room the dialog has. */
   onEditTheme: () => void;
@@ -60,13 +56,13 @@ interface MenuPanelProps {
  *
  * The theme and the layout live here rather than beside the export buttons
  * because both are set once for a firm and then left alone. Sitting next to
- * Export they would read as per-export choices.
+ * Export they would read as per-export choices. The client list went the
+ * other way for the same reason: it is opened between meetings, so it is in
+ * the header where it can be reached without opening anything first.
  */
 export function MenuPanel({
   open,
   onClose,
-  clientCount,
-  onOpenClients,
   themes,
   onEditTheme,
   onOpenAbout,
@@ -98,12 +94,12 @@ export function MenuPanel({
         aria-label="Close menu"
       />
 
-      <aside className="resources-panel menu-panel is-open" aria-labelledby="menu-title">
-        <header className="resources-header">
-          <div>
-            <h2 id="menu-title">Menu</h2>
-            <p>Report appearance and reference material.</p>
-          </div>
+      {/* Named by `aria-label` rather than a heading: the two lines that were
+          here told a reader who had just pressed the menu button that they had
+          pressed the menu button, and cost the sections below them a screenful
+          on a laptop. */}
+      <aside className="resources-panel menu-panel is-open" aria-label="Menu">
+        <header className="resources-header resources-header-bare">
           <button type="button" className="btn-panel-close" onClick={onClose} aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path
@@ -118,35 +114,53 @@ export function MenuPanel({
 
         <div className="resources-body">
           <section className="resources-section">
-            <h3>Clients</h3>
-            {/* First in the drawer because it is the only section an adviser
-                opens during a meeting rather than while setting the app up. */}
+            <h3>Reports</h3>
+            {/* First, and above the theme: what the report CONTAINS is the
+                choice an adviser revisits per household, and the colors it is
+                printed in is the one they set for the firm and leave alone. */}
             <p className="menu-note">
-              {clientCount === 0
-                ? 'Nothing saved yet. Saved households stay in this browser.'
-                : `${clientCount} saved in this browser${clientCount === 1 ? '' : ''}.`}
+              Sets what the exported PDF contains. {summarize(layouts.layout, shape)}
             </p>
-            <button type="button" className="menu-action" onClick={onOpenClients}>
-              Open clients…
+            <button type="button" className="menu-action" onClick={onEditLayout}>
+              Edit layout…
             </button>
           </section>
 
           <section className="resources-section">
             <h3>Theme</h3>
-            {/* The colors and the name the PDF is printed with. Named as
-                affecting the report, not the app, because it does not touch
-                the app — an adviser who picks Mono and sees the screen
+            {/* The picker sits here rather than only in the editor: switching
+                between a firm's themes is one choice, and it was three clicks
+                and a dialog deep. The swatches beside it are the only honest
+                preview available — these are print colors, and the panel
+                around them may be in dark mode. */}
+            <div className="menu-theme-pick">
+              <select
+                id="menu-theme"
+                className="menu-theme-select"
+                aria-label="Report theme"
+                value={themes.selectedId}
+                onChange={(event) => themes.select(event.target.value)}
+              >
+                {themes.themes.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              <span className="theme-swatches" aria-hidden="true">
+                <span className="theme-swatch" style={{ background: themes.theme.brand }} />
+                <span className="theme-swatch" style={{ background: themes.theme.heatLo }} />
+                <span className="theme-swatch" style={{ background: themes.theme.heatHi }} />
+                <span className="theme-swatch" style={{ background: themes.theme.ink }} />
+              </span>
+            </div>
+            {/* Named as affecting the report, not the app, because it does not
+                touch the app — an adviser who picks Mono and sees the screen
                 unchanged should find that unsurprising rather than broken. */}
             <p className="menu-note">
-              “{themes.theme.name}”, {themes.theme.firm}. Applies to the exported PDF; the
-              app keeps its own appearance, including dark mode.
+              Prints {themes.theme.firm}. Applies to the exported PDF; the app keeps its own
+              appearance, including dark mode.
             </p>
-            <span className="theme-swatches theme-swatches-inline" aria-hidden="true">
-              <span className="theme-swatch" style={{ background: themes.theme.brand }} />
-              <span className="theme-swatch" style={{ background: themes.theme.heatLo }} />
-              <span className="theme-swatch" style={{ background: themes.theme.heatHi }} />
-              <span className="theme-swatch" style={{ background: themes.theme.ink }} />
-            </span>
             {/* The one thing the theme can be quietly wrong about. Said here,
                 where an adviser looks before exporting, as well as in the
                 editor where the text is. */}
@@ -158,19 +172,6 @@ export function MenuPanel({
             )}
             <button type="button" className="menu-action" onClick={onEditTheme}>
               Edit theme…
-            </button>
-          </section>
-
-          <section className="resources-section">
-            <h3>Reports</h3>
-            {/* What the report contains, in what order, and where it breaks
-                pages. Beside the theme because the two are the same decision
-                from a client's side: what the document looks like. */}
-            <p className="menu-note">
-              Sets what the exported PDF contains. {summarize(layouts.layout, shape)}
-            </p>
-            <button type="button" className="menu-action" onClick={onEditLayout}>
-              Edit layout…
             </button>
           </section>
 

@@ -623,6 +623,21 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         </div>
         <div className="header-actions">
           <DarkModeToggle active={darkMode} onToggle={onToggleDarkMode} />
+          {/* In the header rather than in the menu: this is the first thing an
+              adviser reaches for when the next household walks in, and behind
+              the menu button it was two clicks and a drawer away. The count
+              is on the button so the drawer's line about it is not missed. */}
+          <button
+            type="button"
+            className="btn-ghost btn-clients"
+            onClick={() => setClientsOpen(true)}
+            aria-haspopup="dialog"
+          >
+            Clients
+            {savedClients.clients.length > 0 && (
+              <span className="btn-count">{savedClients.clients.length}</span>
+            )}
+          </button>
           {/* The only export anywhere. An adviser reaching for "Export PDF"
               lands on the report the adviser's own layout describes. */}
           <button
@@ -853,11 +868,6 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
       <MenuPanel
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        clientCount={savedClients.clients.length}
-        onOpenClients={() => {
-          setMenuOpen(false);
-          setClientsOpen(true);
-        }}
         themes={reportThemes}
         onEditTheme={() => {
           // The drawer steps aside, as it does for the layout editor: the

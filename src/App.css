@@ -1814,6 +1814,12 @@ tbody tr:hover {
   flex-shrink: 0;
 }
 
+.resources-header-bare {
+  justify-content: flex-end;
+  padding: 10px 16px 10px 24px;
+  border-bottom: none;
+}
+
 .resources-header h2 {
   margin: 0 0 6px;
   font-size: 1.375rem;
@@ -3905,10 +3911,30 @@ tbody tr:hover {
   color: var(--gold-dark);
 }
 
-.theme-swatches-inline {
-  display: inline-flex;
-  gap: 4px;
+/* The theme picker: the name in a control wide enough to read, the colors
+   beside it so a change shows itself without opening the editor. */
+.menu-theme-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 10px;
+}
+
+.menu-theme-select {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.menu-theme-select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
 }
 
 /* ─── Live report preview ─── */
@@ -4065,51 +4091,7 @@ tbody tr:hover {
   color: var(--text-subtle);
 }
 
-.validation-list {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.validation-row {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
-.validation-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.validation-meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-/* The three claim ages wrap on a narrow drawer rather than scrolling. */
-.validation-figures {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  font-size: 0.75rem;
-  color: var(--text);
-}
-
-.validation-age {
-  color: var(--text-subtle);
-}
-
 .validation-check {
-  margin-top: 4px;
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--gold-dark);
@@ -4118,4 +4100,84 @@ tbody tr:hover {
 
 .validation-check:hover {
   text-decoration: underline;
+}
+
+/* ─── Worked households ─── */
+
+/* The widest dialog in the app, and it earns it: nine columns of figures whose
+   only use is being compared with each other down a column. */
+.households-dialog {
+  width: min(1240px, calc(100vw - 48px));
+}
+
+.households-body {
+  overflow: auto;
+  min-height: 0;
+  padding: 0 22px 20px;
+}
+
+.households-table {
+  font-size: 0.8125rem;
+}
+
+/* Thirty-two rows scroll; the column names stay put above them, or a reader
+   halfway down cannot tell 62 from 70. */
+.households-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--fill);
+}
+
+.households-table th,
+.households-table td {
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+/* The household name is a row header, so it is announced with each cell. */
+.households-table tbody th {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.households-figure {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .households-body {
+    padding-inline: 12px;
+  }
+
+  .households-table th,
+  .households-table td {
+    padding: 8px;
+  }
+}
+
+/* ─── Header client list ─── */
+
+.btn-clients {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* How many are saved, on the control that opens them: the drawer used to say
+   it in a sentence nobody reads twice. */
+.btn-count {
+  min-width: 17px;
+  padding: 0 5px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
+  color: var(--gold-dark);
+  background: var(--gold-soft);
+  border-radius: var(--radius-pill);
 }

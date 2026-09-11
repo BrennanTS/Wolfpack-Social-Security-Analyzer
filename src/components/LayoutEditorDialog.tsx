@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { usePageScrollLock } from '../hooks/usePageScrollLock';
 import { ReportLayoutEditor } from './ReportLayoutEditor';
 import { ReportPreview } from './ReportPreview';
 import type { HouseholdAnalysis, HouseholdDisplayShape } from '../lib/household';
@@ -67,26 +68,7 @@ export function LayoutEditorDialog({
     if (open) panel.current?.focus();
   }, [open]);
 
-  useEffect(() => {
-    // The page behind is held still while the dialog is up.
-    //
-    // Without this the wheel goes to whatever is under the pointer, and the
-    // report scrolls away behind the dialog — most obviously once the block
-    // list has reached its own end, since that is when the wheel starts
-    // being handed on. Padding replaces the width the scrollbar was holding,
-    // where the platform draws one, so nothing shifts sideways as it goes.
-    if (!open) return;
-    const root = document.documentElement;
-    const previousOverflow = root.style.overflow;
-    const previousPadding = root.style.paddingRight;
-    const scrollbar = window.innerWidth - root.clientWidth;
-    root.style.overflow = 'hidden';
-    if (scrollbar > 0) root.style.paddingRight = `${scrollbar}px`;
-    return () => {
-      root.style.overflow = previousOverflow;
-      root.style.paddingRight = previousPadding;
-    };
-  }, [open]);
+  usePageScrollLock(open);
 
   if (!open) return null;
 

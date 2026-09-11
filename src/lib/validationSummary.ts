@@ -44,6 +44,22 @@ export function checkOnSsaToolsUrl(scenario: ValidationScenario): string {
   return ssaToolsCalculatorUrl(scenario.people);
 }
 
+/**
+ * The claiming ages the fixtures pin, in order.
+ *
+ * Read from the data rather than written down, so a table of these cannot
+ * outlive them. Every scenario pins the same three today; the union is taken
+ * anyway, because the cost of being wrong is a column of blanks nobody
+ * notices.
+ */
+export function claimAges(): number[] {
+  const ages = new Set<number>();
+  for (const s of VALIDATION_SCENARIOS) {
+    for (const age of Object.keys(s.monthly)) ages.add(Number(age));
+  }
+  return [...ages].sort((a, b) => a - b);
+}
+
 /** How many households are pinned, by household shape. */
 export function scenarioCounts(): { total: number; single: number; married: number; widowed: number } {
   const counts = { total: VALIDATION_SCENARIOS.length, single: 0, married: 0, widowed: 0 };

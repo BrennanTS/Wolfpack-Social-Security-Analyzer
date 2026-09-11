@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { usePageScrollLock } from '../hooks/usePageScrollLock';
 import {
   namesFromParams,
   parseClientsFile,
@@ -71,20 +72,7 @@ export function ClientsDialog({
     if (open) panel.current?.focus();
   }, [open]);
 
-  useEffect(() => {
-    // The page behind is held still while the dialog is up.
-    if (!open) return;
-    const root = document.documentElement;
-    const previousOverflow = root.style.overflow;
-    const previousPadding = root.style.paddingRight;
-    const scrollbar = window.innerWidth - root.clientWidth;
-    root.style.overflow = 'hidden';
-    if (scrollbar > 0) root.style.paddingRight = `${scrollbar}px`;
-    return () => {
-      root.style.overflow = previousOverflow;
-      root.style.paddingRight = previousPadding;
-    };
-  }, [open]);
+  usePageScrollLock(open);
 
   if (!open) return null;
 

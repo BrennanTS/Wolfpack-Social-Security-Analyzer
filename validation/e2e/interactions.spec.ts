@@ -363,8 +363,7 @@ test('keeps the household on screen across a reload of the app shell', async ({ 
     // And there is a way back to an empty form, since the reload no longer is
     // — from the panel where the household is typed, and from the client list.
     // Both ask first, because what they clear was never saved.
-    await page.getByRole('button', { name: 'Menu', exact: true }).click();
-    await page.getByRole('button', { name: /open clients/i }).click();
+    await page.getByRole('button', { name: 'Clients', exact: true }).click();
     await page.getByRole('button', { name: /start a new one/i }).click();
     await expect(page.getByRole('alertdialog')).toContainText('John has not been saved');
     await page.getByRole('button', { name: /discard and start new/i }).click();

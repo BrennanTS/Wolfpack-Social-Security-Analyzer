@@ -41,8 +41,6 @@ function renderMenu(overrides: Partial<Parameters<typeof MenuPanel>[0]> = {}) {
   const props = {
     open: true,
     onClose: vi.fn(),
-    clientCount: 0,
-    onOpenClients: vi.fn(),
     themes: stubThemes(),
     onEditTheme: vi.fn(),
     onOpenAbout: vi.fn(),
@@ -61,16 +59,26 @@ describe('MenuPanel', () => {
     vi.clearAllMocks();
   });
 
-  it('opens the client list, which is the one section used during a meeting', async () => {
-    const props = renderMenu({ clientCount: 3 });
-    expect(screen.getByText(/3 saved in this browser/i)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /open clients/i }));
-    expect(props.onOpenClients).toHaveBeenCalled();
+  it('holds nothing about clients, which moved to the header', async () => {
+    // The one section reached DURING a meeting was behind the menu button.
+    // Leaving a second way in here would be two controls for one task.
+    renderMenu();
+    expect(screen.queryByRole('button', { name: /open clients/i })).not.toBeInTheDocument();
   });
 
-  it('says so plainly when nothing has been saved', () => {
-    renderMenu({ clientCount: 0 });
-    expect(screen.getByText(/nothing saved yet/i)).toBeInTheDocument();
+  it('does not title itself, having been opened from a button marked Menu', () => {
+    renderMenu();
+    expect(screen.queryByRole('heading', { name: 'Menu' })).not.toBeInTheDocument();
+    // Still named, for a reader who arrives by keyboard or screen reader.
+    expect(screen.getByRole('complementary', { name: 'Menu' })).toBeInTheDocument();
+  });
+
+  it('puts the report above the theme', () => {
+    // What the report CONTAINS is revisited per household; the colors are set
+    // once for the firm. The order follows how often each is touched.
+    renderMenu();
+    const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(headings).toEqual(['Reports', 'Theme', 'Reference']);
   });
 
   it('says when the disclosures still carry the firm’s placeholder', () => {
@@ -85,12 +93,24 @@ describe('MenuPanel', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('names the chosen theme and the firm it prints', () => {
-    // The picker itself moved into the dialog; what stays here is enough to
-    // tell an adviser which identity the next export carries.
+  it('names the chosen theme in a control, and the firm it prints', () => {
+    // A name in a sentence beside four 10px swatches was the hardest thing in
+    // the drawer to read, and it was the one fact an adviser opens this for.
     renderMenu({ themes: stubThemes('midnight') });
-    expect(screen.getByText(/“Midnight”/)).toBeInTheDocument();
+    const picker = screen.getByRole('combobox', { name: /report theme/i });
+    expect(picker).toHaveValue('midnight');
     expect(screen.getByText(/Wolfpack \| Planning Team/)).toBeInTheDocument();
+  });
+
+  it('switches theme from the drawer, without opening the editor', async () => {
+    const props = renderMenu();
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /report theme/i }),
+      'midnight',
+    );
+    expect(props.themes.select).toHaveBeenCalledWith('midnight');
+    // And it offers every theme, saved ones included, not just the presets.
+    expect(screen.getAllByRole('option')).toHaveLength(props.themes.themes.length);
   });
 
   it('opens the theme editor rather than holding the picker in the drawer', async () => {
@@ -103,7 +123,7 @@ describe('MenuPanel', () => {
     // An adviser who picks Mono and watches the screen stay bronze should
     // have been told that is what happens, or they will file it as a bug.
     renderMenu();
-    const panel = screen.getByRole('heading', { name: 'Menu' }).closest('aside') as HTMLElement;
+    const panel = screen.getByRole('complementary', { name: 'Menu' });
     expect(within(panel).getByText(/applies to the exported pdf/i)).toBeInTheDocument();
   });
 
@@ -134,6 +154,6 @@ describe('MenuPanel', () => {
 
   it('renders nothing at all when closed', () => {
     renderMenu({ open: false });
-    expect(screen.queryByRole('heading', { name: 'Menu' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Menu' })).not.toBeInTheDocument();
   });
 });

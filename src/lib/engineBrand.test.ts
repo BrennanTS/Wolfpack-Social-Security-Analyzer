@@ -49,11 +49,16 @@ const SCANNED_FILES = ['src/lib/household.ts', 'src/lib/formState.ts', 'src/lib/
  * anyone can follow. That is the opposite of the defect this guard exists for
  * — an engine brand surfacing in the ANALYSIS, where it reads as attribution
  * for the recommendation rather than as a reference.
+ *
+ * `HouseholdsDialog` is that panel's table, split out when the list outgrew a
+ * 440px drawer. It carries the per-household links, so it inherits the
+ * exemption for the same reason.
  */
 const EXEMPT_PATHS = new Set([
   'src/components/AboutPanel.tsx',
   'src/components/ResourcesPanel.tsx',
   'src/components/ValidationPanel.tsx',
+  'src/components/HouseholdsDialog.tsx',
 ]);
 
 const BRAND = /ssa\.tools/i;
