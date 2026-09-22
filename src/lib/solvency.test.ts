@@ -6,8 +6,11 @@ import {
   DEFAULT_SOLVENCY,
   TRUSTEES_ASSUMPTION,
   TRUSTEES_PROJECTION,
+  solvencyInDollarsMode,
   solvencySensitivity,
+  type SolvencyRow,
 } from './solvency';
+import { leadMargin, MATERIAL_MARGIN } from './materiality';
 
 const asOf = new Date(2026, 0, 15);
 const assumptions = { annualCola: 2.5, discountRate: 0.025 };
@@ -73,14 +76,16 @@ describe('solvencySensitivity', () => {
     const { rows, bestFullKey } = solvencySensitivity(analysis, TRUSTEES_ASSUMPTION)!;
     const byKey = new Map(analysis.comparisons.map((c) => [c.key, c]));
     for (const row of rows) {
-      const comparison = byKey.get(row.key)!;
-      const scored = comparison.lifetimeTotal ?? comparison.expectedNpv;
-      expect(row.full).toBe(Math.round(scored));
+      // `householdValue`, which is what the strategy table prints — NOT the
+      // engine's `expectedNpv`, which differs from it by the six-month seam
+      // and had this page quoting totals a couple of hundred dollars above
+      // the table it is a sensitivity on.
+      expect(row.full).toBe(Math.round(byKey.get(row.key)!.householdValue));
     }
-    const best = analysis.comparisons.reduce((a, b) =>
-      (b.lifetimeTotal ?? b.expectedNpv) > (a.lifetimeTotal ?? a.expectedNpv) ? b : a,
-    );
-    expect(bestFullKey).toBe(best.key);
+    // And the as-scheduled leader is still the plan the report recommends —
+    // the cross-page agreement this test was always about. Ranking moved onto
+    // the printed figure, so this is the assertion that keeps it honest.
+    expect(bestFullKey).toBe(analysis.comparisons.find((c) => c.isOptimal)!.key);
   });
 
   it('reduces every strategy, and never by more than the reduction itself', async () => {
@@ -136,5 +141,104 @@ describe('solvencySensitivity', () => {
     const result = solvencySensitivity(analysis, TRUSTEES_ASSUMPTION)!;
     expect(result.rows.length).toBeGreaterThan(0);
     expect(result.rows.every((r) => r.reduced < r.full)).toBe(true);
+  });
+});
+
+/**
+ * The verdict is allowed three answers, not two.
+ *
+ * It used to name a new winner under the reduction on any margin at all. For
+ * this couple that meant flipping from "your plan holds up either way" to "if
+ * benefits are cut, claiming early is better" on $3,046 of $627,000 — and the
+ * reassuring answer it gave before was itself decided by $444. Neither is a
+ * finding; both read as one.
+ */
+describe('a reduction that changes the leader by almost nothing', () => {
+  it('flags the change as too close to call, without hiding that it happened', async () => {
+    const analysis = await analyzeHousehold(married, assumptions, asOf);
+    const result = solvencySensitivity(analysis, TRUSTEES_ASSUMPTION)!;
+
+    // `sameWinner` stays strictly about the keys — the leaders really are
+    // different, the marks in the table sit on different rows, and a caller
+    // wanting the raw comparison still has it.
+    expect(result.sameWinner).toBe(false);
+    expect(result.bestFullKey).not.toBe(result.bestReducedKey);
+    // It is only the one-sentence conclusion that holds back.
+    expect(result.tooCloseToCall).toBe(true);
+
+    // And the margin really is inside the threshold, measured between the two
+    // plans the sentence names — the new leader and the old one. So this is
+    // the case the flag is for, not a flag that is simply always on.
+    const reducedOf = (key: string) => result.rows.find((r) => r.key === key)!.reduced;
+    const named = leadMargin([reducedOf(result.bestReducedKey), reducedOf(result.bestFullKey)]);
+    expect(named).toBeLessThan(MATERIAL_MARGIN);
+    expect(named).toBeGreaterThan(0);
+  });
+
+  it('measures the pair it names, not the reduced column’s top two', () => {
+    // A third plan can sit between the new leader and the old one. Measuring
+    // top-against-runner-up would then clear the threshold on a pair the
+    // sentence never mentions, and print "these two come within half a
+    // percent of each other" about two figures 10% apart.
+    //
+    // Reached through `solvencyInDollarsMode`, which re-runs the same private
+    // leader logic over the nominal figures — so this is the real rule, not a
+    // reimplementation of it.
+    const row = (key: string, reducedNominal: number, fullNominal: number): SolvencyRow => ({
+      key,
+      label: key,
+      full: 0,
+      reduced: 0,
+      fullNominal,
+      reducedNominal,
+    });
+    const staged = solvencyInDollarsMode(
+      {
+        assumption: TRUSTEES_ASSUMPTION,
+        rows: [
+          row('new-leader', 100, 10),
+          row('in-between', 99.9, 20),
+          row('old-leader', 90, 30),
+        ],
+        bestFullKey: '',
+        bestReducedKey: '',
+        sameWinner: false,
+        tooCloseToCall: false,
+      },
+      'nominal',
+    )!;
+    expect(staged.bestFullKey).toBe('old-leader');
+    expect(staged.bestReducedKey).toBe('new-leader');
+    // Top two are 0.1% apart; the pair being named is 10% apart. The change
+    // is real and must be reported as one.
+    expect(leadMargin(staged.rows.map((r) => r.reduced))).toBeLessThan(MATERIAL_MARGIN);
+    expect(staged.tooCloseToCall).toBe(false);
+  });
+
+  it('still calls a change a change when the gap is big enough to act on', async () => {
+    // The positive control, and a real one rather than a synthetic table: the
+    // SAME household restated in future dollars, where the reduced column's
+    // top two are 0.63% apart instead of 0.49%. Without this the test above
+    // would pass on a flag that was simply always set.
+    const analysis = await analyzeHousehold(married, assumptions, asOf);
+    const future = solvencyInDollarsMode(
+      solvencySensitivity(analysis, TRUSTEES_ASSUMPTION)!,
+      'nominal',
+    )!;
+    expect(future.sameWinner).toBe(false);
+    expect(future.tooCloseToCall).toBe(false);
+    expect(leadMargin(future.rows.map((r) => r.reduced))).toBeGreaterThan(MATERIAL_MARGIN);
+  });
+
+  it('says nothing about closeness when the leader does not change at all', async () => {
+    // Beyond every payment, so nothing is reduced and the columns are equal.
+    const analysis = await analyzeHousehold(married, assumptions, asOf);
+    const unchanged = solvencySensitivity(analysis, {
+      enabled: true,
+      fromYear: 2200,
+      payablePercent: 78,
+    })!;
+    expect(unchanged.sameWinner).toBe(true);
+    expect(unchanged.tooCloseToCall).toBe(false);
   });
 });

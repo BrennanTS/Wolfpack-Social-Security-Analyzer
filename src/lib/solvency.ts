@@ -1,4 +1,7 @@
 import { householdPeriods, type BenefitBand } from './benefitPeriods';
+import { comparisonsInDollarsMode } from './displayDollars';
+import { leadMargin, MATERIAL_MARGIN } from './materiality';
+import type { DollarsMode } from './dollarsMode';
 import type { HouseholdAnalysis, HouseholdStrategy } from './household';
 import type { Person } from './personAnalysis';
 import { createPiaRecipient } from './ssaTools';
@@ -83,10 +86,20 @@ export const SOLVENCY_PAYABLE_BOUNDS = { min: 1, max: 100 };
 export interface SolvencyRow {
   key: string;
   label: string;
-  /** What the report already scores this plan at, as scheduled. */
+  /**
+   * What the report already prints for this plan, as scheduled — the strategy
+   * table's `householdValue`, not the engine's `expectedNpv`.
+   *
+   * Those are not the same figure: `expectedNpv` carries the six-month seam
+   * (`lifetimeValue.ts`), so this page used to print totals about 2% above the
+   * table it is meant to be a sensitivity on.
+   */
   full: number;
   /** The same score with benefits from `fromYear` reduced. */
   reduced: number;
+  /** `full` and `reduced` in nominal dollars, so the block can follow the report. */
+  fullNominal: number;
+  reducedNominal: number;
 }
 
 export interface SolvencySensitivity {
@@ -96,6 +109,25 @@ export interface SolvencySensitivity {
   bestFullKey: string;
   /** The strategy worth the most under the reduction. */
   bestReducedKey: string;
+  /**
+   * Set when the reduction DOES change the leader, but by less than
+   * `MATERIAL_MARGIN`.
+   *
+   * The page's two sentences are not symmetric in what they ask of a reader.
+   * One says the plan holds up; the other says that under a cut, claiming
+   * earlier becomes the better move — which is actionable, and points a
+   * client toward filing at 62. Hanging that on a margin the assumptions
+   * cannot resolve is the overclaim this flag exists to stop, and the page
+   * says the two are level instead.
+   *
+   * It is measured on the reduced column, which is where plans come closest
+   * together: a cut falls on the years furthest away, so it takes most from
+   * the plans that are furthest ahead and compresses the whole board.
+   *
+   * `sameWinner` stays strictly about the keys, so a caller that wants the
+   * raw comparison still has it. The copy reads both.
+   */
+  tooCloseToCall: boolean;
   /**
    * True when the reduction does not change which strategy leads.
    *
@@ -191,6 +223,23 @@ export function solvencySensitivity(
   const cutFraction = 1 - assumption.payablePercent / 100;
   const asOfIndex = analysis.asOf.getFullYear() * 12 + analysis.asOf.getMonth();
 
+  // One conversion for the whole table, through the shared converter, so a
+  // nominal figure here is the same nominal figure the strategy table prints.
+  const nominalByKey: Record<string, number> = {};
+  for (const c of comparisonsInDollarsMode(
+    analysis.comparisons,
+    analysis.people,
+    analysis.finalIndexByPersonId,
+    {
+      dollarsMode: 'nominal',
+      annualCola: analysis.assumptions.annualCola,
+      discountRate: analysis.assumptions.discountRate,
+      asOfYear: analysis.asOf.getFullYear(),
+    },
+  )) {
+    nominalByKey[c.key] = c.householdValue;
+  }
+
   const rows: SolvencyRow[] = analysis.comparisons.map((comparison: HouseholdStrategy) => {
     const { bands } = householdPeriods(
       people,
@@ -202,7 +251,8 @@ export function solvencySensitivity(
     // dollars and `expectedNpv` is not an NPV at all. Discounting the cut
     // against that total would mix two yardsticks inside one row.
     const undiscounted = comparison.lifetimeTotal !== null;
-    const full = undiscounted ? comparison.lifetimeTotal! : comparison.expectedNpv;
+    // Still the engine's figure, and only for the discounting decision below:
+    // `lifetimeTotal` non-null marks the households scored undiscounted.
     const share = cutShare(
       bands,
       assumption.fromYear,
@@ -210,24 +260,81 @@ export function solvencySensitivity(
       asOfIndex,
       undiscounted ? 0 : analysis.assumptions.discountRate,
     );
+    // The cut is a SHARE of the plan, so the one measurement of the bands
+    // applies to whichever figure is being stated — printed or nominal.
+    const full = comparison.householdValue;
+    const fullNominal = nominalByKey[comparison.key] ?? full;
     return {
       key: comparison.key,
       label: comparison.label,
       full: Math.round(full),
       reduced: Math.round(full * (1 - share)),
+      fullNominal: Math.round(fullNominal),
+      reducedNominal: Math.round(fullNominal * (1 - share)),
     };
   });
 
-  const bestBy = (pick: (row: SolvencyRow) => number) =>
-    rows.reduce((best, row) => (pick(row) > pick(best) ? row : best), rows[0]).key;
-  const bestFullKey = bestBy((r) => r.full);
-  const bestReducedKey = bestBy((r) => r.reduced);
+  return { assumption, rows, ...leaders(rows) };
+}
 
+/**
+ * Which strategy leads as scheduled, and which under the reduction.
+ *
+ * Read off the PRINTED figures, not the engine's own score. The page marks a
+ * winner in each column, and a mark sitting on anything but the largest
+ * number in the column it is in is simply wrong on its face — whatever
+ * defensible quantity put it there.
+ *
+ * That is safe now in a way it was not before: `full` is `householdValue`,
+ * which is the same discounted quantity the engine ranks on minus the
+ * six-month seam, so the as-scheduled leader is still the plan the report
+ * recommends. The earlier version this module's docstring warns about ranked
+ * on an UNDISCOUNTED sum, which is a different yardstick entirely.
+ *
+ * Split out so `solvencyInDollarsMode` can run it again: restating the table
+ * can move a leader, because nominal weights later years more heavily and the
+ * reduced column is where two plans come closest together.
+ */
+function leaders(rows: SolvencyRow[]): Pick<
+  SolvencySensitivity,
+  'bestFullKey' | 'bestReducedKey' | 'sameWinner' | 'tooCloseToCall'
+> {
+  const bestBy = (pick: (row: SolvencyRow) => number) =>
+    rows.reduce((best, row) => (pick(row) > pick(best) ? row : best), rows[0]);
+  const bestFull = bestBy((r) => r.full);
+  const bestReduced = bestBy((r) => r.reduced);
+  const sameWinner = bestFull.key === bestReduced.key;
   return {
-    assumption,
-    rows,
-    bestFullKey,
-    bestReducedKey,
-    sameWinner: bestFullKey === bestReducedKey,
+    bestFullKey: bestFull.key,
+    bestReducedKey: bestReduced.key,
+    sameWinner,
+    // Measured between the TWO PLANS THE SENTENCE NAMES — the new leader and
+    // the old one — not between the reduced column's top two.
+    //
+    // They are usually the same pair and are not always. A third plan can sit
+    // between them: reduced figures of 100, 99.9 and 90 with the as-scheduled
+    // winner last would clear a top-two test and then print "these two come
+    // within half a percent of each other" about a pair 10% apart. The claim
+    // has to be measured on the thing being claimed.
+    tooCloseToCall:
+      !sameWinner && leadMargin([bestReduced.reduced, bestFull.reduced]) < MATERIAL_MARGIN,
   };
+}
+
+/**
+ * The reduction table restated in nominal dollars, leaders and all.
+ *
+ * Identity in real mode.
+ */
+export function solvencyInDollarsMode(
+  sensitivity: SolvencySensitivity | null,
+  dollarsMode: DollarsMode,
+): SolvencySensitivity | null {
+  if (sensitivity === null || dollarsMode !== 'nominal') return sensitivity;
+  const rows = sensitivity.rows.map((r) => ({
+    ...r,
+    full: r.fullNominal,
+    reduced: r.reducedNominal,
+  }));
+  return { ...sensitivity, rows, ...leaders(rows) };
 }

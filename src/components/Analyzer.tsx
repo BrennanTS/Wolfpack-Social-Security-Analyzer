@@ -567,6 +567,10 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         solvency: solvencyPricing,
         theme: reportThemes.theme,
         layout: reportLayouts.layout,
+        // Export what the adviser is looking at. Before this the PDF was
+        // always real dollars, so toggling the screen to nominal and hitting
+        // Export produced a document that disagreed with it.
+        dollarsMode,
       });
     } catch {
       setExportError('PDF export failed. Please try again.');
@@ -766,6 +770,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
               onAnnualColaChange={setAnnualCola}
               discountRate={discountRate}
               onDiscountRateChange={setDiscountRate}
+            dollarsMode={dollarsMode}
+            onDollarsModeChange={setDollarsMode}
               expanded={showAssumptions}
               onToggle={() => setShowAssumptions(!showAssumptions)}
             />
@@ -962,6 +968,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 gridTarget,
                 sensitivity: previewSensitivity,
                 solvency: solvencyPricing,
+                dollarsMode,
                 layout: reportLayouts.layout,
               }
             : undefined
@@ -980,6 +987,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 gridTarget,
                 sensitivity: previewSensitivity,
                 solvency: solvencyPricing,
+                dollarsMode,
                 theme: reportThemes.theme,
               }
             : undefined

@@ -55,6 +55,8 @@ function buildAnalysis(): HouseholdAnalysis {
     isSelected: true,
     hidden: false,
     survivorIncome: null,
+    timeline: [],
+    householdValue: 0,
   };
 
   return {

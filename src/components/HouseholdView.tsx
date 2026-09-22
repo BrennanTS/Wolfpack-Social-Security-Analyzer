@@ -217,6 +217,7 @@ export function HouseholdView({
         {activeTab.id === 'grid' ? (
           <ClaimingGridPanel
             analysis={analysis}
+            dollarsMode={dollarsMode}
             scenarios={scenarios}
             onScenariosChange={onScenariosChange}
             target={gridTarget}

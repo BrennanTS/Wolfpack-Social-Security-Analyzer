@@ -15,6 +15,7 @@ import {
   survivorFloorNote,
   survivorGapNote,
   survivorIncomeCaption,
+  householdValueCaption,
 } from './methodologyCopy';
 import {
   analyzeHousehold,
@@ -1305,8 +1306,8 @@ describe('survivorClaimNote', () => {
     const nominal = survivorClaimNote(alt, 'nominal')!;
     expect(nominal).toContain('today’s dollars, before any cost-of-living adjustment');
     expect(nominal).toContain('$135,700');
-    expect(real.replace(/\s*Unlike the chart above and.*?adjustment\.\s*/, ' ')).toBe(
-      nominal.replace(/\s*Unlike the chart above and.*?adjustment\.\s*/, ' '),
+    expect(real.replace(/\s*Unlike every other figure.*?adjustment\.\s*/, ' ')).toBe(
+      nominal.replace(/\s*Unlike every other figure.*?adjustment\.\s*/, ' '),
     );
 
     // The default with no `mode` argument at all matches the explicit
@@ -1315,14 +1316,14 @@ describe('survivorClaimNote', () => {
     expect(survivorClaimNote(alt)).toBe(real);
   });
 
-  it('scopes the nominal basis clause to the figures the toggle actually moves', () => {
-    // It used to read "Unlike the figures above", which is false of the page
-    // it renders on: the dollars toggle rewrites the chart, the cliff figures
-    // and the survivor-income column only. The recommendation card's
-    // `expectedNpv` — the first dollar figure on the page — and the strategy
-    // table's Household value and "vs. best" columns stay in present-value
-    // dollars in both modes, and `survivorIncomeCaption`'s own nominal branch
-    // says so two paragraphs up the same screen.
+  it('marks itself as the one figure the basis does not move', () => {
+    // History, because the sentence has been wrong in both directions. It
+    // first read "Unlike the figures above", which overclaimed; it was then
+    // narrowed to the chart and the first-death figures, the only two the
+    // toggle moved at the time. The report basis now drives the whole page —
+    // Household value, "vs. best", the grid, every exhibit — so this note's
+    // own straight-sum figures are the exception, and naming two surfaces
+    // would tell a reader the strategy table had not moved when it had.
     const nominal = survivorClaimNote(
       {
         claimIndex: 2036 * 12 + 4,
@@ -1336,16 +1337,19 @@ describe('survivorClaimNote', () => {
       'nominal',
     )!;
     expect(nominal).not.toContain('Unlike the figures above');
-    expect(nominal).toContain('Unlike the chart above and the income figures at the first death');
-    // The sentence it contradicted, rendered on the same screen — pinned here
-    // so a future reword of either one has to face the other.
+    expect(nominal).not.toContain('Unlike the chart above');
+    expect(nominal).toContain('Unlike every other figure on this page');
+    // The sentence beside it on the same screen, which used to say the
+    // opposite. Pinned here so a future reword of either one has to face the
+    // other: both columns of the strategy table are on the report's basis,
+    // and only this note's figure is not.
     expect(
       survivorIncomeCaption(
         [{ survivorIncome: 36_480 } as HouseholdStrategy],
         null,
         'nominal',
       ),
-    ).toContain('Household value beside it, which stays in today’s money');
+    ).toContain('the same basis as Household value beside it');
   });
 
   it('names the benefit with one on-screen noun in both branches', () => {
@@ -1432,5 +1436,37 @@ describe('survivorFloorNote', () => {
     // of an early-filing reduction. Without this the sentence states a rule
     // without saying why it produces the shape on screen.
     expect(note).toContain('filed before full retirement age');
+  });
+});
+
+/**
+ * The caption under the column the whole report is anchored on.
+ *
+ * It said "in today's money" and named a discount rate unconditionally, which
+ * survived only because nothing could change either. The report basis changes
+ * both, and a caption describing the wrong one is worse than none — a reader
+ * who believes a column of inflated figures is in today's money has no way to
+ * find out from the page.
+ */
+describe('householdValueCaption', () => {
+  it('names today’s money only when that is what the column holds', () => {
+    expect(householdValueCaption('2.50%', 'real')).toContain('in today’s money');
+    const nominal = householdValueCaption('2.50%', 'nominal');
+    expect(nominal).not.toContain('in today’s money');
+    expect(nominal).toContain('the dollars they will actually be paid in');
+  });
+
+  it('stops charging for distance when nothing is discounted', () => {
+    // "counted at 0.00% less per year for being further away" is not false so
+    // much as absurd, and it reads as a setting the adviser forgot rather than
+    // one they chose.
+    const off = householdValueCaption('0.00%', 'nominal', false);
+    expect(off).not.toContain('0.00%');
+    expect(off).toContain('No discount is applied');
+    expect(householdValueCaption('2.50%', 'real', true)).toContain('2.50% less per year');
+  });
+
+  it('defaults to the basis every existing caller had', () => {
+    expect(householdValueCaption('2.50%')).toBe(householdValueCaption('2.50%', 'real', true));
   });
 });

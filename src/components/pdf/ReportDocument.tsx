@@ -2,8 +2,8 @@ import { Fragment } from 'react';
 import { Document, Page, Text, View } from '@react-pdf/renderer';
 import { householdDisplayShape, type HouseholdAnalysis } from '../../lib/household';
 import type { ClaimingRow } from '../../lib/claimingRows';
-import type { LongevitySensitivity } from '../../lib/longevity';
-import type { SolvencySensitivity } from '../../lib/solvency';
+import { longevityInDollarsMode, type LongevitySensitivity } from '../../lib/longevity';
+import { solvencyInDollarsMode, type SolvencySensitivity } from '../../lib/solvency';
 import {
   ADVISER_LAYOUT,
   blockScope,
@@ -22,6 +22,14 @@ import {
   ReportHeader,
 } from './reportChrome';
 import { ClaimingGridBlock, HouseholdBlock } from './HouseholdSection';
+import {
+  CumulativeOverTimeBlock,
+  ScenarioCumulativeBarBlock,
+  ScenarioYearlyBlock,
+  type ExhibitBasis,
+} from './ScenarioExhibits';
+import type { DollarsMode } from '../../lib/dollarsMode';
+import { comparisonsInDollarsMode, gridInDollarsMode } from '../../lib/displayDollars';
 import { PersonBlock, type PersonPart } from './PersonSection';
 import { WidowedSection } from './WidowedSection';
 import {
@@ -92,15 +100,26 @@ function groupRun(run: readonly RunItem[]): RunGroup[] {
 }
 
 export function ReportDocument({
-  analysis,
+  analysis: rawAnalysis,
   claimingRowsByPerson = {},
   gridTarget,
-  sensitivity,
-  solvency,
+  sensitivity: rawSensitivity,
+  solvency: rawSolvency,
   layout = ADVISER_LAYOUT,
   onBlockPage,
+  dollarsMode = 'real',
 }: {
   analysis: HouseholdAnalysis;
+  /**
+   * The dollars the export is rendered in. Defaults to `'real'`, which is
+   * what print always did before it had a choice — so every existing caller
+   * and fixture keeps its output byte-identical.
+   *
+   * The analysis is restated once, below, rather than per block: a report
+   * with a nominal table and a real caption on the same page is the defect
+   * this prop exists to prevent.
+   */
+  dollarsMode?: DollarsMode;
   claimingRowsByPerson?: Record<string, ClaimingRow[]>;
   gridTarget?: { on: boolean; percent: number };
   /**
@@ -132,6 +151,38 @@ export function ReportDocument({
    */
   onBlockPage?: (id: ReportBlockId, page: number) => void;
 }) {
+  // Where the report is priced from and at what rate — the half of the
+  // restatement below that the converted stream does NOT absorb, and so the
+  // half the exhibits have to be handed separately.
+  const exhibitBasis: ExhibitBasis = {
+    discountRate: rawAnalysis.assumptions.discountRate,
+    asOfYear: new Date(rawAnalysis.asOf).getFullYear(),
+  };
+  // One restatement for the whole document, before anything reads it.
+  // `comparisonsInDollarsMode` is the identity in real mode, so this costs
+  // nothing in the default path.
+  const analysis: HouseholdAnalysis = {
+    ...rawAnalysis,
+    // The grid is restated here too, and not only where it is drawn: every
+    // block reads one `analysis`, and a document holding two of them in
+    // different dollars is the defect this restatement exists to prevent.
+    claimingGrid: gridInDollarsMode(rawAnalysis.claimingGrid, dollarsMode),
+    comparisons: comparisonsInDollarsMode(
+      rawAnalysis.comparisons,
+      rawAnalysis.people,
+      rawAnalysis.finalIndexByPersonId,
+      {
+        dollarsMode,
+        annualCola: rawAnalysis.assumptions.annualCola,
+        ...exhibitBasis,
+      },
+    ),
+  };
+  // The last two blocks reading figures the restatement above cannot reach:
+  // both are computed by the caller, from the raw analysis, before this
+  // component sees them. Restated here so the whole document is one basis.
+  const sensitivity = longevityInDollarsMode(rawSensitivity ?? null, dollarsMode);
+  const solvency = solvencyInDollarsMode(rawSolvency ?? null, dollarsMode);
   const shape = householdDisplayShape(analysis.status);
   const reportDate = formatReportDate();
   const footerText = `${FIRM} · ${formatVersionLabel()} · Confidential · ${reportDate}`;
@@ -204,13 +255,28 @@ export function ReportDocument({
         return sensitivity ? LongevityBlock({ sensitivity }) : null;
       case 'solvency':
         // The other block whose data the caller may not have computed.
-        return solvency ? SolvencyBlock({ sensitivity: solvency }) : null;
+        return solvency ? SolvencyBlock({ sensitivity: solvency, dollarsMode }) : null;
       case 'action':
         return ActionBlock({ analysis });
       case 'household':
-        return HouseholdBlock({ analysis });
+        return HouseholdBlock({ analysis, dollarsMode });
       case 'grid':
         return ClaimingGridBlock({ analysis, gridTarget });
+      // The comparison exhibits. All three read the restated `analysis`
+      // above, so they are in whichever dollars the rest of the report is —
+      // and `basis` carries the one thing that restatement does NOT put into
+      // the stream, so a running total can be shown back in today's money
+      // and land on the household value printed above it.
+      case 'scenarioYearly':
+        return ScenarioYearlyBlock({
+          comparisons: analysis.comparisons,
+          people: analysis.people.map((p) => p.person),
+          basis: exhibitBasis,
+        });
+      case 'scenarioBars':
+        return ScenarioCumulativeBarBlock({ comparisons: analysis.comparisons });
+      case 'cumulativeOverTime':
+        return CumulativeOverTimeBlock({ comparisons: analysis.comparisons, basis: exhibitBasis });
       case 'terms':
         return TermsBlock({ analysis });
       case 'methodology':

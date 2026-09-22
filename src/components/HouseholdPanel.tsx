@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { buildMonthlyIncomeSeries, type HouseholdAnalysis, type HouseholdStrategy } from '../lib/household';
+import { buildMonthlyIncomeSeries, type HouseholdAnalysis } from '../lib/household';
 import { computeBreakEvens } from '../lib/benefitMath';
 import { formatPercent } from '../lib/cpiHistory';
-import { toNominal, toNominalAmount, toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
+import { comparisonsInDollarsMode } from '../lib/displayDollars';
+import { toNominal, toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
 import { personLabel } from '../lib/format';
-import { firstDeath } from '../lib/incomeCliff';
 import { scenarioEyebrow, type ScenarioSet } from '../lib/scenario';
 import { StrategyComparisonTable } from './StrategyComparisonTable';
 import { CombinedIncomeChart } from './CombinedIncomeChart';
@@ -25,35 +25,6 @@ interface HouseholdPanelProps {
   onScenariosChange?: (scenarios: ScenarioSet) => void;
 }
 
-/**
- * The survivor-income column's nominal figures, one scalar transform per
- * row rather than a second timeline. Every row is priced at the same
- * calendar year — `withSurvivorIncome` in `household.ts` fixes it at
- * `firstDeath`'s `deathYear + 1`, independent of that row's own filing
- * strategy — so the year is computed once here via the same `firstDeath`
- * helper `incomeCliff` itself calls, rather than re-derived per row.
- *
- * Real mode, or a household with no first death to speak of (single
- * claimant, or the death falling outside the modeled timeline), returns
- * `comparisons` untouched.
- */
-function nominalComparisons(
-  comparisons: HouseholdStrategy[],
-  people: HouseholdAnalysis['people'],
-  finalIndexByPersonId: HouseholdAnalysis['finalIndexByPersonId'],
-  annualCola: number,
-  asOfYear: number,
-): HouseholdStrategy[] {
-  if (people.length !== 2) return comparisons;
-  const death = firstDeath([people[0].person.id, people[1].person.id], finalIndexByPersonId);
-  if (death === null) return comparisons;
-  const year = death.deathYear + 1;
-  return comparisons.map((c) =>
-    c.survivorIncome == null
-      ? c
-      : { ...c, survivorIncome: toNominalAmount(c.survivorIncome, annualCola, asOfYear, year) },
-  );
-}
 
 /**
  * The Household tab's contents: leads on the recommendation, then the
@@ -134,13 +105,12 @@ export function HouseholdPanel({
   const displayComparisons = useMemo(
     () =>
       dollarsMode === 'nominal'
-        ? nominalComparisons(
-            analysis.comparisons,
-            analysis.people,
-            analysis.finalIndexByPersonId,
+        ? comparisonsInDollarsMode(analysis.comparisons, analysis.people, analysis.finalIndexByPersonId, {
+            dollarsMode,
             annualCola,
             asOfYear,
-          )
+            discountRate: analysis.assumptions.discountRate,
+          })
         : analysis.comparisons,
     [analysis, annualCola, dollarsMode, asOfYear],
   );
@@ -150,13 +120,12 @@ export function HouseholdPanel({
   const displayAllComparisons = useMemo(
     () =>
       dollarsMode === 'nominal'
-        ? nominalComparisons(
-            analysis.allComparisons,
-            analysis.people,
-            analysis.finalIndexByPersonId,
+        ? comparisonsInDollarsMode(analysis.allComparisons, analysis.people, analysis.finalIndexByPersonId, {
+            dollarsMode,
             annualCola,
             asOfYear,
-          )
+            discountRate: analysis.assumptions.discountRate,
+          })
         : analysis.allComparisons,
     [analysis, annualCola, dollarsMode, asOfYear],
   );
@@ -196,6 +165,7 @@ export function HouseholdPanel({
         survivorGap={analysis.survivorGap}
         dollarsMode={dollarsMode}
         discountRateLabel={formatPercent(analysis.assumptions.discountRate * 100, 2)}
+        discounted={analysis.assumptions.discountRate > 0}
         scenarios={scenarios}
         onScenariosChange={onScenariosChange}
         filingAgeOptions={analysis.filingAgeOptions}

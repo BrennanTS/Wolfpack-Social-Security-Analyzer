@@ -25,8 +25,37 @@ export interface ClaimingGridCell {
   years: [number, number];
   /** The exact filing ages achieving `value`, in DISPLAY order. */
   ages: [FilingAgeChoice, FilingAgeChoice];
-  /** Household value at those ages — the same figure the strategy table shows. */
+  /**
+   * Household value at those ages — the same figure the strategy table shows,
+   * in whatever dollars this grid is stated in.
+   *
+   * Real as `analyzeHousehold` returns it; `gridInDollarsMode` swaps in
+   * `valueNominal` for a reader who has asked for future dollars. Every
+   * consumer reads this one field and so is already correct in both.
+   */
   value: number;
+  /**
+   * The SAME square in nominal dollars, carried alongside rather than derived
+   * on demand.
+   *
+   * A lifetime sum cannot be converted by one factor — each of its years
+   * carries a different one — so restating it needs the square's own stream,
+   * which is discarded once the square is valued. Summing it twice while that
+   * stream is in hand costs one extra pass over ~35 points per drawn square
+   * and is what lets the grid follow the report's dollars at all. Before this,
+   * the grid printed real dollars under a nominal report: 2,629,235 against
+   * the strategy table's 4,261,225 for the same household, two blocks on
+   * facing pages disagreeing by 62%.
+   */
+  valueNominal: number;
+  /**
+   * The engine's `expectedNpv` for this square, used ONLY to decide which
+   * strategy wins it. Kept separate from `value` because the two are no
+   * longer the same number (`lifetimeValue.ts`), and selecting on the printed
+   * figure while the table selects on the engine's would let the grid's best
+   * square and the table's Best row name different filing ages.
+   */
+  rank: number;
 }
 
 export interface ClaimingGrid {
@@ -59,6 +88,18 @@ export function gridKey(a: number, b: number): string {
 export function buildClaimingGrid(
   ranked: readonly RankedStrategy[],
   toDisplay: <T>(pair: readonly T[]) => [T, T] = (pair) => [pair[0], pair[1]],
+  /**
+   * The figure to PRINT on a square, if it is not the engine's own.
+   *
+   * Selection is untouched: which strategy wins a square is still decided by
+   * `expectedNpv`, because that is the engine's ranking job and the strategy
+   * table's Best row is chosen the same way — the two surfaces must agree on
+   * WHICH combination wins. What they must also agree on is the DOLLARS shown
+   * for it, and the table now prints `householdValue`, summed from the
+   * strategy's own stream (see `lifetimeValue.ts`). Applied after selection,
+   * so it costs one call per drawn square rather than one per candidate.
+   */
+  valueOf?: (strategy: RankedStrategy) => { real: number; nominal: number },
 ): ClaimingGrid | null {
   if (ranked.length === 0 || ranked[0].filingAges.length !== 2) return null;
 
@@ -71,14 +112,22 @@ export function buildClaimingGrid(
     // sorted best-first, so ties resolve to the earlier-listed combination
     // rather than to iteration order — the same tie rule the comparison
     // table's lookup uses.
-    if (current !== undefined && strategy.expectedNpv <= current.value) continue;
+    if (current !== undefined && strategy.expectedNpv <= current.rank) continue;
+    // Once, not once per field: this rebuilds the square's whole payment
+    // stream, and calling it twice would double the grid's cost for nothing.
+    const valued = valueOf?.(strategy);
     best.set(key, {
       years: [ages[0].years, ages[1].years],
       ages: [
         { years: ages[0].years, months: ages[0].months },
         { years: ages[1].years, months: ages[1].months },
       ],
-      value: strategy.expectedNpv,
+      rank: strategy.expectedNpv,
+      // No `valueOf` means no stream to sum, so the engine's own figure
+      // stands in for both — every test that omits the resolver, and any
+      // caller that has only `ranked`.
+      value: valued ? valued.real : strategy.expectedNpv,
+      valueNominal: valued ? valued.nominal : strategy.expectedNpv,
     });
   }
 

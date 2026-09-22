@@ -3,6 +3,10 @@ import { classifyEarnerDependent } from '$lib/strategy/calculations/earner-depen
 import { MonthDate, type MonthDuration } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
 import { roundCents } from './benefitMath';
+import {
+  householdValueFromTimeline,
+  type LifetimeValueOptions,
+} from './lifetimeValue';
 import { buildClaimingGrid, type ClaimingGrid } from './claimingGrid';
 import {
   householdPeriods,
@@ -141,6 +145,22 @@ export interface HouseholdStrategy {
    * figure and it really is an NPV.
    */
   lifetimeTotal: number | null;
+  /**
+   * This strategy's own calendar-year payment stream, and the lifetime figure
+   * summed from it in REAL dollars at the household's discount rate.
+   *
+   * `householdValue` is what the strategy table prints, NOT `expectedNpv`:
+   * the two differ by the six-month seam documented in `lifetimeValue.ts`,
+   * and only this one agrees with the per-year table and cumulative charts
+   * that read `timeline`. `expectedNpv` keeps the job it is better at —
+   * ranking which filing ages win — and still orders these rows.
+   *
+   * A display layer showing nominal dollars must re-sum `timeline` through
+   * `householdValueFromTimeline` rather than scaling `householdValue`: each
+   * year in the stream carries a different COLA factor.
+   */
+  timeline: CombinedTimelinePoint[];
+  householdValue: number;
   /**
    * The month the survivor benefit is claimed, and the survivor's age then.
    * Non-null ONLY for a widowed household, whose recommendation is two dates
@@ -633,9 +653,13 @@ function buildComparisons(
     isOptimal: entry.id === optimalEntryId,
     isSelected: entry.id === selectedId,
     hidden: entry.hidden,
-    // Filled in by `withSurvivorIncome` once bands exist to compute it from —
-    // `buildComparisons` runs before this household's `householdPeriods` call.
+    // All three are filled in by `withTimelineDerived` once bands exist to
+    // compute them from — `buildComparisons` runs before this household's
+    // `householdPeriods` call. Nothing reads these rows before that pass; the
+    // seeds exist so the shape is one type rather than two.
     survivorIncome: null,
+    timeline: [],
+    householdValue: 0,
   }));
 
   // Present ascending by filing age so the table reads earliest to latest.
@@ -703,7 +727,22 @@ function buildComparisons(
  * fixed by each person's plan-to age and do not vary by filing strategy, even
  * though the bands and totals around them do.
  */
-function withSurvivorIncome(
+/**
+ * Attach each strategy's own payment stream, and the two figures read off it.
+ *
+ * Previously `withSurvivorIncome`, and it only ran for couples because
+ * survivor income was the only thing it produced. It now also carries the
+ * `timeline` itself and the `householdValue` summed from it, both of which a
+ * single claimant has too — so the one-person short-circuit is gone and only
+ * the survivor lookup is still conditional.
+ *
+ * Carrying the stream rather than just its total is deliberate: the per-year
+ * table and the cumulative charts read the same array the headline figure was
+ * summed from, so a reader adding up the table always lands on the number
+ * printed above it. See `lifetimeValue.ts` for why that could not be taken
+ * for granted.
+ */
+function withTimelineDerived(
   comparisons: HouseholdStrategy[],
   rawPeople: Person[],
   recipients: Recipient[],
@@ -711,13 +750,14 @@ function withSurvivorIncome(
   finalIndexByPersonId: Record<string, number>,
   peopleAnalysis: PersonAnalysis[],
   selectedBands: BenefitBand[],
+  valueOptions: Omit<LifetimeValueOptions, 'dollarsMode'>,
 ): HouseholdStrategy[] {
-  if (rawPeople.length !== 2) return comparisons.map((c) => ({ ...c, survivorIncome: null }));
+  const death =
+    rawPeople.length === 2
+      ? firstDeath([rawPeople[0].id, rawPeople[1].id], finalIndexByPersonId)
+      : null;
 
-  const death = firstDeath([rawPeople[0].id, rawPeople[1].id], finalIndexByPersonId);
-  if (death === null) return comparisons.map((c) => ({ ...c, survivorIncome: null }));
-
-  return comparisons.map((c) => {
+  const withValues = comparisons.map((c) => {
     const bands = c.isSelected
       ? selectedBands
       : householdPeriods(
@@ -727,9 +767,29 @@ function withSurvivorIncome(
           labels,
         ).bands;
     const timeline = buildCombinedTimeline(bands, peopleAnalysis);
-    const point = timeline.find((p) => p.year === death.deathYear + 1);
-    return { ...c, survivorIncome: point ? point.total : null };
+    // Real dollars here; the display layer re-sums the same timeline when the
+    // reader asks for nominal, rather than scaling this total by one factor —
+    // a lifetime sum has a different COLA factor in every one of its years.
+    const householdValue = householdValueFromTimeline(timeline, {
+      ...valueOptions,
+      dollarsMode: 'real',
+    });
+    const point = death ? timeline.find((p) => p.year === death.deathYear + 1) : undefined;
+    return { ...c, timeline, householdValue, survivorIncome: point ? point.total : null };
   });
+
+  // Re-anchor the deltas on the figure the table actually prints. They were
+  // seeded in `buildComparisons` from `expectedNpv`, which differs from
+  // `householdValue` by the six-month seam — so leaving them would put a
+  // "vs. best" column beside a value column that it does not subtract from.
+  // The Best row is the optimum by `expectedNpv` (the engine still ranks);
+  // this only restates the distance to it in the printed units.
+  const best = withValues.find((c) => c.isOptimal);
+  if (best === undefined) return withValues;
+  return withValues.map((c) => ({
+    ...c,
+    deltaVsOptimal: roundCents(c.householdValue - best.householdValue),
+  }));
 }
 
 function createRecipientFor(person: Person) {
@@ -1326,6 +1386,13 @@ async function analyzeWidowed(
     filingAges: [formatFilingAge(monthDurationBetween(person, outcome.ownFilingIndex))],
     expectedNpv: outcome.lifetimeTotal,
     lifetimeTotal: outcome.lifetimeTotal,
+    // A widowed household is scored by `bestWidowedOutcome`'s own straight sum
+    // over the same bands it searched, so it never had the six-month seam that
+    // `lifetimeValue.ts` exists to close and `householdValue` is simply that
+    // same figure. The per-strategy stream is not materialized for widowed
+    // yet, so the per-year exhibits stay couple/single-only for now.
+    householdValue: outcome.lifetimeTotal,
+    timeline: [],
     survivorClaimDate: { monthIndex: outcome.survivorClaimIndex, age: outcome.survivorClaimAge },
     deltaVsOptimal: roundCents(outcome.lifetimeTotal - best.lifetimeTotal),
     isOptimal,
@@ -1436,6 +1503,16 @@ export async function analyzeHousehold(
   asOf: Date = new Date(),
   scenarios: ScenarioSet = DEFAULT_SCENARIO_SET,
 ): Promise<HouseholdAnalysis> {
+  // Shared by both branches so a single and a couple can never be summed on
+  // different horizons or at different rates. `dollarsMode` is deliberately
+  // absent: the analysis layer computes real dollars and the display layer
+  // re-sums the carried timeline when a reader asks for nominal.
+  const valueOptions: Omit<LifetimeValueOptions, 'dollarsMode'> = {
+    annualCola: assumptions.annualCola,
+    discountRate: assumptions.discountRate,
+    asOfYear: asOf.getFullYear(),
+  };
+
   if (household.status === 'married') {
     const [personA, personB] = household.people;
 
@@ -1570,7 +1647,7 @@ export async function analyzeHousehold(
     // Hidden rows go through `withSurvivorIncome` too, so the editor shows a
     // row's real survivor income before it is un-hidden rather than a dash
     // that appears to be a property of the row.
-    const comparisonsWithSurvivor = withSurvivorIncome(
+    const comparisonsWithSurvivor = withTimelineDerived(
       allComparisons,
       enginePeople,
       [recipient0, recipient1],
@@ -1578,6 +1655,7 @@ export async function analyzeHousehold(
       finalIndexByPersonId,
       people,
       bands,
+      valueOptions,
     );
     // Back to display order for the two-element arrays a reader sees. Every
     // other field is keyed by `personId` and so needs no mapping.
@@ -1609,7 +1687,34 @@ export async function analyzeHousehold(
       periods: bands,
       survivorGap,
       survivorFloor,
-      claimingGrid: buildClaimingGrid(ranked, reorder),
+      // Print the same basis the strategy table prints. Selection inside the
+      // grid still runs on the engine's `expectedNpv`; only the dollars shown
+      // are re-summed from each winning square's own stream, so a square and
+      // the table's Best row can never quote different figures for the same
+      // filing ages. One call per drawn square (~81), not per candidate.
+      //
+      // BOTH dollars modes, because the stream is built here and discarded
+      // here: a lifetime sum carries a different COLA factor in each of its
+      // years, so it cannot be restated later by scaling. Summing the same
+      // points twice is the cheap half of this; rebuilding them would not be.
+      claimingGrid: buildClaimingGrid(ranked, reorder, (strategy) => {
+        const timeline = buildCombinedTimeline(
+          householdPeriods(
+            enginePeople,
+            [recipient0, recipient1],
+            strategy.filingAges.map((f) => f.monthDuration),
+            engineLabels,
+          ).bands,
+          people,
+        );
+        return {
+          real: householdValueFromTimeline(timeline, { ...valueOptions, dollarsMode: 'real' }),
+          nominal: householdValueFromTimeline(timeline, {
+            ...valueOptions,
+            dollarsMode: 'nominal',
+          }),
+        };
+      }),
       survivorClaim,
       finalIndexByPersonId,
       spousalTopUp: spousalFiguresFrom(
@@ -1692,7 +1797,7 @@ export async function analyzeHousehold(
   // short-circuits on the one-person `rawPeople` array without calling
   // `householdPeriods` again, so this is just the null-filling branch, called
   // here rather than duplicated so both branches use the same rule.
-  const comparisonsWithSurvivor = withSurvivorIncome(
+  const comparisonsWithSurvivor = withTimelineDerived(
     allComparisons,
     household.people,
     [recipient],
@@ -1700,6 +1805,7 @@ export async function analyzeHousehold(
     finalIndexByPersonId,
     people,
     bands,
+    valueOptions,
   );
   // See the married branch: exactly one row carries each flag, and a silent
   // fallback here would attach the wrong label to real figures.

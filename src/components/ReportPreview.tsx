@@ -1,3 +1,4 @@
+import type { DollarsMode } from '../lib/dollarsMode';
 import { useEffect, useRef, useState } from 'react';
 import type { HouseholdAnalysis } from '../lib/household';
 import type { ClaimingRow } from '../lib/claimingRows';
@@ -25,6 +26,8 @@ function canShowPdfInline(): boolean {
 }
 
 interface Props {
+  /** The dollars the preview renders in; omitted means real. */
+  dollarsMode?: DollarsMode;
   analysis: HouseholdAnalysis;
   claimingRowsByPerson: Record<string, ClaimingRow[]>;
   gridTarget?: { on: boolean; percent: number };
@@ -64,6 +67,7 @@ export function ReportPreview({
   theme,
   layout,
   onPages,
+  dollarsMode,
 }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [rendering, setRendering] = useState(true);
@@ -102,6 +106,7 @@ export function ReportPreview({
               sensitivity={sensitivity}
               solvency={solvency}
               layout={layout}
+              dollarsMode={dollarsMode}
               onBlockPage={(id, page) => landed.set(id, page)}
             />,
           ).toBlob();
@@ -126,7 +131,7 @@ export function ReportPreview({
       canceled = true;
       clearTimeout(timer);
     };
-  }, [analysis, claimingRowsByPerson, gridTarget, sensitivity, solvency, theme, layout, inlineOk]);
+  }, [analysis, claimingRowsByPerson, gridTarget, sensitivity, solvency, theme, layout, inlineOk, dollarsMode]);
 
   // Held in a ref so a caller passing an inline function does not re-render
   // the whole report on every keystroke somewhere else in the dialog.

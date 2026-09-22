@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { SurvivorGap } from '../lib/benefitPeriods';
 import type { DollarsMode } from '../lib/dollarsMode';
+import { outrankedByDisplay } from '../lib/displayDollars';
 import { formatCurrency, personLabel } from '../lib/format';
 import { filingMonth, shortMonthYearLabel } from '../lib/filingDates';
 import { showSurvivorIncomeColumn, type HouseholdStrategy } from '../lib/household';
@@ -9,6 +10,7 @@ import { EyeIcon } from './EyeIcon';
 import {
   HOUSEHOLD_VALUE_COLUMN_HEADER,
   householdValueCaption,
+  rankingBasisNote,
   SURVIVOR_INCOME_COLUMN_HEADER,
   survivorIncomeCaption,
 } from './methodologyCopy';
@@ -51,6 +53,12 @@ interface StrategyComparisonTableProps {
    * caption entirely rather than print one naming a rate it does not know.
    */
   discountRateLabel?: string;
+  /**
+   * Whether a discount is actually in force. Separate from the label because
+   * a formatted "0.00%" cannot be tested for, and the caption has to stop
+   * saying payments are counted for less when none of them are.
+   */
+  discounted?: boolean;
   /**
    * The scenario list behind these rows. Editing is offered only when this
    * and `onScenariosChange` and `filingAgeOptions` are all present — a
@@ -104,6 +112,7 @@ export function StrategyComparisonTable({
   survivorGap,
   dollarsMode = 'real',
   discountRateLabel,
+  discounted = true,
   scenarios,
   onScenariosChange,
   filingAgeOptions,
@@ -163,6 +172,9 @@ export function StrategyComparisonTable({
         })
       : rawRows;
   const showSurvivorIncome = showSurvivorIncomeColumn(rows, people.length);
+  // Read off the rows being drawn, so the note appears exactly when the table
+  // itself shows a larger figure on a row that is not marked best.
+  const outranked = outrankedByDisplay(rows);
   const hiddenCount = (allComparisons ?? comparisons).filter((c) => c.hidden).length;
 
   function change(next: ScenarioSet) {
@@ -355,7 +367,7 @@ export function StrategyComparisonTable({
                     until the Select column shifted every one of them — a
                     column added to a table should not be able to break an
                     assertion about a figure in it. */}
-                <td data-testid="cell-npv">{formatCurrency(s.expectedNpv)}</td>
+                <td data-testid="cell-npv">{formatCurrency(s.householdValue)}</td>
                 <td data-testid="cell-delta" className={s.deltaVsOptimal < 0 ? 'negative' : ''}>
                   {s.deltaVsOptimal === 0 ? '' : formatCurrency(s.deltaVsOptimal)}
                 </td>
@@ -397,7 +409,14 @@ export function StrategyComparisonTable({
 
       {discountRateLabel !== undefined && (
         <p className="chart-caveat" data-testid="household-value-caption">
-          {householdValueCaption(discountRateLabel)}
+          {householdValueCaption(discountRateLabel, dollarsMode, discounted)}
+        </p>
+      )}
+      {/* Only when the biggest figure in the column is not the row marked
+          best — see `outrankedByDisplay`. */}
+      {discountRateLabel !== undefined && outranked !== null && (
+        <p className="chart-caveat" data-testid="ranking-basis-note">
+          {rankingBasisNote(outranked.label, discountRateLabel)}
         </p>
       )}
       {showSurvivorIncome && (

@@ -1,6 +1,7 @@
 import type { ClaimingRow } from './claimingRows';
 import { reportTheme, type ReportTheme } from './reportTheme';
 import type { ReportLayout } from './reportLayout';
+import type { DollarsMode } from './dollarsMode';
 import type { HouseholdAnalysis } from './household';
 import type { LongevitySensitivity } from './longevity';
 import type { SolvencySensitivity } from './solvency';
@@ -56,6 +57,12 @@ export interface ReportInputs {
   solvency?: SolvencySensitivity | null;
   theme?: ReportTheme;
   layout?: ReportLayout;
+  /**
+   * The dollars the adviser is looking at. Omitted means `'real'`, which is
+   * what the export always produced before the screen had a toggle worth
+   * honouring — so an existing caller's output is unchanged.
+   */
+  dollarsMode?: DollarsMode;
 }
 
 export async function downloadPdfReport({
@@ -66,6 +73,7 @@ export async function downloadPdfReport({
   solvency,
   theme,
   layout,
+  dollarsMode,
 }: ReportInputs): Promise<void> {
   const { pdf } = await import('@react-pdf/renderer');
   const { setActiveReportTheme } = await import('../components/pdf/theme');
@@ -83,6 +91,7 @@ export async function downloadPdfReport({
       sensitivity={sensitivity}
       solvency={solvency}
       layout={layout}
+      dollarsMode={dollarsMode}
     />,
   ).toBlob();
 

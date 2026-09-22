@@ -24,6 +24,9 @@ export type ReportBlockId =
   | 'action'
   | 'household'
   | 'grid'
+  | 'scenarioYearly'
+  | 'scenarioBars'
+  | 'cumulativeOverTime'
   | 'personDetails'
   | 'personComparison'
   | 'personCumulative'
@@ -199,6 +202,39 @@ export const BLOCKS: readonly BlockMeta[] = [
     label: 'Claiming age grid',
     blurb: 'Every combination of claiming ages, ranked',
     shapes: COUPLE,
+    fill: 'medium',
+    scope: 'household',
+  },
+  /**
+   * The three comparison exhibits. Present in BLOCKS so the editor offers
+   * them, ABSENT from both presets below so no existing report gains pages
+   * it did not ask for — adding a block here is how a feature ships off by
+   * default.
+   *
+   * `LIVING` only: a widowed strategy carries no timeline yet, and all three
+   * read exactly that.
+   */
+  {
+    id: 'scenarioYearly',
+    label: 'Year by year',
+    blurb: 'What each strategy pays every year, and the running total',
+    shapes: LIVING,
+    fill: 'full',
+    scope: 'household',
+  },
+  {
+    id: 'scenarioBars',
+    label: 'Total by strategy',
+    blurb: 'Every strategy as a bar, so the gaps between them are visible',
+    shapes: LIVING,
+    fill: 'medium',
+    scope: 'household',
+  },
+  {
+    id: 'cumulativeOverTime',
+    label: 'Cumulative over time',
+    blurb: 'Each strategy as a curve; where they cross is the break-even',
+    shapes: LIVING,
     fill: 'medium',
     scope: 'household',
   },
@@ -381,6 +417,16 @@ export const ADVISER_LAYOUT: ReportLayout = {
     BREAK,
     block('household'),
     block('grid'),
+    // The comparison exhibits, in the ADVISER preset only. That keeps the
+    // "every block there is" contract this preset carries while leaving them
+    // out of CLIENT_LAYOUT, which is `DEFAULT_LAYOUT_ID` — so they are
+    // available to switch on without appearing in anyone's report unasked.
+    block('scenarioBars'),
+    block('cumulativeOverTime'),
+    // No BREAK before the year-by-year table: it is long and flows across
+    // sheets on its own, and a forced break here would change this preset's
+    // page-group count, which `layoutRuns` uses it as the fixture for.
+    block('scenarioYearly'),
     BREAK,
     block('personDetails'),
     block('personComparison'),

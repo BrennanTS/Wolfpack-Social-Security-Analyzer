@@ -1,5 +1,6 @@
 import { Image, Text, View } from '@react-pdf/renderer';
 import type { HouseholdAnalysis } from '../../lib/household';
+import type { DollarsMode } from '../../lib/dollarsMode';
 import type { LongevitySensitivity } from '../../lib/longevity';
 import {
   TRUSTEES_PROJECTION,
@@ -73,10 +74,10 @@ export function AnswerBlock({
   // against a row that is missing from exactly the households whose optimum
   // is early.
   const worst = analysis.comparisons.reduce<typeof selected | null>(
-    (low, c) => (low === null || c.expectedNpv < low.expectedNpv ? c : low),
+    (low, c) => (low === null || c.householdValue < low.householdValue ? c : low),
     null,
   );
-  const gain = worst ? selected.expectedNpv - worst.expectedNpv : 0;
+  const gain = worst ? selected.householdValue - worst.householdValue : 0;
   const gainNote = worst ? copy.versusWorstNote(gain, formatCurrency(gain), worst.label) : null;
 
   const peak = changes.reduce((most, c) => Math.max(most, c.total), 0);
@@ -122,7 +123,7 @@ export function AnswerBlock({
         <View style={styles.heroBig}>
           <Text style={styles.heroBigCap}>{copy.LIFETIME_CAPTION}</Text>
           <Text style={styles.heroBigNum}>
-            {formatCompactCurrency(selected.expectedNpv, compactUnitFor(selected.expectedNpv))}
+            {formatCompactCurrency(selected.householdValue, compactUnitFor(selected.householdValue))}
           </Text>
           {gainNote && <Text style={styles.heroBigSub}>{gainNote}</Text>}
         </View>
@@ -625,8 +626,16 @@ export function LimitsBlock() {
  * here rather than by the engine because the engine has no concept of a
  * benefit cut; see `solvency.ts`.
  */
-export function SolvencyBlock({ sensitivity }: { sensitivity: SolvencySensitivity }) {
-  const { rows, assumption, sameWinner, bestFullKey, bestReducedKey } = sensitivity;
+export function SolvencyBlock({
+  sensitivity,
+  dollarsMode = 'real',
+}: {
+  sensitivity: SolvencySensitivity;
+  /** The dollars the rest of the report is in — the caption names them. */
+  dollarsMode?: DollarsMode;
+}) {
+  const { rows, assumption, sameWinner, tooCloseToCall, bestFullKey, bestReducedKey } =
+    sensitivity;
   if (rows.length === 0) return null;
   const label = (key: string) => rows.find((r) => r.key === key)?.label ?? '';
 
@@ -674,11 +683,16 @@ export function SolvencyBlock({ sensitivity }: { sensitivity: SolvencySensitivit
           </Text>
         </View>
       ))}
-      <Text style={[styles.sectionDesc, { marginTop: 8 }]}>{copy.SOLVENCY_TABLE_CAPTION}</Text>
+      <Text style={[styles.sectionDesc, { marginTop: 8 }]}>{copy.solvencyTableCaption(dollarsMode)}</Text>
 
       <View style={styles.callout} wrap={false}>
         <Text style={styles.calloutText}>
-          {copy.solvencyVerdict(sameWinner, label(bestFullKey), label(bestReducedKey))}{' '}
+          {copy.solvencyVerdict(
+            sameWinner,
+            label(bestFullKey),
+            label(bestReducedKey),
+            tooCloseToCall,
+          )}{' '}
           {copy.SOLVENCY_DISCLAIMER}
         </Text>
       </View>

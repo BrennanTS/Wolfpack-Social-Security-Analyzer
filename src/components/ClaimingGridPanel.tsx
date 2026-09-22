@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   compactUnitFor,
   formatCompactCurrency,
@@ -6,6 +6,8 @@ import {
   personLabel,
 } from '../lib/format';
 import type { HouseholdAnalysis } from '../lib/household';
+import type { DollarsMode } from '../lib/dollarsMode';
+import { gridInDollarsMode } from '../lib/displayDollars';
 import {
   cellsWithin,
   gridKey,
@@ -34,6 +36,15 @@ import { DEFAULT_TARGET_RANGE, type TargetRange } from '../lib/gridTarget';
 
 interface Props {
   analysis: HouseholdAnalysis;
+  /**
+   * The dollars the rest of the screen is in. Omitted means real, which is
+   * what this panel showed before it had a choice.
+   *
+   * It has to be honoured here and not only in the report: the board prints
+   * household values, and a grid left in real dollars beside a nominal
+   * strategy table put $2,629,235 next to $4,261,225 for the same household.
+   */
+  dollarsMode?: DollarsMode;
   scenarios?: ScenarioSet;
   onScenariosChange?: (scenarios: ScenarioSet) => void;
   target?: TargetRange;
@@ -72,6 +83,7 @@ interface Props {
  */
 export function ClaimingGridPanel({
   analysis,
+  dollarsMode = 'real',
   scenarios,
   onScenariosChange,
   target: controlled,
@@ -102,7 +114,12 @@ export function ClaimingGridPanel({
   const pickedKey = controlledPick === undefined ? ownPick : controlledPick;
   const setPickedKey = onPickedChange ?? setOwnPick;
 
-  const grid = analysis.claimingGrid;
+  // Identity in real mode, so the default path allocates nothing and a memo
+  // above this one does not see a new grid on every render.
+  const grid = useMemo(
+    () => gridInDollarsMode(analysis.claimingGrid, dollarsMode),
+    [analysis.claimingGrid, dollarsMode],
+  );
   if (grid === null) return null;
 
   const targetOn = target.on;

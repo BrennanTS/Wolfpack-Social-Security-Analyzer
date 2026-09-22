@@ -1,3 +1,4 @@
+import type { DollarsMode } from '../lib/dollarsMode';
 import { useEffect, useRef } from 'react';
 import { usePageScrollLock } from '../hooks/usePageScrollLock';
 import { ReportThemeEditor } from './ReportThemeEditor';
@@ -34,6 +35,7 @@ export function ThemeEditorDialog({
     gridTarget?: { on: boolean; percent: number };
     sensitivity?: LongevitySensitivity | null;
   solvency?: SolvencySensitivity | null;
+    dollarsMode?: DollarsMode;
     layout: ReportLayout;
   };
 }) {

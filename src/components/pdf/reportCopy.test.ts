@@ -47,6 +47,12 @@ function allCopy(): string[] {
     ),
     copy.solvencyVerdict(true, 'Both wait until 70', 'Both wait until 70'),
     copy.solvencyVerdict(false, 'Both wait until 70', 'Both claim at your full ages'),
+    copy.solvencyVerdict(false, 'Both wait until 70', 'Both claim at your full ages', true),
+    // Was a plain string until the report basis could change what it says, at
+    // which point it became a function and dropped out of the sweep above
+    // without anything failing. Both branches, explicitly.
+    copy.solvencyTableCaption('real'),
+    copy.solvencyTableCaption('nominal'),
     copy.versusWorstNote(1000, '$1,000', 'Both claim as early as you can') ?? '',
     copy.survivorGainNote('$19,728', 'Both claim as early as you can', 12),
     copy.survivorGainNote('$686', 'Both claim at your full ages', 0),
@@ -229,3 +235,43 @@ describe('everything this module prints, printed', () => {
   });
 });
 
+
+/**
+ * The three things the reduction page is allowed to conclude.
+ *
+ * Pinned separately from the jargon sweep because what matters here is which
+ * branch a reader gets, not only that its words are plain.
+ */
+describe('solvencyVerdict', () => {
+  const best = 'Best for the two of you';
+  const early = 'Both claim as early as you can';
+
+  it('says the plan holds up when the leader does not change', () => {
+    const text = copy.solvencyVerdict(true, best, best);
+    expect(text).toContain('pays the most either way');
+  });
+
+  it('names the new leader when the change is worth acting on', () => {
+    const text = copy.solvencyVerdict(false, best, early);
+    expect(text).toContain(`Under a reduction, “${early}” does`);
+    expect(text).toContain('worth talking through');
+  });
+
+  it('declines to name one when the two are level', () => {
+    // The branch that matters most: it must not read as a recommendation to
+    // claim early, and it must still say which plan leads as things stand —
+    // a reader who takes "level under a cut" as "level, full stop" has been
+    // told the wrong thing.
+    const text = copy.solvencyVerdict(false, best, early, true);
+    expect(text).toContain('within half a percent');
+    expect(text).toContain('not as a reason to change plan');
+    expect(text).toContain(`“${best}” pays the most as things stand`);
+    expect(text).not.toContain('worth talking through');
+  });
+
+  it('keeps its old wording for every caller that does not pass the flag', () => {
+    expect(copy.solvencyVerdict(false, best, early)).toBe(
+      copy.solvencyVerdict(false, best, early, false),
+    );
+  });
+});

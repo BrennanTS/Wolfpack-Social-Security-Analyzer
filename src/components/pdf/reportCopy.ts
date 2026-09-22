@@ -17,6 +17,7 @@
  * A test asserts the second rule mechanically against everything exported
  * here, because it is the one that erodes silently.
  */
+import type { DollarsMode } from '../../lib/dollarsMode';
 
 
 /* ------------------------------------------------------------------ *
@@ -296,14 +297,51 @@ export function solvencyIntro(
   return `${attribution} ${used}`;
 }
 
-export const SOLVENCY_TABLE_CAPTION =
-  'The left column is the same lifetime figure the comparison table gives each plan, in ' +
-  'today’s money. The right column is that figure with benefits reduced from the year above, ' +
-  'and nothing else changed. Read the gap between the two columns, and the order of the rows ' +
-  'within each one.';
+/**
+ * What the two columns are, in whichever dollars the report is stated in.
+ *
+ * It said "in today's money" unconditionally, which was wrong twice over: the
+ * left column was the engine's `expectedNpv` rather than the figure the
+ * comparison table prints, and a report in future dollars said "today's"
+ * under a column of inflated figures.
+ */
+export function solvencyTableCaption(dollarsMode: DollarsMode): string {
+  const basis =
+    dollarsMode === 'nominal'
+      ? 'in future dollars, as they would be received'
+      : 'in today’s money';
+  return (
+    `The left column is the same lifetime figure the comparison table gives each plan, ` +
+    `${basis}. The right column is that figure with benefits reduced from the year above, ` +
+    `and nothing else changed. Read the gap between the two columns, and the order of the rows ` +
+    `within each one.`
+  );
+}
 
-/** Whether the reduction changes the answer, which is the point of the page. */
-export function solvencyVerdict(sameWinner: boolean, fullLabel: string, reducedLabel: string): string {
+/**
+ * Whether the reduction changes the answer, which is the point of the page.
+ *
+ * Three answers, not two. "It changes" and "it does not" are the ones the
+ * figures can support when the gap is real; when the reduced column's top two
+ * are within `MATERIAL_MARGIN`, neither is honest, and the page says so
+ * rather than picking the one the arithmetic happens to land on. The
+ * longevity page has answered its own version of this question in three ways
+ * since it was written.
+ */
+export function solvencyVerdict(
+  sameWinner: boolean,
+  fullLabel: string,
+  reducedLabel: string,
+  tooCloseToCall = false,
+): string {
+  if (tooCloseToCall) {
+    return (
+      `Under a reduction, “${reducedLabel}” and “${fullLabel}” come within half a percent of ` +
+      `each other — a few thousand dollars across a lifetime, which is less than a guess about ` +
+      `a future act of Congress can settle. Read this as the two being level if benefits are ` +
+      `cut, not as a reason to change plan. “${fullLabel}” pays the most as things stand.`
+    );
+  }
   if (sameWinner) {
     return (
       `“${fullLabel}” pays the most either way. A reduction of this size does not change ` +

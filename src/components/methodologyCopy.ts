@@ -258,14 +258,16 @@ export function survivorClaimNote(
 
   // Only in nominal mode: in real mode `incomeCliffSentence` directly above
   // has already said this, and this figure agrees with it — repeating it
-  // would print the identical clause twice on one page. The two surfaces
-  // named here are the two the toggle actually moves above this note; it is
-  // deliberately not "the figures above", which would be false of the
-  // present-value figures on the same screen.
+  // would print the identical clause twice on one page.
+  //
+  // It used to name two surfaces — the chart and the first-death figures —
+  // because those were the only ones the toggle moved, and the strategy
+  // table's own columns stayed in present value. The basis now drives the
+  // whole page, so this figure is the exception rather than one of several,
+  // and the clause has to say so or a reader will assume it moved too.
   const basisClause =
     mode === 'nominal'
-      ? ` Unlike the chart above and the income figures at the first death, these ` +
-        `${dollarsBasisClause('real')}.`
+      ? ` Unlike every other figure on this page, this one ${dollarsBasisClause('real')}.`
       : '';
 
   return (
@@ -712,13 +714,54 @@ export const HOUSEHOLD_VALUE_COLUMN_HEADER = 'Household value';
  * has seen an older report, or another tool's mortality-weighted figure,
  * needs to know these are not the same quantity.
  */
-export function householdValueCaption(discountRatePercent: string): string {
+export function householdValueCaption(
+  discountRatePercent: string,
+  dollarsMode: DollarsMode = 'real',
+  discounted = true,
+): string {
+  // Both halves follow the report basis, and they are separate knobs: the
+  // dollars decide whether COLA is compounded into the figure, the rate
+  // decides whether distance is charged for. Saying "in today's money" over a
+  // column of inflated figures was the first of these two getting out of step
+  // with the control that drives it.
+  const basis =
+    dollarsMode === 'nominal'
+      ? 'in the dollars they will actually be paid in, grown forward at the assumed ' +
+        'cost-of-living increase'
+      : 'in today’s money';
+  const discountClause = discounted
+    ? `Future payments are counted at ${discountRatePercent} less per year for being further ` +
+      `away. `
+    : 'No discount is applied for how far away a payment is, so this is a straight sum of ' +
+      'what changes hands. ';
   return (
     `Household value is everything Social Security pays this household over both your ` +
-    `lifetimes, in today’s money. It assumes each of you lives exactly to the age set for ` +
+    `lifetimes, ${basis}. It assumes each of you lives exactly to the age set for ` +
     `you rather than averaging over how long someone might live, so it is a figure for ` +
-    `those ages and not an average across all of them. Future payments are counted at ` +
-    `${discountRatePercent} less per year for being further away. See the assumptions page.`
+    `those ages and not an average across all of them. ${discountClause}See the assumptions page.`
+  );
+}
+
+/**
+ * Why a row that is not marked best can print the larger total.
+ *
+ * Shown only when it happens, which is only in a view that is not discounting
+ * — `outrankedByDisplay` decides. Saying nothing is not an option: the "vs.
+ * best" column goes POSITIVE on that row, so the table states the
+ * contradiction itself and then leaves the reader to resolve it.
+ *
+ * It does not reopen the recommendation. The discount rate is a statement
+ * about which dollars are worth more to this household, and a reader choosing
+ * to view undiscounted totals has not changed that — they have changed what
+ * the page is showing them.
+ */
+export function rankingBasisNote(largestLabel: string, discountRatePercent: string): string {
+  return (
+    `“${largestLabel}” shows the larger total here, but it is not the recommendation. ` +
+    `The recommendation is made on the discounted figure, counting future payments at ` +
+    `${discountRatePercent} less per year for being further away; this view is showing them ` +
+    `undiscounted. A plan that waits collects more dollars and collects them later, and which ` +
+    `of those matters more to you is exactly what the discount rate is there to say.`
   );
 }
 
@@ -827,11 +870,15 @@ export function survivorIncomeCaption(
     return `${base} No strategy in this table has a figure to show for it.`;
   }
 
+  // It used to add that `HOUSEHOLD_VALUE_COLUMN_HEADER` beside it "stays in
+  // today's money whichever way this is set". That stopped being true once the
+  // basis drove the whole report: both columns move together now, and a
+  // sentence telling a reader the two are on different footings would have
+  // them mentally converting one of them a second time.
   const basisClause =
     mode === 'nominal'
-      ? ' This column is in future dollars, grown forward at the assumed yearly increase, ' +
-        `unlike ${HOUSEHOLD_VALUE_COLUMN_HEADER} beside it, which stays in today’s money ` +
-        'whichever way this is set.'
+      ? ' This column is in future dollars, grown forward at the assumed yearly increase — ' +
+        `the same basis as ${HOUSEHOLD_VALUE_COLUMN_HEADER} beside it.`
       : ' This column is in today’s dollars, before any cost-of-living adjustment.';
 
   // The claim, made only when the figures below actually support it.

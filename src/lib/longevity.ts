@@ -1,4 +1,6 @@
 import { analyzeHousehold, type Assumptions, type Household } from './household';
+import { comparisonsInDollarsMode } from './displayDollars';
+import { MATERIAL_MARGIN } from './materiality';
 import type { Person } from './personAnalysis';
 import type { ScenarioSet } from './scenario';
 
@@ -13,13 +15,11 @@ import type { ScenarioSet } from './scenario';
 export const LONGEVITY_SPREAD_YEARS = 10;
 
 /**
- * How far ahead a strategy must be before the page calls it the winner.
- *
- * Half a percent of a lifetime total is a few thousand dollars across thirty
- * years — below the precision of every assumption feeding it, and below what
- * the table itself prints. Leading by less is not a reason to choose.
+ * Re-exported so this page's own docstrings and tests can keep naming it, and
+ * so a reader of `tiedEveryRow` does not have to leave the file to find the
+ * number. It is defined in `materiality.ts`, shared with the reduction page.
  */
-export const MATERIAL_MARGIN = 0.005;
+export { MATERIAL_MARGIN } from './materiality';
 
 /** The lowest plan-to age worth pricing. Below it nobody has filed yet. */
 const FLOOR_AGE = 70;
@@ -30,8 +30,22 @@ export interface LongevityRow {
   label: string;
   /** Plan-to age used for each person, in display order. */
   ages: number[];
-  /** Lifetime value of each strategy, keyed by comparison row key. */
+  /**
+   * Lifetime value of each strategy, keyed by comparison row key — the same
+   * `householdValue` the strategy table prints, in real dollars.
+   *
+   * It used to be the engine's `expectedNpv`, which is a THIRD basis: it
+   * carries the six-month seam `lifetimeValue.ts` describes, so this table
+   * printed figures about 2% above the strategy table's for the same
+   * strategies at the same ages, a few pages apart.
+   */
   valueByKey: Record<string, number>;
+  /**
+   * The same strategies in nominal dollars, carried so the block can follow
+   * the report's basis. Built here because it needs each strategy's own
+   * stream, which does not survive the trip — see `gridInDollarsMode`.
+   */
+  nominalByKey: Record<string, number>;
   /** The strategy key with the highest value in this row. */
   bestKey: string;
   /** True for the row built on the ages the report is actually using. */
@@ -148,10 +162,29 @@ export async function longevitySensitivity(
   const planIndex = 1;
   const priced = analyses.map((analysis) => {
     const valueByKey: Record<string, number> = {};
+    const nominalByKey: Record<string, number> = {};
+    // Restated through the shared converter rather than re-summed here, so
+    // this table and the strategy table cannot disagree about what a nominal
+    // household value is — including the widowed case, where there is no
+    // stream to re-sum and the figure has to be left alone.
+    const nominal = comparisonsInDollarsMode(
+      analysis.comparisons,
+      analysis.people,
+      analysis.finalIndexByPersonId,
+      {
+        dollarsMode: 'nominal',
+        annualCola: assumptions.annualCola,
+        discountRate: assumptions.discountRate,
+        asOfYear: asOf.getFullYear(),
+      },
+    );
     for (const comparison of analysis.comparisons) {
-      valueByKey[comparison.key] = comparison.expectedNpv;
+      valueByKey[comparison.key] = comparison.householdValue;
     }
-    return valueByKey;
+    for (const comparison of nominal) {
+      nominalByKey[comparison.key] = comparison.householdValue;
+    }
+    return { valueByKey, nominalByKey };
   });
 
   // Columns are the strategies priced in EVERY row, ordered as the planned
@@ -163,41 +196,78 @@ export async function longevitySensitivity(
   // and which rows collapse depends on the horizon. A column missing a cell
   // in one row would print as a gap, and worse, would win rows by absence.
   const strategies = analyses[planIndex].comparisons
-    .filter((c) => priced.every((row) => row[c.key] !== undefined))
+    .filter((c) => priced.every((row) => row.valueByKey[c.key] !== undefined))
     .map((c) => ({ key: c.key, label: c.label }));
 
   const droppedKeys = analyses[planIndex].comparisons
-    .filter((c) => !priced.every((row) => row[c.key] !== undefined))
+    .filter((c) => !priced.every((row) => row.valueByKey[c.key] !== undefined))
     .map((c) => c.label);
 
-  const rows = priced.map((valueByKey, i) => ({
+  const rows = priced.map(({ valueByKey, nominalByKey }, i) => ({
     label: rowLabel(i, variants[i], planned),
     ages: variants[i],
     valueByKey,
-    bestKey: strategies.reduce(
-      (best, s) => (valueByKey[s.key] > (valueByKey[best] ?? -Infinity) ? s.key : best),
-      strategies[0]?.key ?? '',
-    ),
+    nominalByKey,
+    bestKey: '',
     isPlanned: i === planIndex,
   }));
 
-  const first = rows[0]?.bestKey ?? null;
-  const leadsEveryRow = first !== null && first !== '' && rows.every((r) => r.bestKey === first);
+  return { ...verdictFor(rows, strategies), strategies, droppedKeys };
+}
+
+/**
+ * Which strategy leads each row, and whether one leads them all.
+ *
+ * Split out of `longevitySensitivity` because it has to run a second time:
+ * restating the table in nominal dollars can move a row's winner. Later
+ * claiming pays in later years, and nominal weights those more heavily, so
+ * two strategies half a percent apart in today's money need not be in the
+ * same order in future money. Recomputing is the only way the bold figure and
+ * the verdict underneath it stay attached to the numbers on the page.
+ */
+function verdictFor(
+  rows: LongevityRow[],
+  strategies: { key: string; label: string }[],
+): Pick<LongevitySensitivity, 'rows' | 'winsEveryRow' | 'tiedEveryRow'> {
+  const withBest = rows.map((row) => ({
+    ...row,
+    bestKey: strategies.reduce(
+      (best, s) => (row.valueByKey[s.key] > (row.valueByKey[best] ?? -Infinity) ? s.key : best),
+      strategies[0]?.key ?? '',
+    ),
+  }));
+
+  const first = withBest[0]?.bestKey ?? null;
+  const leadsEveryRow = first !== null && first !== '' && withBest.every((r) => r.bestKey === first);
 
   // The runner-up in each row, and how far behind it is.
-  const closest = (row: (typeof rows)[number]) => {
+  const closest = (row: LongevityRow) => {
     const best = row.valueByKey[row.bestKey];
     const others = strategies.filter((s) => s.key !== row.bestKey).map((s) => row.valueByKey[s.key]);
     if (others.length === 0 || best <= 0) return Infinity;
     return (best - Math.max(...others)) / best;
   };
-  const materialEverywhere = rows.every((r) => closest(r) >= MATERIAL_MARGIN);
+  const materialEverywhere = withBest.every((r) => closest(r) >= MATERIAL_MARGIN);
 
   return {
-    rows,
-    strategies,
-    droppedKeys,
+    rows: withBest,
     winsEveryRow: leadsEveryRow && materialEverywhere ? first : null,
     tiedEveryRow: leadsEveryRow && !materialEverywhere,
   };
+}
+
+/**
+ * The sensitivity restated in nominal dollars, verdict and all.
+ *
+ * Lives here rather than in `displayDollars` because it needs `verdictFor`,
+ * which is this module's own rule for what the table is allowed to claim.
+ * Identity in real mode.
+ */
+export function longevityInDollarsMode(
+  sensitivity: LongevitySensitivity | null,
+  dollarsMode: 'real' | 'nominal',
+): LongevitySensitivity | null {
+  if (sensitivity === null || dollarsMode !== 'nominal') return sensitivity;
+  const swapped = sensitivity.rows.map((row) => ({ ...row, valueByKey: row.nominalByKey }));
+  return { ...sensitivity, ...verdictFor(swapped, sensitivity.strategies) };
 }

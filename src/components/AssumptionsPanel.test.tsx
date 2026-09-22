@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { COLA_BOUNDS } from '../lib/formBounds';
 import { DEFAULT_SOLVENCY, TRUSTEES_ASSUMPTION } from '../lib/solvency';
+import { DEFAULT_DISCOUNT_RATE } from '../lib/ssaTools';
 import { fromShareParams, toShareParams } from '../lib/shareLink';
 import { BLANK_FORM } from '../lib/formState';
 
@@ -19,6 +20,8 @@ function renderPanel(overrides: Partial<Parameters<typeof AssumptionsPanel>[0]> 
       onAnnualColaChange={onAnnualColaChange}
       discountRate={0.025}
       onDiscountRateChange={vi.fn()}
+      dollarsMode="real"
+      onDollarsModeChange={vi.fn()}
       solvency={DEFAULT_SOLVENCY}
       onSolvencyChange={vi.fn()}
       expanded
@@ -52,6 +55,8 @@ function renderStateful(initial: number) {
         }}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
+      dollarsMode="real"
+      onDollarsModeChange={vi.fn()}
         solvency={DEFAULT_SOLVENCY}
         onSolvencyChange={vi.fn()}
         expanded
@@ -148,6 +153,8 @@ describe('AssumptionsPanel per-person life expectancy', () => {
         onAnnualColaChange={vi.fn()}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
+      dollarsMode="real"
+      onDollarsModeChange={vi.fn()}
         solvency={DEFAULT_SOLVENCY}
         onSolvencyChange={vi.fn()}
         expanded
@@ -175,6 +182,8 @@ describe('AssumptionsPanel per-person life expectancy', () => {
         onAnnualColaChange={vi.fn()}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
+      dollarsMode="real"
+      onDollarsModeChange={vi.fn()}
         solvency={DEFAULT_SOLVENCY}
         onSolvencyChange={vi.fn()}
         expanded
@@ -210,6 +219,8 @@ describe('AssumptionsPanel per-person life expectancy', () => {
         onAnnualColaChange={vi.fn()}
         discountRate={0.025}
         onDiscountRateChange={vi.fn()}
+      dollarsMode="real"
+      onDollarsModeChange={vi.fn()}
         solvency={DEFAULT_SOLVENCY}
         onSolvencyChange={vi.fn()}
         expanded
@@ -283,5 +294,73 @@ describe('AssumptionsPanel CPI history', () => {
           'illustrative cumulative charts only.',
       ),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * One control for how every figure in the report is stated.
+ *
+ * It replaces a "Comparison view" checkbox, which drove the same two settings
+ * but could only name one of the two bases — leaving present value, the
+ * default, as the unlabelled off state.
+ */
+describe('AssumptionsPanel report basis', () => {
+  const basisButton = (id: 'present' | 'future') => screen.getByTestId(`report-basis-${id}`);
+
+  it('reads present value from the default settings', () => {
+    renderPanel();
+    expect(basisButton('present')).toHaveAttribute('aria-pressed', 'true');
+    expect(basisButton('future')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('sets both settings together when future value is chosen', async () => {
+    // Either alone leaves the report stating a quantity neither basis means:
+    // nominal dollars discounted back to today, with nothing on the page
+    // saying so.
+    const onDollarsModeChange = vi.fn();
+    const onDiscountRateChange = vi.fn();
+    renderPanel({ onDollarsModeChange, onDiscountRateChange });
+    await userEvent.click(basisButton('future'));
+    expect(onDollarsModeChange).toHaveBeenCalledWith('nominal');
+    expect(onDiscountRateChange).toHaveBeenCalledWith(0);
+  });
+
+  it('restores a discount rate when coming back from future value', async () => {
+    const onDollarsModeChange = vi.fn();
+    const onDiscountRateChange = vi.fn();
+    renderPanel({ dollarsMode: 'nominal', discountRate: 0, onDollarsModeChange, onDiscountRateChange });
+    expect(basisButton('future')).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(basisButton('present'));
+    expect(onDollarsModeChange).toHaveBeenCalledWith('real');
+    expect(onDiscountRateChange).toHaveBeenCalledWith(DEFAULT_DISCOUNT_RATE);
+  });
+
+  it('leaves a rate the adviser chose alone', async () => {
+    // 4% in real dollars is still present value. Snapping it back to the
+    // default would silently discard a deliberate assumption — and the
+    // control is describing the report, not prescribing it.
+    const onDiscountRateChange = vi.fn();
+    renderPanel({ discountRate: 0.04, onDiscountRateChange });
+    expect(basisButton('present')).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(basisButton('present'));
+    expect(onDiscountRateChange).not.toHaveBeenCalled();
+  });
+
+  it('claims neither basis for a combination that is neither', () => {
+    // Nominal cash flows at a nominal discount rate: defensible, common, and
+    // not what either preset means. A two-state control would have had to
+    // show one of them selected while the report was in the other.
+    renderPanel({ dollarsMode: 'nominal', discountRate: 0.025 });
+    expect(basisButton('present')).toHaveAttribute('aria-pressed', 'false');
+    expect(basisButton('future')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(/Neither preset/)).toBeInTheDocument();
+  });
+
+  it('warns that the basis reaches the recommendation, not just the wording', () => {
+    // The discount rate feeds the optimizer, so this control can change which
+    // filing ages the report recommends. A control named after presentation
+    // has to say that out loud.
+    renderPanel();
+    expect(screen.getByText(/can change the recommendation/)).toBeInTheDocument();
   });
 });

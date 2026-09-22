@@ -1,3 +1,4 @@
+import type { DollarsMode } from '../lib/dollarsMode';
 import { CPI_DEFAULT_COLA, formatPercent } from '../lib/cpiHistory';
 import type { Gender } from '../lib/personAnalysis';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
@@ -17,6 +18,39 @@ import {
   type SolvencyAssumption,
 } from '../lib/solvency';
 
+/**
+ * How the report states every total: what the money is worth today, or how
+ * many dollars change hands.
+ *
+ * Two settings, one control. They have to move together because either alone
+ * leaves the report saying two things at once — future dollars discounted
+ * back to today is a coherent quantity, but it is not what either a client or
+ * a competitor's report means by a lifetime total, and nothing on the page
+ * would have said which was meant.
+ */
+type ReportBasis = 'present' | 'future' | 'custom';
+
+const BASES: { id: Exclude<ReportBasis, 'custom'>; label: string }[] = [
+  { id: 'present', label: 'Present value' },
+  { id: 'future', label: 'Future value' },
+];
+
+const BASIS_HINT: Record<Exclude<ReportBasis, 'custom'>, string> = {
+  present:
+    'Today’s money. Future payments are counted for less the further away they are, at ' +
+    'the discount rate below. This is the default, and the honest answer to “what is this ' +
+    'worth to us”.',
+  future:
+    'Dollars as they will actually be received, inflated by COLA and not discounted. ' +
+    'Bigger numbers for the same benefits — and the way most other Social Security ' +
+    'reports state a total, so this is the setting for putting ours beside one of theirs.',
+};
+
+const CUSTOM_BASIS_HINT =
+  'Neither preset: the dollars and the discount rate have been set separately. That is a ' +
+  'valid combination — future dollars at a nominal discount rate is the textbook pairing — ' +
+  'but the report will not describe itself as either basis.';
+
 interface LifeExpectancyControl {
   label: string;
   value: number | null;
@@ -34,6 +68,13 @@ interface AssumptionsPanelProps {
   onAnnualColaChange: (value: number) => void;
   discountRate: number;
   onDiscountRateChange: (value: number) => void;
+  /**
+   * The two controls the comparison preset drives. Passed in rather than
+   * owned here so the preset can never disagree with the toggles it sets —
+   * it reads its own state back off them (see `comparisonView` below).
+   */
+  dollarsMode: DollarsMode;
+  onDollarsModeChange: (value: DollarsMode) => void;
   expanded: boolean;
   onToggle: () => void;
 }
@@ -46,12 +87,44 @@ export function AssumptionsPanel({
   onAnnualColaChange,
   discountRate,
   onDiscountRateChange,
+  dollarsMode,
+  onDollarsModeChange,
   expanded,
   onToggle,
 }: AssumptionsPanelProps) {
   const usingDefaultCola = Math.abs(annualCola - CPI_DEFAULT_COLA) < 0.05;
   const usingTrusteesProjection = isTrusteesProjection(solvency);
   const usingDefaultDiscount = Math.abs(discountRate - DEFAULT_DISCOUNT_RATE) < 0.001;
+  /**
+   * DERIVED, never stored. The basis is whatever the two settings it drives
+   * currently say, so moving either one by hand moves this on its own and
+   * there is no third piece of state to fall out of step with the pair it
+   * claims to describe. It also means the share link needs no new parameter:
+   * `dollars` and `dr` already carry it.
+   *
+   * `custom` is a real answer, not a fallback. The two named bases are two of
+   * the four combinations the controls below can reach — nominal cash flows
+   * discounted at a nominal rate is the textbook-correct pairing and is
+   * neither of them — and a two-state control would have to show one of them
+   * selected while the report was in the other.
+   */
+  const basis: ReportBasis =
+    dollarsMode === 'real' && discountRate > 0
+      ? 'present'
+      : dollarsMode === 'nominal' && discountRate === 0
+        ? 'future'
+        : 'custom';
+
+  const setBasis = (next: ReportBasis) => {
+    if (next === 'present') {
+      onDollarsModeChange('real');
+      // Keep a rate the adviser has chosen; only supply one if there is none.
+      if (discountRate <= 0) onDiscountRateChange(DEFAULT_DISCOUNT_RATE);
+      return;
+    }
+    onDollarsModeChange('nominal');
+    onDiscountRateChange(0);
+  };
 
   return (
     <div className="assumptions-panel">
@@ -78,6 +151,38 @@ export function AssumptionsPanel({
           <p className="assumptions-heading-note">
             These decide which filing ages the report recommends.
           </p>
+
+          <div className="field advanced-field">
+            <span className="field-label">Report basis</span>
+            {/* Two alternatives, not a switch with an unnamed off state. The
+                control it replaces was a "Comparison view" checkbox, which
+                could name one basis and left the other as "not that" —
+                unnamed, unexplained, and the default. */}
+            <div className="segmented-control" role="group" aria-label="Report basis">
+              {BASES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`segment-btn ${basis === option.id ? 'segment-btn-active' : ''}`}
+                  data-testid={`report-basis-${option.id}`}
+                  onClick={() => setBasis(option.id)}
+                  aria-pressed={basis === option.id}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <span className="field-hint">
+              {basis === 'custom' ? CUSTOM_BASIS_HINT : BASIS_HINT[basis]}
+            </span>
+            <span className="field-hint">
+              It sets the whole report — every table, chart and total, on screen and in the
+              PDF. The discount rate is also used to pick the filing ages the report
+              recommends, so changing the basis can change the recommendation and not only
+              how it is stated. Both settings stay yours to set separately, below and on the
+              Household tab.
+            </span>
+          </div>
 
           <div className="field advanced-field">
             <label htmlFor="discount">

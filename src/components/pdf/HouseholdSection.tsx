@@ -8,7 +8,8 @@ import {
   type MonthlyIncomePoint,
 } from '../../lib/household';
 import type { Person } from '../../lib/personAnalysis';
-import { toNominalAmount } from '../../lib/dollarsMode';
+import { toNominalAmount, type DollarsMode } from '../../lib/dollarsMode';
+import { outrankedByDisplay } from '../../lib/displayDollars';
 import { incomeCliff } from '../../lib/incomeCliff';
 import { seriesColor } from '../../lib/chartTheme';
 import {
@@ -41,6 +42,7 @@ import {
   survivorIncomeCaption,
   HOUSEHOLD_VALUE_COLUMN_HEADER,
   householdValueCaption,
+  rankingBasisNote,
   SURVIVOR_INCOME_COLUMN_HEADER,
 } from '../methodologyCopy';
 import { scenarioEyebrow } from '../../lib/scenario';
@@ -122,7 +124,7 @@ export function StrategyTable({
               </Text>
             </View>
           ))}
-          <Text style={[styles.td, { width: HCOL.npv }]}>{formatCurrency(s.expectedNpv)}</Text>
+          <Text style={[styles.td, { width: HCOL.npv }]}>{formatCurrency(s.householdValue)}</Text>
           <Text style={[styles.td, { width: HCOL.delta }, s.deltaVsOptimal < 0 ? styles.negative : {}]}>
             {s.deltaVsOptimal === 0 ? '' : formatCurrency(s.deltaVsOptimal)}
           </Text>
@@ -403,7 +405,18 @@ export function ClaimingGridPlot({
  * the spousal top-up (clearly labeled, since `spousalTopUp` carries two
  * distinct figures), and the combined income timeline.
  */
-export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
+export function HouseholdBlock({
+  analysis,
+  dollarsMode = 'real',
+}: {
+  analysis: HouseholdAnalysis;
+  /**
+   * Which dollars the figures above these captions are in. Defaults to
+   * `'real'` — what print always rendered before it had a choice — so a
+   * caller that does not pass it gets exactly the previous output.
+   */
+  dollarsMode?: DollarsMode;
+}) {
   const people = analysis.people.map((p) => p.person);
   const spousal = analysis.spousalTopUp;
   const gapNote = survivorGapNote(analysis.survivorGap);
@@ -415,7 +428,7 @@ export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
   // cliff sentence a few lines above already states the same real-dollars
   // basis once, via `incomeCliffSentence`, and this would otherwise repeat
   // it verbatim on the same page.
-  const claimNote = survivorClaimNote(analysis.survivorClaim, 'real');
+  const claimNote = survivorClaimNote(analysis.survivorClaim, dollarsMode);
 
   return (
     <>
@@ -458,8 +471,26 @@ export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
           heading — and the same sentence the screen prints, so the two
           surfaces cannot describe the figure differently. */}
       <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
-        {householdValueCaption(formatPercent(analysis.assumptions.discountRate * 100, 2))}
+        {householdValueCaption(
+          formatPercent(analysis.assumptions.discountRate * 100, 2),
+          dollarsMode,
+          analysis.assumptions.discountRate > 0,
+        )}
       </Text>
+      {/* Only when the biggest number on the table is not the one marked
+          best, which is only in an undiscounted view. See
+          `outrankedByDisplay`. */}
+      {(() => {
+        const outranked = outrankedByDisplay(analysis.comparisons);
+        return outranked === null ? null : (
+          <Text style={[styles.sectionDesc, { marginTop: 4 }]}>
+            {rankingBasisNote(
+              outranked.label,
+              formatPercent(analysis.assumptions.discountRate * 100, 2),
+            )}
+          </Text>
+        );
+      })()}
       {showSurvivorIncomeColumn(analysis.comparisons, people.length) && (
         // Same gate as the table's own column (shared, not retyped), so the
         // caption cannot print over a column that isn't there — or over one
@@ -471,7 +502,7 @@ export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
         // The rows go in because the caption's delay claim is checked against
         // them rather than asserted over them.
         <Text style={styles.sectionDesc}>
-          {survivorIncomeCaption(analysis.comparisons, analysis.survivorGap, 'real')}
+          {survivorIncomeCaption(analysis.comparisons, analysis.survivorGap, dollarsMode)}
         </Text>
       )}
 
@@ -484,7 +515,7 @@ export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
           default happens to be. */}
       <Text style={styles.sectionDesc}>
         {COMBINED_INCOME_SUBTITLE}.{' '}
-        {combinedIncomeCaption(analysis.survivorGap, 'real')}
+        {combinedIncomeCaption(analysis.survivorGap, dollarsMode)}
       </Text>
       {gapNote && <Text style={styles.sectionDesc}>{gapNote}</Text>}
       {floorNote && <Text style={styles.sectionDesc}>{floorNote}</Text>}
@@ -517,7 +548,7 @@ export function HouseholdBlock({ analysis }: { analysis: HouseholdAnalysis }) {
               `cliff` to non-null on its own, with no `as number` cast
               asserting a relationship it can't otherwise see. */}
           <Text style={styles.sectionDesc}>
-            {incomeCliffSentence(cliff, 'real')}{' '}
+            {incomeCliffSentence(cliff, dollarsMode)}{' '}
             {nominalFirstDeathNote(
               cliff,
               toNominalAmount(
