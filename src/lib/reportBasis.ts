@@ -2,65 +2,69 @@
  * How the report states every total: what the money is worth today, or how
  * many dollars change hands.
  *
- * Two settings under one name. They have to move together because either
- * alone leaves the report saying two things at once — future dollars
- * discounted back to today is a coherent quantity, but it is not what either
- * a client or a competitor's report means by a lifetime total, and nothing on
- * the page would say which was meant.
+ * ONE SETTING, AND IT IS PRESENTATIONAL. This used to be two — a dollars
+ * toggle and a discount rate — with the basis derived from both, which had
+ * two faults. Setting the dollars alone produced a pair neither name
+ * described, so the control showed nothing selected and the panel had to
+ * explain a state it could not display. And choosing a basis rewrote the
+ * discount rate, which the optimizer reads: picking how a figure was WORDED
+ * could change which filing ages the report recommended.
  *
- * Derived from the two settings rather than stored beside them, so moving
- * either by hand moves this on its own and there is no third piece of state
- * to fall out of step. It also means a share link needs no new parameter:
- * `dollars` and `dr` already carry it.
+ * So the two are separated by what they actually are:
  *
- * Lives here rather than in `AssumptionsPanel` because the layout presets
- * name a basis too — a Savvy-style layout is read in future dollars, and the
- * preset has to be able to say so without importing a panel.
+ *   - The discount rate is a PLANNING ASSUMPTION. It says what this household
+ *     thinks a dollar in 2045 is worth today, it always drives the
+ *     recommendation, and nothing on this switch touches it.
+ *   - The basis is a PRESENTATION choice. Present value states figures in
+ *     today's money at that rate. Future value states the same analysis as
+ *     the dollars that change hands — inflated by COLA, undiscounted.
+ *
+ * The recommendation is identical either way. Only the numbers printed beside
+ * it move, which is what a reader switching between them expects.
+ *
+ * Still derived from `dollarsMode` rather than stored beside it, so there is
+ * no second piece of state to fall out of step and a share link needs no new
+ * parameter — `dollars` already carries it.
  */
 import type { DollarsMode } from './dollarsMode';
-import { DEFAULT_DISCOUNT_RATE } from './ssaTools';
+
+/** Exactly two, and one of them is always true of any report. */
+export type ReportBasis = 'present' | 'future';
 
 /**
- * `custom` is a real answer, not a fallback. The two named bases are two of
- * the four combinations the underlying controls can reach — nominal cash
- * flows discounted at a nominal rate is the textbook-correct pairing and is
- * neither of them — and a two-state control would have to show one of them
- * selected while the report was in the other.
+ * Kept as a name because layouts, copy and tests all say "named basis", and
+ * because a third value was a real possibility until this file stopped
+ * deriving the basis from two settings at once.
  */
-export type ReportBasis = 'present' | 'future' | 'custom';
+export type NamedBasis = ReportBasis;
 
-/** A basis a preset or a control can actually ask for. */
-export type NamedBasis = Exclude<ReportBasis, 'custom'>;
-
-export interface BasisSettings {
-  dollarsMode: DollarsMode;
-  /** A FRACTION (0.025 is 2.5%). */
-  discountRate: number;
+export function basisOf(dollarsMode: DollarsMode): ReportBasis {
+  return dollarsMode === 'nominal' ? 'future' : 'present';
 }
 
-export function basisOf({ dollarsMode, discountRate }: BasisSettings): ReportBasis {
-  if (dollarsMode === 'real' && discountRate > 0) return 'present';
-  if (dollarsMode === 'nominal' && discountRate === 0) return 'future';
-  return 'custom';
+export function dollarsModeFor(basis: ReportBasis): DollarsMode {
+  return basis === 'future' ? 'nominal' : 'real';
 }
 
 /**
- * The settings a named basis asks for, given what is currently set.
+ * The discount rate the DISPLAYED figures carry, which is not always the one
+ * the analysis was run at.
  *
- * `current` is read so present value keeps a rate the adviser chose: 4% in
- * real dollars is still present value, and snapping it back to the default
- * would discard a deliberate assumption. Only a household with no rate at all
- * gets one supplied.
+ * Future value means the dollars that change hands, so nothing is discounted
+ * out of them — the rate is zero for display no matter what the assumption
+ * says. The assumption itself is untouched and still ranks the strategies.
+ *
+ * Every surface that restates figures reads this rather than deciding for
+ * itself: the strategy table, the claiming grid, the two sensitivity pages
+ * and the year-by-year exhibit all have to agree about what "future value"
+ * means, and they agreed by coincidence for exactly as long as one of them
+ * was not looking.
  */
-export function settingsForBasis(basis: NamedBasis, current: BasisSettings): BasisSettings {
-  if (basis === 'future') return { dollarsMode: 'nominal', discountRate: 0 };
-  return {
-    dollarsMode: 'real',
-    discountRate: current.discountRate > 0 ? current.discountRate : DEFAULT_DISCOUNT_RATE,
-  };
+export function displayDiscountRate(dollarsMode: DollarsMode, assumed: number): number {
+  return dollarsMode === 'nominal' ? 0 : assumed;
 }
 
-export const BASIS_LABEL: Record<NamedBasis, string> = {
+export const BASIS_LABEL: Record<ReportBasis, string> = {
   present: 'Present value',
   future: 'Future value',
 };

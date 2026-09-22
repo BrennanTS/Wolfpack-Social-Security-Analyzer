@@ -47,6 +47,13 @@ export function comparisonsInDollarsMode(
 ): HouseholdStrategy[] {
   if (opts.dollarsMode !== 'nominal') return comparisons;
 
+  // Future value is the dollars that change hands, so nothing is discounted
+  // out of them. Enforced HERE rather than trusted from each caller: five
+  // surfaces restate figures and they have to mean the same thing by
+  // "nominal", which they did only for as long as every one of them
+  // remembered to zero the rate itself.
+  const nominalOpts = { ...opts, discountRate: 0 };
+
   const death =
     people.length === 2
       ? firstDeath([people[0].person.id, people[1].person.id], finalIndexByPersonId)
@@ -69,7 +76,7 @@ export function comparisonsInDollarsMode(
         : // `c.timeline` here is still the REAL stream: this object literal's
           // own `timeline` field above does not shadow it. Re-summing the
           // converted one would compound the COLA twice.
-          householdValueFromTimeline(c.timeline, { ...opts, dollarsMode: 'nominal' }),
+          householdValueFromTimeline(c.timeline, { ...nominalOpts, dollarsMode: 'nominal' }),
     survivorIncome:
       c.survivorIncome == null || survivorYear === null
         ? c.survivorIncome

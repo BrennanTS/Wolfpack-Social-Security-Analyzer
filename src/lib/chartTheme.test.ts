@@ -12,8 +12,11 @@ import {
 } from './chartTheme';
 
 /** The two grounds a series color is drawn on. */
-const CREAM = '#f7f4ee'; // --bg, light
-const DARK = '#0d0d0d'; // --bg, dark
+// The app's actual canvases. Light was cream until the page became white,
+// which is the STRICTER of the two — a pale series mark has less to push
+// against on white — so this is not a cosmetic update to the constant.
+const CREAM = '#ffffff'; // --bg, light
+const DARK = '#000000'; // --bg, dark
 /** The tooltip is near-black in BOTH themes — it does not flip. */
 const TOOLTIP = '#141414';
 
@@ -66,11 +69,20 @@ describe('chart series colors', () => {
     }
   });
 
-  it('keeps the sage above the value it was darkened from', () => {
-    // The old #7d9b76 is pinned as a failing reference, so a revert to it
-    // fails here rather than passing quietly.
-    expect(contrast(CHART_SAGE, CREAM)).toBeGreaterThanOrEqual(3);
-    expect(contrast('#7d9b76', CREAM)).toBeLessThan(3);
+  it('keeps the sage above the threshold on every canvas it is drawn on', () => {
+    // This used to pin the pre-darkening #7d9b76 as a FAILING reference, so a
+    // revert to it would fail here rather than pass quietly. That pin stopped
+    // meaning anything when the light page went from cream to white: a
+    // mid-dark mark has MORE contrast against white than against cream, and
+    // the old value now scores 3.08 where it scored 2.80. It was never a
+    // statement about the hue — it was a statement about the page it was
+    // measured on, and that page is gone.
+    //
+    // What replaces it is the claim that actually matters: the sage clears on
+    // all three surfaces the app draws it on, measured against each.
+    expect(contrast(CHART_SAGE, CREAM), 'sage on the light page').toBeGreaterThanOrEqual(3);
+    expect(contrast(CHART_SAGE, DARK), 'sage on the dark canvas').toBeGreaterThanOrEqual(3);
+    expect(contrast(CHART_SAGE, TOOLTIP), 'sage in the tooltip').toBeGreaterThanOrEqual(3);
   });
 
   it('keeps the gold above the threshold the old value failed', () => {
@@ -103,7 +115,7 @@ describe('chart series colors', () => {
     expect(seriesColor(2, 'personal')).not.toBe('');
   });
 
-  it('gives the PDF a resolvable colour for the two people it can have', () => {
+  it('gives the PDF a resolvable color for the two people it can have', () => {
     // `seriesColor` is shared with the PDF, which cannot resolve `var()` —
     // that is the stated reason these are concrete hexes. The third slot is
     // `CHART_GRAY_MID`, which IS a custom property, so a third claimant

@@ -94,7 +94,7 @@ function daysIn(year: number, month: number): number {
 function birthDayFor(r: () => number, year: number, month: number): number {
   // Weighted so the 1st keeps the share it had before this widened, rather
   // than being diluted to 1-in-7 and thinning the coverage of the only day
-  // whose behaviour differs.
+  // whose behavior differs.
   const day = r() < 0.15 ? 1 : pick(r, DAY_DRAW);
   return Math.min(day, daysIn(year, month));
 }

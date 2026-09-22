@@ -30,6 +30,7 @@ import {
 } from './ScenarioExhibits';
 import type { DollarsMode } from '../../lib/dollarsMode';
 import { comparisonsInDollarsMode, gridInDollarsMode } from '../../lib/displayDollars';
+import { displayDiscountRate } from '../../lib/reportBasis';
 import { PersonBlock, type PersonPart } from './PersonSection';
 import { WidowedSection } from './WidowedSection';
 import {
@@ -155,7 +156,10 @@ export function ReportDocument({
   // restatement below that the converted stream does NOT absorb, and so the
   // half the exhibits have to be handed separately.
   const exhibitBasis: ExhibitBasis = {
-    discountRate: rawAnalysis.assumptions.discountRate,
+    // The rate the PRINTED figures carry, not the one the analysis ranked at.
+    // In future value nothing is discounted, so the exhibits draw one running
+    // total rather than two — see `reportBasis.displayDiscountRate`.
+    discountRate: displayDiscountRate(dollarsMode, rawAnalysis.assumptions.discountRate),
     asOfYear: new Date(rawAnalysis.asOf).getFullYear(),
   };
   // One restatement for the whole document, before anything reads it.

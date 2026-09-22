@@ -2,6 +2,9 @@ import { Analyzer } from './components/Analyzer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useDarkMode } from './hooks/useDarkMode';
 import './App.css';
+// After `App.css`, deliberately: this layer restates tokens and a handful of
+// treatments that the app's own stylesheet also sets, and it has to win.
+import './triad.css';
 
 function App() {
   const { darkMode, toggleDarkMode } = useDarkMode();

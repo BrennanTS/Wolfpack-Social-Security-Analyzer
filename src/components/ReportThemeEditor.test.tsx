@@ -89,7 +89,9 @@ describe('ReportThemeEditor', () => {
     // pasted in, which is how a palette actually arrives.
     renderEditor();
     expect(screen.getByLabelText('Brand')).toHaveAttribute('type', 'color');
-    expect(screen.getByLabelText('Brand hex')).toHaveValue('#8f6d2c');
+    // Read off the theme under test rather than spelled out, so which
+    // palette ships as the default stays a product decision.
+    expect(screen.getByLabelText('Brand hex')).toHaveValue(house().brand);
   });
 
   it('can be typed in, and only commits a complete hex', async () => {
@@ -113,7 +115,7 @@ describe('ReportThemeEditor', () => {
     await userEvent.clear(hex);
     await userEvent.type(hex, '#1f4');
     await userEvent.tab();
-    expect(hex).toHaveValue('#8f6d2c');
+    expect(hex).toHaveValue(house().brand);
   });
 
   it('warns when a color will print faint, without refusing it', async () => {

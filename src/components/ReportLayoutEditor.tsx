@@ -454,9 +454,7 @@ export function ReportLayoutEditor({
       {suggested !== undefined && (
         <p className="layout-basis-note" data-testid="layout-basis-note">
           This layout is meant to be read in {BASIS_LABEL[suggested].toLowerCase()}.{' '}
-          {basis === 'custom'
-            ? 'Your report is on a custom basis.'
-            : `Your report is in ${BASIS_LABEL[basis as NamedBasis].toLowerCase()}.`}{' '}
+          Your report is in {BASIS_LABEL[basis as NamedBasis].toLowerCase()}.{' '}
           {onBasisChange && (
             <button
               type="button"

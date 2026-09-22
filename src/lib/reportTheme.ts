@@ -69,6 +69,17 @@ export interface ReportTheme {
   /** Heat ramp endpoints for the claiming grid and the lifetime heatmap. */
   heatLo: string;
   heatHi: string;
+  /**
+   * The fill behind the cover title.
+   *
+   * Its own color rather than `brand`, because one palette's accent is not
+   * always something to paint a slab of: Triad's gold is a rule-and-emphasis
+   * color its own rules keep off large fills, so its cover band is ink,
+   * which is the treatment that brand specifies for a cover anyway. Every
+   * other preset sets this to its accent, which is exactly what the cover
+   * showed before the field existed.
+   */
+  coverBand: string;
 }
 
 /**
@@ -128,6 +139,9 @@ const WOLFPACK: ReportTheme = {
   red: '#96423c',
   heatLo: '#eaf0f7',
   heatHi: '#8fb0d4',
+  // Its own accent, which is what the cover showed before this field
+  // existed — stated rather than defaulted so every palette declares it.
+  coverBand: '#8f6d2c',
 };
 
 const MIDNIGHT: ReportTheme = {
@@ -146,6 +160,9 @@ const MIDNIGHT: ReportTheme = {
   red: '#9c4038',
   heatLo: '#eef3f9',
   heatHi: '#7fa9d4',
+  // Its own accent, which is what the cover showed before this field
+  // existed — stated rather than defaulted so every palette declares it.
+  coverBand: '#1f4e79',
 };
 
 const SLATE: ReportTheme = {
@@ -164,6 +181,9 @@ const SLATE: ReportTheme = {
   red: '#a04a3c',
   heatLo: '#e9f2ee',
   heatHi: '#6fbfa9',
+  // Its own accent, which is what the cover showed before this field
+  // existed — stated rather than defaulted so every palette declares it.
+  coverBand: '#1e6b5e',
 };
 
 /**
@@ -191,9 +211,63 @@ const MONO: ReportTheme = {
   red: '#6b2f2a',
   heatLo: '#f0f0f0',
   heatHi: '#9a9a9a',
+  // Its own accent, which is what the cover showed before this field
+  // existed — stated rather than defaulted so every palette declares it.
+  coverBand: '#2b2b2b',
 };
 
-export const REPORT_THEMES: readonly ReportTheme[] = [WOLFPACK, MIDNIGHT, SLATE, MONO];
+/**
+ * The Triad palette, applied to the report.
+ *
+ * DRAFT. The screens are an internal tool, but this document is handed to a
+ * member, and a member-facing piece is the House of Brands team's to sign
+ * off. It is here because it was asked for and because seeing it is the only
+ * way to judge it — not because it has been approved.
+ *
+ * Four colors and no others. The two the brand does not have are the
+ * interesting ones:
+ *
+ *   - `green`/`red` mark a figure as better or worse than the baseline. This
+ *     palette has neither hue, and the house guidance is explicit that a
+ *     status color is not something to invent — so "better" takes the gold
+ *     the eye is already being sent to, and "worse" takes a neutral. The
+ *     column still prints its own sign, which is what actually carries the
+ *     direction; the color was only ever repeating it.
+ *   - The heat ramp was cool blue, chosen so the grid read as data rather
+ *     than as more branding. It becomes a single-hue neutral ramp, which is
+ *     the sanctioned shape for a sequential scale and keeps the same
+ *     separation between the grid and the brand.
+ *
+ * `brandDark` is ink rather than a darker gold: it paints text that sits on a
+ * gold-tinted fill, and this palette's answer to "what goes on gold" is
+ * black. There is no second, darker gold to reach for, and mixing one would
+ * be the fifth color arriving by the back door.
+ *
+ * `firm` stays whatever the install's is. Picking a palette must not rename
+ * the practice on the cover, and the firm on this report is the adviser's.
+ * No logo either: that slot belongs to the adviser's own mark, and it takes a
+ * raster image, which the brand's vector wordmark is not.
+ */
+const TRIAD: ReportTheme = {
+  id: 'triad',
+  name: 'Triad',
+  blurb: 'Gold on white, the Triad palette',
+  firm: BRAND_NAME,
+  disclosure: DEFAULT_DISCLOSURE,
+  ink: '#231f20',
+  muted: '#4f4c4d',
+  subtle: '#7b7979',
+  brand: '#7c6729',
+  brandDark: '#231f20',
+  border: '#d3d2d2',
+  green: '#7c6729',
+  red: '#4f4c4d',
+  heatLo: '#f9f9fa',
+  heatHi: '#a7a5a6',
+  coverBand: '#231f20',
+};
+
+export const REPORT_THEMES: readonly ReportTheme[] = [TRIAD, WOLFPACK, MIDNIGHT, SLATE, MONO];
 
 /**
  * The colors an adviser can set, in the order the editor lists them.
@@ -222,7 +296,8 @@ export type ThemeColorKey =
   | 'green'
   | 'red'
   | 'heatLo'
-  | 'heatHi';
+  | 'heatHi'
+  | 'coverBand';
 
 export const THEME_COLORS: readonly ThemeColorField[] = [
   { key: 'ink', label: 'Ink', blurb: 'Headings and body text', floor: 4.5 },
@@ -235,6 +310,9 @@ export const THEME_COLORS: readonly ThemeColorField[] = [
   { key: 'red', label: 'Loss', blurb: 'A figure worse than the baseline', floor: 4.5 },
   { key: 'heatLo', label: 'Heat low', blurb: 'The coolest cell in a heat map', floor: null },
   { key: 'heatHi', label: 'Heat high', blurb: 'The warmest cell in a heat map', floor: null },
+  // The cover title sits on it in white, so it is held to the same floor as
+  // any other text-bearing fill.
+  { key: 'coverBand', label: 'Cover band', blurb: 'The block behind the cover title', floor: 4.5 },
 ];
 
 /* ------------------------------------------------------------------ *
@@ -272,11 +350,23 @@ export function themeColorWarning(field: ThemeColorField, value: string): string
   return `${ratio.toFixed(1)}:1 on paper, below ${field.floor}:1, so this will print faint`;
 }
 
-export const DEFAULT_REPORT_THEME_ID = WOLFPACK.id;
+export const DEFAULT_REPORT_THEME_ID = TRIAD.id;
 
-/** The theme with this id, or the house palette if the id is unknown. */
+/**
+ * The theme with this id, or the default if the id is unknown.
+ *
+ * The fallback follows `DEFAULT_REPORT_THEME_ID` rather than naming a theme
+ * of its own. Several callers pass `undefined` to mean "whatever the default
+ * is", and a fallback that pointed at a different theme from the constant
+ * would give those callers a different report from the picker's first entry
+ * while both looked correct in isolation.
+ */
 export function reportTheme(id: string | null | undefined): ReportTheme {
-  return REPORT_THEMES.find((t) => t.id === id) ?? WOLFPACK;
+  return (
+    REPORT_THEMES.find((t) => t.id === id) ??
+    REPORT_THEMES.find((t) => t.id === DEFAULT_REPORT_THEME_ID) ??
+    REPORT_THEMES[0]
+  );
 }
 
 /* ------------------------------------------------------------------ *
@@ -354,8 +444,13 @@ export function parseTheme(raw: unknown): ReportTheme | null {
   const hasAny = ['name', 'ink', 'brand', 'firm'].some((key) => key in source);
   if (!hasAny) return null;
 
+  // Repaired against the DEFAULT theme rather than against one named here.
+  // A half-written import gets its missing colors from whichever palette the
+  // app would otherwise have given it, so a repaired theme and a fresh one
+  // start from the same place.
+  const fallback = reportTheme(DEFAULT_REPORT_THEME_ID);
   const colors = Object.fromEntries(
-    THEME_COLORS.map((field) => [field.key, normalizeHex(source[field.key], WOLFPACK[field.key])]),
+    THEME_COLORS.map((field) => [field.key, normalizeHex(source[field.key], fallback[field.key])]),
   ) as Record<ThemeColorKey, string>;
 
   const theme: ReportTheme = {

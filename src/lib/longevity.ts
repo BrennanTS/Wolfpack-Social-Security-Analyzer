@@ -174,7 +174,8 @@ export async function longevitySensitivity(
       {
         dollarsMode: 'nominal',
         annualCola: assumptions.annualCola,
-        discountRate: assumptions.discountRate,
+        // Undiscounted, like every other nominal figure in the report.
+        discountRate: 0,
         asOfYear: asOf.getFullYear(),
       },
     );

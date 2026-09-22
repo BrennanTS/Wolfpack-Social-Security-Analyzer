@@ -1722,9 +1722,13 @@ export async function analyzeHousehold(
         );
         return {
           real: householdValueFromTimeline(timeline, { ...valueOptions, dollarsMode: 'real' }),
+          // `discountRate: 0` to match what "future value" means everywhere
+          // else: the dollars as received, with nothing discounted out of
+          // them. See `reportBasis.displayDiscountRate`.
           nominal: householdValueFromTimeline(timeline, {
             ...valueOptions,
             dollarsMode: 'nominal',
+            discountRate: 0,
           }),
         };
       }),

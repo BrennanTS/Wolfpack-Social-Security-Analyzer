@@ -1,0 +1,421 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Triad brand layer — DRAFT
+
+   Applies the Triad design system to the ANALYZER'S OWN SCREENS. It does not
+   touch the exported PDF: that document is built by `components/pdf/*` from
+   `reportTheme.ts` and goes to members, so its appearance belongs to the
+   House of Brands team rather than to this file.
+
+   Loaded after `index.css` and before `App.css`, so it can restate tokens the
+   whole app already reads — the palette, the type families, the corner radii
+   — without any component changing. Everything below is either a token or a
+   treatment the brand names explicitly; there are no new one-off colors.
+
+   Brand rules this layer is responsible for honouring:
+     · Four colors only. Black #231F20 + White #FFFFFF, Dark Gold #7C6729 +
+       Light Gold #C3A778, plus the two sanctioned utilities (#000000,
+       #F9F9FA) and the matte/trinity tint steps.
+     · Dark gold on light backgrounds ONLY; light gold on dark ONLY.
+     · Gold stays an accent — rules, markers, emphasis, one button. Never a
+       large fill, never a page background.
+     · Cream is not a page color. The app's old cream field is now white.
+     · Bebas Neue Bold caps for headings; Montserrat for everything else.
+     · Squared corners, hairline gold rules, round gold bullets, no icons.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Self-hosted, no network fetch. Bebas Neue is Google's free cut standing in
+   for the licensed Bebas Neue Pro Bold, per the brand's own caveat. */
+@font-face {
+  font-family: 'Bebas Neue';
+  src: url('/fonts/BebasNeue-Regular.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/Montserrat-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/Montserrat-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/Montserrat-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/Montserrat-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Tokens: light ───
+   The app's semantic names are kept and only their values change, so every
+   rule in `App.css` inherits the brand without being edited. */
+:root {
+  --font: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
+    sans-serif;
+  --font-display: 'Bebas Neue', 'Bebas Neue Pro', Impact, sans-serif;
+
+  --ink: #231f20;
+  --ink-soft: #4f4c4d;
+  /* White, not cream. Cream's only sanctioned use in this brand is as the
+     field of a pinstripe zone — never a page fill, which is what it was. */
+  --bg: #ffffff;
+  --bg-secondary: #ffffff;
+  --surface: #ffffff;
+  --surface-raised: rgba(255, 255, 255, 0.92);
+  --fill: #f9f9fa;
+  --fill-secondary: rgba(35, 31, 32, 0.06);
+  /* The app painted type on its solid-ink chips in cream. Cream is not a
+     text color in this brand — it is the field of a pinstripe zone and
+     nothing else — so the chips take the primary white instead. */
+  --cream: #ffffff;
+  --cream-dark: #f9f9fa;
+  --border: rgba(35, 31, 32, 0.14);
+  --border-strong: rgba(35, 31, 32, 0.3);
+  --text: #231f20;
+  --text-muted: #4f4c4d;
+  --text-subtle: #7b7979;
+
+  /* Dark gold, because every one of these sits on a white field. */
+  --gold: #7c6729;
+  --gold-light: #c3a778;
+  --gold-dark: #7c6729;
+  --gold-soft: rgba(124, 103, 41, 0.1);
+  --blue: var(--gold);
+  --blue-hover: #231f20;
+  --blue-soft: var(--gold-soft);
+
+  /* Status colors are outside the four, so they are rendered as tints of the
+     palette rather than as new hues: the brand has no green or red, and
+     inventing them is how a fifth color gets into a system. */
+  --green: #4f4c4d;
+  --green-soft: rgba(35, 31, 32, 0.07);
+  --red: #7c6729;
+  --red-soft: rgba(124, 103, 41, 0.1);
+  --orange: var(--gold);
+  --orange-soft: var(--gold-soft);
+  --purple: #7b7979;
+
+  /* Charts read as one family: matte tints for the field, gold for the one
+     series that carries the recommendation — "gold is look here, not a
+     default series color".
+
+     The claiming-age ramp is nine steps of a single hue, which is the
+     sanctioned shape for a sequential scale. The brand names four tint stops
+     and the grid needs nine, so the values between them are interpolations
+     WITHIN matte rather than new colors; no second hue enters, and the ramp
+     ends on gold because age 70 is the square the grid is read for.
+
+     The app's red and green are gone: this palette has neither, and the
+     status colors now resolve to matte tints and gold. A delta that needs a
+     direction gets a sign or a glyph, never a hue. */
+  --chart-ink: #231f20;
+  --chart-muted: #4f4c4d;
+  --chart-axis: #d3d2d2;
+  --chart-gray-mid: #7b7979;
+  --chart-red: #4f4c4d;
+  --claim-age-62: #d3d2d2;
+  --claim-age-63: #c2c0c1;
+  --claim-age-64: #b0aeaf;
+  --claim-age-65: #9e9c9d;
+  --claim-age-66: #8c8a8b;
+  --claim-age-67: #7b7979;
+  --claim-age-68: #63615f;
+  --claim-age-69: #4f4c4d;
+  --claim-age-70: #7c6729;
+
+  /* Squared. The 16px step is the brand's one sanctioned exception — the
+     callout box — and `--radius-xl` is what the app's callouts already use. */
+  --radius-sm: 0px;
+  --radius: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 16px;
+
+  /* Flatter. This surface is digital-only, where the brand allows shadow
+     rarely and softly; the print-facing report carries none at all. */
+  --shadow-sm: 0 1px 0 rgba(35, 31, 32, 0.06);
+  --shadow: 0 1px 0 rgba(35, 31, 32, 0.08);
+  --shadow-lg: 0 2px 24px rgba(35, 31, 32, 0.1);
+  --blur: saturate(100%) blur(18px);
+
+  /* The triangle mark, unmodified, in the colorway that pairs with a light
+     field. Inlined so it needs no network fetch and no build step. */
+  --brand-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 166.38 141.99'%3E%3Cpath fill='%237C6729' fill-rule='evenodd' d='M82.87,55.94l27.83,48.79h-56.14l28.31-48.79ZM126.55,122.13l20.88,10.81-55.78-92.14-5.8,10,30.76,53.93,2.93,5.14H26.15l2.61-4.43L87.87,5.14h-12.68L31.41,80.33l-21.14,36.31h0l-1.41,2.43-1.41,2.43h117.89l1.22.63ZM94.17.56l-.33-.56h-21.6L1.49,121.5l-.41.71-1.08,1.85,1.48,2.58.57,1,8.17,14.35h145.62l1.53-2.6.59-1.01,8.43-14.31L95.35,2.58l-1.18-2.02Z'%3E%3C/path%3E%3C/svg%3E");
+
+  /* Body tracking is 0 in this brand; the app had it slightly negative. */
+  letter-spacing: 0;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* ─── Tokens: dark ───
+   The gold flips to the light cut, because every one of these now sits on
+   black. Fills are white at low alpha over matte rather than new grays, so
+   the palette stays at four colors. */
+[data-theme='dark'] {
+  /* `--ink` is a SURFACE token here, not the text color: the app paints solid
+     emphasis with it (the BEST badge, the export button, the applied-scenario
+     chip) and pairs it with `--cream` for the type on top. Inverting it to
+     off-white looked right in the abstract and made the badge vanish — the
+     pair has to move together, and on a black page the darkest of the two
+     sanctioned utilities is what separates a solid chip from the row under
+     it. */
+  --ink: #000000;
+  --cream: #f9f9fa;
+  --cream-dark: #231f20;
+  --ink-soft: #d3d2d2;
+  --bg: #000000;
+  --bg-secondary: #231f20;
+  --surface: #231f20;
+  --surface-raised: rgba(35, 31, 32, 0.94);
+  --fill: rgba(255, 255, 255, 0.06);
+  --fill-secondary: rgba(255, 255, 255, 0.11);
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.26);
+  --text: #f9f9fa;
+  --text-muted: #d3d2d2;
+  --text-subtle: #a7a5a6;
+
+  --gold: #c3a778;
+  --gold-light: #c3a778;
+  --gold-dark: #c3a778;
+  --gold-soft: rgba(195, 167, 120, 0.16);
+  --blue: var(--gold);
+  /* Hover moves toward the other primary rather than to a fifth gold: the
+     brand shifts a link gold→ink on light, so it shifts gold→white here. */
+  --blue-hover: #ffffff;
+  --blue-soft: var(--gold-soft);
+
+  --green: #d3d2d2;
+  --green-soft: rgba(255, 255, 255, 0.08);
+  --red: #c3a778;
+  --red-soft: rgba(195, 167, 120, 0.16);
+
+  --chart-ink: #f9f9fa;
+  --chart-muted: #d3d2d2;
+  --chart-axis: #4f4c4d;
+  --chart-gray-mid: #a7a5a6;
+  --chart-red: #d3d2d2;
+  --claim-age-62: #4f4c4d;
+  --claim-age-63: #5c5859;
+  --claim-age-64: #696566;
+  --claim-age-65: #767273;
+  --claim-age-66: #837f80;
+  --claim-age-67: #908d8e;
+  --claim-age-68: #a7a5a6;
+  --claim-age-69: #c2c0c1;
+  --claim-age-70: #c3a778;
+
+  /* The light-gold cut of the same mark — a different supplied file, not a
+     filtered version of the one above. */
+  --brand-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 166.38 141.99'%3E%3Cpath fill='%23C3A778' fill-rule='evenodd' d='M82.87,55.94l27.83,48.79h-56.14l28.31-48.79ZM126.55,122.13l20.88,10.81-55.78-92.14-5.8,10,30.76,53.93,2.93,5.14H26.15l2.61-4.43L87.87,5.14h-12.68L31.41,80.33l-21.14,36.31h0l-1.41,2.43-1.41,2.43h117.89l1.22.63ZM94.17.56l-.33-.56h-21.6L1.49,121.5l-.41.71-1.08,1.85,1.48,2.58.57,1,8.17,14.35h145.62l1.53-2.6.59-1.01,8.43-14.31L95.35,2.58l-1.18-2.02Z'%3E%3C/path%3E%3C/svg%3E");
+
+  --shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.5);
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 2px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* ─── Type ───
+   Bebas Bold caps for structural headings, at the brand's tracking and
+   leading. Bebas has no lowercase, so `text-transform` only makes explicit
+   what the typeface does anyway — worth stating so a fallback render in
+   Impact does not arrive in sentence case. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 0.9;
+}
+
+h1 {
+  line-height: 0.85;
+}
+
+/* Left in Montserrat: these are labels and table headers rather than
+   headings, and Bebas at label size loses too much of its own shape. */
+h4 {
+  font-family: var(--font);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* The eyebrow motif — Montserrat caps, wide tracking. The app already sets
+   these as small caps labels; this gives them the brand's spacing. */
+.eyebrow,
+.field-label,
+.assumptions-heading,
+.report-preview-title,
+.menu-section-title,
+.th,
+thead th {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Body and bullets sit at the brand's tracking rather than the app's
+   slightly tightened default. */
+body,
+input,
+select,
+textarea,
+button {
+  letter-spacing: 0;
+  font-family: var(--font);
+}
+
+/* ─── Rules and bullets ───
+   Hairline gold, horizontal, solid — the signature divider. Round gold
+   markers at every level of a list, which is the brand's only bullet. */
+li::marker {
+  color: var(--gold);
+}
+
+.chart-container > h3,
+.table-section > h3 {
+  padding-bottom: var(--space-rule, 10px);
+  border-bottom: 1px solid var(--gold);
+}
+
+/* ─── The one brand mark ───
+   The triangle, unmodified, straight from the brand assets. Sized by the
+   header rather than redrawn, never recolored — the SVG carries its own
+   gold, so dark mode gets the light-gold cut by swapping the file, not by
+   filtering this one. */
+/* Both themes named explicitly. `index.css` carries a
+   `[data-theme='dark'] .brand-monogram` rule that paints the monogram gold,
+   and a bare `.brand-monogram` here loses to it on specificity — which is how
+   the firm's "W" came back in dark mode and sat on top of the triangle.
+
+   `font-size: 0` rather than a transparent color, for the same reason: this
+   element holds a literal "W" in the markup, and hiding a glyph by coloring
+   it is one specificity accident away from showing it again. No glyph box, no
+   glyph. The text stays in the DOM so removing this file restores the firm's
+   own monogram exactly as it was. */
+.brand-monogram,
+[data-theme='dark'] .brand-monogram {
+  border: none;
+  width: 24px;
+  height: 24px;
+  background: center / contain no-repeat var(--brand-mark);
+  font-size: 0;
+  color: transparent;
+  overflow: hidden;
+  /* Clear space of at least the mark's own dimension on every side, which is
+     the one measurement the logo rules are strict about. The header's flex
+     gap supplies 10px; this makes up the rest. */
+  margin-inline: 14px;
+}
+
+
+/* ─── Heat ramps ───
+   The two heat surfaces — the claiming grid and the per-person heatmap —
+   carried a blue ramp, which is a fifth hue in a four-color system. They are
+   sequential scales, so they become tint steps of a single hue: matte, light
+   to dark, with nothing gold in the field itself. The best square keeps its
+   gold outline, which is the whole point of holding gold back here — a board
+   shaded in gold would say "look here" fifty-six times.
+
+   The dark end stops at matte-40 rather than at matte so the figure printed
+   in every square stays legible on it; the ramp's job is rank, and rank is
+   readable well before the field goes black. */
+.heatmap-wrap,
+.claim-grid-panel {
+  --heat-lo: #f9f9fa;
+  --heat-hi: #a7a5a6;
+}
+
+[data-theme='dark'] .heatmap-wrap,
+[data-theme='dark'] .claim-grid-panel {
+  --heat-lo: #231f20;
+  --heat-hi: #7b7979;
+}
+
+/* ─── Break-even verdicts ───
+   These two sentences were painted green and red — the one semantic pair the
+   brand does not have, and the pair `dashboards.md` singles out. The verdict
+   is already stated in words ("favors later", "favors earlier"), so the
+   color was carrying nothing the sentence did not; both now take the ink,
+   and the one that points at the recommendation takes the gold. Direction
+   lives in the words, not in a hue. */
+.be-verdict.favors-later {
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+
+.be-verdict.favors-earlier {
+  background: var(--fill);
+  color: var(--text-muted);
+}
+
+/* ─── Air under the header ───
+   The header is a full-bleed band, and the brand asks for 48px before the
+   first content element under one. The results column started 40px down. */
+.output-panel > .household-view,
+.output-panel > .widowed-view {
+  padding-top: 8px;
+}
+
+/* ─── Reading the grid ───
+   Squares outside the near-best band were faded to 40%, which works on a
+   mid-blue board and does not on a pale neutral one: `opacity` fades the
+   figure along with the field it sits on, and the figures are the whole
+   reason the grid is there. Measured on the ramp below, the darkest square's
+   number came out at 3.8:1 against its own background — under the 4.5:1 that
+   type this size needs.
+
+   So the emphasis moves off the text and onto the background alone: a
+   de-emphasized square keeps full-strength ink and gets a shallower cut of
+   the same ramp, which reads as "paler" exactly as the fade did while
+   leaving every number legible. The near-best squares keep the full ramp and
+   their outline, which was always the stronger signal of the two. */
+.claim-cell {
+  color: var(--text);
+}
+
+[data-theme='dark'] .claim-cell {
+  color: var(--text);
+}
+
+.claim-grid-dimmed .claim-cell:not(.claim-cell-near):not(.claim-cell-best) {
+  opacity: 1;
+  background: color-mix(in oklab, var(--heat-lo), var(--heat-hi) calc(var(--t) * 45%));
+}
+
+/* Hover still brings an excluded square all the way back — dimming is
+   emphasis, not a claim that those combinations are unavailable. */
+.claim-grid-dimmed .claim-cell:not(.claim-cell-near):hover {
+  opacity: 1;
+  background: color-mix(in oklab, var(--heat-lo), var(--heat-hi) calc(var(--t) * 100%));
+}
+
+/* ─── Range sliders ───
+   A native range input paints its track and thumb in the browser's own accent
+   — a system blue on every platform here — which is a fifth color arriving
+   without anyone choosing it. `accent-color` is the one property that reaches
+   it without rebuilding the control. */
+input[type='range'] {
+  accent-color: var(--gold);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--gold);
+}

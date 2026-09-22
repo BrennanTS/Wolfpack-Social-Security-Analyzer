@@ -29,6 +29,7 @@ import {
   CHART_AXIS_LINE,
   CHART_MUTED,
   CHART_RED,
+  CHART_TOOLTIP_ITEM_STYLE,
   CHART_TOOLTIP_SEPARATOR,
   CHART_TOOLTIP_STYLE,
   seriesColor,
@@ -149,11 +150,39 @@ export function IncomeTooltip({
   return (
     <div style={{ ...CHART_TOOLTIP_STYLE, padding: '8px 12px' }}>
       <p style={{ margin: '0 0 6px', fontWeight: 600 }}>{heading}</p>
+      {/* The row's text is off-white; its series color rides a swatch beside
+          it. Painting the whole row in the series color is what Recharts does
+          by default and what this tooltip used to keep, on the argument that
+          with four stacked bands the color IS the key. The key holds either
+          way — the swatch carries it — and the figures stop being the only
+          text in the app set in a mid-tone on near-black. Every other tooltip
+          here already prints off-white for exactly this reason. */}
       {paying.map((item) => (
-        <p key={String(item.dataKey)} style={{ margin: '2px 0', color: item.color }}>
-          {item.name}
-          {CHART_TOOLTIP_SEPARATOR}
-          {formatCurrencyPerYear(item.value as number)}
+        <p
+          key={String(item.dataKey)}
+          style={{
+            margin: '2px 0',
+            color: CHART_TOOLTIP_ITEM_STYLE.color,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 9,
+              height: 9,
+              flex: '0 0 auto',
+              background: item.color,
+              borderRadius: 1,
+            }}
+          />
+          <span>
+            {item.name}
+            {CHART_TOOLTIP_SEPARATOR}
+            {formatCurrencyPerYear(item.value as number)}
+          </span>
         </p>
       ))}
     </div>

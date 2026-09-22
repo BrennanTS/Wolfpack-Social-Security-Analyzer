@@ -9,7 +9,7 @@ import { deflateSync } from 'node:zlib';
  * checked-in blob is a fixture nobody can read or adjust. Thirty lines of
  * encoder is the cheaper of the two.
  *
- * Solid colour, no filtering, 8-bit RGB: the smallest thing a browser will
+ * Solid color, no filtering, 8-bit RGB: the smallest thing a browser will
  * decode as an image.
  */
 export function solidPng(width: number, height: number, rgb: [number, number, number]): Buffer {
@@ -28,7 +28,7 @@ export function solidPng(width: number, height: number, rgb: [number, number, nu
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8; // bit depth
-  ihdr[9] = 2; // colour type: truecolour
+  ihdr[9] = 2; // color type: truecolor
   // 10-12: compression, filter, interlace — all 0.
 
   return Buffer.concat([

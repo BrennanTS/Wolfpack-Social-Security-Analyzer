@@ -3,6 +3,7 @@ import { buildMonthlyIncomeSeries, type HouseholdAnalysis } from '../lib/househo
 import { computeBreakEvens } from '../lib/benefitMath';
 import { formatPercent } from '../lib/cpiHistory';
 import { comparisonsInDollarsMode } from '../lib/displayDollars';
+import { displayDiscountRate } from '../lib/reportBasis';
 import { toNominal, toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
 import { personLabel } from '../lib/format';
 import { scenarioEyebrow, type ScenarioSet } from '../lib/scenario';
@@ -87,6 +88,11 @@ export function HouseholdPanel({
   const breakEvens = computeBreakEvens(personA.claimingOptions, annualCola);
 
   const asOfYear = analysis.asOf.getFullYear();
+  // What the figures on screen carry, which is not the assumption whenever
+  // the basis is future value: nothing is discounted out of the dollars that
+  // change hands, so the caption below must not say payments were counted for
+  // less. See `reportBasis.displayDiscountRate`.
+  const shownDiscountRate = displayDiscountRate(dollarsMode, analysis.assumptions.discountRate);
   // Memoized so a re-render that doesn't change `analysis`, `annualCola` or
   // `dollarsMode` (e.g. the "vs. best" delta's own state, or a parent
   // re-render) reuses the same array identities `analysis.combinedTimeline`
@@ -162,8 +168,8 @@ export function HouseholdPanel({
         people={people}
         survivorGap={analysis.survivorGap}
         dollarsMode={dollarsMode}
-        discountRateLabel={formatPercent(analysis.assumptions.discountRate * 100, 2)}
-        discounted={analysis.assumptions.discountRate > 0}
+        discountRateLabel={formatPercent(shownDiscountRate * 100, 2)}
+        discounted={shownDiscountRate > 0}
         scenarios={scenarios}
         onScenariosChange={onScenariosChange}
         filingAgeOptions={analysis.filingAgeOptions}

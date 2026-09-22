@@ -360,3 +360,39 @@ describe('HouseholdPanel', () => {
     expect(queryByTestId('recommendation-title')).not.toBeNull();
   });
 });
+
+/**
+ * The caption follows the basis, not the assumption.
+ *
+ * The discount rate is a planning assumption and stays set whichever way the
+ * report is being read — but future value states the dollars that change
+ * hands, and nothing has been discounted out of them. A caption still saying
+ * "counted at 2.50% less per year" over undiscounted figures describes an
+ * arithmetic that was not performed.
+ */
+describe('the household-value caption in each basis', () => {
+  const caption = () => screen.getByTestId('household-value-caption').textContent ?? '';
+
+  it('names the rate in present value', () => {
+    // Read off the fixture rather than written out: this file's
+    // `buildAnalysis` carries its own rate and the assertion is about the
+    // caption naming it, not about the number.
+    const analysis = buildAnalysis();
+    render(<HouseholdPanel analysis={analysis} annualCola={2.5} dollarsMode="real" />);
+    expect(caption()).toContain(
+      `${(analysis.assumptions.discountRate * 100).toFixed(2)}% less per year`,
+    );
+    expect(caption()).toContain('today’s money');
+  });
+
+  it('claims no discount in future value, though the assumption is unchanged', () => {
+    const analysis = buildAnalysis();
+    expect(analysis.assumptions.discountRate).toBeGreaterThan(0);
+    render(
+      <HouseholdPanel analysis={analysis} annualCola={2.5} dollarsMode="nominal" />,
+    );
+    expect(caption()).toContain('No discount is applied');
+    expect(caption()).not.toContain('less per year');
+    expect(caption()).not.toContain('today’s money');
+  });
+});

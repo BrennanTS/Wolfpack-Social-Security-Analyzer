@@ -91,7 +91,14 @@ describe('useReportThemes', () => {
     expect(result.current.theme.name).toBe('Renamed');
 
     act(() => result.current.rename(DEFAULT_REPORT_THEME_ID, 'Nope'));
-    expect(reportTheme(DEFAULT_REPORT_THEME_ID).name).toBe('Wolfpack');
+    // Named through the constant rather than spelled out: which palette
+    // ships as the default is a product decision that has already changed
+    // once, and this test is about presets being un-renameable, not about
+    // which preset is first.
+    expect(reportTheme(DEFAULT_REPORT_THEME_ID).name).toBe(
+      REPORT_THEMES.find((t) => t.id === DEFAULT_REPORT_THEME_ID)!.name,
+    );
+    expect(reportTheme(DEFAULT_REPORT_THEME_ID).name).not.toBe('Nope');
 
     act(() => result.current.remove(id));
     expect(result.current.selectedId).toBe(DEFAULT_REPORT_THEME_ID);

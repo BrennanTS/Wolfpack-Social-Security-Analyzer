@@ -1,62 +1,53 @@
 import { describe, expect, it } from 'vitest';
-import { basisOf, settingsForBasis } from './reportBasis';
-import { DEFAULT_DISCOUNT_RATE } from './ssaTools';
+import { basisOf, displayDiscountRate, dollarsModeFor } from './reportBasis';
 
+/**
+ * The basis reads ONE setting.
+ *
+ * It used to be derived from two — the dollars and the discount rate — which
+ * meant the pair could land on a combination neither name described. The
+ * control then showed nothing selected, and the panel carried a paragraph
+ * explaining a state it could not display.
+ */
 describe('basisOf', () => {
-  it('names the two bases the report describes itself as', () => {
-    expect(basisOf({ dollarsMode: 'real', discountRate: 0.025 })).toBe('present');
-    expect(basisOf({ dollarsMode: 'nominal', discountRate: 0 })).toBe('future');
+  it('names a basis for every value the setting can hold', () => {
+    expect(basisOf('real')).toBe('present');
+    expect(basisOf('nominal')).toBe('future');
   });
 
-  it('calls anything else custom rather than picking the nearer one', () => {
-    // Nominal cash flows at a nominal discount rate is the textbook-correct
-    // pairing and is neither preset. Real-and-undiscounted is a straight sum
-    // of today's-dollar payments, also neither. A control showing one of the
-    // two lit while the report is in a third state is the failure here.
-    expect(basisOf({ dollarsMode: 'nominal', discountRate: 0.025 })).toBe('custom');
-    expect(basisOf({ dollarsMode: 'real', discountRate: 0 })).toBe('custom');
-  });
-
-  it('holds any rate above zero to be present value', () => {
-    // 4% in real dollars is still today's money. The basis is about which
-    // question the figure answers, not about a particular rate.
-    expect(basisOf({ dollarsMode: 'real', discountRate: 0.04 })).toBe('present');
+  it('round-trips', () => {
+    for (const basis of ['present', 'future'] as const) {
+      expect(basisOf(dollarsModeFor(basis))).toBe(basis);
+    }
   });
 });
 
-describe('settingsForBasis', () => {
-  it('zeroes the discount for future value', () => {
-    expect(settingsForBasis('future', { dollarsMode: 'real', discountRate: 0.025 })).toEqual({
-      dollarsMode: 'nominal',
-      discountRate: 0,
-    });
+/**
+ * The separation that makes the switch safe to flip.
+ *
+ * The discount rate is a planning assumption and always ranks the strategies;
+ * the basis only decides how the result is stated. Choosing future value used
+ * to zero the rate, which meant picking how a figure was WORDED could change
+ * which filing ages the report recommended.
+ */
+describe('displayDiscountRate', () => {
+  it('discounts nothing out of the dollars that change hands', () => {
+    expect(displayDiscountRate('nominal', 0.025)).toBe(0);
+    expect(displayDiscountRate('nominal', 0.06)).toBe(0);
   });
 
-  it('keeps a rate the adviser chose', () => {
-    // Snapping 4% back to the default would silently discard a deliberate
-    // assumption — and one that changes which filing ages are recommended.
-    expect(settingsForBasis('present', { dollarsMode: 'nominal', discountRate: 0.04 })).toEqual({
-      dollarsMode: 'real',
-      discountRate: 0.04,
-    });
+  it('carries the assumption into present value', () => {
+    expect(displayDiscountRate('real', 0.025)).toBe(0.025);
+    expect(displayDiscountRate('real', 0)).toBe(0);
   });
 
-  it('supplies a rate only when there is none', () => {
-    expect(settingsForBasis('present', { dollarsMode: 'nominal', discountRate: 0 })).toEqual({
-      dollarsMode: 'real',
-      discountRate: DEFAULT_DISCOUNT_RATE,
-    });
-  });
-
-  it('round-trips: applying a basis makes `basisOf` report it', () => {
-    for (const basis of ['present', 'future'] as const) {
-      for (const current of [
-        { dollarsMode: 'real' as const, discountRate: 0.025 },
-        { dollarsMode: 'nominal' as const, discountRate: 0 },
-        { dollarsMode: 'nominal' as const, discountRate: 0.04 },
-      ]) {
-        expect(basisOf(settingsForBasis(basis, current))).toBe(basis);
-      }
-    }
+  it('never reports back the assumption itself', () => {
+    // The point of the function: the rate the analysis RAN at is untouched by
+    // the basis, so a caller must not read this as "the assumption". An
+    // adviser on 4% who switches to future value still has 4% set, and the
+    // recommendation is still the 4% one.
+    const assumed = 0.04;
+    expect(displayDiscountRate('nominal', assumed)).not.toBe(assumed);
+    expect(assumed).toBe(0.04);
   });
 });

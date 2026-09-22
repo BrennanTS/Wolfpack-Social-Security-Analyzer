@@ -233,7 +233,8 @@ export function solvencySensitivity(
     {
       dollarsMode: 'nominal',
       annualCola: analysis.assumptions.annualCola,
-      discountRate: analysis.assumptions.discountRate,
+      // Undiscounted, like every other nominal figure in the report.
+      discountRate: 0,
       asOfYear: analysis.asOf.getFullYear(),
     },
   )) {

@@ -190,9 +190,14 @@ test('toggles dollars mode and moves the chart, the income-cliff callout and the
 
   // Real is the default — the honest view needs no arithmetic, so it's the
   // one the reader sees without asking.
-  const dollarsGroup = page.getByRole('group', { name: 'Dollars' });
-  const realBtn = dollarsGroup.getByRole('button', { name: /today/i });
-  const nominalBtn = dollarsGroup.getByRole('button', { name: /future/i });
+  //
+  // Driven from the report-basis switch, which is now the only control for
+  // this. There used to be a second one labelled "Dollars"; between them they
+  // could reach a pair neither was able to name, and the basis switch showed
+  // nothing selected.
+  const dollarsGroup = page.getByRole('group', { name: 'Report basis' });
+  const realBtn = dollarsGroup.getByRole('button', { name: /present value/i });
+  const nominalBtn = dollarsGroup.getByRole('button', { name: /future value/i });
   await expect(realBtn).toHaveAttribute('aria-pressed', 'true');
   await expect(nominalBtn).toHaveAttribute('aria-pressed', 'false');
 
@@ -620,9 +625,32 @@ test('explores the claiming grid and builds the report on a square', async ({ pa
 
   // The near-best region has to be visible as a REGION, not just as a ring
   // on each member: everything outside it steps back at the same time.
+  //
+  // Asserted as "the square's fill changes when the highlight goes on",
+  // rather than against a particular opacity. The de-emphasis used to be
+  // `opacity: 0.4`, which faded the figure along with its background and put
+  // the palest squares' numbers under the contrast floor; it now pales the
+  // background alone and leaves the type at full strength. What the page
+  // promises is that excluded squares step back and stay readable, and that
+  // is what this checks.
   const dimmed = page.locator('.claim-grid-dimmed .claim-cell:not(.claim-cell-near)');
   expect(await dimmed.count()).toBeGreaterThan(0);
-  await expect(dimmed.first()).toHaveCSS('opacity', '0.4');
+  // The excluded square furthest UP the ramp, by its own `--t`. The palest
+  // square sits at the ramp's floor in both states and could never show a
+  // difference; this one has somewhere to step back from.
+  const probeId = await dimmed.evaluateAll((els) => {
+    const t = (el: Element) => Number(getComputedStyle(el).getPropertyValue('--t')) || 0;
+    return [...els].sort((a, b) => t(b) - t(a))[0].getAttribute('data-testid')!;
+  });
+  const probe = page.getByTestId(probeId);
+  const steppedBack = await probe.evaluate((el) => getComputedStyle(el).backgroundColor);
+  // Still fully opaque — the numbers are the reason the grid exists.
+  await expect(probe).toHaveCSS('opacity', '1');
+
+  await page.getByTestId('target-range-toggle').uncheck();
+  const atFullStrength = await probe.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(steppedBack).not.toBe(atFullStrength);
+  await page.getByTestId('target-range-toggle').check();
 
   // Turning the highlight off retires the count and the dimming with it —
   // an excluded square is de-emphasized, never presented as unavailable.
@@ -807,5 +835,32 @@ test('the export button and a menu action stay legible in light and dark, at res
         await page.waitForTimeout(300);
       }
     }
+  }
+});
+
+test('the brand mark shows no letterform behind it, in either theme', async ({ page }) => {
+  // The header holds the firm's own "W" in the markup and paints the brand
+  // mark over it as a background image. `index.css` sets a gold text color on
+  // that element in DARK MODE specifically, at a specificity a bare class
+  // selector loses to — so the letter came back on top of the mark, and only
+  // in dark mode. jsdom applies no stylesheets, so no unit test can see this.
+  await page.goto('/');
+  await fillScenarioForm(page, single);
+  await expect(page.getByTestId('benefit-table')).toBeVisible();
+
+  const mark = page.locator('.brand-monogram');
+  const themeToggle = page.getByRole('button', { name: /dark|light|theme/i });
+
+  for (const theme of ['light', 'dark'] as const) {
+    if (theme === 'dark') await themeToggle.click();
+    const painted = await mark.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { fontSize: s.fontSize, image: s.backgroundImage, theme: document.documentElement.dataset.theme };
+    });
+    expect(painted.theme ?? 'light', 'the toggle moved').toBe(theme);
+    // No glyph box at all, rather than a glyph colored to match its
+    // background — the latter is one specificity accident from being visible.
+    expect(painted.fontSize, `${theme}: the letterform must have no size`).toBe('0px');
+    expect(painted.image, `${theme}: the mark must be painted`).toContain('svg+xml');
   }
 });

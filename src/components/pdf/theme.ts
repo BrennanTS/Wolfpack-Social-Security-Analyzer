@@ -25,6 +25,8 @@ export const MONTHS = [
 export let INK = DEFAULT_THEME.ink;
 export let GOLD = DEFAULT_THEME.brand;
 export let GOLD_DARK = DEFAULT_THEME.brandDark;
+/** The cover title's fill — see `ReportTheme.coverBand`. */
+export let COVER_BAND = DEFAULT_THEME.coverBand;
 export const SURFACE = '#ffffff';
 export let BORDER = DEFAULT_THEME.border;
 export let MUTED = DEFAULT_THEME.muted;
@@ -314,7 +316,7 @@ function buildStyles() {
      the names with room around them. Nothing absolute-positioned: react-pdf
      places these in flow, so a long firm name simply takes another line. */
   coverBand: {
-    backgroundColor: GOLD,
+    backgroundColor: COVER_BAND,
     paddingVertical: 26,
     paddingHorizontal: 28,
     marginTop: 40,
@@ -528,6 +530,7 @@ export function setActiveReportTheme(theme: ReportTheme): void {
   DISCLOSURE = theme.disclosure;
   INK = theme.ink;
   GOLD = theme.brand;
+  COVER_BAND = theme.coverBand;
   GOLD_DARK = theme.brandDark;
   BORDER = theme.border;
   MUTED = theme.muted;

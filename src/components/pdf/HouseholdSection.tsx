@@ -10,6 +10,7 @@ import {
 import type { Person } from '../../lib/personAnalysis';
 import { toNominalAmount, type DollarsMode } from '../../lib/dollarsMode';
 import { outrankedByDisplay } from '../../lib/displayDollars';
+import { displayDiscountRate } from '../../lib/reportBasis';
 import { incomeCliff } from '../../lib/incomeCliff';
 import { seriesColor } from '../../lib/chartTheme';
 import {
@@ -471,10 +472,12 @@ export function HouseholdBlock({
           heading — and the same sentence the screen prints, so the two
           surfaces cannot describe the figure differently. */}
       <Text style={[styles.sectionDesc, { marginTop: 6 }]}>
+        {/* The rate the PRINTED figures carry, not the assumption the
+            analysis ranked at — see `reportBasis.displayDiscountRate`. */}
         {householdValueCaption(
-          formatPercent(analysis.assumptions.discountRate * 100, 2),
+          formatPercent(displayDiscountRate(dollarsMode, analysis.assumptions.discountRate) * 100, 2),
           dollarsMode,
-          analysis.assumptions.discountRate > 0,
+          displayDiscountRate(dollarsMode, analysis.assumptions.discountRate) > 0,
         )}
       </Text>
       {/* Only when the biggest number on the table is not the one marked

@@ -21,7 +21,7 @@ import { BenefitChart } from './BenefitChart';
  *
  * What IS asserted is what a reader sees besides the plot, and what actually
  * breaks: the heading and legend (plain DOM, and the legend carries the same
- * claim-age colours the plot does), and that none of the seven throws on the
+ * claim-age colors the plot does), and that none of the seven throws on the
  * data the engine can genuinely hand them. A chart that throws takes the
  * whole tab down — these render inside `PersonPanel`, above the error
  * boundary, so a divide-by-zero here is a white page, not a blank chart.
@@ -123,7 +123,7 @@ describe('what a reader sees beside the plot', () => {
     const swatches = container.querySelectorAll('.chart-legend-swatch');
     expect(swatches.length).toBeGreaterThan(0);
     for (const swatch of swatches) {
-      // An unset colour renders as transparent, which reads as a missing
+      // An unset color renders as transparent, which reads as a missing
       // series rather than as a broken one.
       expect((swatch as HTMLElement).style.background).not.toBe('');
     }

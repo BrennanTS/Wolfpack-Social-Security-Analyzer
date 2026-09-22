@@ -1,4 +1,4 @@
-import { basisOf, settingsForBasis } from '../lib/reportBasis';
+import { basisOf, dollarsModeFor } from '../lib/reportBasis';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
@@ -57,6 +57,7 @@ import {
   solvencySensitivity,
   type SolvencyAssumption,
 } from '../lib/solvency';
+import { LifeExpectancyField } from './LifeExpectancyField';
 import { PersonFields } from './PersonFields';
 import { DarkModeToggle } from './DarkModeToggle';
 import { ResourcesPanel } from './ResourcesPanel';
@@ -704,6 +705,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
 
           <div className="input-fields">
             <PersonFields person={personA} index={0} onChange={handlePersonAChange} />
+            <LifeExpectancyField control={lifeExpectancies[0]} index={0} />
 
             <div className="field">
               <span className="field-label">Marital status</span>
@@ -750,7 +752,12 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
             </div>
 
             {maritalStatus === 'married' && (
-              <PersonFields person={personB} index={1} onChange={handlePersonBChange} />
+              <>
+                <PersonFields person={personB} index={1} onChange={handlePersonBChange} />
+                {lifeExpectancies[1] && (
+                  <LifeExpectancyField control={lifeExpectancies[1]} index={1} />
+                )}
+              </>
             )}
 
             {maritalStatus === 'widowed' && (
@@ -764,7 +771,6 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
             )}
 
             <AssumptionsPanel
-              lifeExpectancies={lifeExpectancies}
               solvency={solvency}
               onSolvencyChange={setSolvency}
               annualCola={annualCola}
@@ -979,12 +985,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         onClose={() => setLayoutEditorOpen(false)}
         layouts={reportLayouts}
         shape={analysis ? householdDisplayShape(analysis.status) : undefined}
-        basis={basisOf({ dollarsMode, discountRate })}
-        onBasisChange={(next) => {
-          const wanted = settingsForBasis(next, { dollarsMode, discountRate });
-          setDollarsMode(wanted.dollarsMode);
-          setDiscountRate(wanted.discountRate);
-        }}
+        basis={basisOf(dollarsMode)}
+        onBasisChange={(next) => setDollarsMode(dollarsModeFor(next))}
         preview={
           analysis
             ? {

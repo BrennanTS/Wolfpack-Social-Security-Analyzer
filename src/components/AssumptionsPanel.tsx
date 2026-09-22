@@ -1,20 +1,8 @@
 import type { DollarsMode } from '../lib/dollarsMode';
-import {
-  BASIS_LABEL,
-  basisOf,
-  settingsForBasis,
-  type NamedBasis,
-} from '../lib/reportBasis';
+import { BASIS_LABEL, basisOf, dollarsModeFor, type NamedBasis } from '../lib/reportBasis';
 import { CPI_DEFAULT_COLA, formatPercent } from '../lib/cpiHistory';
-import type { Gender } from '../lib/personAnalysis';
-import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
 import { DEFAULT_DISCOUNT_RATE } from '../lib/ssaTools';
-import {
-  clampToBounds,
-  COLA_BOUNDS,
-  DISCOUNT_BOUNDS_PERCENT,
-  LIFE_EXPECTANCY_BOUNDS,
-} from '../lib/formBounds';
+import { clampToBounds, COLA_BOUNDS, DISCOUNT_BOUNDS_PERCENT } from '../lib/formBounds';
 import {
   isTrusteesProjection,
   SOLVENCY_PAYABLE_BOUNDS,
@@ -37,26 +25,7 @@ const BASIS_HINT: Record<NamedBasis, string> = {
     'reports state a total, so this is the setting for putting ours beside one of theirs.',
 };
 
-const CUSTOM_BASIS_HINT =
-  'Neither preset: the dollars and the discount rate have been set separately. That is a ' +
-  'valid combination — future dollars at a nominal discount rate is the textbook pairing — ' +
-  'but the report will not describe itself as either basis.';
-
-const DOLLARS_OPTIONS: { id: DollarsMode; label: string }[] = [
-  { id: 'real', label: 'Today’s dollars' },
-  { id: 'nominal', label: 'Future (nominal)' },
-];
-
-interface LifeExpectancyControl {
-  label: string;
-  value: number | null;
-  onChange: (value: number) => void;
-  ssaSuggested: number | null;
-  gender: Gender | null;
-}
-
 interface AssumptionsPanelProps {
-  lifeExpectancies: LifeExpectancyControl[];
   /** The reduction the "what if benefits are reduced" report page prices. */
   solvency: SolvencyAssumption;
   onSolvencyChange: (value: SolvencyAssumption) => void;
@@ -76,7 +45,6 @@ interface AssumptionsPanelProps {
 }
 
 export function AssumptionsPanel({
-  lifeExpectancies,
   solvency,
   onSolvencyChange,
   annualCola,
@@ -93,17 +61,10 @@ export function AssumptionsPanel({
   const usingDefaultDiscount = Math.abs(discountRate - DEFAULT_DISCOUNT_RATE) < 0.001;
   /**
    * DERIVED, never stored — see `reportBasis.ts`, which owns the rule so the
-   * layout presets can name a basis without importing this panel.
+   * layout presets can name a basis without importing this panel. It reads
+   * one setting now, so there is no combination it cannot name.
    */
-  const basis = basisOf({ dollarsMode, discountRate });
-
-  const setBasis = (next: NamedBasis) => {
-    const wanted = settingsForBasis(next, { dollarsMode, discountRate });
-    onDollarsModeChange(wanted.dollarsMode);
-    // Only when it actually differs, so choosing Present value while already
-    // on a rate the adviser picked does not report a change that is not one.
-    if (wanted.discountRate !== discountRate) onDiscountRateChange(wanted.discountRate);
-  };
+  const basis = basisOf(dollarsMode);
 
   return (
     <div className="assumptions-panel">
@@ -128,66 +89,8 @@ export function AssumptionsPanel({
         <div className="assumptions-body">
           <h4 className="assumptions-heading">Used in the recommendation</h4>
           <p className="assumptions-heading-note">
-            These decide which filing ages the report recommends.
+            This decides which filing ages the report recommends.
           </p>
-
-          <div className="field advanced-field">
-            <span className="field-label">Report basis</span>
-            {/* Two alternatives, not a switch with an unnamed off state. The
-                control it replaces was a "Comparison view" checkbox, which
-                could name one basis and left the other as "not that" —
-                unnamed, unexplained, and the default. */}
-            <div className="segmented-control" role="group" aria-label="Report basis">
-              {BASES.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`segment-btn ${basis === option ? 'segment-btn-active' : ''}`}
-                  data-testid={`report-basis-${option}`}
-                  onClick={() => setBasis(option)}
-                  aria-pressed={basis === option}
-                >
-                  {BASIS_LABEL[option]}
-                </button>
-              ))}
-            </div>
-            <span className="field-hint">
-              {basis === 'custom' ? CUSTOM_BASIS_HINT : BASIS_HINT[basis]}
-            </span>
-            <span className="field-hint">
-              It sets the whole report — every table, chart and total, on screen and in the
-              PDF. The discount rate is also used to pick the filing ages the report
-              recommends, so changing the basis can change the recommendation and not only
-              how it is stated. Both settings it drives stay yours to set separately, below.
-            </span>
-          </div>
-
-          {/* The two halves of the basis, on their own, directly under it.
-              The dollars half used to live in the Combined Household Income
-              chart's header — a second switch for one piece of state, sitting
-              beside a single chart while it silently rewrote every table and
-              the export as well. One place, and the preset above reads it. */}
-          <div className="field advanced-field">
-            <span className="field-label">Dollars</span>
-            <div className="segmented-control" role="group" aria-label="Dollars">
-              {DOLLARS_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`segment-btn ${dollarsMode === option.id ? 'segment-btn-active' : ''}`}
-                  data-testid={`dollars-${option.id}`}
-                  onClick={() => onDollarsModeChange(option.id)}
-                  aria-pressed={dollarsMode === option.id}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <span className="field-hint">
-              Whether figures are shown as they would be paid, with the cost-of-living
-              increase compounded in, or in what they are worth today.
-            </span>
-          </div>
 
           <div className="field advanced-field">
             <label htmlFor="discount">
@@ -215,53 +118,40 @@ export function AssumptionsPanel({
             )}
           </div>
 
-          {lifeExpectancies.map((control, index) => (
-            <div className="field advanced-field" key={index}>
-              <label htmlFor={`life-${index}`}>
-                Life expectancy: {control.label}
-                {control.value !== null ? `, plan to age ${control.value}` : ''}
-              </label>
-              {control.value !== null ? (
-                <>
-                  <input
-                    id={`life-${index}`}
-                    type="range"
-                    min={LIFE_EXPECTANCY_BOUNDS.min}
-                    max={LIFE_EXPECTANCY_BOUNDS.max}
-                    value={control.value}
-                    onChange={(e) => control.onChange(Number(e.target.value))}
-                  />
-                  <div className="range-labels">
-                    <span>75</span>
-                    <span>100</span>
-                  </div>
-                </>
-              ) : (
-                <p className="field-hint assumptions-placeholder">
-                  Set date of birth and gender to enable life expectancy planning.
-                </p>
-              )}
-              {control.ssaSuggested !== null && control.gender !== null && (
-                <div className="ssa-life-row">
-                  <span className="field-hint">
-                    SSA suggests age <strong>{control.ssaSuggested}</strong> for{' '}
-                    {genderLabel(control.gender).toLowerCase()} (
-                    <a href={SSA_LIFE_TABLE_URL} target="_blank" rel="noopener noreferrer">
-                      period life table
-                    </a>
-                    )
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-reset-cola"
-                    onClick={() => control.onChange(control.ssaSuggested as number)}
-                  >
-                    Use SSA age ({control.ssaSuggested})
-                  </button>
-                </div>
-              )}
+          <h4 className="assumptions-heading">How figures are shown</h4>
+          <p className="assumptions-heading-note">
+            This changes what the numbers say, never what the report recommends.
+          </p>
+
+          {/* ONE control. It used to be two — this switch plus a separate
+              Dollars toggle — and setting the dollars alone produced a pair
+              neither name described, so this control showed nothing selected
+              and the hint had to explain a state it could not display. The
+              two are one setting because they were always describing one
+              decision. See `reportBasis.ts`. */}
+          <div className="field advanced-field">
+            <span className="field-label">How figures are shown</span>
+            <div className="segmented-control" role="group" aria-label="Report basis">
+              {BASES.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`segment-btn ${basis === option ? 'segment-btn-active' : ''}`}
+                  data-testid={`report-basis-${option}`}
+                  onClick={() => onDollarsModeChange(dollarsModeFor(option))}
+                  aria-pressed={basis === option}
+                >
+                  {BASIS_LABEL[option]}
+                </button>
+              ))}
             </div>
-          ))}
+            <span className="field-hint">{BASIS_HINT[basis]}</span>
+            <span className="field-hint">
+              It sets the whole report — every table, chart and total, on screen and in the
+              PDF. It changes only how figures are stated: the recommended filing ages are
+              the same either way.
+            </span>
+          </div>
 
           <h4 className="assumptions-heading">Used in the charts only</h4>
           <p className="assumptions-heading-note">

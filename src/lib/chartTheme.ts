@@ -38,7 +38,7 @@ export const CHART_RED = 'var(--chart-red)';
  *
  * Darkened from #7d9b76, which scored 2.80:1 on the cream report page: under
  * the 3:1 a graphical mark needs, and under the bar this module's own comment
- * claims every series colour clears. It read fine on the dark app canvas
+ * claims every series color clears. It read fine on the dark app canvas
  * (6.31:1), which is how it survived — the printed page is the surface where
  * it was too pale, and nothing measured that until `chartTheme.test.ts`.
  *

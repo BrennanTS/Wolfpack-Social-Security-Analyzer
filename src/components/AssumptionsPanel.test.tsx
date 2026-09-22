@@ -5,17 +5,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { AssumptionsPanel } from './AssumptionsPanel';
 import { COLA_BOUNDS } from '../lib/formBounds';
 import { DEFAULT_SOLVENCY, TRUSTEES_ASSUMPTION } from '../lib/solvency';
-import { DEFAULT_DISCOUNT_RATE } from '../lib/ssaTools';
 import { fromShareParams, toShareParams } from '../lib/shareLink';
 import { BLANK_FORM } from '../lib/formState';
 
 function renderPanel(overrides: Partial<Parameters<typeof AssumptionsPanel>[0]> = {}) {
   const onAnnualColaChange = vi.fn();
-  render(
+  const view = render(
     <AssumptionsPanel
-      lifeExpectancies={[
-        { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 82, gender: 'male' },
-      ]}
       annualCola={2.5}
       onAnnualColaChange={onAnnualColaChange}
       discountRate={0.025}
@@ -29,7 +25,7 @@ function renderPanel(overrides: Partial<Parameters<typeof AssumptionsPanel>[0]> 
       {...overrides}
     />,
   );
-  return { onAnnualColaChange };
+  return { onAnnualColaChange, unmount: view.unmount };
 }
 
 /**
@@ -45,9 +41,6 @@ function renderStateful(initial: number) {
     const [cola, setCola] = useState(initial);
     return (
       <AssumptionsPanel
-        lifeExpectancies={[
-          { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 82, gender: 'male' },
-        ]}
         annualCola={cola}
         onAnnualColaChange={(v) => {
           seen.push(v);
@@ -142,96 +135,6 @@ describe('COLA survives a share-link round trip', () => {
   });
 });
 
-describe('AssumptionsPanel per-person life expectancy', () => {
-  it('renders exactly one life-expectancy control for a single claimant', () => {
-    render(
-      <AssumptionsPanel
-        lifeExpectancies={[
-          { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
-        ]}
-        annualCola={2.5}
-        onAnnualColaChange={vi.fn()}
-        discountRate={0.025}
-        onDiscountRateChange={vi.fn()}
-      dollarsMode="real"
-      onDollarsModeChange={vi.fn()}
-        solvency={DEFAULT_SOLVENCY}
-        onSolvencyChange={vi.fn()}
-        expanded
-        onToggle={vi.fn()}
-      />,
-    );
-    // The panel also renders discount-rate and COLA sliders, so count
-    // life-expectancy controls specifically (id starting `life-`) rather
-    // than all sliders on the page — a single claimant must see B's control
-    // absent, not just "some slider count".
-    const lifeSliders = screen
-      .getAllByRole('slider')
-      .filter((el) => el.id.startsWith('life-'));
-    expect(lifeSliders).toHaveLength(1);
-  });
-
-  it('renders one life-expectancy control per person', () => {
-    render(
-      <AssumptionsPanel
-        lifeExpectancies={[
-          { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
-          { label: 'Jane', value: 92, onChange: vi.fn(), ssaSuggested: 86, gender: 'female' },
-        ]}
-        annualCola={2.5}
-        onAnnualColaChange={vi.fn()}
-        discountRate={0.025}
-        onDiscountRateChange={vi.fn()}
-      dollarsMode="real"
-      onDollarsModeChange={vi.fn()}
-        solvency={DEFAULT_SOLVENCY}
-        onSolvencyChange={vi.fn()}
-        expanded
-        onToggle={vi.fn()}
-      />,
-    );
-    expect(screen.getByLabelText(/John/)).toHaveValue('85');
-    expect(screen.getByLabelText(/Jane/)).toHaveValue('92');
-    // Each hint reads its own person's gender and SSA-suggested age, not person
-    // A's. A bare /86/ match could hit unrelated text on the panel and
-    // getByText throws if more than one node matches, so this pins the claim
-    // to the one field-hint span whose own text mentions both "86" and
-    // "female" — i.e. Jane's hint, not John's (83, male).
-    const janeHint = screen.getByText(
-      (_, element) =>
-        element?.tagName === 'SPAN' &&
-        element.className === 'field-hint' &&
-        /86/.test(element.textContent ?? '') &&
-        /female/i.test(element.textContent ?? ''),
-    );
-    expect(janeHint).toBeInTheDocument();
-  });
-
-  it('calls the right person handler', async () => {
-    const onChangeB = vi.fn();
-    render(
-      <AssumptionsPanel
-        lifeExpectancies={[
-          { label: 'John', value: 85, onChange: vi.fn(), ssaSuggested: 83, gender: 'male' },
-          { label: 'Jane', value: 92, onChange: onChangeB, ssaSuggested: 86, gender: 'female' },
-        ]}
-        annualCola={2.5}
-        onAnnualColaChange={vi.fn()}
-        discountRate={0.025}
-        onDiscountRateChange={vi.fn()}
-      dollarsMode="real"
-      onDollarsModeChange={vi.fn()}
-        solvency={DEFAULT_SOLVENCY}
-        onSolvencyChange={vi.fn()}
-        expanded
-        onToggle={vi.fn()}
-      />,
-    );
-    await userEvent.click(screen.getByRole('button', { name: /Use SSA age \(86\)/ }));
-    expect(onChangeB).toHaveBeenCalledWith(86);
-  });
-});
-
 describe('AssumptionsPanel benefit-reduction scenario', () => {
   it('is off in the panel until it is switched on, and hides its figures until then', () => {
     renderPanel();
@@ -304,8 +207,26 @@ describe('AssumptionsPanel CPI history', () => {
  * but could only name one of the two bases — leaving present value, the
  * default, as the unlabelled off state.
  */
+/**
+ * ONE control for how figures are stated.
+ *
+ * It was two — this switch and a separate Dollars toggle — and moving the
+ * dollars alone produced a pair neither name described, so the switch showed
+ * nothing selected. The two were always describing one decision.
+ */
 describe('AssumptionsPanel report basis', () => {
   const basisButton = (id: 'present' | 'future') => screen.getByTestId(`report-basis-${id}`);
+
+  it('always has exactly one option selected', () => {
+    for (const mode of ['real', 'nominal'] as const) {
+      const view = renderPanel({ dollarsMode: mode });
+      const pressed = (['present', 'future'] as const).filter(
+        (id) => basisButton(id).getAttribute('aria-pressed') === 'true',
+      );
+      expect(pressed, `dollarsMode=${mode}`).toHaveLength(1);
+      view.unmount();
+    }
+  });
 
   it('reads present value from the default settings', () => {
     renderPanel();
@@ -313,90 +234,62 @@ describe('AssumptionsPanel report basis', () => {
     expect(basisButton('future')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('sets both settings together when future value is chosen', async () => {
-    // Either alone leaves the report stating a quantity neither basis means:
-    // nominal dollars discounted back to today, with nothing on the page
-    // saying so.
+  it('never touches the discount rate', async () => {
+    // The whole point of the split. The rate is a planning assumption that
+    // ranks the strategies; choosing how a figure is WORDED must not change
+    // which filing ages the report recommends.
     const onDollarsModeChange = vi.fn();
     const onDiscountRateChange = vi.fn();
     renderPanel({ onDollarsModeChange, onDiscountRateChange });
     await userEvent.click(basisButton('future'));
     expect(onDollarsModeChange).toHaveBeenCalledWith('nominal');
-    expect(onDiscountRateChange).toHaveBeenCalledWith(0);
+    expect(onDiscountRateChange).not.toHaveBeenCalled();
   });
 
-  it('restores a discount rate when coming back from future value', async () => {
+  it('comes back to present value without restoring anything', async () => {
     const onDollarsModeChange = vi.fn();
     const onDiscountRateChange = vi.fn();
-    renderPanel({ dollarsMode: 'nominal', discountRate: 0, onDollarsModeChange, onDiscountRateChange });
+    renderPanel({ dollarsMode: 'nominal', onDollarsModeChange, onDiscountRateChange });
     expect(basisButton('future')).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(basisButton('present'));
     expect(onDollarsModeChange).toHaveBeenCalledWith('real');
-    expect(onDiscountRateChange).toHaveBeenCalledWith(DEFAULT_DISCOUNT_RATE);
-  });
-
-  it('leaves a rate the adviser chose alone', async () => {
-    // 4% in real dollars is still present value. Snapping it back to the
-    // default would silently discard a deliberate assumption — and the
-    // control is describing the report, not prescribing it.
-    const onDiscountRateChange = vi.fn();
-    renderPanel({ discountRate: 0.04, onDiscountRateChange });
-    expect(basisButton('present')).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(basisButton('present'));
     expect(onDiscountRateChange).not.toHaveBeenCalled();
   });
 
-  it('claims neither basis for a combination that is neither', () => {
-    // Nominal cash flows at a nominal discount rate: defensible, common, and
-    // not what either preset means. A two-state control would have had to
-    // show one of them selected while the report was in the other.
-    renderPanel({ dollarsMode: 'nominal', discountRate: 0.025 });
-    expect(basisButton('present')).toHaveAttribute('aria-pressed', 'false');
-    expect(basisButton('future')).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByText(/Neither preset/)).toBeInTheDocument();
+  it('holds a rate the adviser chose, whichever basis is showing', () => {
+    // 4% stays 4% in both. It is an assumption about this household, not a
+    // consequence of which way the figures are being read.
+    for (const mode of ['real', 'nominal'] as const) {
+      const view = renderPanel({ dollarsMode: mode, discountRate: 0.04 });
+      expect(screen.getByLabelText(/Discount rate/)).toHaveValue('4');
+      view.unmount();
+    }
   });
 
-  it('warns that the basis reaches the recommendation, not just the wording', () => {
-    // The discount rate feeds the optimizer, so this control can change which
-    // filing ages the report recommends. A control named after presentation
-    // has to say that out loud.
+  it('says the recommendation does not move with it', () => {
     renderPanel();
-    expect(screen.getByText(/can change the recommendation/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/the recommended filing ages are the same either way/),
+    ).toBeInTheDocument();
+  });
+
+  it('no longer offers a second control for the same state', () => {
+    // The Dollars toggle is gone: it set half of this and could leave the
+    // switch above it showing neither option.
+    renderPanel();
+    expect(screen.queryByTestId('dollars-real')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dollars-nominal')).not.toBeInTheDocument();
   });
 });
 
-/**
- * The dollars half of the basis, on its own.
- *
- * It used to live in the Combined Household Income chart's header, which made
- * it look like a setting for that chart. It was not: it rewrote every table,
- * the claiming grid and the exported PDF too. One control, in the one place
- * the other half of the basis already lives.
- */
-describe('AssumptionsPanel dollars control', () => {
-  it('shows which dollars the report is in', () => {
-    renderPanel({ dollarsMode: 'nominal' });
-    expect(screen.getByTestId('dollars-nominal')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('dollars-real')).toHaveAttribute('aria-pressed', 'false');
-  });
-
-  it('changes the dollars without touching the discount rate', async () => {
-    // The distinction from the preset above it: this moves one setting, so an
-    // adviser can reach a combination neither preset names.
-    const onDollarsModeChange = vi.fn();
-    const onDiscountRateChange = vi.fn();
-    renderPanel({ onDollarsModeChange, onDiscountRateChange });
-    await userEvent.click(screen.getByTestId('dollars-nominal'));
-    expect(onDollarsModeChange).toHaveBeenCalledWith('nominal');
-    expect(onDiscountRateChange).not.toHaveBeenCalled();
-  });
-
-  it('keeps the preset above it in step', async () => {
-    // Real dollars at 2.5% is present value; switching the dollars alone
-    // leaves nominal-at-2.5%, which is neither preset — and the control has
-    // to say so rather than keep a button lit.
-    renderPanel({ dollarsMode: 'nominal', discountRate: 0.025 });
-    expect(screen.getByTestId('report-basis-present')).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('report-basis-future')).toHaveAttribute('aria-pressed', 'false');
+describe('AssumptionsPanel scope', () => {
+  it('no longer holds the per-person life expectancy sliders', () => {
+    // They moved next to each person's name, date of birth and benefit —
+    // the fields an adviser is typing when they know the answer. What is
+    // left here applies to the whole report.
+    renderPanel();
+    expect(screen.queryAllByRole('slider').filter((el) => el.id.startsWith('life-'))).toHaveLength(
+      0,
+    );
   });
 });

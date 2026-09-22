@@ -216,18 +216,23 @@ describe('a reduction that changes the leader by almost nothing', () => {
   });
 
   it('still calls a change a change when the gap is big enough to act on', async () => {
-    // The positive control, and a real one rather than a synthetic table: the
-    // SAME household restated in future dollars, where the reduced column's
-    // top two are 0.63% apart instead of 0.49%. Without this the test above
-    // would pass on a flag that was simply always set.
+    // The positive control, on the same household with a deeper cut. At 78%
+    // payable the reduced leaders are half a percent apart; at 60% the cut
+    // bites the delaying plans hard enough to open a real gap, and the page
+    // says so rather than holding back. Without this the test above would
+    // pass on a flag that was simply always set.
     const analysis = await analyzeHousehold(married, assumptions, asOf);
-    const future = solvencyInDollarsMode(
-      solvencySensitivity(analysis, TRUSTEES_ASSUMPTION)!,
-      'nominal',
-    )!;
-    expect(future.sameWinner).toBe(false);
-    expect(future.tooCloseToCall).toBe(false);
-    expect(leadMargin(future.rows.map((r) => r.reduced))).toBeGreaterThan(MATERIAL_MARGIN);
+    const deep = solvencySensitivity(analysis, {
+      enabled: true,
+      fromYear: 2032,
+      payablePercent: 60,
+    })!;
+    expect(deep.sameWinner).toBe(false);
+    expect(deep.tooCloseToCall).toBe(false);
+    const reducedOf = (key: string) => deep.rows.find((r) => r.key === key)!.reduced;
+    expect(
+      leadMargin([reducedOf(deep.bestReducedKey), reducedOf(deep.bestFullKey)]),
+    ).toBeGreaterThan(MATERIAL_MARGIN);
   });
 
   it('says nothing about closeness when the leader does not change at all', async () => {

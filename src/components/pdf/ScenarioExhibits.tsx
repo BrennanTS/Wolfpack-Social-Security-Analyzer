@@ -26,7 +26,7 @@ import { formatPercent } from '../../lib/cpiHistory';
 import { discountFactor } from '../../lib/lifetimeValue';
 import { styles, BORDER, CHART_INNER_W, GOLD, INK, MUTED, SUBTLE } from './theme';
 
-/** Distinct enough to tell six curves apart in grayscale as well as colour. */
+/** Distinct enough to tell six curves apart in grayscale as well as color. */
 const SERIES = [GOLD, INK, '#4f7cac', '#8a6fa8', '#5f8f6a', '#b07d4a'] as const;
 const seriesColor = (i: number) => SERIES[i % SERIES.length];
 

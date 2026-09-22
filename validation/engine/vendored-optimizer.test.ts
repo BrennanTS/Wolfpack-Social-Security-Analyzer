@@ -22,7 +22,7 @@
  *
  * Ages are in ENGINE slot order (the fixture's own `people` order), NOT the
  * app's display order. `compareForEngine` canonicalizes a married pair before
- * the app calls the optimizer; that reordering is app behaviour and belongs to
+ * the app calls the optimizer; that reordering is app behavior and belongs to
  * the app's own tests, not here.
  *
  * Values were recorded from the engine on 2026-08-17, at the discount rate

@@ -556,13 +556,6 @@ describe('a preset built for a different basis', () => {
     expect(screen.queryByTestId('layout-basis-note')).not.toBeInTheDocument();
   });
 
-  it('names a custom basis rather than pretending it is one of the two', () => {
-    renderBasis(SAVVY_LAYOUT, 'custom', vi.fn());
-    expect(screen.getByTestId('layout-basis-note')).toHaveTextContent(
-      'Your report is on a custom basis',
-    );
-  });
-
   it('still states the mismatch where it cannot fix it', () => {
     // No handler: a caller that does not own the assumptions. Telling the
     // adviser is useful even there, so the note stays and only the button goes.

@@ -136,11 +136,11 @@ describe('degenerate data the engine can genuinely produce', () => {
 });
 
 describe('the age the report is built around', () => {
-  it('marks the shown age in the brand colour, on the charts that colour it inline', () => {
+  it('marks the shown age in the brand color, on the charts that color it inline', () => {
     // The gold marker is what ties a chart to the recommendation beside it.
     // Read from the live theme binding at render time, so a chart that had
-    // captured a stale colour would point at the right age in the wrong
-    // colour after a rebrand — invisible to a tree walk that only checks
+    // captured a stale color would point at the right age in the wrong
+    // color after a rebrand — invisible to a tree walk that only checks
     // shapes.
     for (const render of [
       () => PdfChart({ options: OPTIONS, shownAge: 70, lifeExpectancy: 85, annualCola: 2.5 }),

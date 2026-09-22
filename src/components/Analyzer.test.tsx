@@ -538,7 +538,7 @@ describe('starting a new client', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
 
     expect(store.getItem(KEY)).toBe(before);
-    // Labelled by the person's NAME once they have one, which is also how a
+    // Labeled by the person's NAME once they have one, which is also how a
     // reader knows which of two date fields they are in.
     expect(screen.getByLabelText('John date of birth')).toHaveValue('1962-04-15');
   }, 20000);
