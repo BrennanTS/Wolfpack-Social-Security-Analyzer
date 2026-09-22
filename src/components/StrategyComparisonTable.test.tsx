@@ -143,7 +143,7 @@ describe('StrategyComparisonTable', () => {
 
   it("points at the existing gap note, rather than repeating it, when survivorGap is set", () => {
     const gap: SurvivorGap = {
-      survivorLabel: 'Jane',
+      survivorLabel: 'Jane', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,

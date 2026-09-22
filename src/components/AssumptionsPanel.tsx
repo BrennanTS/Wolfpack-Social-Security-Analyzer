@@ -1,4 +1,10 @@
 import type { DollarsMode } from '../lib/dollarsMode';
+import {
+  BASIS_LABEL,
+  basisOf,
+  settingsForBasis,
+  type NamedBasis,
+} from '../lib/reportBasis';
 import { CPI_DEFAULT_COLA, formatPercent } from '../lib/cpiHistory';
 import type { Gender } from '../lib/personAnalysis';
 import { genderLabel, SSA_LIFE_TABLE_URL } from '../lib/lifeExpectancy';
@@ -18,24 +24,9 @@ import {
   type SolvencyAssumption,
 } from '../lib/solvency';
 
-/**
- * How the report states every total: what the money is worth today, or how
- * many dollars change hands.
- *
- * Two settings, one control. They have to move together because either alone
- * leaves the report saying two things at once — future dollars discounted
- * back to today is a coherent quantity, but it is not what either a client or
- * a competitor's report means by a lifetime total, and nothing on the page
- * would have said which was meant.
- */
-type ReportBasis = 'present' | 'future' | 'custom';
+const BASES: NamedBasis[] = ['present', 'future'];
 
-const BASES: { id: Exclude<ReportBasis, 'custom'>; label: string }[] = [
-  { id: 'present', label: 'Present value' },
-  { id: 'future', label: 'Future value' },
-];
-
-const BASIS_HINT: Record<Exclude<ReportBasis, 'custom'>, string> = {
+const BASIS_HINT: Record<NamedBasis, string> = {
   present:
     'Today’s money. Future payments are counted for less the further away they are, at ' +
     'the discount rate below. This is the default, and the honest answer to “what is this ' +
@@ -50,6 +41,11 @@ const CUSTOM_BASIS_HINT =
   'Neither preset: the dollars and the discount rate have been set separately. That is a ' +
   'valid combination — future dollars at a nominal discount rate is the textbook pairing — ' +
   'but the report will not describe itself as either basis.';
+
+const DOLLARS_OPTIONS: { id: DollarsMode; label: string }[] = [
+  { id: 'real', label: 'Today’s dollars' },
+  { id: 'nominal', label: 'Future (nominal)' },
+];
 
 interface LifeExpectancyControl {
   label: string;
@@ -96,34 +92,17 @@ export function AssumptionsPanel({
   const usingTrusteesProjection = isTrusteesProjection(solvency);
   const usingDefaultDiscount = Math.abs(discountRate - DEFAULT_DISCOUNT_RATE) < 0.001;
   /**
-   * DERIVED, never stored. The basis is whatever the two settings it drives
-   * currently say, so moving either one by hand moves this on its own and
-   * there is no third piece of state to fall out of step with the pair it
-   * claims to describe. It also means the share link needs no new parameter:
-   * `dollars` and `dr` already carry it.
-   *
-   * `custom` is a real answer, not a fallback. The two named bases are two of
-   * the four combinations the controls below can reach — nominal cash flows
-   * discounted at a nominal rate is the textbook-correct pairing and is
-   * neither of them — and a two-state control would have to show one of them
-   * selected while the report was in the other.
+   * DERIVED, never stored — see `reportBasis.ts`, which owns the rule so the
+   * layout presets can name a basis without importing this panel.
    */
-  const basis: ReportBasis =
-    dollarsMode === 'real' && discountRate > 0
-      ? 'present'
-      : dollarsMode === 'nominal' && discountRate === 0
-        ? 'future'
-        : 'custom';
+  const basis = basisOf({ dollarsMode, discountRate });
 
-  const setBasis = (next: ReportBasis) => {
-    if (next === 'present') {
-      onDollarsModeChange('real');
-      // Keep a rate the adviser has chosen; only supply one if there is none.
-      if (discountRate <= 0) onDiscountRateChange(DEFAULT_DISCOUNT_RATE);
-      return;
-    }
-    onDollarsModeChange('nominal');
-    onDiscountRateChange(0);
+  const setBasis = (next: NamedBasis) => {
+    const wanted = settingsForBasis(next, { dollarsMode, discountRate });
+    onDollarsModeChange(wanted.dollarsMode);
+    // Only when it actually differs, so choosing Present value while already
+    // on a rate the adviser picked does not report a change that is not one.
+    if (wanted.discountRate !== discountRate) onDiscountRateChange(wanted.discountRate);
   };
 
   return (
@@ -161,14 +140,14 @@ export function AssumptionsPanel({
             <div className="segmented-control" role="group" aria-label="Report basis">
               {BASES.map((option) => (
                 <button
-                  key={option.id}
+                  key={option}
                   type="button"
-                  className={`segment-btn ${basis === option.id ? 'segment-btn-active' : ''}`}
-                  data-testid={`report-basis-${option.id}`}
-                  onClick={() => setBasis(option.id)}
-                  aria-pressed={basis === option.id}
+                  className={`segment-btn ${basis === option ? 'segment-btn-active' : ''}`}
+                  data-testid={`report-basis-${option}`}
+                  onClick={() => setBasis(option)}
+                  aria-pressed={basis === option}
                 >
-                  {option.label}
+                  {BASIS_LABEL[option]}
                 </button>
               ))}
             </div>
@@ -179,8 +158,34 @@ export function AssumptionsPanel({
               It sets the whole report — every table, chart and total, on screen and in the
               PDF. The discount rate is also used to pick the filing ages the report
               recommends, so changing the basis can change the recommendation and not only
-              how it is stated. Both settings stay yours to set separately, below and on the
-              Household tab.
+              how it is stated. Both settings it drives stay yours to set separately, below.
+            </span>
+          </div>
+
+          {/* The two halves of the basis, on their own, directly under it.
+              The dollars half used to live in the Combined Household Income
+              chart's header — a second switch for one piece of state, sitting
+              beside a single chart while it silently rewrote every table and
+              the export as well. One place, and the preset above reads it. */}
+          <div className="field advanced-field">
+            <span className="field-label">Dollars</span>
+            <div className="segmented-control" role="group" aria-label="Dollars">
+              {DOLLARS_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`segment-btn ${dollarsMode === option.id ? 'segment-btn-active' : ''}`}
+                  data-testid={`dollars-${option.id}`}
+                  onClick={() => onDollarsModeChange(option.id)}
+                  aria-pressed={dollarsMode === option.id}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <span className="field-hint">
+              Whether figures are shown as they would be paid, with the cost-of-living
+              increase compounded in, or in what they are worth today.
             </span>
           </div>
 

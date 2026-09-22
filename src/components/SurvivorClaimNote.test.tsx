@@ -12,7 +12,7 @@ describe('SurvivorClaimNote', () => {
             survivorClaim: {
               claimIndex: 2036 * 12 + 4,
               claimAge: '68 years, 0 months',
-              survivorLabel: 'Jane',
+              survivorLabel: 'Jane', survivorGender: null,
               baselineTotal: 300_000,
               bestTotal: 435_700,
               gain: 135_700,

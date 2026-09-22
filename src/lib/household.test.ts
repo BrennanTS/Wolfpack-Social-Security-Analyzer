@@ -1393,7 +1393,7 @@ describe('analyzeHousehold — widowed', () => {
     status: 'widowed',
     people: [widowPerson],
     deceased: {
-      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
+      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3, gender: 'male',
       record: { kind: 'pia', piaMonthly: 3000, filed: null },
     },
     alreadyClaimed: { survivorSince: null, ownSince: null },
@@ -1410,7 +1410,7 @@ describe('analyzeHousehold — widowed', () => {
     status: 'widowed',
     people: [{ ...widowPerson, piaMonthly: 2400, lifeExpectancy: 70 }],
     deceased: {
-      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
+      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3, gender: 'male',
       record: { kind: 'pia', piaMonthly: 2450, filed: null },
     },
     alreadyClaimed: { survivorSince: null, ownSince: null },
@@ -1600,7 +1600,7 @@ describe('analyzeHousehold — widowed', () => {
       status: 'widowed',
       people: [zeroPerson],
       deceased: {
-        birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
+        birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3, gender: 'male',
         record: { kind: 'pia', piaMonthly: 0, filed: null },
       },
       alreadyClaimed: { survivorSince: null, ownSince: null },
@@ -1714,7 +1714,7 @@ describe('analyzeHousehold — widowed', () => {
       status: 'widowed',
       people: [{ ...widowPerson, piaMonthly: 2400, lifeExpectancy: 90 }],
       deceased: {
-        birthYear: 1959, birthMonth: 3, birthDay: 15, deathYear: 2023, deathMonth: 9,
+        birthYear: 1959, birthMonth: 3, birthDay: 15, deathYear: 2023, deathMonth: 9, gender: 'male',
         record: { kind: 'pia', piaMonthly: 1800, filed: null },
       },
       alreadyClaimed: { survivorSince: null, ownSince: null },

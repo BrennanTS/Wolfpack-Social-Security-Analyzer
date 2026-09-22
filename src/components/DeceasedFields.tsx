@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { genderLabel } from '../lib/lifeExpectancy';
+import { capitalize, pronounsFor } from '../lib/pronouns';
 import type {
   AlreadyClaimedFormFields,
   DeceasedFormFields,
@@ -89,6 +91,10 @@ export function DeceasedFields({
 }: DeceasedFieldsProps) {
   const setDeceased = (patch: Partial<DeceasedFormFields>) =>
     onDeceasedChange({ ...deceased, ...patch });
+  // Every question on this form is ABOUT the deceased, so they all follow the
+  // gender control above once it is answered, and all read "they" until then.
+  const p = pronounsFor(deceased.gender);
+  const filedQuestion = `Had ${p.subject} filed before ${p.subject} died?`;
   const setAlreadyClaimed = (patch: Partial<AlreadyClaimedFormFields>) =>
     onAlreadyClaimedChange({ ...alreadyClaimed, ...patch });
 
@@ -171,8 +177,36 @@ export function DeceasedFields({
           {errors.death && <span className="field-error">{ERROR_TEXT[errors.death]}</span>}
         </div>
 
+        {/* The same two-button control the claimants get, and required the
+            same way. It reaches no calculation — the survivor's gender picks
+            a life table, but nobody prices the lifespan of someone who has
+            already died — so the hint says so rather than repeating the
+            claimants' "used for SSA life expectancy tables", which would be
+            false here. Every question below this one reads from it. */}
         <div className="field">
-          <span className="field-label">How do you know their benefit?</span>
+          <span className="field-label">Gender</span>
+          <div className="segmented-control" role="group" aria-label="Deceased spouse gender">
+            {(['female', 'male'] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                className={`segment-btn ${deceased.gender === g ? 'segment-btn-active' : ''}`}
+                data-testid={`dec-gender-${g}`}
+                onClick={() => setDeceased({ gender: g })}
+                aria-pressed={deceased.gender === g}
+              >
+                {genderLabel(g)}
+              </button>
+            ))}
+          </div>
+          <span className="field-hint">
+            Used only for how the report refers to {pronounsFor(deceased.gender).object} — it
+            changes no figure.
+          </span>
+        </div>
+
+        <div className="field">
+          <span className="field-label">How do you know {p.possessive} benefit?</span>
           <div
             className="segmented-control"
             role="group"
@@ -196,7 +230,7 @@ export function DeceasedFields({
               onClick={() => setDeceased({ recordKind: 'checkAmount' })}
               aria-pressed={deceased.recordKind === 'checkAmount'}
             >
-              Monthly check they received
+              Monthly check {p.subject} received
             </button>
           </div>
         </div>
@@ -224,11 +258,11 @@ export function DeceasedFields({
             </div>
 
             <div className="field">
-              <span className="field-label">Had they filed before they died?</span>
+              <span className="field-label">{filedQuestion}</span>
               <div
                 className="segmented-control"
                 role="group"
-                aria-label="Had they filed before they died?"
+                aria-label={filedQuestion}
               >
                 <button
                   type="button"
@@ -255,7 +289,7 @@ export function DeceasedFields({
 
             {deceased.hadFiled === true && (
               <div className="field">
-                <label htmlFor="dec-filed">Date They Filed</label>
+                <label htmlFor="dec-filed">Date {capitalize(p.subject)} Filed</label>
                 <div className="birth-row">
                   <select
                     id="dec-filed-month"
@@ -287,7 +321,7 @@ export function DeceasedFields({
         ) : (
           <>
             <div className="field" data-testid="dec-check-amount-field">
-              <label htmlFor="dec-check-amount">Monthly check they received</label>
+              <label htmlFor="dec-check-amount">Monthly check {p.subject} received</label>
               <div className="currency-input">
                 <span className="currency-prefix">$</span>
                 <input
@@ -312,7 +346,7 @@ export function DeceasedFields({
             </div>
 
             <div className="field">
-              <label htmlFor="dec-filed">Date They Filed</label>
+              <label htmlFor="dec-filed">Date {capitalize(p.subject)} Filed</label>
               <div className="birth-row">
                 <select
                   id="dec-filed-month"
@@ -340,7 +374,7 @@ export function DeceasedFields({
               {errors.filed && <span className="field-error">{ERROR_TEXT[errors.filed]}</span>}
               <span className="field-hint" id="dec-check-amount-hint">
                 This is an estimate. A current check includes every cost-of-living increase
-                since they filed, which the benefit formula does not.
+                since {p.subject} filed, which the benefit formula does not.
               </span>
             </div>
           </>

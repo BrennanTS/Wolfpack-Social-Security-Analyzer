@@ -74,17 +74,16 @@ interface CombinedIncomeChartProps {
   /**
    * Decides only the caption's closing sentence — `monthlySeries` above
    * already carries the actual real-or-nominal figures. Defaults to `'real'`
-   * so every test written before the toggle existed keeps asserting the
+   * so every test written before the report basis existed keeps asserting the
    * sentence that was already correct.
+   *
+   * Read-only. This chart used to carry its own Today's/Future toggle in its
+   * header, which was the second control for a setting that now belongs to
+   * the report basis in the assumptions panel — two switches for one state,
+   * one of them sitting beside a single chart while it silently rewrote every
+   * table and the PDF as well.
    */
   dollarsMode?: DollarsMode;
-  /**
-   * Renders the toggle in the chart header when provided. Omitted by every
-   * existing test call site and by the PDF's analogue (`CombinedIncomeBars`,
-   * which has no interactive control at all) — print can't toggle, and a
-   * caller with nothing to do on change has nothing to pass here.
-   */
-  onDollarsModeChange?: (mode: DollarsMode) => void;
   /**
    * Overrides the caption beneath the chart. The default
    * (`combinedIncomeCaption`) speaks of "each person's segments" and "any
@@ -168,7 +167,6 @@ export function CombinedIncomeChart({
   survivorFloor,
   finalIndexByPersonId = {},
   dollarsMode = 'real',
-  onDollarsModeChange,
   caption,
 }: CombinedIncomeChartProps) {
   const gap = survivorGap ?? null;
@@ -330,30 +328,6 @@ export function CombinedIncomeChart({
       <div className="chart-header">
         <h3>Combined Household Income</h3>
         <p>{COMBINED_INCOME_SUBTITLE}</p>
-        {onDollarsModeChange && (
-          <div
-            className="segmented-control dollars-mode-control"
-            role="group"
-            aria-label="Dollars"
-          >
-            <button
-              type="button"
-              className={`segment-btn${dollarsMode === 'real' ? ' segment-btn-active' : ''}`}
-              aria-pressed={dollarsMode === 'real'}
-              onClick={() => onDollarsModeChange('real')}
-            >
-              Today’s dollars
-            </button>
-            <button
-              type="button"
-              className={`segment-btn${dollarsMode === 'nominal' ? ' segment-btn-active' : ''}`}
-              aria-pressed={dollarsMode === 'nominal'}
-              onClick={() => onDollarsModeChange('nominal')}
-            >
-              Future (nominal) dollars
-            </button>
-          </div>
-        )}
         {/* `people.length > 1` was standing in for "the default caption is
             about couples" — a single claimant has no spousal or survivor
             segment for it to describe. A caller that passes its OWN caption

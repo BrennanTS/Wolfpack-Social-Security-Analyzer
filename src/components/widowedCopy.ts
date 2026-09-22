@@ -1,3 +1,5 @@
+import type { Gender } from '../lib/lifeExpectancy';
+import { pronounsFor } from '../lib/pronouns';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { formatCurrency } from '../lib/format';
 import type { DeceasedSummary } from '../lib/household';
@@ -77,7 +79,12 @@ export function widowedLifetimeCaption(planToAge: number): string {
  * increment of. Same conditional-caption problem `combinedIncomeCaption`
  * already handles for a survivor gap.
  */
-export function widowedIncomeCaption(mode: DollarsMode = 'real', overlaps = true): string {
+export function widowedIncomeCaption(
+  mode: DollarsMode = 'real',
+  overlaps = true,
+  /** The survivor's gender, for the pronoun in the non-overlapping branch. */
+  survivorGender: Gender | null = null,
+): string {
   // Stated only when the basis is the UNUSUAL one.
   //
   // Both surfaces that render this caption render `widowedLifetimeCaption`
@@ -101,7 +108,7 @@ export function widowedIncomeCaption(mode: DollarsMode = 'real', overlaps = true
       'check: the two benefits are one payment, and SSA pays the larger.'
     : 'The two benefits never run together here. SSA pays the larger, and this person’s own ' +
       'record is worth more than the survivor benefit, so the survivor benefit stops the month ' +
-      'their own begins.';
+      `${pronounsFor(survivorGender).possessive} own begins.`;
   return `${shape}${dollarsClause}`;
 }
 
@@ -122,11 +129,12 @@ export function piaEstimateNote(
   const basis = deceased.filed
     ? `${formatCurrency(deceased.piaMonthly)} is in ${deceased.filed.year} dollars`
     : `${formatCurrency(deceased.piaMonthly)} carries no cost-of-living adjustment`;
+  const p = pronounsFor(deceased.gender);
   return (
     `This benefit was worked back from the monthly check you entered, so it is an ` +
-    `estimate: a check includes every cost-of-living rise since they filed and this ` +
-    `figure includes none, which means ${basis}. Every survivor figure on this page ` +
-    `follows from it.`
+    `estimate: a check includes every cost-of-living rise since ${p.subject} ` +
+    `${p.verb('filed', 'filed')} and this figure includes none, which means ${basis}. ` +
+    `Every survivor figure on this page follows from it.`
   );
 }
 
@@ -161,7 +169,21 @@ export const WIDOWED_MODELING_NOTE =
  * age floor, its separate reduction schedule, and the cap that applies when
  * the deceased had already filed.
  */
-export const WIDOWED_SURVIVOR_CARD =
-  'A survivor benefit is payable from age 60, reduced for each month claimed before the ' +
-  'survivor full retirement age, which follows a different schedule from the retirement ' +
-  'one. Where the deceased had already filed, it is capped at what they were receiving.';
+/**
+ * The survivor benefit's own rules, which the disclosure does not state: its
+ * age floor, its separate reduction schedule, and the cap that applies when
+ * the deceased had already filed.
+ *
+ * A function of the deceased's gender rather than a constant, because the last
+ * clause is about THIS household's deceased spouse and not about deceased
+ * spouses generally — the two before it are rules, and stay rules.
+ */
+export function widowedSurvivorCard(deceasedGender: Gender | null): string {
+  const p = pronounsFor(deceasedGender);
+  return (
+    'A survivor benefit is payable from age 60, reduced for each month claimed before the ' +
+    'survivor full retirement age, which follows a different schedule from the retirement ' +
+    `one. Where the deceased had already filed, it is capped at what ${p.subject} ` +
+    `${p.verb('was', 'were')} receiving.`
+  );
+}

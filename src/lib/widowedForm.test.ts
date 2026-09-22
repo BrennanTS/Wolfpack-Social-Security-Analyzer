@@ -25,7 +25,7 @@ const olderBirth = { year: 1958, month: 6 };
 
 const filled: DeceasedFormFields = {
   birthYear: 1960, birthMonth: 3, birthDay: 15,
-  deathYear: 2024, deathMonth: 3,
+  deathYear: 2024, deathMonth: 3, gender: 'male',
   recordKind: 'pia',
   piaMonthly: 3000,
   hadFiled: false,
@@ -291,5 +291,38 @@ describe('widowedErrors — the age floors', () => {
   it('says nothing about a filing date that is still half-typed', () => {
     const halfTyped: DeceasedFormFields = { ...filled, hadFiled: true, filedYear: 2019, filedMonth: '' };
     expect(widowedErrors(halfTyped, BLANK_ALREADY_CLAIMED, survivorBirth, asOf).filed).toBeUndefined();
+  });
+});
+
+/**
+ * The deceased's gender is the one optional field on this form.
+ *
+ * It decides a pronoun and nothing else, so requiring it would block an
+ * analysis over a word — and an adviser who does not know, or whose client
+ * would rather not say, must still be able to run the report.
+ */
+describe('the deceased’s gender', () => {
+  it('is required, like the survivor’s', () => {
+    // It computes nothing, but it is always known, and a report that says
+    // "they" about a named spouse when the adviser could have said "he" is
+    // worse than one more click.
+    expect(isWidowedComplete({ ...filled, gender: null })).toBe(false);
+    expect(isWidowedComplete({ ...filled, gender: 'female' })).toBe(true);
+    expect(isWidowedComplete({ ...filled, gender: 'male' })).toBe(true);
+    // And naming one does not paper over anything else that is missing.
+    expect(isWidowedComplete({ ...filled, deathYear: '', gender: 'female' })).toBe(false);
+  });
+
+  it('reaches the domain object unchanged, including when unset', () => {
+    expect(toDeceased({ ...filled, gender: 'male' }).gender).toBe('male');
+    expect(toDeceased({ ...filled, gender: null }).gender).toBeNull();
+  });
+
+  it('starts unset rather than defaulted', () => {
+    // A form that arrives with a guess already made is a guess the adviser
+    // never sees themselves agree to — and since it is required, a default
+    // would also let an unanswered form pass as complete.
+    expect(BLANK_DECEASED.gender).toBeNull();
+    expect(isWidowedComplete(BLANK_DECEASED)).toBe(false);
   });
 });

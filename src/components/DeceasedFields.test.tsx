@@ -176,3 +176,62 @@ describe('DeceasedFields', () => {
     });
   });
 });
+
+/**
+ * Every question on this form is about the deceased spouse, so all of them
+ * follow the gender control once it is answered.
+ *
+ * The control sits above them deliberately: an adviser sets it while entering
+ * the dates, and the questions below are already in the right words by the
+ * time they are read.
+ */
+describe('the deceased’s own pronoun through the form', () => {
+  it('asks in they/them until the field is answered', () => {
+    // It is required, so this state is transient — but the form is rendered
+    // in it every time a widowed household is started, and "Had  filed
+    // before  died?" would be the alternative.
+    renderFields({ deceased: { ...BLANK_DECEASED, gender: null } });
+    expect(screen.getByText('How do you know their benefit?')).toBeInTheDocument();
+    expect(screen.getByText('Had they filed before they died?')).toBeInTheDocument();
+    for (const g of ['female', 'male']) {
+      expect(screen.getByTestId(`dec-gender-${g}`)).toHaveAttribute('aria-pressed', 'false');
+    }
+  });
+
+  it('follows the answer everywhere at once', () => {
+    renderFields({ deceased: { ...BLANK_DECEASED, gender: 'male' } });
+    expect(screen.getByText('How do you know his benefit?')).toBeInTheDocument();
+    expect(screen.getByText('Had he filed before he died?')).toBeInTheDocument();
+    expect(screen.queryByText('Had they filed before they died?')).not.toBeInTheDocument();
+  });
+
+  it('carries into the check-amount route’s label and hint', () => {
+    renderFields({
+      deceased: { ...BLANK_DECEASED, gender: 'female', recordKind: 'checkAmount' },
+    });
+    // Twice on purpose: the route button and the field label beneath it.
+    expect(screen.getAllByText('Monthly check she received')).toHaveLength(2);
+    expect(
+      screen.getByText(
+        'This is an estimate. A current check includes every cost-of-living increase ' +
+          'since she filed, which the benefit formula does not.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('capitalizes the pronoun where the label is title case', () => {
+    // "Date He Filed", beside "Date of Birth" and "Date of Death". The bare
+    // pronoun would read as a typo in that row.
+    renderFields({ deceased: { ...BLANK_DECEASED, gender: 'male', hadFiled: true } });
+    expect(screen.getByText('Date He Filed')).toBeInTheDocument();
+    renderFields({ deceased: { ...BLANK_DECEASED, gender: null, hadFiled: true } });
+    expect(screen.getByText('Date They Filed')).toBeInTheDocument();
+  });
+
+  it('can be changed after it is set', () => {
+    const onDeceasedChange = vi.fn();
+    renderFields({ deceased: { ...BLANK_DECEASED, gender: 'male' }, onDeceasedChange });
+    screen.getByTestId('dec-gender-female').click();
+    expect(onDeceasedChange).toHaveBeenCalledWith(expect.objectContaining({ gender: 'female' }));
+  });
+});

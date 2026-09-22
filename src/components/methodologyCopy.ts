@@ -13,6 +13,7 @@
 import type { BandType, SurvivorFloor, SurvivorGap } from '../lib/benefitPeriods';
 import { formatPercent } from '../lib/cpiHistory';
 import type { DollarsMode } from '../lib/dollarsMode';
+import { pronounsFor } from '../lib/pronouns';
 import {
   survivorIncomeRisesWithDelay,
   type HouseholdAnalysis,
@@ -133,18 +134,22 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
     );
   }
 
+  // The survivor is a named person on this page with a figure beside their
+  // name, so the sentence uses their pronoun where the report knows it.
+  const p = pronounsFor(gap.survivorGender);
+
   if (gap.survivorOwnMonthly === null) {
     return (
-      `${lead}. ${gap.survivorLabel} has not filed on their own record by then, so the chart ` +
-      `shows them nothing from that death until their own benefit begins. SSA would pay a ` +
-      `survivor benefit over those months.`
+      `${lead}. ${gap.survivorLabel} has not filed on ${p.possessive} own record by then, so ` +
+      `the chart shows ${p.object} nothing from that death until ${p.possessive} own benefit ` +
+      `begins. SSA would pay a survivor benefit over those months.`
     );
   }
 
   return (
-    `${lead} while receiving ${formatCurrencyPrecise(gap.survivorOwnMonthly)}/mo of their ` +
-    `own. The figures shown for ${gap.survivorLabel} after that death are lower than SSA ` +
-    `would pay.`
+    `${lead} while receiving ${formatCurrencyPrecise(gap.survivorOwnMonthly)}/mo of ` +
+    `${p.possessive} own. The figures shown for ${gap.survivorLabel} after that death are ` +
+    `lower than SSA would pay.`
   );
 }
 
@@ -518,7 +523,8 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
     // Unqualified, the sentence denied that.
     return (
       `No top-up applies to this household: half of the higher earner's full benefit does not ` +
-      `exceed ${subject}'s own benefit at their own full retirement age.`
+      `exceed ${subject}'s own benefit at ${pronounsFor(spousal.lowerEarnerGender).possessive} ` +
+      `own full retirement age.`
     );
   }
 

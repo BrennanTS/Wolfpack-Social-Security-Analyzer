@@ -16,7 +16,6 @@ interface HouseholdPanelProps {
   analysis: HouseholdAnalysis;
   annualCola: number;
   dollarsMode: DollarsMode;
-  onDollarsModeChange: (mode: DollarsMode) => void;
   /**
    * The scenario list behind the comparison table. Optional so the tests
    * written before scenarios existed render a plain, non-editable table.
@@ -80,7 +79,6 @@ export function HouseholdPanel({
   analysis,
   annualCola,
   dollarsMode,
-  onDollarsModeChange,
   scenarios,
   onScenariosChange,
 }: HouseholdPanelProps) {
@@ -184,7 +182,6 @@ export function HouseholdPanel({
         survivorFloor={analysis.survivorFloor}
         finalIndexByPersonId={analysis.finalIndexByPersonId}
         dollarsMode={dollarsMode}
-        onDollarsModeChange={onDollarsModeChange}
       />
 
       <IncomeCliffCallout analysis={displayAnalysis} dollarsMode={dollarsMode} />
@@ -206,6 +203,7 @@ export function HouseholdPanel({
         breakEvens={breakEvens}
         lifeExpectancy={personA.person.lifeExpectancy}
         attributedTo={personLabel(personA.person.name, 0)}
+        gender={personA.person.gender}
       />
     </div>
   );

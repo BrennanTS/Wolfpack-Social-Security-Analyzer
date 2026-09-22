@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { detectYearlyEntry } from '../lib/benefitEntry';
 import { formatAgeDisplay, formatCurrency, fraLabel, personLabel } from '../lib/format';
 import { genderLabel } from '../lib/lifeExpectancy';
+import { pronounsFor } from '../lib/pronouns';
 import { getCurrentAge, getFullRetirementAge } from '../lib/personAnalysis';
 import {
   claimantBirthDateBounds,
@@ -21,6 +22,9 @@ interface PersonFieldsProps {
 export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
   const label = personLabel(person.name, index);
   const idPrefix = index === 0 ? 'a' : 'b';
+  // Person B's hints speak about them rather than to them, so they use the
+  // pronoun the gender control above supplies — they/them until it is set.
+  const p = pronounsFor(person.gender);
   const set = (patch: Partial<PersonFormFields>) => onChange({ ...person, ...patch });
 
   const birthDateValue = toBirthDateInput(person);
@@ -185,11 +189,13 @@ export function PersonFields({ person, index, onChange }: PersonFieldsProps) {
             </button>
           </div>
         )}
+        {/* Person B's hint speaks about them in the third person, so it uses
+            their pronoun where the gender control above has been answered. */}
         <span className="field-hint" id={`${idPrefix}-benefit-hint`}>
           ${MIN_BENEFIT.toLocaleString()}–${MAX_BENEFIT.toLocaleString()}.{' '}
           {index === 0
             ? 'From your SSA statement or mySocialSecurity.gov estimate.'
-            : 'Enter $0 if they have little or no own work record.'}
+            : `Enter $0 if ${p.subject} ${p.verb('has', 'have')} little or no own work record.`}
         </span>
       </div>
     </fieldset>

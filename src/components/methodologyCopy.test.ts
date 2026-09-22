@@ -60,7 +60,7 @@ describe('spousalMethodologyCopy', () => {
         atFra: 1200,
         atRecommendedFilingAge: 790,
         startsAtSpouseAge: '67',
-        lowerEarnerLabel: 'Jane',
+        lowerEarnerLabel: 'Jane', lowerEarnerGender: null,
       }),
     );
     expect(copy).toContain("Jane's spousal top-up is $790.00/mo under the recommended strategy");
@@ -77,7 +77,7 @@ describe('spousalMethodologyCopy', () => {
         atFra: 500,
         atRecommendedFilingAge: 500,
         startsAtSpouseAge: '67',
-        lowerEarnerLabel: 'Client',
+        lowerEarnerLabel: 'Client', lowerEarnerGender: null,
       }),
     );
     expect(copy).not.toContain('50%');
@@ -90,7 +90,7 @@ describe('spousalMethodologyCopy', () => {
         atFra: 0,
         atRecommendedFilingAge: 0,
         startsAtSpouseAge: null,
-        lowerEarnerLabel: 'Client',
+        lowerEarnerLabel: 'Client', lowerEarnerGender: null,
       }),
     );
     expect(copy).toContain('No top-up applies');
@@ -109,7 +109,7 @@ describe('spousalMethodologyCopy', () => {
         atFra: 0,
         atRecommendedFilingAge: 0,
         startsAtSpouseAge: null,
-        lowerEarnerLabel: 'Client',
+        lowerEarnerLabel: 'Client', lowerEarnerGender: null,
       }),
     );
     expect(copy).toContain("does not exceed Client's own benefit at their own full retirement age");
@@ -121,7 +121,7 @@ describe('spousalMethodologyCopy', () => {
         atFra: 1250,
         atRecommendedFilingAge: 1250,
         startsAtSpouseAge: '68 years, 3 months',
-        lowerEarnerLabel: 'Jane',
+        lowerEarnerLabel: 'Jane', lowerEarnerGender: null,
       }),
     );
     expect(copy).toMatch(/68 years, 3 months/);
@@ -137,7 +137,7 @@ describe('spousalMethodologyCopy', () => {
         atFra: 250,
         atRecommendedFilingAge: 200,
         startsAtSpouseAge: '69 years, 1 month',
-        lowerEarnerLabel: 'Spouse',
+        lowerEarnerLabel: 'Spouse', lowerEarnerGender: null,
       }),
     );
     expect(copy).not.toContain('Survivor benefits are not modeled');
@@ -153,7 +153,12 @@ describe('spousalMethodologyCopy', () => {
  * printed an unguarded absence marker for the common case.
  */
 describe('spousalSummary', () => {
-  const base = { atFra: 1000, atRecommendedFilingAge: 800, lowerEarnerLabel: 'Jane' };
+  const base = {
+    atFra: 1000,
+    atRecommendedFilingAge: 800,
+    lowerEarnerLabel: 'Jane',
+    lowerEarnerGender: null,
+  };
 
   it('capitalizes a non-proper-noun subject at the start of the sentence', () => {
     const copy = spousalSummary({ ...base, startsAtSpouseAge: '67' }, 'the lower earner');
@@ -211,7 +216,7 @@ describe('spousalSummary', () => {
         atFra: 100,
         atRecommendedFilingAge: 0,
         startsAtSpouseAge: '72 years, 3 months',
-        lowerEarnerLabel: 'Blythe',
+        lowerEarnerLabel: 'Blythe', lowerEarnerGender: null,
       },
       'Blythe',
     );
@@ -448,19 +453,19 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
 describe('survivorGapNote', () => {
   /** The three shapes, with the exact figures the pipeline tests below pin. */
   const contemporaneous = {
-    survivorLabel: 'Blake',
+    survivorLabel: 'Blake', survivorGender: null,
     deceasedMonthly: 1780,
     survivorOwnMonthly: 1760,
     survivorUnder60: false,
   };
   const notFiled = {
-    survivorLabel: 'Blake',
+    survivorLabel: 'Blake', survivorGender: null,
     deceasedMonthly: 1780,
     survivorOwnMonthly: null,
     survivorUnder60: false,
   };
   const under60 = {
-    survivorLabel: 'Blake',
+    survivorLabel: 'Blake', survivorGender: null,
     deceasedMonthly: 2016,
     survivorOwnMonthly: null,
     survivorUnder60: true,
@@ -511,7 +516,7 @@ describe('survivorGapNote', () => {
     const withGap = {
       status: 'married',
       spousalTopUp: {
-        atFra: 0, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: 'Blake',
+        atFra: 0, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: 'Blake', lowerEarnerGender: null,
       },
       survivorGap: contemporaneous,
     } as unknown as HouseholdAnalysis;
@@ -528,7 +533,7 @@ describe('survivorGapNote', () => {
         atFra: 250,
         atRecommendedFilingAge: 200,
         startsAtSpouseAge: '69 years, 1 month',
-        lowerEarnerLabel: 'Spouse',
+        lowerEarnerLabel: 'Spouse', lowerEarnerGender: null,
       }),
     );
     expect(copy).toContain('Survivor benefits are included');
@@ -620,7 +625,7 @@ describe('survivorIncomeCaption', () => {
 
   it('points at the existing gap note rather than restating its figures, when the survivor has already reached 60', () => {
     const gap = {
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
@@ -646,7 +651,7 @@ describe('survivorIncomeCaption', () => {
     // started either. The column reads $0 across every strategy — which the
     // rise check now reads off the rows rather than inferring from the guard.
     const gap = {
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 2016,
       survivorOwnMonthly: null,
       survivorUnder60: true,
@@ -689,7 +694,7 @@ describe('survivorIncomeCaption', () => {
 
     it('states the dollars basis in the under-60 branch too', () => {
       const gap = {
-        survivorLabel: 'Blake',
+        survivorLabel: 'Blake', survivorGender: null,
         deceasedMonthly: 2016,
         survivorOwnMonthly: null,
         survivorUnder60: true,
@@ -701,7 +706,7 @@ describe('survivorIncomeCaption', () => {
 
     it('states the dollars basis in the gap branch too', () => {
       const gap = {
-        survivorLabel: 'Blake',
+        survivorLabel: 'Blake', survivorGender: null,
         deceasedMonthly: 1780,
         survivorOwnMonthly: 1760,
         survivorUnder60: false,
@@ -767,7 +772,7 @@ describe('combinedIncomeCaption', () => {
 
   it('drops the survivor claim for a household whose survivor benefit is unmodeled', () => {
     const caption = combinedIncomeCaption({
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
@@ -819,7 +824,7 @@ describe('combinedIncomeCaption', () => {
     expect(noGap).toMatch(/personal band keeps paying what it already was/i);
 
     const gap = combinedIncomeCaption({
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
@@ -911,7 +916,7 @@ describe('coupleModelingNote', () => {
 
   it('stops claiming survivor benefits are modeled for a gap household', () => {
     const note = coupleModelingNote({
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
@@ -1144,7 +1149,14 @@ describe('the survivor-gap note over real households', () => {
     expect(later).toBeGreaterThan(0);
 
     const note = survivorGapNote(gap)!;
-    expect(note).toContain('has not filed on their own record by then');
+    // Blake's own pronoun, because the report knows it. The gap carries the
+    // survivor's gender for exactly this sentence; a household that left the
+    // field blank gets they/them, which `pronouns.test.ts` pins.
+    expect(gap.survivorGender).toBe('male');
+    expect(note).toContain('has not filed on his own record by then');
+    expect(note).toContain('shows him nothing');
+    expect(note).toContain('until his own benefit begins');
+    expect(note).not.toContain('their own record');
     // The figure the old note printed must not appear anywhere in the new one.
     expect(note).not.toContain(`$${later.toLocaleString('en-US')}.00`);
     expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual([
@@ -1283,7 +1295,7 @@ describe('survivorClaimNote', () => {
     const alt = {
       claimIndex: 2036 * 12 + 4,
       claimAge: '68 years, 0 months',
-      survivorLabel: 'Jane',
+      survivorLabel: 'Jane', survivorGender: null,
       baselineTotal: 300_000,
       bestTotal: 435_700,
       gain: 135_700,
@@ -1361,7 +1373,7 @@ describe('survivorClaimNote', () => {
     const base = {
       claimIndex: 2036 * 12 + 4,
       claimAge: '60',
-      survivorLabel: 'Bob',
+      survivorLabel: 'Bob', survivorGender: null,
       baselineTotal: 0,
       bestTotal: 102_960,
       gain: 102_960,
@@ -1409,7 +1421,7 @@ describe('survivorClaimNote', () => {
 
 describe('survivorFloorNote', () => {
   const floor = {
-    survivorLabel: 'Spouse',
+    survivorLabel: 'Spouse', survivorGender: null,
     deceasedLabel: 'Client',
     deceasedMonthly: 2789,
     survivorMonthly: 3268.65,
@@ -1468,5 +1480,38 @@ describe('householdValueCaption', () => {
 
   it('defaults to the basis every existing caller had', () => {
     expect(householdValueCaption('2.50%')).toBe(householdValueCaption('2.50%', 'real', true));
+  });
+});
+
+/**
+ * Pronouns for the person a sentence is about.
+ *
+ * The report names one claimant and then says "their own record" beside that
+ * name — a form's register, in a document an adviser hands to the person it
+ * describes. Every sentence about ONE named individual now reads the gender
+ * the app already collects, and falls back to they/them when it is blank.
+ */
+describe('sentences about one named person', () => {
+  const spousal = (gender: 'male' | 'female' | null) => ({
+    atFra: 0,
+    atRecommendedFilingAge: 0,
+    startsAtSpouseAge: null,
+    lowerEarnerLabel: 'Jane',
+    lowerEarnerGender: gender,
+  });
+
+  it('uses the lower earner’s own pronoun in the no-top-up sentence', () => {
+    expect(spousalSummary(spousal('female'), 'Jane')).toContain(
+      "exceed Jane's own benefit at her own full retirement age",
+    );
+    expect(spousalSummary(spousal('male'), 'Jane')).toContain('at his own full retirement age');
+  });
+
+  it('falls back to they/them when the gender was never entered', () => {
+    // Not a defensive branch: the field is optional, and a report can reach
+    // print without it. The neutral wording has to stay grammatical.
+    expect(spousalSummary(spousal(null), 'Jane')).toContain(
+      'at their own full retirement age',
+    );
   });
 });

@@ -1,3 +1,4 @@
+import { BASIS_LABEL, type NamedBasis, type ReportBasis } from '../lib/reportBasis';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import {
@@ -109,7 +110,22 @@ export function ReportLayoutEditor({
   shape,
   wide = false,
   blockPages,
+  basis,
+  onBasisChange,
 }: ReturnType<typeof useReportLayouts> & {
+  /**
+   * The basis the report is currently in, so a preset built for the other one
+   * can say so. Omitted by callers with no assumptions in hand (the editor
+   * renders fine without it; the note simply does not appear).
+   */
+  basis?: ReportBasis;
+  /**
+   * Applies a preset's suggested basis. Present only where the caller owns
+   * those settings — the note is read-only without it, which is the right
+   * fallback: telling an adviser the basis is wrong is useful even where this
+   * editor cannot fix it.
+   */
+  onBasisChange?: (next: NamedBasis) => void;
   /** The household on screen, so the editor can say what it will skip. */
   shape?: HouseholdDisplayShape;
   /**
@@ -143,6 +159,11 @@ export function ReportLayoutEditor({
   const items = layout.items;
   const dirty = draftItems !== null;
   const editingPreset = isPreset(selectedId);
+  // Only when the layout has an opinion AND the report is not already there.
+  const suggested =
+    layout.suggestedBasis !== undefined && basis !== undefined && basis !== layout.suggestedBasis
+      ? layout.suggestedBasis
+      : undefined;
 
   const commit = useCallback(
     (next: LayoutItem[]) => {
@@ -425,6 +446,32 @@ export function ReportLayoutEditor({
           ))}
         </select>
       </div>
+
+      {/* SUGGESTED, not applied. The discount rate inside a basis also picks
+          the filing ages the report recommends, so a preset that switched it
+          on selection would change the advice as a side effect of choosing a
+          page order. The mismatch is stated and the switch is one click. */}
+      {suggested !== undefined && (
+        <p className="layout-basis-note" data-testid="layout-basis-note">
+          This layout is meant to be read in {BASIS_LABEL[suggested].toLowerCase()}.{' '}
+          {basis === 'custom'
+            ? 'Your report is on a custom basis.'
+            : `Your report is in ${BASIS_LABEL[basis as NamedBasis].toLowerCase()}.`}{' '}
+          {onBasisChange && (
+            <button
+              type="button"
+              className="btn-inline"
+              onClick={() => onBasisChange(suggested)}
+            >
+              Switch to {BASIS_LABEL[suggested].toLowerCase()}
+            </button>
+          )}
+          <span className="field-hint">
+            Changing the basis changes the discount rate, which is also used to pick the
+            filing ages the report recommends.
+          </span>
+        </p>
+      )}
 
       {dirty && (
         <p className="layout-dirty">

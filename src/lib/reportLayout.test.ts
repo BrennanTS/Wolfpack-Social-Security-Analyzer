@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   ADVISER_LAYOUT,
   BLOCKS,
+  CASHFLOW_LAYOUT,
   CLIENT_LAYOUT,
+  EDUCATION_LAYOUT,
+  SAVVY_LAYOUT,
   DEFAULT_LAYOUT_ID,
   PRESETS,
   hiddenBlockIds,
@@ -415,5 +418,87 @@ describe('person-scoped blocks', () => {
     });
     const ids = layoutBlockIds(layout!);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+/**
+ * The presets modeled on the reports in `docs/Social Security Software
+ * Statements`.
+ *
+ * Asserted structurally rather than as a fixed list of ids: what matters is
+ * that each one is a valid, renderable layout whose shape matches the
+ * document it was built from, not that it never changes.
+ */
+describe('the competitor-shaped presets', () => {
+  const added = [SAVVY_LAYOUT, CASHFLOW_LAYOUT, EDUCATION_LAYOUT];
+
+  it('are offered alongside the two originals', () => {
+    expect(PRESETS).toContain(CLIENT_LAYOUT);
+    expect(PRESETS).toContain(ADVISER_LAYOUT);
+    for (const preset of added) expect(PRESETS).toContain(preset);
+    // The default is still the one a client is handed. A new preset must not
+    // become what an adviser gets for doing nothing.
+    expect(DEFAULT_LAYOUT_ID).toBe(CLIENT_LAYOUT.id);
+  });
+
+  it('carry unique ids and names', () => {
+    expect(new Set(PRESETS.map((p) => p.id)).size).toBe(PRESETS.length);
+    expect(new Set(PRESETS.map((p) => p.name)).size).toBe(PRESETS.length);
+  });
+
+  it('name only blocks that exist, and none twice', () => {
+    const known = new Set(BLOCKS.map((b) => b.id));
+    for (const preset of added) {
+      const ids = layoutBlockIds(preset);
+      for (const id of ids) expect(known, `${preset.name}: ${id}`).toContain(id);
+      expect(new Set(ids).size, `${preset.name} repeats a block`).toBe(ids.length);
+    }
+  });
+
+  it('open on a cover and close on the disclosures', () => {
+    // Not decoration: the disclosure block is the one a compliance reviewer
+    // looks for, and a preset that dropped it would ship a report without it.
+    for (const preset of added) {
+      const ids = layoutBlockIds(preset);
+      expect(ids[0], preset.name).toBe('cover');
+      expect(ids[ids.length - 1], preset.name).toBe('disclosure');
+    }
+  });
+
+  it('still print something for a widowed household', () => {
+    // Every couple-only block is dropped for a widow(er) (`layoutRuns`). A
+    // preset built entirely from them would render an empty document rather
+    // than fail, which is the worse outcome.
+    for (const preset of added) {
+      for (const shape of ['oneClaimant', 'twoClaimants', 'widowed'] as const) {
+        expect(
+          printedBlockIds(preset, shape).length,
+          `${preset.name} prints nothing for ${shape}`,
+        ).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('say which basis they are meant to be read in', () => {
+    // The whole reason `suggestedBasis` exists: the scenario-comparison
+    // preset reproduces a report whose every figure is in future dollars, and
+    // rendering it in present value would understate each one by about 45%
+    // while looking perfectly correct.
+    expect(SAVVY_LAYOUT.suggestedBasis).toBe('future');
+    expect(CASHFLOW_LAYOUT.suggestedBasis).toBe('future');
+    expect(EDUCATION_LAYOUT.suggestedBasis).toBe('present');
+    // And the originals keep no opinion, so selecting one shows no note.
+    expect(CLIENT_LAYOUT.suggestedBasis).toBeUndefined();
+    expect(ADVISER_LAYOUT.suggestedBasis).toBeUndefined();
+  });
+
+  it('gives the scenario-comparison preset the exhibits it is named for', () => {
+    // It is the competitor layout we reconciled against, and the three
+    // exhibits are what made that comparison possible. A preset called after
+    // it without them is just the client report with a different name.
+    const ids = layoutBlockIds(SAVVY_LAYOUT);
+    expect(ids).toContain('scenarioBars');
+    expect(ids).toContain('cumulativeOverTime');
+    expect(ids).toContain('scenarioYearly');
   });
 });

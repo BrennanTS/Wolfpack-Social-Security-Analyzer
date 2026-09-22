@@ -17,6 +17,7 @@ import {
   type SurvivorFloor,
 } from './benefitPeriods';
 import { deceasedPia, type Deceased } from './deceased';
+import type { Gender } from './lifeExpectancy';
 import { formatCurrency, personLabel } from './format';
 import { firstDeath } from './incomeCliff';
 import { analyzePerson, getFullRetirementAge, type Person, type PersonAnalysis } from './personAnalysis';
@@ -311,6 +312,13 @@ export interface HouseholdAnalysis {
      * arbitrary name, the same reasoning as `startsAtSpouseAge`.
      */
     lowerEarnerLabel: string | null;
+    /**
+     * The lower earner's gender, for the pronoun in the sentence about them.
+     * Null on a tie for the same reason `lowerEarnerLabel` is, and null when
+     * the field was simply not entered — `pronouns.ts` treats both as
+     * they/them.
+     */
+    lowerEarnerGender: Gender | null;
   };
   /**
    * Every benefit the household receives, as dated bands straight from the
@@ -390,6 +398,8 @@ export interface DeceasedSummary {
   deathYear: number;
   /** 1-12. */
   deathMonth: number;
+  /** For the pronoun in prose about them; see `Deceased.gender`. */
+  gender: Gender | null;
   /**
    * The PIA the survivor benefit was computed from — known, or recovered from
    * a check amount. `HouseholdAnalysis.piaEstimated` says which.
@@ -1185,6 +1195,7 @@ function spousalFiguresFrom(
   higher: Recipient,
   lower: Recipient,
   lowerEarnerLabel: string | null,
+  lowerEarnerGender: Gender | null,
 ): NonNullable<HouseholdAnalysis['spousalTopUp']> {
   const band = bands
     .filter((b) => b.type === 'spousal')
@@ -1209,6 +1220,7 @@ function spousalFiguresFrom(
             recipientById[band.personId].birthdate.ageAtSsaDate(monthDateAt(band.startIndex)),
           ).label,
     lowerEarnerLabel,
+    lowerEarnerGender,
   };
 }
 
@@ -1476,6 +1488,7 @@ async function analyzeWidowed(
       birthMonth: household.deceased.birthMonth,
       deathYear: household.deceased.deathYear,
       deathMonth: household.deceased.deathMonth,
+      gender: household.deceased.gender,
       piaMonthly: deceasedPia(household.deceased).piaMonthly,
       // `checkAmount` always carries a filing date and `pia` may not; the
       // union's shared field is already `YearMonth | null`.
@@ -1723,6 +1736,7 @@ export async function analyzeHousehold(
         higher,
         lower,
         isPiaTie ? null : engineLabels[lowerIndex],
+        isPiaTie ? null : enginePeople[lowerIndex].gender,
       ),
       recommendation:
         `${displayLabels[0]} files at ${displayFilingAges[0].label} · ` +

@@ -331,6 +331,7 @@ function writeWidowed(params: URLSearchParams, form: AnalyzerFormState): void {
   if (d.birthDay !== '') params.set('dd', String(d.birthDay));
   if (d.deathYear !== '') params.set('ddy', String(d.deathYear));
   if (d.deathMonth !== '') params.set('ddm', String(d.deathMonth));
+  if (d.gender !== null) params.set('dg', d.gender === 'male' ? 'm' : 'f');
   params.set('dk', d.recordKind === 'checkAmount' ? 'c' : 'p');
   if (d.piaMonthly !== '') params.set('dp', String(d.piaMonthly));
   if (d.checkAmount !== '') params.set('dc', String(d.checkAmount));
@@ -359,6 +360,7 @@ function readWidowed(params: URLSearchParams): {
       birthDay: readBirthDay(params, 'dd', decBirthYear !== ''),
       deathYear: num(params, 'ddy') ?? '',
       deathMonth: intInBounds(params, 'ddm', MONTH_BOUNDS),
+      gender: readGender(params, 'dg'),
       recordKind: params.get('dk') === 'c' ? 'checkAmount' : 'pia',
       piaMonthly: num(params, 'dp') ?? '',
       hadFiled: hadFiled === '1' ? true : hadFiled === '0' ? false : null,

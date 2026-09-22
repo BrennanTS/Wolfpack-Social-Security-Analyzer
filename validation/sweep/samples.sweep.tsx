@@ -130,6 +130,7 @@ const widowed: Household = {
     birthDay: 15,
     deathYear: 2023,
     deathMonth: 3,
+    gender: 'male',
     // Filed at exactly 62, so his own benefit is 70% of his full benefit —
     // below the 82.5% floor, which is what makes the limit bind.
     record: { kind: 'pia', piaMonthly: 2600, filed: { year: 2022, month: 1 } },

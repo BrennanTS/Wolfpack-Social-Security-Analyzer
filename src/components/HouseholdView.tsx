@@ -27,7 +27,6 @@ interface HouseholdViewProps {
    * working unchanged.
    */
   dollarsMode?: DollarsMode;
-  onDollarsModeChange?: (mode: DollarsMode) => void;
   /** Threaded to the comparison table, which is where scenarios are edited. */
   scenarios?: ScenarioSet;
   onScenariosChange?: (scenarios: ScenarioSet) => void;
@@ -62,7 +61,6 @@ export function HouseholdView({
   analysis,
   annualCola,
   dollarsMode = 'real',
-  onDollarsModeChange = () => {},
   scenarios,
   onScenariosChange,
   claimingRowsByPerson,
@@ -150,7 +148,6 @@ export function HouseholdView({
       <WidowedPanel
         analysis={analysis}
         dollarsMode={dollarsMode}
-        onDollarsModeChange={onDollarsModeChange}
       />
     );
   }
@@ -231,8 +228,7 @@ export function HouseholdView({
             analysis={analysis}
             annualCola={annualCola}
             dollarsMode={dollarsMode}
-            onDollarsModeChange={onDollarsModeChange}
-            scenarios={scenarios}
+                scenarios={scenarios}
             onScenariosChange={onScenariosChange}
           />
         ) : (

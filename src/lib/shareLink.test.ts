@@ -290,7 +290,7 @@ describe('widowed share links', () => {
       monthlyBenefit: 1200, lifeExpectancy: 92,
     },
     deceased: {
-      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
+      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3, gender: 'male',
       recordKind: 'pia', piaMonthly: 3000, hadFiled: true,
       checkAmount: '', filedYear: 2022, filedMonth: 5,
     },
@@ -810,5 +810,50 @@ describe('the whole scenario list', () => {
       kind: 'custom',
       ages: [{ years: 70, months: 0 }],
     });
+  });
+});
+
+/**
+ * The deceased's gender rides the same link as everything else on that form.
+ *
+ * A recipient opening a shared widowed analysis must read the same prose the
+ * sender saw. Absent means absent — not "male by default", which would put a
+ * pronoun in the recipient's report that the sender never chose.
+ */
+describe('the deceased’s gender in a share link', () => {
+  const widowed = (gender: 'male' | 'female' | null) => ({
+    ...BLANK_FORM,
+    maritalStatus: 'widowed' as const,
+    deceased: { ...BLANK_DECEASED, birthYear: 1955, birthMonth: 4, birthDay: 9, gender },
+  });
+  const roundTrip = (form: ReturnType<typeof widowed>) =>
+    fromShareParams(new URLSearchParams(toShareParams(form).toString())).deceased.gender;
+
+  it('round-trips both values', () => {
+    expect(roundTrip(widowed('female'))).toBe('female');
+    expect(roundTrip(widowed('male'))).toBe('male');
+  });
+
+  it('stays unset when it was never set, rather than defaulting', () => {
+    expect(toShareParams(widowed(null)).has('dg')).toBe(false);
+    expect(roundTrip(widowed(null))).toBeNull();
+  });
+
+  it('treats an unrecognised value as unset', () => {
+    const params = new URLSearchParams(toShareParams(widowed('male')).toString());
+    params.set('dg', 'x');
+    expect(fromShareParams(params).deceased.gender).toBeNull();
+  });
+
+  it('does not collide with the survivor’s own gender key', () => {
+    // `a`/`b` prefix the claimants and `d` the deceased; `dg` and `ag` are
+    // different people and must not overwrite one another.
+    const form = {
+      ...widowed('female'),
+      personA: { ...BLANK_FORM.personA, birthYear: 1960 as number | '', gender: 'male' as const },
+    };
+    const back = fromShareParams(new URLSearchParams(toShareParams(form).toString()));
+    expect(back.deceased.gender).toBe('female');
+    expect(back.personA.gender).toBe('male');
   });
 });

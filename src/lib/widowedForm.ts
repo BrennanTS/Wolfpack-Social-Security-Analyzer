@@ -12,6 +12,7 @@
  * legitimate high earner.
  */
 import { deceasedPia, type Deceased, type DeceasedRecord, type YearMonth } from './deceased';
+import type { Gender } from './lifeExpectancy';
 import type { AlreadyClaimed } from './widowed';
 import { deceasedBirthDateBounds, isBirthDateInRange, toBirthDateInput } from './birthDate';
 
@@ -24,6 +25,13 @@ export interface DeceasedFormFields {
   deathYear: number | '';
   /** 1-12. */
   deathMonth: number | '';
+  /**
+   * Null until answered, exactly as the claimant's is, and required by
+   * `isWidowedComplete`. It decides a pronoun and nothing else (see
+   * `Deceased.gender`) — but it is always known, so it is asked for rather
+   * than defaulted.
+   */
+  gender: Gender | null;
   /** Which route the adviser took: a known PIA, or the check they were receiving. */
   recordKind: 'pia' | 'checkAmount';
   /** PIA route. */
@@ -58,6 +66,7 @@ export const BLANK_DECEASED: DeceasedFormFields = {
   birthDay: '',
   deathYear: '',
   deathMonth: '',
+  gender: null,
   recordKind: 'pia',
   piaMonthly: '',
   hadFiled: null,
@@ -140,6 +149,9 @@ export function isWidowedComplete(d: DeceasedFormFields, asOf: Date = new Date()
   // a year before 1900 rather than returning something wrong.
   if (!isBirthDateInRange(toBirthDateInput(d), deceasedBirthDateBounds(asOf))) return false;
   if (d.deathYear === '' || d.deathMonth === '') return false;
+  // Not because anything is computed from it — nothing is — but because every
+  // sentence about this spouse reads better with it, and it is never unknown.
+  if (d.gender === null) return false;
 
   if (d.recordKind === 'checkAmount') {
     return d.checkAmount !== '' && d.filedYear !== '' && d.filedMonth !== '';
@@ -271,6 +283,7 @@ export function toDeceased(d: DeceasedFormFields): Deceased {
     birthDay: d.birthDay as number,
     deathYear: d.deathYear as number,
     deathMonth: d.deathMonth as number,
+    gender: d.gender as Gender,
     record: toRecord(d),
   };
 }

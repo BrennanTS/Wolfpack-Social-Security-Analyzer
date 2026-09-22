@@ -130,7 +130,7 @@ function buildAnalysis(status: 'single' | 'married' | 'widowed'): HouseholdAnaly
     deceased:
       status === 'widowed'
         ? {
-            birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 8,
+            birthYear: 1960, birthMonth: 3, deathYear: 2024, deathMonth: 8, gender: null,
             piaMonthly: 3000, filed: { year: 2022, month: 6 },
           }
         : null,

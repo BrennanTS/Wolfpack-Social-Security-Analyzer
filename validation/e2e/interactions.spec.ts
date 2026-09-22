@@ -528,7 +528,7 @@ test('renders a widowed household, and never the single-claimant view', async ({
   // several fields deep, and the link is also the route that used to unmount
   // the whole tree when `householdDisplayShape` threw.
   await page.goto(
-    '/?ay=1964&am=6&ag=f&ab=1200&ale=90&m=w&dy=1960&dm=3&ddy=2024&ddm=8&dk=p&dp=3000&df=1&dfy=2022&dfm=6',
+    '/?ay=1964&am=6&ag=f&ab=1200&ale=90&m=w&dy=1960&dm=3&dg=m&ddy=2024&ddm=8&dk=p&dp=3000&df=1&dfy=2022&dfm=6',
   );
 
   await expect(page.getByTestId('widowed-strategy-table')).toBeVisible();
@@ -567,7 +567,7 @@ test('blocks the widowed dates SSA would not pay, instead of failing the analysi
   // generic "Analysis failed" banner. Survivor before 60 was worse: the
   // engine priced it, and the app printed an age nobody can claim at.
   await page.goto(
-    '/?ay=1964&am=6&ag=f&ab=1200&ale=90&m=w&dy=1960&dm=3&ddy=2024&ddm=8&dk=p&dp=3000&df=1&dfy=2022&dfm=6&coy=2024&com=1',
+    '/?ay=1964&am=6&ag=f&ab=1200&ale=90&m=w&dy=1960&dm=3&dg=m&ddy=2024&ddm=8&dk=p&dp=3000&df=1&dfy=2022&dfm=6&coy=2024&com=1',
   );
 
   await expect(page.getByText(/cannot file on your own record before age 62/i)).toBeVisible();

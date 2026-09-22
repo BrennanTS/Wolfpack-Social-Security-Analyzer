@@ -4,7 +4,14 @@ import { MonthDuration } from '$lib/month-time';
 import { deceasedContext, deceasedPia, MAX_PIA, type Deceased } from './deceased';
 import { monthIndexOf } from './benefitPeriods';
 
-const base = { birthYear: 1950, birthMonth: 6, birthDay: 15, deathYear: 2020, deathMonth: 3 };
+const base = {
+  birthYear: 1950,
+  birthMonth: 6,
+  birthDay: 15,
+  deathYear: 2020,
+  deathMonth: 3,
+  gender: 'male' as const,
+};
 
 describe('deceasedPia', () => {
   it('returns a known PIA unchanged and unestimated', () => {
@@ -154,5 +161,47 @@ describe('deceasedContext', () => {
     const d: Deceased = { ...base, record: { kind: 'pia', piaMonthly: 2400, filed: null } };
     const { filingDate, deathDate } = deceasedContext(d);
     expect(monthIndexOf(filingDate)).toBe(monthIndexOf(deathDate));
+  });
+});
+
+/**
+ * The deceased's gender is display only.
+ *
+ * It exists so prose can say "he"/"she" instead of "they", and it is passed
+ * to `createPiaRecipient` like any other recipient field — which makes it
+ * worth pinning that it reaches nothing. `Recipient.gender` feeds exactly one
+ * thing in the engine, the death probability distribution, and a person who
+ * has already died is never priced against one; the widowed path asks only
+ * what this record pays.
+ *
+ * If a future engine change made gender load-bearing here, survivor figures
+ * would move for every household that filled the field in — silently, and
+ * only for some of them. This is the test that would say so first.
+ */
+describe('the deceased’s gender', () => {
+  const record = { kind: 'pia', piaMonthly: 2400, filed: { year: 2016, month: 7 } } as const;
+
+  it('changes no figure, whichever way it is set', () => {
+    const forGender = (gender: 'male' | 'female') =>
+      deceasedContext({ ...base, gender, record });
+
+    const male = forGender('male');
+    const female = forGender('female');
+    expect(female.piaEstimated).toBe(male.piaEstimated);
+    expect(female.filingDate.monthsSinceEpoch()).toBe(male.filingDate.monthsSinceEpoch());
+    expect(female.deathDate.monthsSinceEpoch()).toBe(male.deathDate.monthsSinceEpoch());
+    expect(female.recipient.pia().primaryInsuranceAmount().value()).toBe(
+      male.recipient.pia().primaryInsuranceAmount().value(),
+    );
+  });
+
+  it('does not move a PIA recovered from a check amount', () => {
+    // The one place the deceased's recipient is fed back into the engine in a
+    // loop — a binary search over `benefitOnDate`. If gender could reach the
+    // benefit at all, it would land here first.
+    const check = { kind: 'checkAmount', monthlyAmount: 2100, filed: { year: 2016, month: 7 } } as const;
+    const asMale = deceasedPia({ ...base, gender: 'male', record: check });
+    expect(deceasedPia({ ...base, gender: 'female', record: check })).toEqual(asMale);
+    expect(asMale.estimated).toBe(true);
   });
 });

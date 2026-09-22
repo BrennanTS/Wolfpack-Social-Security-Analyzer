@@ -34,7 +34,7 @@ const husband: Deceased = {
   birthYear: 1960,
   birthMonth: 3, birthDay: 15,
   deathYear: 2024,
-  deathMonth: 3,
+  deathMonth: 3, gender: 'male',
   record: { kind: 'pia', piaMonthly: 3000, filed: null },
 };
 

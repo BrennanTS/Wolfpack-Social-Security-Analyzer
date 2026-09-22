@@ -12,6 +12,7 @@
  * instead of leaving a hole.
  */
 import type { HouseholdDisplayShape } from './household';
+import type { NamedBasis } from './reportBasis';
 
 /** Every block the report can print. */
 export type ReportBlockId =
@@ -88,6 +89,20 @@ export interface ReportLayout {
   id: string;
   name: string;
   items: LayoutItem[];
+  /**
+   * The basis this layout is meant to be read in, when it has one.
+   *
+   * SUGGESTED, never applied. A layout is a structure; the basis is an
+   * assumption, and the discount rate inside it also decides which filing
+   * ages the report recommends (`expected-npv.ts`). A preset that quietly
+   * changed the recommendation because it was picked for its page order
+   * would be the worst kind of convenience. The editor shows the mismatch
+   * and offers the switch; the adviser makes it.
+   *
+   * Absent on a layout with no opinion, which is every layout an adviser
+   * builds themselves and both of the original presets.
+   */
+  suggestedBasis?: NamedBasis;
 }
 
 export interface BlockMeta {
@@ -443,7 +458,122 @@ export const ADVISER_LAYOUT: ReportLayout = {
   ],
 };
 
-export const PRESETS: readonly ReportLayout[] = [CLIENT_LAYOUT, ADVISER_LAYOUT];
+/**
+ * A competitor's running order, in our blocks.
+ *
+ * The one preset built against a document we have reconciled to the dollar
+ * (`validation/copy/samples`): cover, prose, key terms, the scenario
+ * comparison, the three exhibits together on one sheet, then a year-by-year
+ * table per scenario. Its basis is future dollars, which is how that report
+ * states every figure and why ours read 45% lower beside it until the basis
+ * control existed.
+ *
+ * `survivor` sits with the two charts because the competitor's third exhibit
+ * on that page is first-full-year survivor income — the same question our
+ * survivor block answers, drawn as bars there and stated as figures here.
+ */
+export const SAVVY_LAYOUT: ReportLayout = {
+  id: 'preset-savvy',
+  name: 'Scenario comparison',
+  suggestedBasis: 'future',
+  items: [
+    block('cover'),
+    BREAK,
+    block('intro'),
+    block('terms'),
+    BREAK,
+    block('household'),
+    BREAK,
+    block('scenarioBars'),
+    block('cumulativeOverTime'),
+    block('survivor'),
+    BREAK,
+    block('scenarioYearly'),
+    BREAK,
+    block('disclosure'),
+  ],
+};
+
+/**
+ * Tables first, prose last.
+ *
+ * Modeled on the cash-flow reports in `docs/Social Security Software
+ * Statements`, which open with the assumptions and the per-person benefit
+ * figures, use a grid of election ages as the comparison, and then spend most
+ * of their pages on year-by-year cash flows for each strategy in turn.
+ *
+ * Future dollars for the same reason: those reports label their cash-flow
+ * pages "expected cash flow future values", and a column headed that way in
+ * today's money would be the one thing this preset exists to reproduce and
+ * would get wrong.
+ */
+export const CASHFLOW_LAYOUT: ReportLayout = {
+  id: 'preset-cashflow',
+  name: 'Cash-flow detail',
+  suggestedBasis: 'future',
+  items: [
+    block('cover'),
+    BREAK,
+    block('intro'),
+    block('personDetails'),
+    BREAK,
+    block('household'),
+    block('grid'),
+    BREAK,
+    block('scenarioYearly'),
+    BREAK,
+    block('action'),
+    block('terms'),
+    block('disclosure'),
+  ],
+};
+
+/**
+ * Teach first, then decide.
+ *
+ * The shape the education-heavy statements take: a summary of the answer up
+ * front, then several pages explaining how benefits work and what starting
+ * age does to them, then each person's own figures, and only then the
+ * household comparison. A client reads this one alone, so the reasoning has
+ * to arrive before the recommendation it supports.
+ *
+ * Present value, and stated: it is the basis our own default uses, and this
+ * preset is the one most likely to be handed over without an adviser in the
+ * room to explain why a bigger number elsewhere is not a better one.
+ */
+export const EDUCATION_LAYOUT: ReportLayout = {
+  id: 'preset-education',
+  name: 'Education first',
+  suggestedBasis: 'present',
+  items: [
+    block('cover'),
+    BREAK,
+    block('answer'),
+    BREAK,
+    block('intro'),
+    block('terms'),
+    BREAK,
+    block('personDetails'),
+    block('personComparison'),
+    block('personRamp'),
+    block('personBreakeven'),
+    BREAK,
+    block('household'),
+    block('changes'),
+    block('survivor'),
+    block('action'),
+    block('limits'),
+    block('disclosure'),
+  ],
+};
+
+export const PRESETS: readonly ReportLayout[] = [
+  CLIENT_LAYOUT,
+  ADVISER_LAYOUT,
+  SAVVY_LAYOUT,
+  CASHFLOW_LAYOUT,
+  EDUCATION_LAYOUT,
+];
 
 export const DEFAULT_LAYOUT_ID = CLIENT_LAYOUT.id;
 

@@ -108,7 +108,7 @@ function analysisWith(
       atFra: 0,
       atRecommendedFilingAge: 0,
       startsAtSpouseAge: null,
-      lowerEarnerLabel: 'Avery',
+      lowerEarnerLabel: 'Avery', lowerEarnerGender: null,
     },
     assumptions: { annualCola: 0, discountRate: 0.025 },
     recommendation: 'r',
@@ -152,7 +152,7 @@ describe('HouseholdSection — the printed combined-income caption', () => {
     // Both captions were verbatim duplicates rendered unconditionally, and
     // both contradicted the note printed directly beneath them.
     const text = printed({
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
@@ -203,7 +203,7 @@ describe('HouseholdSection — the printed combined-income caption', () => {
 describe('HouseholdSection — the printed survivor-gap note', () => {
   it('prints contemporaneous figures when the survivor has already filed', () => {
     const text = printed({
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
@@ -215,7 +215,7 @@ describe('HouseholdSection — the printed survivor-gap note', () => {
 
   it('prints no survivor figure when the survivor has not filed at the death', () => {
     const text = printed({
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: null,
       survivorUnder60: false,
@@ -229,7 +229,7 @@ describe('HouseholdSection — the printed survivor-gap note', () => {
 
   it('prints the under-60 branch without asserting an immediate shortfall', () => {
     const text = printed({
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 2016,
       survivorOwnMonthly: null,
       survivorUnder60: true,
@@ -282,7 +282,7 @@ describe('HouseholdSection — the printed widow(er)’s-limit note', () => {
 
   it('prints alongside a gap note without either one displacing the other', () => {
     const text = printed(
-      { survivorLabel: 'Blake', deceasedMonthly: 1780, survivorOwnMonthly: 1760, survivorUnder60: false },
+      { survivorLabel: 'Blake', survivorGender: null, deceasedMonthly: 1780, survivorOwnMonthly: 1760, survivorUnder60: false },
       floor,
     );
     expect(text).toContain('no step-up is shown for Blake');
@@ -302,7 +302,7 @@ describe('HouseholdSection — the printed widow(er)’s-limit note', () => {
  */
 describe('HouseholdSection — the household page as the report composes it', () => {
   const gap: SurvivorGap = {
-    survivorLabel: 'Blake',
+    survivorLabel: 'Blake', survivorGender: null,
     deceasedMonthly: 1780,
     survivorOwnMonthly: 1760,
     survivorUnder60: false,
@@ -428,7 +428,7 @@ describe('HouseholdSection — the spousal sentence on a PIA tie', () => {
         atFra: 0,
         atRecommendedFilingAge: 0,
         startsAtSpouseAge: null,
-        lowerEarnerLabel: null,
+        lowerEarnerLabel: null, lowerEarnerGender: null,
       },
     }) as unknown as HouseholdAnalysis;
 
@@ -463,7 +463,7 @@ describe('HouseholdSection — the spousal sentence on a PIA tie', () => {
         atFra: 250,
         atRecommendedFilingAge: 200,
         startsAtSpouseAge: '69 years, 1 month',
-        lowerEarnerLabel: 'Blake',
+        lowerEarnerLabel: 'Blake', lowerEarnerGender: null,
       },
     } as unknown as HouseholdAnalysis;
     const text = collectText(HouseholdSection({ analysis, footerText: 'f' })).join(' ');
@@ -518,7 +518,7 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
     // `finalIndexByPersonId`, so `incomeCliff` returns null and the cliff
     // section (where the duplicate lived) never rendered at all.
     const gap: SurvivorGap = {
-      survivorLabel: 'Blake',
+      survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
@@ -575,7 +575,7 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
   const claim = {
     claimIndex: 2036 * 12 + 4,
     claimAge: '68 years, 0 months',
-    survivorLabel: 'Blake',
+    survivorLabel: 'Blake', survivorGender: null,
     baselineTotal: 300_000,
     bestTotal: 435_700,
     gain: 135_700,

@@ -7,10 +7,12 @@ import {
   ADVISER_LAYOUT,
   CLIENT_LAYOUT,
   PRESETS,
+  SAVVY_LAYOUT,
   type LayoutItem,
   type ReportBlockId,
   type ReportLayout,
 } from '../lib/reportLayout';
+import type { NamedBasis, ReportBasis } from '../lib/reportBasis';
 
 /** A store whose calls can be inspected, so these tests are about the editor. */
 function store(overrides: Partial<ReturnType<typeof base>> = {}) {
@@ -29,6 +31,8 @@ function Harness(
   props: ReturnType<typeof store> & {
     shape?: 'oneClaimant' | 'twoClaimants' | 'widowed';
     blockPages?: ReadonlyMap<ReportBlockId, number>;
+    basis?: ReportBasis;
+    onBasisChange?: (next: NamedBasis) => void;
   },
 ) {
   const [draftItems, setDraftItems] = useState<LayoutItem[] | null>(props.draftItems ?? null);
@@ -499,5 +503,71 @@ describe('ReportLayoutEditor', () => {
     const mine: ReportLayout = { id: 'mine', name: 'Mine', items: CLIENT_LAYOUT.items };
     renderEditor(store({ layout: mine, selectedId: 'mine' }));
     expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
+  });
+});
+
+/**
+ * The preset-basis note.
+ *
+ * A layout only decides page order. The basis decides what every figure on
+ * those pages means — and the discount rate inside it also decides which
+ * filing ages get recommended. So a preset built for a competitor's report
+ * states the basis it expects and offers the switch; it never takes it.
+ */
+const renderBasis = (
+  layout: ReportLayout,
+  basis: ReportBasis,
+  onBasisChange?: (next: NamedBasis) => void,
+) =>
+  render(
+    <Harness
+      {...store({ layout, selectedId: layout.id })}
+      basis={basis}
+      onBasisChange={onBasisChange}
+    />,
+  );
+
+describe('a preset built for a different basis', () => {
+  it('says so, and offers the switch', async () => {
+    const onBasisChange = vi.fn();
+    renderBasis(SAVVY_LAYOUT, 'present', onBasisChange);
+    const note = screen.getByTestId('layout-basis-note');
+    expect(note).toHaveTextContent('meant to be read in future value');
+    expect(note).toHaveTextContent('Your report is in present value');
+    await userEvent.click(screen.getByRole('button', { name: /Switch to future value/i }));
+    expect(onBasisChange).toHaveBeenCalledWith('future');
+  });
+
+  it('warns that the switch reaches the recommendation', () => {
+    renderBasis(SAVVY_LAYOUT, 'present', vi.fn());
+    expect(screen.getByTestId('layout-basis-note')).toHaveTextContent(
+      /filing ages the report recommends/,
+    );
+  });
+
+  it('stays quiet once the report is already there', () => {
+    renderBasis(SAVVY_LAYOUT, 'future', vi.fn());
+    expect(screen.queryByTestId('layout-basis-note')).not.toBeInTheDocument();
+  });
+
+  it('stays quiet for a layout with no opinion', () => {
+    // Both original presets, and every layout an adviser saves themselves.
+    renderBasis(CLIENT_LAYOUT, 'future', vi.fn());
+    expect(screen.queryByTestId('layout-basis-note')).not.toBeInTheDocument();
+  });
+
+  it('names a custom basis rather than pretending it is one of the two', () => {
+    renderBasis(SAVVY_LAYOUT, 'custom', vi.fn());
+    expect(screen.getByTestId('layout-basis-note')).toHaveTextContent(
+      'Your report is on a custom basis',
+    );
+  });
+
+  it('still states the mismatch where it cannot fix it', () => {
+    // No handler: a caller that does not own the assumptions. Telling the
+    // adviser is useful even there, so the note stays and only the button goes.
+    renderBasis(SAVVY_LAYOUT, 'present');
+    expect(screen.getByTestId('layout-basis-note')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Switch to/i })).not.toBeInTheDocument();
   });
 });

@@ -364,3 +364,39 @@ describe('AssumptionsPanel report basis', () => {
     expect(screen.getByText(/can change the recommendation/)).toBeInTheDocument();
   });
 });
+
+/**
+ * The dollars half of the basis, on its own.
+ *
+ * It used to live in the Combined Household Income chart's header, which made
+ * it look like a setting for that chart. It was not: it rewrote every table,
+ * the claiming grid and the exported PDF too. One control, in the one place
+ * the other half of the basis already lives.
+ */
+describe('AssumptionsPanel dollars control', () => {
+  it('shows which dollars the report is in', () => {
+    renderPanel({ dollarsMode: 'nominal' });
+    expect(screen.getByTestId('dollars-nominal')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('dollars-real')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('changes the dollars without touching the discount rate', async () => {
+    // The distinction from the preset above it: this moves one setting, so an
+    // adviser can reach a combination neither preset names.
+    const onDollarsModeChange = vi.fn();
+    const onDiscountRateChange = vi.fn();
+    renderPanel({ onDollarsModeChange, onDiscountRateChange });
+    await userEvent.click(screen.getByTestId('dollars-nominal'));
+    expect(onDollarsModeChange).toHaveBeenCalledWith('nominal');
+    expect(onDiscountRateChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps the preset above it in step', async () => {
+    // Real dollars at 2.5% is present value; switching the dollars alone
+    // leaves nominal-at-2.5%, which is neither preset — and the control has
+    // to say so rather than keep a button lit.
+    renderPanel({ dollarsMode: 'nominal', discountRate: 0.025 });
+    expect(screen.getByTestId('report-basis-present')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('report-basis-future')).toHaveAttribute('aria-pressed', 'false');
+  });
+});

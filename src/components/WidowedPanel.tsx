@@ -28,7 +28,6 @@ function stageLabel(types: readonly string[]): string {
 interface WidowedPanelProps {
   analysis: HouseholdAnalysis;
   dollarsMode: DollarsMode;
-  onDollarsModeChange: (mode: DollarsMode) => void;
 }
 
 /**
@@ -55,7 +54,6 @@ interface WidowedPanelProps {
 export function WidowedPanel({
   analysis,
   dollarsMode,
-  onDollarsModeChange,
 }: WidowedPanelProps) {
   const [person] = analysis.people;
   const label = personLabel(person.person.name, 0);
@@ -160,8 +158,11 @@ export function WidowedPanel({
         monthlySeries={displayMonthlySeries}
         people={[person.person]}
         dollarsMode={dollarsMode}
-        onDollarsModeChange={onDollarsModeChange}
-        caption={widowedIncomeCaption(dollarsMode, widowedBenefitsOverlap(analysis.periods))}
+        caption={widowedIncomeCaption(
+          dollarsMode,
+          widowedBenefitsOverlap(analysis.periods),
+          person.person.gender,
+        )}
       />
 
       {deceased !== null && (

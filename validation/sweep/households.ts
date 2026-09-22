@@ -279,6 +279,9 @@ export function widowedHouseholdAt(index: number): SweepHousehold {
     birthDay: birthDayFor(r, decBirth.year, decBirth.month),
     deathYear: death.year,
     deathMonth: death.month,
+    // Swept both ways like every other categorical input, so the sweep sees
+    // both pronoun branches of the widowed copy.
+    gender: r() < 0.5 ? 'male' : 'female',
     record,
   };
 

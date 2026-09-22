@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { HouseholdPanel } from './HouseholdPanel';
 import type { HouseholdAnalysis } from '../lib/household';
 import type { PersonAnalysis } from '../lib/personAnalysis';
@@ -99,13 +99,13 @@ describe('HouseholdPanel', () => {
   it('recomputes break-even ages live from the annualCola prop, not the stale analysis.people[0].breakEvens', () => {
     const analysis = buildAnalysis();
 
-    const zeroCola = render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
+    const zeroCola = render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" />);
     const zeroAges = Array.from(
       zeroCola.container.querySelectorAll('.be-age-value'),
     ).map((el) => el.textContent);
     zeroCola.unmount();
 
-    const highCola = render(<HouseholdPanel analysis={analysis} annualCola={8} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
+    const highCola = render(<HouseholdPanel analysis={analysis} annualCola={8} dollarsMode="real" />);
     const highAges = Array.from(
       highCola.container.querySelectorAll('.be-age-value'),
     ).map((el) => el.textContent);
@@ -127,7 +127,7 @@ describe('HouseholdPanel', () => {
   // person ("you live past break-even"). Without attribution a reader takes
   // it for a couple-level result, which it is not.
   it('attributes the break-even section to the person it is actually computed for', () => {
-    const { getByTestId } = render(<HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
+    const { getByTestId } = render(<HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" />);
     const attribution = getByTestId('break-even-attribution');
     expect(attribution.textContent).toContain('Break-even for John');
     expect(attribution.textContent).toContain('age 85');
@@ -142,19 +142,19 @@ describe('HouseholdPanel', () => {
     const analysis = {
       ...buildAnalysis(),
       survivorGap: {
-        survivorLabel: 'John',
+        survivorLabel: 'John', survivorGender: null,
         deceasedMonthly: 1780,
         survivorOwnMonthly: 1760,
         survivorUnder60: false,
       },
     } as HouseholdAnalysis;
-    const { getByTestId } = render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
+    const { getByTestId } = render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" />);
     expect(getByTestId('survivor-gap-note').textContent).toContain('no step-up is shown for John');
   });
 
   it('renders no survivor-gap note when the analysis has none', () => {
     const { queryByTestId } = render(
-      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />,
+      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" />,
     );
     expect(queryByTestId('survivor-gap-note')).toBeNull();
   });
@@ -185,14 +185,14 @@ describe('HouseholdPanel', () => {
         { year: 2048, bySeries: {}, byPersonId: {}, total: 38000 },
       ],
       survivorGap: {
-        survivorLabel: 'Jane',
+        survivorLabel: 'Jane', survivorGender: null,
         deceasedMonthly: 1780,
         survivorOwnMonthly: 1760,
         survivorUnder60: false,
       },
     } as HouseholdAnalysis;
 
-    render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
+    render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" />);
 
     // The callout really is on screen (guards against this passing
     // vacuously because `incomeCliff` returned null).
@@ -224,7 +224,7 @@ describe('HouseholdPanel', () => {
       survivorClaim: {
         claimIndex: 2047 * 12 + 5,
         claimAge: '68 years, 0 months',
-        survivorLabel: 'Jane',
+        survivorLabel: 'Jane', survivorGender: null,
         baselineTotal: 300_000,
         bestTotal: 435_700,
         gain: 135_700,
@@ -232,7 +232,7 @@ describe('HouseholdPanel', () => {
       },
     } as HouseholdAnalysis;
 
-    render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
+    render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" />);
 
     // The callout really is on screen (guards against this passing
     // vacuously because `incomeCliff` returned null).
@@ -245,7 +245,7 @@ describe('HouseholdPanel', () => {
 
   it('renders no survivor-claim note when the analysis has none', () => {
     const { queryByTestId } = render(
-      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />,
+      <HouseholdPanel analysis={buildAnalysis()} annualCola={0} dollarsMode="real" />,
     );
     expect(queryByTestId('survivor-claim-note')).toBeNull();
   });
@@ -272,7 +272,7 @@ describe('HouseholdPanel', () => {
       survivorClaim: {
         claimIndex: 2047 * 12 + 5,
         claimAge: '68 years, 0 months',
-        survivorLabel: 'Jane',
+        survivorLabel: 'Jane', survivorGender: null,
         baselineTotal: 300_000,
         bestTotal: 435_700,
         gain: 135_700,
@@ -285,7 +285,6 @@ describe('HouseholdPanel', () => {
         analysis={married}
         annualCola={0}
         dollarsMode="real"
-        onDollarsModeChange={() => {}}
       />,
     );
     const realText = screen.getByTestId('survivor-claim-note').textContent!;
@@ -298,7 +297,6 @@ describe('HouseholdPanel', () => {
         analysis={married}
         annualCola={2.5}
         dollarsMode="nominal"
-        onDollarsModeChange={() => {}}
       />,
     );
     const nominalText = screen.getByTestId('survivor-claim-note').textContent!;
@@ -321,7 +319,7 @@ describe('HouseholdPanel', () => {
         },
       ],
     } as HouseholdAnalysis;
-    const { getByTestId } = render(<HouseholdPanel analysis={unnamed} annualCola={0} dollarsMode="real" onDollarsModeChange={vi.fn()} />);
+    const { getByTestId } = render(<HouseholdPanel analysis={unnamed} annualCola={0} dollarsMode="real" />);
     expect(getByTestId('break-even-attribution').textContent).toContain('Break-even for Client');
   });
 
@@ -351,7 +349,7 @@ describe('HouseholdPanel', () => {
     // 2.5 is the CPI default the app actually ships — the value the old
     // `annualCola === 0` guard could never catch.
     const { container, queryByTestId, queryByText } = render(
-      <HouseholdPanel analysis={zeroPia} annualCola={2.5} dollarsMode="real" onDollarsModeChange={vi.fn()} />,
+      <HouseholdPanel analysis={zeroPia} annualCola={2.5} dollarsMode="real" />,
     );
     expect(queryByText('Break-Even Analysis')).toBeNull();
     expect(queryByTestId('break-even-attribution')).toBeNull();

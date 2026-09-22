@@ -1,4 +1,5 @@
 import type { DollarsMode } from '../lib/dollarsMode';
+import type { NamedBasis, ReportBasis } from '../lib/reportBasis';
 import { useEffect, useRef, useState } from 'react';
 import { usePageScrollLock } from '../hooks/usePageScrollLock';
 import { ReportLayoutEditor } from './ReportLayoutEditor';
@@ -29,6 +30,8 @@ export function LayoutEditorDialog({
   layouts,
   shape,
   preview,
+  basis,
+  onBasisChange,
 }: {
   open: boolean;
   onClose: () => void;
@@ -48,6 +51,10 @@ export function LayoutEditorDialog({
     dollarsMode?: DollarsMode;
     theme: ReportTheme;
   };
+  /** The basis the report is in, so a preset built for the other can say so. */
+  basis?: ReportBasis;
+  /** Applies a preset's suggested basis, on the adviser's click. */
+  onBasisChange?: (next: NamedBasis) => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   // Which page each block starts on, measured by the preview as it renders
@@ -112,7 +119,14 @@ export function LayoutEditorDialog({
         </header>
 
         <div className="layout-dialog-body">
-          <ReportLayoutEditor {...layouts} shape={shape} wide blockPages={pages} />
+          <ReportLayoutEditor
+            {...layouts}
+            shape={shape}
+            wide
+            blockPages={pages}
+            basis={basis}
+            onBasisChange={onBasisChange}
+          />
           {preview ? (
             <ReportPreview {...preview} layout={layouts.layout} onPages={setPages} />
           ) : (

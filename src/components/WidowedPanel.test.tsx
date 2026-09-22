@@ -1,5 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { WidowedPanel } from './WidowedPanel';
 import type { HouseholdAnalysis, HouseholdStrategy } from '../lib/household';
 import { yearsMonthsLabel } from '../lib/format';
@@ -72,7 +72,7 @@ function buildAnalysis(over: Partial<HouseholdAnalysis> = {}): HouseholdAnalysis
     asOf: new Date(2026, 0, 15),
     piaEstimated: false,
     deceased: {
-      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 8,
+      birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 8, gender: null,
       piaMonthly: 3000, filed: { year: 2022, month: 6 },
     },
     ...over,
@@ -81,7 +81,7 @@ function buildAnalysis(over: Partial<HouseholdAnalysis> = {}): HouseholdAnalysis
 
 const renderPanel = (over: Partial<HouseholdAnalysis> = {}) =>
   render(
-    <WidowedPanel analysis={buildAnalysis(over)} dollarsMode="real" onDollarsModeChange={vi.fn()} />,
+    <WidowedPanel analysis={buildAnalysis(over)} dollarsMode="real" />,
   );
 
 describe('WidowedPanel', () => {
@@ -200,7 +200,7 @@ describe('WidowedPanel', () => {
     // would state something the adviser never entered.
     renderPanel({
       deceased: {
-        birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 8,
+        birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 8, gender: null,
         piaMonthly: 3000, filed: null,
       },
     } as Partial<HouseholdAnalysis>);

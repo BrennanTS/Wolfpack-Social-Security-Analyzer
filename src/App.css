@@ -2846,6 +2846,41 @@ tbody tr:hover {
   border-radius: var(--radius);
 }
 
+/* The preset-basis mismatch note. Same shelf as `.layout-dirty` — both are
+   "something about this layout needs your attention" — but muted rather than
+   gold, because nothing is unsaved and nothing is wrong: the report is simply
+   in a different basis from the one the preset was built for. */
+.layout-basis-note {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  background: var(--fill-secondary);
+  border-radius: var(--radius);
+}
+
+.layout-basis-note .field-hint {
+  display: block;
+  margin-top: 6px;
+}
+
+/* A button that reads as a link inside a sentence. */
+.btn-inline {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.btn-inline:hover {
+  color: var(--gold);
+}
+
 .layout-saveas {
   display: flex;
   gap: 6px;
@@ -3245,6 +3280,7 @@ tbody tr:hover {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     'picker'
+    'basis'
     'dirty'
     'list'
     'add'
@@ -3252,12 +3288,19 @@ tbody tr:hover {
     'note';
   /* The list keeps a floor, so a layout with almost nothing in it — which
      offers every block at once — cannot let the palette squeeze it away. */
-  grid-template-rows: auto auto minmax(220px, 1fr) auto auto auto;
+  grid-template-rows: auto auto auto minmax(220px, 1fr) auto auto auto;
   min-height: 0;
 }
 
 .layout-editor-wide > .layout-picker {
   grid-area: picker;
+}
+
+/* Its own row rather than sharing the `dirty` one: a preset can be both on
+   the wrong basis and dragged out of shape at the same time, and stacking
+   the two messages on one grid area would hide one of them. */
+.layout-editor-wide > .layout-basis-note {
+  grid-area: basis;
 }
 
 .layout-editor-wide > .layout-dirty {

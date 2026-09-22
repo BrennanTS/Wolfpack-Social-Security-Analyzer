@@ -40,7 +40,7 @@ import {
 import {
   piaEstimateNote,
   WIDOWED_MODELING_NOTE,
-  WIDOWED_SURVIVOR_CARD,
+  widowedSurvivorCard,
   widowedIncomeCaption,
   widowedLifetimeCaption,
 } from '../../src/components/widowedCopy';
@@ -86,7 +86,7 @@ function widowedScreenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
   push(
     lines,
     'CombinedIncomeChart.widowedIncomeCaption',
-    widowedIncomeCaption(mode, widowedBenefitsOverlap(analysis.periods)),
+    widowedIncomeCaption(mode, widowedBenefitsOverlap(analysis.periods), person.person.gender),
   );
   if (analysis.deceased !== null) {
     push(
@@ -115,7 +115,7 @@ function widowedPdfSurface(analysis: HouseholdAnalysis): Line[] {
   push(
     lines,
     'pdf/WidowedSection.widowedIncomeCaption',
-    widowedIncomeCaption('real', widowedBenefitsOverlap(analysis.periods)),
+    widowedIncomeCaption('real', widowedBenefitsOverlap(analysis.periods), person.person.gender),
   );
   if (analysis.deceased !== null) {
     push(
@@ -128,7 +128,11 @@ function widowedPdfSurface(analysis: HouseholdAnalysis): Line[] {
   // slots share a reader with everything above. Both are modeled precisely
   // because they held the identical constant at first, and the sweep found it.
   push(lines, 'pdf/MethodologyAppendix.disclosure', WIDOWED_MODELING_NOTE);
-  push(lines, 'pdf/MethodologyAppendix.survivorBenefitCard', WIDOWED_SURVIVOR_CARD);
+  push(
+    lines,
+    'pdf/MethodologyAppendix.survivorBenefitCard',
+    widowedSurvivorCard(analysis.deceased?.gender ?? null),
+  );
 
   return lines;
 }
@@ -150,7 +154,11 @@ export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
   push(
     lines,
     'StrategyComparisonTable.householdValueCaption',
-    householdValueCaption(formatPercent(analysis.assumptions.discountRate * 100, 2)),
+    householdValueCaption(
+      formatPercent(analysis.assumptions.discountRate * 100, 2),
+      mode,
+      analysis.assumptions.discountRate > 0,
+    ),
   );
   push(
     lines,
@@ -222,7 +230,12 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
     push(
       lines,
       'pdf/HouseholdSection.householdValueCaption',
-      householdValueCaption(formatPercent(analysis.assumptions.discountRate * 100, 2)),
+      // Print is modeled at 'real' here, as the surrounding captions are.
+      householdValueCaption(
+        formatPercent(analysis.assumptions.discountRate * 100, 2),
+        'real',
+        analysis.assumptions.discountRate > 0,
+      ),
     );
     push(lines, 'pdf/HouseholdSection.subtitle', COMBINED_INCOME_SUBTITLE);
     push(

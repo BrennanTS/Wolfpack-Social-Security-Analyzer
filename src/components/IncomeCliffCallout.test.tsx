@@ -121,7 +121,7 @@ describe('IncomeCliffCallout', () => {
   // composition level.
   it('renders no survivor-gap paragraph of its own, even when the gap is set', () => {
     const gap: SurvivorGap = {
-      survivorLabel: 'Jane',
+      survivorLabel: 'Jane', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,

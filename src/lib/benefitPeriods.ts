@@ -18,6 +18,7 @@ import {
   strategySumPeriodsCouple,
   strategySumPeriodsSingle,
 } from '$lib/strategy/calculations/strategy-calc';
+import type { Gender } from './lifeExpectancy';
 import type { Person } from './personAnalysis';
 
 export type BandType = 'personal' | 'spousal' | 'survivor';
@@ -47,6 +48,12 @@ export interface BenefitBand {
  */
 export interface SurvivorGap {
   survivorLabel: string;
+  /**
+   * The survivor's own gender, carried so the note about them can use a
+   * pronoun. Null when it was not entered; see `pronouns.ts` for why that is
+   * a real case and not a defensive default.
+   */
+  survivorGender: Gender | null;
   /** The deceased's own monthly benefit in their final month. */
   deceasedMonthly: number;
   /**
@@ -350,6 +357,7 @@ function detectSurvivorGap(
 
   return {
     survivorLabel: labels[survivorIdx],
+    survivorGender: people[survivorIdx].gender,
     deceasedMonthly: deceased.monthlyAmount,
     survivorOwnMonthly: survivorOwn?.monthlyAmount ?? null,
     survivorUnder60: deathIndex + 1 < ssaAge60Index(recipients[survivorIdx]),

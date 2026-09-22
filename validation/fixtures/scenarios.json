@@ -3078,6 +3078,7 @@
           "birthDay": 15,
           "deathYear": 2023,
           "deathMonth": 9,
+          "gender": "male",
           "record": {
             "kind": "pia",
             "piaMonthly": 3000,
@@ -3195,6 +3196,7 @@
           "birthDay": 15,
           "deathYear": 2023,
           "deathMonth": 9,
+          "gender": "male",
           "record": {
             "kind": "pia",
             "piaMonthly": 1800,
@@ -3312,6 +3314,7 @@
           "birthDay": 15,
           "deathYear": 2023,
           "deathMonth": 3,
+          "gender": "male",
           "record": {
             "kind": "pia",
             "piaMonthly": 2600,
@@ -3432,6 +3435,7 @@
           "birthDay": 15,
           "deathYear": 2023,
           "deathMonth": 3,
+          "gender": "male",
           "record": {
             "kind": "pia",
             "piaMonthly": 2600,

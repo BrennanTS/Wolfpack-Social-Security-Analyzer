@@ -18,7 +18,7 @@ import {
   SINGLE_CLAIMANT_BENEFIT_NOTE,
   spousalSummary,
 } from '../methodologyCopy';
-import { WIDOWED_MODELING_NOTE, WIDOWED_SURVIVOR_CARD } from '../widowedCopy';
+import { WIDOWED_MODELING_NOTE, widowedSurvivorCard } from '../widowedCopy';
 import { SOLVENCY_SCENARIO_HEADING, solvencyAssumptionNote } from './reportCopy';
 import type { SolvencyAssumption } from '../../lib/solvency';
 import { styles } from './theme';
@@ -190,7 +190,7 @@ export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, Meth
         body: spousal
           ? spousalSummary(spousal, spousal.lowerEarnerLabel === null ? null : 'the lower earner')
           : isWidowed
-            ? WIDOWED_SURVIVOR_CARD
+            ? widowedSurvivorCard(analysis.deceased?.gender ?? null)
             : SINGLE_CLAIMANT_BENEFIT_NOTE,
       },
       {

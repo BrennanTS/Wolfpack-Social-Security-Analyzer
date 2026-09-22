@@ -74,8 +74,11 @@ describe('Analyzer', () => {
   // that it is NOT the single-claimant one, and that the two ways the old
   // placeholder gate could have been got wrong stay closed.
   describe('a complete widowed household', () => {
+    // `dg` is the deceased's gender — required since the form began asking
+    // for it, and part of a complete widowed household like every other
+    // parameter here.
     const WIDOWED_URL =
-      '/?ay=1964&am=4&ag=f&ab=1200&le=90&m=w&dy=1960&dm=3&ddy=2024&ddm=1&dk=p&dp=2000&df=0';
+      '/?ay=1964&am=4&ag=f&ab=1200&le=90&m=w&dy=1960&dm=3&dg=m&ddy=2024&ddm=1&dk=p&dp=2000&df=0';
 
     it('renders the widowed display, not the single-claimant one', async () => {
       window.history.pushState({}, '', WIDOWED_URL);

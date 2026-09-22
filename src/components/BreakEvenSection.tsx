@@ -1,4 +1,6 @@
 import type { BreakEvenPair } from '../lib/benefitMath';
+import type { Gender } from '../lib/lifeExpectancy';
+import { pronounsFor } from '../lib/pronouns';
 
 interface BreakEvenSectionProps {
   breakEvens: BreakEvenPair[];
@@ -12,12 +14,15 @@ interface BreakEvenSectionProps {
    * tab the heading above already names them, so it is omitted there.
    */
   attributedTo?: string;
+  /** `attributedTo`'s gender, for the pronoun in that same sentence. */
+  gender?: Gender | null;
 }
 
 export function BreakEvenSection({
   breakEvens,
   lifeExpectancy,
   attributedTo,
+  gender = null,
 }: BreakEvenSectionProps) {
   if (breakEvens.length === 0) return null;
 
@@ -26,7 +31,8 @@ export function BreakEvenSection({
       <h3>Break-Even Analysis</h3>
       {attributedTo && (
         <p className="table-desc" data-testid="break-even-attribution">
-          Break-even for {attributedTo}, from their claiming options and planning life expectancy
+          Break-even for {attributedTo}, from {pronounsFor(gender).possessive} claiming options and
+          planning life expectancy
           (age {lifeExpectancy}). A single combined household break-even is not modeled.
         </p>
       )}

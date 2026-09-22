@@ -338,7 +338,7 @@ describe('widowed form state', () => {
     monthlyBenefit: 1200, lifeExpectancy: 92,
   };
   const deceased = {
-    birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3,
+    birthYear: 1960, birthMonth: 3, birthDay: 15, deathYear: 2024, deathMonth: 3, gender: 'male' as const,
     recordKind: 'pia' as const, piaMonthly: 3000, hadFiled: false,
     checkAmount: '' as const, filedYear: '' as const, filedMonth: '' as const,
   };

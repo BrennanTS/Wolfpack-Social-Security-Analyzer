@@ -247,19 +247,19 @@ describe('CombinedIncomeChart', () => {
   // The three survivor-gap shapes, carrying the exact figures
   // `methodologyCopy.test.ts` pins against real `analyzeHousehold` output.
   const contemporaneous: SurvivorGap = {
-    survivorLabel: 'Jane',
+    survivorLabel: 'Jane', survivorGender: null,
     deceasedMonthly: 1780,
     survivorOwnMonthly: 1760,
     survivorUnder60: false,
   };
   const notFiled: SurvivorGap = {
-    survivorLabel: 'Jane',
+    survivorLabel: 'Jane', survivorGender: null,
     deceasedMonthly: 1780,
     survivorOwnMonthly: null,
     survivorUnder60: false,
   };
   const under60: SurvivorGap = {
-    survivorLabel: 'Jane',
+    survivorLabel: 'Jane', survivorGender: null,
     deceasedMonthly: 2016,
     survivorOwnMonthly: null,
     survivorUnder60: true,

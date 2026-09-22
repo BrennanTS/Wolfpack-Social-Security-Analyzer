@@ -136,7 +136,11 @@ export function WidowedSection({ analysis, footerText, appendix, leadingHeader }
         <CombinedIncomeBars monthlySeries={monthlySeries} people={[person.person]} />
       </View>
       <Text style={styles.sectionDesc}>
-        {widowedIncomeCaption('real', widowedBenefitsOverlap(analysis.periods))}
+        {widowedIncomeCaption(
+          'real',
+          widowedBenefitsOverlap(analysis.periods),
+          analysis.people[0]?.person.gender ?? null,
+        )}
       </Text>
 
       {deceased !== null && (

@@ -1,3 +1,4 @@
+import { basisOf, settingsForBasis } from '../lib/reportBasis';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DollarsMode } from '../lib/dollarsMode';
 import { householdDisplayShape, type HouseholdAnalysis } from '../lib/household';
@@ -770,8 +771,8 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
               onAnnualColaChange={setAnnualCola}
               discountRate={discountRate}
               onDiscountRateChange={setDiscountRate}
-            dollarsMode={dollarsMode}
-            onDollarsModeChange={setDollarsMode}
+              dollarsMode={dollarsMode}
+              onDollarsModeChange={setDollarsMode}
               expanded={showAssumptions}
               onToggle={() => setShowAssumptions(!showAssumptions)}
             />
@@ -827,7 +828,6 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 analysis={analysis}
                 annualCola={annualCola}
                 dollarsMode={dollarsMode}
-                onDollarsModeChange={setDollarsMode}
                 scenarios={scenarios}
                 onScenariosChange={setScenarios}
                 claimingRowsByPerson={claimingRowsByPerson}
@@ -979,6 +979,12 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
         onClose={() => setLayoutEditorOpen(false)}
         layouts={reportLayouts}
         shape={analysis ? householdDisplayShape(analysis.status) : undefined}
+        basis={basisOf({ dollarsMode, discountRate })}
+        onBasisChange={(next) => {
+          const wanted = settingsForBasis(next, { dollarsMode, discountRate });
+          setDollarsMode(wanted.dollarsMode);
+          setDiscountRate(wanted.discountRate);
+        }}
         preview={
           analysis
             ? {

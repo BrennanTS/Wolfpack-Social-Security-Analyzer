@@ -17,6 +17,7 @@
 import { benefitOnDate } from '$lib/benefit-calculator';
 import { MonthDate, MonthDuration } from '$lib/month-time';
 import type { Recipient } from '$lib/recipient';
+import type { Gender } from './lifeExpectancy';
 import { createPiaRecipient } from './ssaTools';
 
 export interface YearMonth {
@@ -46,6 +47,24 @@ export interface Deceased {
   deathYear: number;
   /** 1-12. */
   deathMonth: number;
+  /**
+   * The deceased's gender, for the pronoun in prose about them.
+   *
+   * DISPLAY ONLY. Unlike the survivor's, it reaches no calculation:
+   * `Recipient.gender` feeds one thing in the engine, the death probability
+   * distribution (`life-tables.ts`), and a person who has already died is
+   * never priced against one — the widowed path asks the engine only for what
+   * this record pays, from a PIA, a birthdate and a filing date.
+   * `deceased.test.ts` pins that, so an engine change that made gender
+   * load-bearing here would fail rather than quietly move survivor figures.
+   *
+   * Required all the same, like the survivor's: it is always known, and a
+   * report that says "they" about a named spouse when the adviser could have
+   * said "he" is worse than one more click. The FORM field is `Gender | null`
+   * while it is unanswered, exactly as the claimant's is, and completeness
+   * gates it.
+   */
+  gender: Gender;
   record: DeceasedRecord;
 }
 
@@ -63,7 +82,13 @@ function benefitFor(
   piaMonthly: number,
   filingDate: MonthDate,
 ): number {
-  const recipient = createPiaRecipient(d.birthYear, d.birthMonth, d.birthDay, piaMonthly, 'male');
+  const recipient = createPiaRecipient(
+    d.birthYear,
+    d.birthMonth,
+    d.birthDay,
+    piaMonthly,
+    d.gender,
+  );
   return benefitOnDate(
     recipient,
     filingDate,
@@ -171,7 +196,13 @@ export function deceasedContext(d: Deceased): {
         : monthDateOf(d.record.filed);
 
   return {
-    recipient: createPiaRecipient(d.birthYear, d.birthMonth, d.birthDay, piaMonthly, 'male'),
+    recipient: createPiaRecipient(
+      d.birthYear,
+      d.birthMonth,
+      d.birthDay,
+      piaMonthly,
+      d.gender,
+    ),
     filingDate,
     deathDate,
     piaEstimated: estimated,
