@@ -213,6 +213,7 @@ export function buildMethodPairs(analysis: HouseholdAnalysis): [MethodItem, Meth
 export function MethodologyAppendix({
   analysis,
   solvency,
+  householdPrinted = false,
 }: {
   analysis: HouseholdAnalysis;
   /**
@@ -224,6 +225,12 @@ export function MethodologyAppendix({
    * that is not there.
    */
   solvency?: SolvencyAssumption;
+  /**
+   * Whether this report prints the `household` block, where a gap household's
+   * survivor note sits. The appendix points at that note only when it is
+   * there; `ReportDocument` checks the layout, as it does for `solvency`.
+   */
+  householdPrinted?: boolean;
 }) {
   // Exhaustive, and repeated here rather than left to `ReportDocument` alone
   // because this block is exported and rendered on its own by
@@ -265,7 +272,7 @@ export function MethodologyAppendix({
           {appendixShape === 'widowed'
             ? `${WIDOWED_MODELING_NOTE} `
             : hasSpouse
-              ? `${coupleModelingNote(analysis.survivorGap)} `
+              ? `${coupleModelingNote(analysis.survivorGap, householdPrinted)} `
               : `${SINGLE_CLAIMANT_BENEFIT_NOTE} `}
           Projections exclude taxation, the earnings test, and future rule changes. Data:{' '}
           {BLS_CPI_URL}.

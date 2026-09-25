@@ -289,6 +289,7 @@ export function ReportDocument({
             <MethodologyAppendix
               analysis={analysis}
               solvency={pricesReduction ? solvency?.assumption : undefined}
+              householdPrinted={printsHousehold}
             />
           ),
         });
@@ -303,6 +304,9 @@ export function ReportDocument({
   // assumptions page, which says a scenario is on — a claim it must not make
   // about a page the reader cannot turn to.
   const pricesReduction = Boolean(solvency) && runs.some((run) => run.includes('solvency'));
+  // Whether the household block prints, for the same reason: the assumptions
+  // page points a gap household at the note in that block.
+  const printsHousehold = runs.some((run) => run.includes('household'));
   // The document title goes on the first sheet that is not a cover: a cover
   // already carries the title, and printing it twice on one page reads as a
   // template nobody finished.

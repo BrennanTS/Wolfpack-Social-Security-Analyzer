@@ -14,6 +14,7 @@ import {
   survivorClaimNote,
   survivorFloorNote,
   survivorGapNote,
+  survivorGapScope,
   survivorIncomeCaption,
   householdValueCaption,
 } from './methodologyCopy';
@@ -522,9 +523,33 @@ describe('survivorGapNote', () => {
     } as unknown as HouseholdAnalysis;
 
     const copy = spousalMethodologyCopy(withGap);
-    expect(copy).toContain('no step-up is shown for Blake');
+    expect(copy).toContain('the survivor benefit SSA would pay Blake is not in the recommendation');
     // The claim that would be false for this household must not also appear.
     expect(copy).not.toContain('Survivor benefits are included');
+  });
+
+  it('points at the gap note on the Household tab rather than printing it a second time', () => {
+    // The card sits below the tabs, so on the Household tab it shares a
+    // screen with `CombinedIncomeChart`, which prints the gap note itself.
+    // Embedding the note here put the same paragraph on screen twice.
+    for (const gap of [contemporaneous, notFiled, under60]) {
+      const withGap = {
+        status: 'married',
+        spousalTopUp: {
+          atFra: 0, atRecommendedFilingAge: 0, startsAtSpouseAge: null, lowerEarnerLabel: 'Blake', lowerEarnerGender: null,
+        },
+        survivorGap: gap,
+      } as unknown as HouseholdAnalysis;
+
+      const copy = spousalMethodologyCopy(withGap);
+      const note = survivorGapNote(gap)!;
+      // No sentence of the note reappears here, and neither do its figures.
+      for (const sentence of note.split(/(?<=\.)\s+/)) {
+        expect(copy).not.toContain(sentence);
+      }
+      expect(copy).not.toMatch(/\$[\d,]+\.\d\d\/mo at that death/);
+      expect(copy).toContain('the note under the combined income chart, on the Household tab');
+    }
   });
 
   it('keeps the included-survivors sentence when there is no gap', () => {
@@ -909,21 +934,52 @@ describe('combinedIncomeCaption', () => {
  */
 describe('coupleModelingNote', () => {
   it('claims survivor benefits are modeled when they are', () => {
-    const note = coupleModelingNote(null);
+    const note = coupleModelingNote(null, true);
     expect(note).toContain('The spousal top-up and survivor benefits are both modeled');
     expect(note).toContain('the couple optimizer');
   });
 
+  const gap = {
+    survivorLabel: 'Blake', survivorGender: null,
+    deceasedMonthly: 1780,
+    survivorOwnMonthly: 1760,
+    survivorUnder60: false,
+  };
+
   it('stops claiming survivor benefits are modeled for a gap household', () => {
-    const note = coupleModelingNote({
+    for (const householdPrinted of [true, false]) {
+      const note = coupleModelingNote(gap, householdPrinted);
+      expect(note).toContain('The spousal top-up is modeled');
+      expect(note).toContain(survivorGapScope(gap));
+      expect(note).not.toMatch(/survivor benefits are (both )?modeled via/i);
+    }
+  });
+
+  it('points at the gap note only when the report prints the household block', () => {
+    // The appendix is its own layout block. A layout without the household
+    // block has no "Combined Household Income" section, and a pointer to it
+    // sends the reader looking for a page that is not there.
+    expect(coupleModelingNote(gap, true)).toContain('See the note under Combined Household Income');
+    expect(coupleModelingNote(gap, false)).not.toContain('See the note');
+    expect(coupleModelingNote(gap, false)).not.toContain('household page');
+  });
+});
+
+/**
+ * The scope sentence both the screen card and the PDF appendix use for a gap
+ * household, so the two cannot describe what is left out differently.
+ */
+describe('survivorGapScope', () => {
+  it('names the survivor and says what the figures leave out, without the note’s amounts', () => {
+    const scope = survivorGapScope({
       survivorLabel: 'Blake', survivorGender: null,
       deceasedMonthly: 1780,
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
     });
-    expect(note).toContain('The spousal top-up is modeled');
-    expect(note).toContain('the survivor benefit this household would actually receive is not');
-    expect(note).not.toMatch(/survivor benefits are (both )?modeled/);
+    expect(scope).toContain('modeled only for the lower-earning spouse');
+    expect(scope).toContain('the survivor benefit SSA would pay Blake is not in the recommendation');
+    expect(scope).not.toMatch(/\$[\d,]+/);
   });
 });
 

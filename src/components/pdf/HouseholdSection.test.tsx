@@ -135,7 +135,9 @@ const printedWithAppendix = (survivorGap: SurvivorGap | null) => {
     HouseholdSection({
       analysis,
       footerText: 'f',
-      appendix: MethodologyAppendix({ analysis }),
+      // Both blocks print in this composition, so the appendix may point at
+      // the household block's gap note.
+      appendix: MethodologyAppendix({ analysis, householdPrinted: true }),
     }),
   ).join(' ');
 };
@@ -316,7 +318,8 @@ describe('HouseholdSection — the household page as the report composes it', ()
     expect(page).toContain('no step-up is shown for Blake');
     // The reintroduced claim, in either of its wordings.
     expect(page).not.toMatch(/survivor benefits are (both )?modeled/);
-    expect(page).toContain('the survivor benefit this household would actually receive is not');
+    expect(page).toContain('the survivor benefit SSA would pay Blake is not in the recommendation');
+    expect(page).toContain('See the note under Combined Household Income');
   });
 
   it('does claim survivor benefits are modeled when the household has no gap', () => {

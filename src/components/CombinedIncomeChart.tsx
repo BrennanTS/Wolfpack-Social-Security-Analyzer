@@ -20,6 +20,7 @@ import type { Person } from '../lib/personAnalysis';
 import { formatCurrencyPerYear, personLabel } from '../lib/format';
 import {
   benefitSeriesLabel,
+  COMBINED_INCOME_HEADING,
   COMBINED_INCOME_SUBTITLE,
   combinedIncomeCaption,
   survivorFloorNote,
@@ -355,7 +356,7 @@ export function CombinedIncomeChart({
   return (
     <div className="chart-container">
       <div className="chart-header">
-        <h3>Combined Household Income</h3>
+        <h3>{COMBINED_INCOME_HEADING}</h3>
         <p>{COMBINED_INCOME_SUBTITLE}</p>
         {/* `people.length > 1` was standing in for "the default caption is
             about couples" — a single claimant has no spousal or survivor

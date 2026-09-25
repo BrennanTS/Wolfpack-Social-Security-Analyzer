@@ -31,6 +31,7 @@ import {
 } from '../../lib/format';
 import {
   benefitSeriesLabel,
+  COMBINED_INCOME_HEADING,
   COMBINED_INCOME_SUBTITLE,
   combinedIncomeCaption,
   incomeCliffSentence,
@@ -509,7 +510,7 @@ export function HouseholdBlock({
         </Text>
       )}
 
-      <Text style={styles.sectionTitle}>Combined Household Income</Text>
+      <Text style={styles.sectionTitle}>{COMBINED_INCOME_HEADING}</Text>
       {/* Same function as the on-screen chart caption: the two were a verbatim
           duplicate, and both claimed survivor benefits were included even for
           the households whose gap note directly beneath said they were not.

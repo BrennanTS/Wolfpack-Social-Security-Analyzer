@@ -284,6 +284,13 @@ export function survivorClaimNote(
 }
 
 /**
+ * The combined-income section's heading, on screen and in print. A constant
+ * because the PDF appendix names it when pointing at the gap note beneath it,
+ * and a renamed heading must take the pointer with it.
+ */
+export const COMBINED_INCOME_HEADING = 'Combined Household Income';
+
+/**
  * The subtitle directly above the combined-income chart/bars, shared by the
  * on-screen chart and the PDF so the two cannot say different things about
  * the same figures one paragraph apart — the PDF concatenates this straight
@@ -418,23 +425,45 @@ export function combinedIncomeCaption(
 }
 
 /**
+ * What a gap household's figures leave out, in one sentence both the screen's
+ * spousal card and the PDF appendix print, so the two cannot describe the
+ * omission differently. Scope only: the amounts belong to `survivorGapNote`,
+ * which each surface prints once, beside the chart it annotates.
+ */
+export function survivorGapScope(gap: SurvivorGap): string {
+  return (
+    'Survivor benefits are modeled only for the lower-earning spouse, so the survivor ' +
+    `benefit SSA would pay ${gap.survivorLabel} is not in the recommendation or in the ` +
+    'income shown after the first death.'
+  );
+}
+
+/**
  * The couple half of the PDF appendix's "Modeling notes" box.
  *
- * Conditional for exactly the reason `combinedIncomeCaption` is. For a married
- * report the methodology appendix attaches to the household `<Page>`
- * (`ReportDocument.tsx:206-211`), so an unconditional "survivor benefits are
- * modeled" claim prints on the same physical page as the caption saying no
- * survivor benefit is included for this household and the note explaining why.
- * The unconditional version was introduced by the very fix wave that removed
- * the same contradiction from the caption.
+ * Conditional on the gap for exactly the reason `combinedIncomeCaption` is: an
+ * unconditional "survivor benefits are modeled" claim would contradict the
+ * caption and the gap note that say no survivor benefit is included for this
+ * household.
+ *
+ * `householdPrinted` says whether this report carries the `household` layout
+ * block, where the gap note prints under "Combined Household Income". The
+ * appendix is its own block, and a layout can place it without that one; the
+ * pointer is added only when there is something to point at. It used to say
+ * "See the note on the household page" unconditionally, from when the
+ * appendix was attached to that page.
  */
-export function coupleModelingNote(gap: SurvivorGap | null | undefined): string {
-  return gap
-    ? 'The spousal top-up is modeled via the couple optimizer; the survivor ' +
-        'benefit this household would actually receive is not. See the note on the ' +
-        'household page.'
-    : 'The spousal top-up and survivor benefits are both modeled via the couple ' +
-        'optimizer.';
+export function coupleModelingNote(
+  gap: SurvivorGap | null | undefined,
+  householdPrinted: boolean,
+): string {
+  if (!gap) {
+    return 'The spousal top-up and survivor benefits are both modeled via the couple optimizer.';
+  }
+  const pointer = householdPrinted
+    ? ` See the note under ${COMBINED_INCOME_HEADING} for the amounts.`
+    : '';
+  return `The spousal top-up is modeled via the couple optimizer. ${survivorGapScope(gap)}${pointer}`;
 }
 
 /**
@@ -573,11 +602,18 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
     return `Select Married to model the spousal top-up. ${SINGLE_CLAIMANT_BENEFIT_NOTE}`;
   }
 
-  // The gap note replaces the blanket "survivor benefits are included" claim
-  // rather than sitting alongside it: for these households they are not.
-  const survivor =
-    survivorGapNote(analysis.survivorGap) ??
-    'Survivor benefits are included in the recommendation and in the combined income timeline.';
+  // For a gap household the blanket "survivor benefits are included" claim is
+  // false, so it is replaced, but by a pointer rather than `survivorGapNote`
+  // itself. This card renders below the tabs, so on the Household tab it
+  // shares a screen with `CombinedIncomeChart`, which already prints that
+  // note; embedding it here showed the identical paragraph twice. The pointer
+  // still names the survivor, because on the person and grid tabs the chart is
+  // not rendered and this card is the only place the gap is mentioned.
+  const gap = analysis.survivorGap;
+  const survivor = gap
+    ? `${survivorGapScope(gap)} See the note under the combined income chart, on the ` +
+      'Household tab, for the amounts.'
+    : 'Survivor benefits are included in the recommendation and in the combined income timeline.';
 
   return (
     'Married households are optimized jointly, including the spousal top-up. ' +

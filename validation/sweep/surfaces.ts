@@ -99,7 +99,11 @@ function widowedScreenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
   return lines;
 }
 
-/** The widow(er)'s printed page, plus the appendix `ReportDocument` puts on it. */
+/**
+ * The widow(er)'s printed page, plus the methodology appendix. Pooled here so
+ * the sentinel and agreement checks see every printed line; `pdfPages` splits
+ * them apart for the one check where the page boundary matters.
+ */
 function widowedPdfSurface(analysis: HouseholdAnalysis): Line[] {
   const lines: Line[] = [];
   const person = analysis.people[0];
@@ -124,9 +128,9 @@ function widowedPdfSurface(analysis: HouseholdAnalysis): Line[] {
       piaEstimateNote(analysis.deceased, analysis.piaEstimated === true),
     );
   }
-  // The appendix attaches to this same physical page, so its two widowed
-  // slots share a reader with everything above. Both are modeled precisely
-  // because they held the identical constant at first, and the sweep found it.
+  // Both widowed appendix slots are modeled because they once held the
+  // identical constant and the sweep found it. They print in the methodology
+  // block, not on this page; see `pdfPages`.
   push(lines, 'pdf/MethodologyAppendix.disclosure', WIDOWED_MODELING_NOTE);
   push(
     lines,
@@ -200,10 +204,10 @@ export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
 }
 
 /**
- * The PDF. For a MARRIED report the methodology appendix is placed on the
- * household page itself (`ReportDocument`'s `appendix` prop, and the
- * `MethodologyAppendix` docstring says so explicitly), so both belong to one
- * surface here.
+ * Every line the PDF prints outside the person pages: the household block, then
+ * the methodology appendix. Pooled for the sentinel and screen-versus-print
+ * checks; the duplicate check reads `pdfPages` instead, because the two are
+ * separate layout blocks and do not share a page.
  */
 export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
   if (analysis.status === 'widowed') return widowedPdfSurface(analysis);
@@ -274,8 +278,8 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
     );
   }
 
-  // MethodologyAppendix — on the household page for a married report, on the
-  // first person page for a single claimant.
+  // MethodologyAppendix: the `methodology` layout block, placed wherever the
+  // layout puts it.
   if (spousal) {
     push(
       lines,
@@ -283,9 +287,38 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
       spousalSummary(spousal, spousal.lowerEarnerLabel === null ? null : 'the lower earner'),
     );
   }
-  push(lines, 'pdf/MethodologyAppendix.coupleModelingNote', coupleModelingNote(analysis.survivorGap));
+  // Modeled as the Adviser preset prints it: the one preset carrying both
+  // blocks, so the one where the appendix points at the household block.
+  push(
+    lines,
+    'pdf/MethodologyAppendix.coupleModelingNote',
+    coupleModelingNote(analysis.survivorGap, married),
+  );
 
   return lines;
+}
+
+const APPENDIX_SOURCE = 'pdf/MethodologyAppendix.';
+
+/**
+ * `pdfSurface` split at the boundary a reader actually sees. The report is
+ * composed from layout blocks (`src/lib/reportLayout.ts`), and the household
+ * block and the `methodology` block are separate: the one preset that carries
+ * both (Adviser) puts page breaks between them, and a layout can carry either
+ * without the other, when that one is the only place the spousal summary
+ * prints. So the appendix restating a household-block sentence is the same
+ * fact in a different part of the report, not a duplicate on one page.
+ *
+ * This modeled them as one page before layouts existed, when `ReportDocument`
+ * really did attach the appendix to the household page, and parked the
+ * spousal summary as a duplicate on that basis.
+ */
+export function pdfPages(analysis: HouseholdAnalysis): Line[][] {
+  const lines = pdfSurface(analysis);
+  return [
+    lines.filter((l) => !l.source.startsWith(APPENDIX_SOURCE)),
+    lines.filter((l) => l.source.startsWith(APPENDIX_SOURCE)),
+  ];
 }
 
 /**
