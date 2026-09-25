@@ -534,6 +534,22 @@ describe('ReportDocument — the benefit-reduction scenario', () => {
     expect(passed(ADVISER_LAYOUT)).toEqual(TRUSTEES_ASSUMPTION);
   });
 
+  it('tells the assumptions page whether the household block prints', () => {
+    // The appendix points a gap household at the note under Combined
+    // Household Income. On a layout without the household block that
+    // section does not exist, so the pointer must not print.
+    const passed = (layout: ReportLayout) =>
+      appendixProps(ReportDocument({ analysis: married, layout }))?.householdPrinted;
+
+    const methodologyOnly: ReportLayout = {
+      id: 'x',
+      name: 'No household block',
+      items: [{ kind: 'block', id: 'answer' }, { kind: 'block', id: 'methodology' }],
+    };
+    expect(passed(methodologyOnly)).toBe(false);
+    expect(passed(ADVISER_LAYOUT)).toBe(true);
+  });
+
   it('marks the page as a scenario, above its own title', () => {
     const solvency = solvencySensitivity(married, TRUSTEES_ASSUMPTION);
     expect(solvency).not.toBeNull();
@@ -550,17 +566,20 @@ describe('ReportDocument — the benefit-reduction scenario', () => {
 });
 
 /** The props `ReportDocument` hands `MethodologyAppendix`, or null. */
-function appendixProps(
-  node: unknown,
-): { solvency?: { fromYear: number; payablePercent: number } } | null {
-  let found: { solvency?: { fromYear: number; payablePercent: number } } | null = null;
+type AppendixProps = {
+  solvency?: { fromYear: number; payablePercent: number };
+  householdPrinted?: boolean;
+};
+
+function appendixProps(node: unknown): AppendixProps | null {
+  let found: AppendixProps | null = null;
   const walk = (n: unknown): void => {
     if (found !== null) return;
     if (Array.isArray(n)) return void n.forEach(walk);
     if (n === null || typeof n !== 'object') return;
     const el = n as { type?: unknown; props?: Record<string, unknown> };
     if (el.type === MethodologyAppendix) {
-      found = el.props as { solvency?: { fromYear: number; payablePercent: number } };
+      found = el.props as AppendixProps;
       return;
     }
     if (el.props !== undefined) Object.values(el.props).forEach(walk);

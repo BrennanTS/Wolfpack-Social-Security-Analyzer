@@ -20,6 +20,7 @@ import type { DollarsMode } from '../../src/lib/dollarsMode';
 import { householdAt, widowedHouseholdAt } from './households';
 import { analyze, stubLifeTableFetch, summarize, sweepCorpus, type Finding } from './harness';
 import {
+  pdfPages,
   pdfSurface,
   personPdfSurface,
   personScreenSurface,
@@ -75,19 +76,15 @@ const SENTINELS: { name: string; re: RegExp }[] = [
  * Duplicates the sweep found, reported to the user and awaiting a decision on
  * WHICH copy to drop — a page-design call, not a mechanical one. Listed by the
  * pair of sources that render the same sentence, so any NEW duplicate still
- * fails while these two stay visible rather than silently suppressed.
+ * fails while a parked one stays visible rather than silently suppressed.
+ *
+ * Empty since 2026-09-24. The screen's survivor-gap note was a real duplicate
+ * and `spousalMethodologyCopy` now points at it instead of embedding it. The
+ * PDF's spousal summary was not: see `pdfPages`.
  *
  * See `docs/reference/invariant-sweep.md` §Parked.
  */
-const PARKED_DUPLICATES: [string, string][] = [
-  // The PDF renders the identical spousal paragraph twice on one physical
-  // page: once in the household section, once in the methodology appendix
-  // that `ReportDocument` places on that same page for a married report.
-  ['pdf/HouseholdSection.spousalSummary', 'pdf/MethodologyAppendix.spousalSummary'],
-  // On screen, `spousalMethodologyCopy` embeds `survivorGapNote`, and the
-  // combined-income chart on the same scrolling page renders it too.
-  ['CombinedIncomeChart.survivorGapNote', 'Analyzer.spousalMethodologyCopy'],
-];
+const PARKED_DUPLICATES: [string, string][] = [];
 
 const isParked = (a: string, b: string) =>
   PARKED_DUPLICATES.some(([x, y]) => (a === x && b === y) || (a === y && b === x));
@@ -171,8 +168,12 @@ describe('rendered copy', () => {
           findings.push({ index, label, detail: `[screen/${mode}] ${dup}` });
         }
       }
-      for (const dup of duplicatesIn(pdfSurface(analysis))) {
-        findings.push({ index, label, detail: `[pdf] ${dup}` });
+      // Per page group, never pooled: the household block and the
+      // methodology appendix are separate layout blocks.
+      for (const page of pdfPages(analysis)) {
+        for (const dup of duplicatesIn(page)) {
+          findings.push({ index, label, detail: `[pdf] ${dup}` });
+        }
       }
       // Per person, never pooled: one reader sees one tab and one page.
       analysis.people.forEach((_, i) => {

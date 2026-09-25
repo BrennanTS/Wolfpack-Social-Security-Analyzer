@@ -60,9 +60,9 @@ This is not an exotic input. SSA entitlement requires a full month at 62, which 
 
 ## Findings — parked
 
-Each of these has exactly one thing left to decide, and the decision is yours. Nothing below was changed.
+Each of these had exactly one thing left to decide. All three are now closed; each says how.
 
-### 2. The PDF prints the same spousal paragraph twice, on one page
+### 2. The PDF prints the same spousal paragraph twice, on one page — NOT A DUPLICATE ANY MORE
 
 `pdf/HouseholdSection.tsx:267` renders `spousalSummary(spousal, …)`, and the methodology appendix renders `spousalSummary(spousal, …)` with the **identical arguments** at `pdf/ReportDocument.tsx:153`. For a married report `ReportDocument` places that appendix **on the household page itself** — its own docstring says so explicitly ("this block and the combined-income caption share one physical `<Page>`").
 
@@ -74,13 +74,24 @@ So a client receives a page carrying, verbatim:
 
 **Why it wasn't fixed autonomously:** which of the two to drop is a page-design call. **Recommendation:** drop it from the appendix. The household section states it in context beside the figures it describes; the appendix entry is a methodology stub that now says nothing the reader hasn't just read. Keep the appendix's "Spousal Benefit" title with the *rule* rather than this household's numbers.
 
-### 3. The screen prints the survivor-gap note twice
+**Resolved (2026-09-24), by the layout work rather than by an edit.** The report is now composed from layout blocks (`src/lib/reportLayout.ts`), and the appendix no longer attaches to the household page. The paragraph prints from the `household` block (`pdf/HouseholdSection.tsx`, the recommendation card) and from the `methodology` block (`pdf/reportChrome.tsx`, the "Spousal Benefit" card). Those are two different blocks, and:
+
+- the only preset carrying both, Adviser, puts page breaks between them;
+- Savvy, Cashflow and Education carry `household` without `methodology`; and a layout can carry `methodology` without `household`. In either case, the one block present is the only place the spousal summary prints.
+
+Dropping it from the appendix would have left a methodology-only layout with no spousal summary at all. Nothing was changed in the PDF. The sweep modeled the household page and the appendix as one surface from before layouts, which is why it reported this; `surfaces.ts` now has `pdfPages`, and the duplicate check runs per page group.
+
+### 3. The screen prints the survivor-gap note twice — FIXED
 
 `spousalMethodologyCopy` **embeds** `survivorGapNote` (`methodologyCopy.ts:527`), and `CombinedIncomeChart` renders `survivorGapNote` directly (`CombinedIncomeChart.tsx:105`). `Analyzer.tsx` renders `HouseholdView` and the "How This Works" panel as siblings on one scrolling page, so both land in front of one reader.
 
 There is precedent for the fix: `IncomeCliffCallout` carries a comment saying it "deliberately does NOT re-render `survivorGapNote`" for exactly this reason. That decision was made for the callout and not extended to the methodology panel.
 
 **Recommendation:** apply the same rule — the chart owns the gap note; `spousalMethodologyCopy` keeps its blanket survivor sentence and drops the embedded gap note.
+
+**Resolved (2026-09-24), with one change to the recommendation.** Confirmed a real duplicate: the methodology card renders below the tabs, so on the Household tab (the default) it sits under `CombinedIncomeChart` and the same note printed twice. The chart owns the gap note now. But the card does not go back to its blanket "Survivor benefits are included…" sentence, because that claim is false for exactly these households. It states the scope instead ("…the survivor benefit SSA would pay Alpha is not in the recommendation or the combined income timeline") and points at the chart note on the Household tab for the figures. It still names the survivor because on the person and grid tabs the chart is not rendered and the card is the only mention of the gap. `PARKED_DUPLICATES` is empty; the sweep was seen to fail with the old embedding restored.
+
+The same pre-layout assumption was in the appendix's `coupleModelingNote`, which told a gap household to "See the note on the household page" whether or not the layout printed one. It now takes `householdPrinted` (checked against the layout by `ReportDocument`, as `solvency` already was) and points at the note under Combined Household Income only when that block prints. The screen card and the appendix share one scope sentence, `survivorGapScope`, and the heading the pointer names is the constant `COMBINED_INCOME_HEADING`.
 
 ### 4. The "earliest" comparison row has never rendered, for any household — FIXED
 
