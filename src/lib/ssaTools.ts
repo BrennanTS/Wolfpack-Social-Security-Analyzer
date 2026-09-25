@@ -193,10 +193,12 @@ export interface RankedStrategy {
  * while every other horizon in this app (`lifetimeNpvToAge`,
  * `projectedFinalMonth`, the bands, the timeline) uses `{years: age, months:
  * 0}`. So the optimizer prices six months more than the Lifetime column
- * shows. That is under 1% of a thirty-year total and rarely changes which age
- * wins, and closing it would mean either editing the vendored engine or
- * moving every band in the app by half a year. Stated here rather than
- * papered over.
+ * shows. Closing it would mean either editing the vendored engine or moving
+ * every band in the app by half a year, so the app instead RANKS the
+ * engine's candidates on its own figure (`rankOnPrintedValue` in
+ * `household.ts`) and uses `expectedNpv` only to enumerate them. That
+ * matters more than its size suggests: those six months favor late filing,
+ * and ranking on them let a row print above Best in about 6% of households.
  */
 function planToAgeDistribution(planToAge: number): { age: number; probability: number }[] {
   return [{ age: planToAge, probability: 1 }];

@@ -18,10 +18,14 @@
  * That is the point. Once the report shows a per-year table and cumulative
  * charts, the headline number and the exhibits below it are read together,
  * and they must be the same arithmetic. So the displayed value is computed
- * HERE, from the same `combinedTimeline` every exhibit reads, and the
- * engine's `expectedNpv` goes back to doing the one job it is better at:
- * RANKING which filing ages win. The seam still exists inside the engine and
- * is still documented there; it just no longer reaches the page.
+ * HERE, from the same `combinedTimeline` every exhibit reads.
+ *
+ * It RANKS too (`rankOnPrintedValue` in `household.ts`). Leaving the ranking
+ * on `expectedNpv` let the seam choose Best: its six extra months pay most
+ * to whoever files latest, so a later pair could win on the engine's figure
+ * while an earlier one printed higher beside it. The seam still exists
+ * inside the engine and is still documented there; it no longer reaches the
+ * page or the recommendation.
  *
  * COLA and the discount rate are applied with the SAME year exponent
  * (`year - asOfYear`), so the two are exact inverses of one another and a
@@ -78,7 +82,10 @@ function factorFor(year: number, opts: LifetimeValueOptions): number {
  * comparison preset sets exactly those two.
  */
 export function householdValueFromTimeline(
-  timeline: CombinedTimelinePoint[],
+  // Only the year and its total are read, so the ranking pass in
+  // `household.ts` can value thousands of candidates without building the
+  // keyed per-series objects the exhibits need.
+  timeline: readonly Pick<CombinedTimelinePoint, 'year' | 'total'>[],
   opts: LifetimeValueOptions,
 ): number {
   let total = 0;

@@ -16,6 +16,7 @@ import type { BenefitBand } from './benefitPeriods';
 import { incomeCliff } from './incomeCliff';
 import type { Person } from './personAnalysis';
 import { createPiaRecipient, ssaMonthlyBenefitAtFilingAge } from './ssaTools';
+import { formatCurrency } from './format';
 import { survivorIncomeCaption } from '../components/methodologyCopy';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
@@ -84,8 +85,12 @@ describe('analyzeHousehold — single', () => {
     // At a 0% discount rate, deferred credits dominate and the optimum for
     // this fixture lands exactly on the `latest` (70) row. That row must be
     // folded into `optimal`, not duplicated alongside it.
+    //
+    // Plan-to 86, not John's 85: at 85 the optimum is 69y9m, because a
+    // stream that stops at the plan-to age pays three more months for filing
+    // three months sooner, and that just outweighs the delayed credits.
     const { comparisons } = await analyzeHousehold(
-      household,
+      { status: 'single', people: [{ ...john, lifeExpectancy: 86 }] },
       { annualCola: 2.5, discountRate: 0 },
       asOf,
     );
@@ -713,22 +718,22 @@ describe('engine periods', () => {
     //
     // Blythe (b. Mar 1958, FRA 66y8m, PIA $1,400) is entitled to $100 at her
     // own FRA — half of Avery's $3,000 less her own PIA. The optimizer files
-    // her at 67y10m, 14 months past her FRA, so her own benefit is
-    // 1400 × (1 + 14 × 2/3%) = $1,530.67, already above the $1,500 combined
+    // her at 68y11m, 27 months past her FRA, so her own benefit is
+    // 1400 × (1 + 27 × 2/3%) = $1,652.00, already above the $1,500 combined
     // cap. Nothing is payable, but the entitlement is real and it begins the
-    // month Avery files.
-    // Plan-to ages lowered from 85/90 when the optimizer moved to a
-    // plan-to-age horizon: the same couple with the old ages no longer files
-    // Blythe past her FRA, and the $0-band case needs her delayed credits to
-    // have absorbed the whole entitlement. The PIAs and birth dates — which
-    // are what make the entitlement $100 and the cap bite — are unchanged.
+    // month Avery files, at 68y7m, when Blythe is 70y10m.
+    // Plan-to ages have moved twice, each time because the ranking changed
+    // which ages the optimizer picks: 85/90 to 72/72 for the plan-to-age
+    // horizon, then to 86/88 when Best moved onto the printed figure. Found
+    // by searching every pair from 70 to 95; the PIAs and birth dates, which
+    // make the entitlement $100 and the cap bite, are unchanged.
     const avery: Person = {
       id: 'a', name: 'Avery', birthYear: 1960, birthMonth: 6, birthDay: 15,
-      gender: 'male', piaMonthly: 3000, lifeExpectancy: 72,
+      gender: 'male', piaMonthly: 3000, lifeExpectancy: 86,
     };
     const blythe: Person = {
       id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 3, birthDay: 15,
-      gender: 'female', piaMonthly: 1400, lifeExpectancy: 72,
+      gender: 'female', piaMonthly: 1400, lifeExpectancy: 88,
     };
     const result = await analyzeHousehold(
       { status: 'married', people: [avery, blythe] },
@@ -748,7 +753,7 @@ describe('engine periods', () => {
     // The start is reported rather than suppressed: the entitlement exists
     // and does begin, even though it pays nothing. Read off the band rather
     // than restated, so the date and the amount cannot drift apart.
-    expect(topUp.startsAtSpouseAge).toBe('67 years, 10 months');
+    expect(topUp.startsAtSpouseAge).toBe('70 years, 10 months');
   });
 
   it('reports no spousal start when there is no entitlement at all', async () => {
@@ -1085,14 +1090,16 @@ describe('analyzeHousehold — survivor claim alternative', () => {
     // bands carry no survivor band, so nothing on the chart shows this money.
     expect(result.survivorClaim!.baselineHasSurvivorBand).toBe(false);
     expect(result.survivorClaim!.claimAge).toBe('60 years, 2 months');
-    expect(result.survivorClaim!.baselineTotal).toBe(645_792);
-    expect(result.survivorClaim!.bestTotal).toBe(814_414);
+    // Re-pinned when Best moved onto the printed figure: the recommended
+    // pair, and so the baseline the alternative is measured from, changed.
+    expect(result.survivorClaim!.baselineTotal).toBe(638_400);
+    expect(result.survivorClaim!.bestTotal).toBe(791_303);
     // Stated as the subtraction it is, so a change to either total that left
     // the difference intact still fails.
     expect(result.survivorClaim!.gain).toBe(
       result.survivorClaim!.bestTotal - result.survivorClaim!.baselineTotal,
     );
-    expect(result.survivorClaim!.gain).toBe(168_622);
+    expect(result.survivorClaim!.gain).toBe(152_903);
   });
 
   it('sets survivorClaim to null for a single claimant', async () => {
@@ -1765,5 +1772,81 @@ describe('analyzeHousehold — widowed', () => {
   it('leaves piaEstimated null where there is no deceased record', async () => {
     const single = await analyzeHousehold({ status: 'single', people: [john] }, assumptions, asOf);
     expect(single.piaEstimated).toBeNull();
+  });
+});
+
+/**
+ * Best is the strategy worth the most in the figure the page PRINTS.
+ *
+ * The engine ranks on `expectedNpv`, which prices each life six months past
+ * its plan-to age (the seam in `lifetimeValue.ts`); the page prints
+ * `householdValue`, summed from the strategy's own stream, which stops at the
+ * plan-to age. Those six months reward whoever files latest, so ranking on
+ * the engine's figure crowned later pairs that the table then printed as
+ * worth LESS than a row beside them. These households are ones the invariant
+ * sweep found doing exactly that.
+ */
+describe('analyzeHousehold — Best is ranked on the printed figure', () => {
+  const shortLived: Household = {
+    status: 'married',
+    people: [
+      { id: 'a', name: 'Alpha', birthYear: 1957, birthMonth: 8, birthDay: 28, gender: 'male', piaMonthly: 3500, lifeExpectancy: 72 },
+      { id: 'b', name: 'Beta', birthYear: 1958, birthMonth: 2, birthDay: 15, gender: 'male', piaMonthly: 2000, lifeExpectancy: 72 },
+    ],
+  };
+  const unequalHorizons: Household = {
+    status: 'married',
+    people: [
+      { id: 'a', name: 'Alpha', birthYear: 1958, birthMonth: 6, birthDay: 15, gender: 'male', piaMonthly: 3500, lifeExpectancy: 81 },
+      { id: 'b', name: 'Beta', birthYear: 1961, birthMonth: 11, birthDay: 1, gender: 'male', piaMonthly: 3000, lifeExpectancy: 72 },
+    ],
+  };
+  const single: Household = {
+    status: 'single',
+    people: [
+      { id: 'a', name: 'Alpha', birthYear: 1957, birthMonth: 12, birthDay: 28, gender: 'male', piaMonthly: 3000, lifeExpectancy: 81 },
+    ],
+  };
+  const cases: [string, Household][] = [
+    ['a short-lived couple', shortLived],
+    ['a couple with unequal horizons', unequalHorizons],
+    ['a single claimant', single],
+  ];
+
+  it.each(cases)('no row prints ahead of Best, for %s', async (_, household) => {
+    const analysis = await analyzeHousehold(household, assumptions, asOf);
+    const best = analysis.comparisons.find((c) => c.isOptimal)!;
+    for (const c of analysis.comparisons) {
+      expect(c.householdValue).toBeLessThanOrEqual(best.householdValue);
+      expect(c.deltaVsOptimal).toBeLessThanOrEqual(0);
+    }
+  });
+
+  it.each(cases)('the recommendation quotes the Best row, for %s', async (_, household) => {
+    const analysis = await analyzeHousehold(household, assumptions, asOf);
+    const best = analysis.comparisons.find((c) => c.isOptimal)!;
+    expect(analysis.recommendationDetail).toContain(formatCurrency(best.householdValue));
+  });
+
+  it.each(cases.slice(0, 2))("the grid's best square is the Best row, for %s", async (_, household) => {
+    // The grid holds the best of EVERY candidate in each year pair, so its
+    // maximum is the best of all candidates: this is the check that Best is
+    // the optimum over the whole search, not just over the table's rows.
+    const analysis = await analyzeHousehold(household, assumptions, asOf);
+    const best = analysis.comparisons.find((c) => c.isOptimal)!;
+    const grid = analysis.claimingGrid!;
+    expect(grid.max).toBe(best.householdValue);
+    const top = grid.cells.find((c) => c.value === grid.max)!;
+    expect(top.ages).toEqual(best.filingAges.map(({ years, months }) => ({ years, months })));
+  });
+
+  it("each spouse's best-alone age is the one they would be shown as a single claimant", async () => {
+    // Same basis on both pages: a person tab saying "best alone at X" must
+    // agree with the single-claimant analysis of that same person.
+    const analysis = await analyzeHousehold(shortLived, assumptions, asOf);
+    for (const p of analysis.people) {
+      const alone = await analyzeHousehold({ status: 'single', people: [p.person] }, assumptions, asOf);
+      expect(p.soloFilingAge?.label).toBe(alone.optimal.filingAges[0].label);
+    }
   });
 });

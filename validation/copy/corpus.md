@@ -14,9 +14,9 @@ readers would see it.
 ## Analyzer.spousalMethodologyCopy
 
 - [x10] Married households are optimized jointly, including the spousal top-up. Alpha's spousal top-up is $0.00/mo under the recommended strategy, though it never begins under the recommended strategy: a spousal benefit needs a month in which both spouses have filed and both are still living, and this strategy leaves none. The unreduced amount at Alpha's own full retirement age is $1,200.00/mo. Survivor benefits are included in the recommendation and in the combined income timeline.
-- [x72] Married households are optimized jointly, including the spousal top-up. Alpha's spousal top-up is $1,137.00/mo under the recommended strategy, beginning at Alpha's age 62, the later of Alpha's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at Alpha's own full retirement age is $1,750.00/mo. Survivor benefits are included in the recommendation and in the combined income timeline.
-- [x28] Married households are optimized jointly, including the spousal top-up. Alpha's spousal top-up is $1,200.00/mo under the recommended strategy, beginning at Alpha's age 70 years, 1 month, the later of Alpha's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at Alpha's own full retirement age is $1,200.00/mo. Survivor benefits are included in the recommendation and in the combined income timeline.
-- [x162] Married households are optimized jointly, including the spousal top-up. Alpha's spousal top-up is $1,500.00/mo under the recommended strategy, beginning at Alpha's age 66 years, 10 months, the later of Alpha's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at Alpha's own full retirement age is $1,500.00/mo. Survivor benefits are included in the recommendation and in the combined income timeline.
+- [x68] Married households are optimized jointly, including the spousal top-up. Alpha's spousal top-up is $1,137.00/mo under the recommended strategy, beginning at Alpha's age 62, the later of Alpha's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at Alpha's own full retirement age is $1,750.00/mo. Survivor benefits are included in the recommendation and in the combined income timeline.
+- [x30] Married households are optimized jointly, including the spousal top-up. Alpha's spousal top-up is $1,200.00/mo under the recommended strategy, beginning at Alpha's age 70 years, 1 month, the later of Alpha's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at Alpha's own full retirement age is $1,200.00/mo. Survivor benefits are included in the recommendation and in the combined income timeline.
+- [x164] Married households are optimized jointly, including the spousal top-up. Alpha's spousal top-up is $1,500.00/mo under the recommended strategy, beginning at Alpha's age 66 years, 10 months, the later of Alpha's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at Alpha's own full retirement age is $1,500.00/mo. Survivor benefits are included in the recommendation and in the combined income timeline.
 - [x6] Married households are optimized jointly, including the spousal top-up. Beta's spousal top-up is $0.00/mo under the recommended strategy, though it never begins under the recommended strategy: a spousal benefit needs a month in which both spouses have filed and both are still living, and this strategy leaves none. The unreduced amount at Beta's own full retirement age is $300.00/mo. Survivor benefits are modeled only for the lower-earning spouse, so the survivor benefit SSA would pay Alpha is not in the recommendation or in the income shown after the first death. See the note under the combined income chart, on the Household tab, for the amounts.
 - [x58] Married households are optimized jointly, including the spousal top-up. Both spouses have the same full benefit at full retirement age, so neither is the lower earner, and there is no spousal top-up to claim on the other's record. Survivor benefits are included in the recommendation and in the combined income timeline.
 - [x6] Married households are optimized jointly, including the spousal top-up. No top-up applies to this household: half of the higher earner's full benefit does not exceed Alpha's own benefit at his own full retirement age. Survivor benefits are modeled only for the lower-earning spouse, so the survivor benefit SSA would pay Beta is not in the recommendation or in the income shown after the first death. See the note under the combined income chart, on the Household tab, for the amounts.
@@ -43,7 +43,7 @@ readers would see it.
 ## CombinedIncomeChart.survivorGapNote
 
 - [x8] Survivor benefits are modeled only for the lower-earning spouse, so no step-up is shown for Alpha, who outlives a spouse receiving $2,262.00/mo at that death. Alpha has not filed on his own record by then, so the chart shows him nothing from that death until his own benefit begins. SSA would pay a survivor benefit over those months.
-- [x6] Survivor benefits are modeled only for the lower-earning spouse, so no step-up is shown for Alpha, who outlives a spouse receiving $3,200.00/mo at that death. Alpha is under 60 then, so no widow(er) benefit is payable yet and the chart is right to show none. SSA could pay one from age 60 onward, and none is shown.
+- [x6] Survivor benefits are modeled only for the lower-earning spouse, so no step-up is shown for Alpha, who outlives a spouse receiving $3,080.00/mo at that death. Alpha is under 60 then, so no widow(er) benefit is payable yet and the chart is right to show none. SSA could pay one from age 60 onward, and none is shown.
 - [x6] Survivor benefits are modeled only for the lower-earning spouse, so no step-up is shown for Beta, who outlives a spouse receiving $1,750.00/mo at that death. Beta has not filed on her own record by then, so the chart shows her nothing from that death until her own benefit begins. SSA would pay a survivor benefit over those months.
 
 ## CombinedIncomeChart.widowedIncomeCaption
@@ -54,41 +54,41 @@ readers would see it.
 
 ## HouseholdPanel.recommendation
 
-- [x96] Alpha files at 62 · Beta files at 68
-- [x6] Alpha files at 62 years, 1 month · Beta files at 62 years, 1 month
-- [x40] Alpha files at 62 years, 1 month · Beta files at 68 years, 5 months
+- [x86] Alpha files at 62 · Beta files at 68
+- [x8] Alpha files at 62 years, 1 month · Beta files at 62 years, 1 month
 - [x38] Alpha files at 62 years, 1 month · Beta files at 70
-- [x36] Alpha files at 65 years, 8 months · Beta files at 62 years, 1 month
-- [x50] Alpha files at 66 · Beta files at 62 years, 1 month
-- [x122] Alpha files at 68 years, 7 months · Beta files at 68 years, 5 months
-- [x110] Alpha files at 68 years, 9 months · Beta files at 70
+- [x38] Alpha files at 65 years, 8 months · Beta files at 62 years, 1 month
+- [x50] Alpha files at 67 · Beta files at 62 years, 1 month
+- [x38] Alpha files at 67 years, 1 month · Beta files at 64 years, 3 months
+- [x128] Alpha files at 67 years, 7 months · Beta files at 68 years, 5 months
+- [x112] Alpha files at 68 years, 9 months · Beta files at 70
 - [x102] Alpha files at 70 · Beta files at 68 years, 5 months
-- [x18] Claim at age 62 years, 1 month
-- [x102] Claim at age 65 years, 3 months
-- [x80] Claim at age 68
+- [x24] Claim at age 62 years, 1 month
+- [x76] Claim at age 68
+- [x100] Claim at age 69 years, 6 months
 
 ## HouseholdPanel.recommendationDetail
 
-- [x18] Filing at age 62 years, 1 month is worth $388,134 over your lifetime, more than any other age, and pays $2,464 a month, assuming you live to age 78.
-- [x102] Filing at age 65 years, 3 months is worth $489,621 over your lifetime, more than any other age, and pays $3,710 a month, assuming you live to age 81.
-- [x80] Filing at age 68 is worth $420,973 over your lifetime, more than any other age, and pays $2,592 a month, assuming you live to age 85.
-- [x98] Filing at these ages is worth $1,008,237 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 68 years, 9 months and Beta at age 70, assuming each lives to the age set for them.
-- [x36] Filing at these ages is worth $418,814 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 67 and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
-- [x34] Filing at these ages is worth $518,343 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 65 years, 8 months and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
-- [x96] Filing at these ages is worth $619,492 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 70 and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
-- [x94] Filing at these ages is worth $664,041 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 and Beta at age 68, assuming each lives to the age set for them.
-- [x6] Filing at these ages is worth $732,123 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
-- [x26] Filing at these ages is worth $786,794 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 70, assuming each lives to the age set for them.
-- [x32] Filing at these ages is worth $816,371 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
-- [x120] Filing at these ages is worth $858,936 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 68 years, 7 months and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
-- [x2] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $1,623,134, with Alpha filing at age 68 years, 6 months and Beta at age 68 years, 1 month. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x12] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $203,778, with Alpha filing at age 69 years, 10 months and Beta at age 69. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x14] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $572,980, with Alpha filing at age 66 and Beta at age 62 years, 1 month. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x2] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $595,851, with Alpha filing at age 66 years, 9 months and Beta at age 68 years, 7 months. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x8] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $670,727, with Alpha filing at age 62 years, 1 month and Beta at age 66 years, 10 months. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x12] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $708,176, with Alpha filing at age 62 years, 1 month and Beta at age 70. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x6] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $977,703, with Alpha filing at age 70 and Beta at age 62 years, 4 months. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x2] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $990,326, with Alpha filing at age 62 and Beta at age 70. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x24] Filing at age 62 years, 1 month is worth $384,441 over your lifetime, more than any other age, and pays $2,464 a month, assuming you live to age 78.
+- [x76] Filing at age 68 is worth $417,723 over your lifetime, more than any other age, and pays $2,592 a month, assuming you live to age 85.
+- [x100] Filing at age 69 years, 6 months is worth $93,440 over your lifetime, more than any other age, and pays $600 a month, assuming you live to age 88.
+- [x102] Filing at these ages is worth $1,006,335 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 68 years, 9 months and Beta at age 70, assuming each lives to the age set for them.
+- [x40] Filing at these ages is worth $415,649 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 67 and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
+- [x34] Filing at these ages is worth $517,130 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 65 years, 8 months and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
+- [x96] Filing at these ages is worth $617,096 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 70 and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
+- [x80] Filing at these ages is worth $655,917 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 and Beta at age 68, assuming each lives to the age set for them.
+- [x8] Filing at these ages is worth $726,134 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
+- [x32] Filing at these ages is worth $737,711 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 67 years, 1 month and Beta at age 64 years, 3 months, assuming each lives to the age set for them.
+- [x26] Filing at these ages is worth $787,982 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 70, assuming each lives to the age set for them.
+- [x124] Filing at these ages is worth $849,377 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 67 years, 7 months and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
+- [x10] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $0, with Alpha filing at age 62 and Beta at age 62 years, 1 month. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x6] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $1,155,036, with Alpha filing at age 70 and Beta at age 66 years, 8 months. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x10] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $202,336, with Alpha filing at age 69 years, 10 months and Beta at age 69. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x4] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $562,839, with Alpha filing at age 65 years, 9 months and Beta at age 62 years, 1 month. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x4] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $576,721, with Alpha filing at age 66 years, 9 months and Beta at age 68 years, 7 months. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x6] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $658,675, with Alpha filing at age 62 years, 1 month and Beta at age 66 years, 10 months. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x12] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $703,499, with Alpha filing at age 62 years, 1 month and Beta at age 70. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x6] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $990,183, with Alpha filing at age 62 and Beta at age 70. Worked out the other way round, the ages and the figure can both differ slightly.
 
 ## IncomeCliffCallout.heading
 
@@ -103,15 +103,15 @@ readers would see it.
 
 ## PersonPanel.soloVsHouseholdNote
 
-- [x15] Two answers, because there are two questions. On Alpha's own record alone, age 62 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 69 is worth the most. That is the age every figure in this report is built on.
-- [x22] Two answers, because there are two questions. On Alpha's own record alone, age 65 years, 3 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
-- [x72] Two answers, because there are two questions. On Alpha's own record alone, age 67 years, 7 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 68 years, 7 months is worth the most. That is the age every figure in this report is built on.
-- [x8] Two answers, because there are two questions. On Alpha's own record alone, age 68 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 66 years, 5 months is worth the most. That is the age every figure in this report is built on.
-- [x16] Two answers, because there are two questions. On Alpha's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
-- [x31] Two answers, because there are two questions. On Alpha's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 67 is worth the most. That is the age every figure in this report is built on.
-- [x68] Two answers, because there are two questions. On Beta's own record alone, age 67 years, 11 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 70 is worth the most. That is the age every figure in this report is built on.
-- [x3] Two answers, because there are two questions. On Beta's own record alone, age 68 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 69 years, 1 month is worth the most. That is the age every figure in this report is built on.
-- [x38] Two answers, because there are two questions. On Beta's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 67 years, 11 months is worth the most. That is the age every figure in this report is built on.
+- [x16] Two answers, because there are two questions. On Alpha's own record alone, age 62 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 69 is worth the most. That is the age every figure in this report is built on.
+- [x19] Two answers, because there are two questions. On Alpha's own record alone, age 65 years, 3 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
+- [x70] Two answers, because there are two questions. On Alpha's own record alone, age 69 years, 3 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 66 years, 7 months is worth the most. That is the age every figure in this report is built on.
+- [x22] Two answers, because there are two questions. On Alpha's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 67 is worth the most. That is the age every figure in this report is built on.
+- [x15] Two answers, because there are two questions. On Beta's own record alone, age 65 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
+- [x3] Two answers, because there are two questions. On Beta's own record alone, age 65 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
+- [x74] Two answers, because there are two questions. On Beta's own record alone, age 67 years, 11 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 70 is worth the most. That is the age every figure in this report is built on.
+- [x15] Two answers, because there are two questions. On Beta's own record alone, age 68 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 68 years, 7 months is worth the most. That is the age every figure in this report is built on.
+- [x40] Two answers, because there are two questions. On Beta's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 67 years, 11 months is worth the most. That is the age every figure in this report is built on.
 
 ## StrategyComparisonTable.householdValueCaption
 
@@ -132,12 +132,12 @@ readers would see it.
 
 ## SurvivorClaimNote.survivorClaimNote
 
-- [x4] If Alpha were to claim the survivor benefit at age 61 years, 8 months instead of the date the chart above shows it starting, the household would gain an estimated $166. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
-- [x4] If Alpha were to claim the survivor benefit at age 61 years, 8 months instead of the date the chart above shows it starting, the household would gain an estimated $166. That is a straight sum of dollars paid over its lifetime, not a present value. Unlike every other figure on this page, this one figures are in today’s dollars, before any cost-of-living adjustment. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
-- [x2] If Beta were to claim a survivor benefit at age 84, one the chart above does not otherwise show, the household would gain an estimated $3,317. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
-- [x2] If Beta were to claim a survivor benefit at age 84, one the chart above does not otherwise show, the household would gain an estimated $3,317. That is a straight sum of dollars paid over its lifetime, not a present value. Unlike every other figure on this page, this one figures are in today’s dollars, before any cost-of-living adjustment. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
-- [x8] If Beta were to claim the survivor benefit at age 67 instead of the date the chart above shows it starting, the household would gain an estimated $47,810. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
-- [x8] If Beta were to claim the survivor benefit at age 67 instead of the date the chart above shows it starting, the household would gain an estimated $47,810. That is a straight sum of dollars paid over its lifetime, not a present value. Unlike every other figure on this page, this one figures are in today’s dollars, before any cost-of-living adjustment. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x3] If Alpha were to claim the survivor benefit at age 61 years, 10 months instead of the date the chart above shows it starting, the household would gain an estimated $46. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x3] If Alpha were to claim the survivor benefit at age 61 years, 10 months instead of the date the chart above shows it starting, the household would gain an estimated $46. That is a straight sum of dollars paid over its lifetime, not a present value. Unlike every other figure on this page, this one figures are in today’s dollars, before any cost-of-living adjustment. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x2] If Beta were to claim a survivor benefit at age 84, one the chart above does not otherwise show, the household would gain an estimated $3,328. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x2] If Beta were to claim a survivor benefit at age 84, one the chart above does not otherwise show, the household would gain an estimated $3,328. That is a straight sum of dollars paid over its lifetime, not a present value. Unlike every other figure on this page, this one figures are in today’s dollars, before any cost-of-living adjustment. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x9] If Beta were to claim the survivor benefit at age 67 instead of the date the chart above shows it starting, the household would gain an estimated $50,613. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x9] If Beta were to claim the survivor benefit at age 67 instead of the date the chart above shows it starting, the household would gain an estimated $50,613. That is a straight sum of dollars paid over its lifetime, not a present value. Unlike every other figure on this page, this one figures are in today’s dollars, before any cost-of-living adjustment. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
 
 ## WidowedPanel.piaEstimateNote
 
@@ -196,35 +196,35 @@ readers would see it.
 
 ## pdf/HouseholdSection.recommendation
 
-- [x48] Alpha files at 62 · Beta files at 68
-- [x3] Alpha files at 62 years, 1 month · Beta files at 62 years, 1 month
-- [x20] Alpha files at 62 years, 1 month · Beta files at 68 years, 5 months
+- [x43] Alpha files at 62 · Beta files at 68
+- [x4] Alpha files at 62 years, 1 month · Beta files at 62 years, 1 month
 - [x19] Alpha files at 62 years, 1 month · Beta files at 70
-- [x18] Alpha files at 65 years, 8 months · Beta files at 62 years, 1 month
-- [x25] Alpha files at 66 · Beta files at 62 years, 1 month
-- [x61] Alpha files at 68 years, 7 months · Beta files at 68 years, 5 months
-- [x55] Alpha files at 68 years, 9 months · Beta files at 70
+- [x19] Alpha files at 65 years, 8 months · Beta files at 62 years, 1 month
+- [x25] Alpha files at 67 · Beta files at 62 years, 1 month
+- [x19] Alpha files at 67 years, 1 month · Beta files at 64 years, 3 months
+- [x64] Alpha files at 67 years, 7 months · Beta files at 68 years, 5 months
+- [x56] Alpha files at 68 years, 9 months · Beta files at 70
 - [x51] Alpha files at 70 · Beta files at 68 years, 5 months
 
 ## pdf/HouseholdSection.recommendationDetail
 
-- [x49] Filing at these ages is worth $1,008,237 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 68 years, 9 months and Beta at age 70, assuming each lives to the age set for them.
-- [x18] Filing at these ages is worth $418,814 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 67 and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
-- [x17] Filing at these ages is worth $518,343 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 65 years, 8 months and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
-- [x48] Filing at these ages is worth $619,492 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 70 and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
-- [x47] Filing at these ages is worth $664,041 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 and Beta at age 68, assuming each lives to the age set for them.
-- [x3] Filing at these ages is worth $732,123 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
-- [x13] Filing at these ages is worth $786,794 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 70, assuming each lives to the age set for them.
-- [x16] Filing at these ages is worth $816,371 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
-- [x60] Filing at these ages is worth $858,936 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 68 years, 7 months and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
-- [x1] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $1,623,134, with Alpha filing at age 68 years, 6 months and Beta at age 68 years, 1 month. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x6] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $203,778, with Alpha filing at age 69 years, 10 months and Beta at age 69. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x7] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $572,980, with Alpha filing at age 66 and Beta at age 62 years, 1 month. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x1] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $595,851, with Alpha filing at age 66 years, 9 months and Beta at age 68 years, 7 months. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x4] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $670,727, with Alpha filing at age 62 years, 1 month and Beta at age 66 years, 10 months. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x6] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $708,176, with Alpha filing at age 62 years, 1 month and Beta at age 70. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x3] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $977,703, with Alpha filing at age 70 and Beta at age 62 years, 4 months. Worked out the other way round, the ages and the figure can both differ slightly.
-- [x1] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $990,326, with Alpha filing at age 62 and Beta at age 70. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x51] Filing at these ages is worth $1,006,335 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 68 years, 9 months and Beta at age 70, assuming each lives to the age set for them.
+- [x20] Filing at these ages is worth $415,649 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 67 and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
+- [x17] Filing at these ages is worth $517,130 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 65 years, 8 months and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
+- [x48] Filing at these ages is worth $617,096 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 70 and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
+- [x40] Filing at these ages is worth $655,917 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 and Beta at age 68, assuming each lives to the age set for them.
+- [x4] Filing at these ages is worth $726,134 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 62 years, 1 month, assuming each lives to the age set for them.
+- [x16] Filing at these ages is worth $737,711 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 67 years, 1 month and Beta at age 64 years, 3 months, assuming each lives to the age set for them.
+- [x13] Filing at these ages is worth $787,982 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 62 years, 1 month and Beta at age 70, assuming each lives to the age set for them.
+- [x62] Filing at these ages is worth $849,377 to the two of you over your lifetimes, more than any other pair of ages, with Alpha filing at age 67 years, 7 months and Beta at age 68 years, 5 months, assuming each lives to the age set for them.
+- [x5] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $0, with Alpha filing at age 62 and Beta at age 62 years, 1 month. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x3] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $1,155,036, with Alpha filing at age 70 and Beta at age 66 years, 8 months. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x5] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $202,336, with Alpha filing at age 69 years, 10 months and Beta at age 69. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x2] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $562,839, with Alpha filing at age 65 years, 9 months and Beta at age 62 years, 1 month. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x2] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $576,721, with Alpha filing at age 66 years, 9 months and Beta at age 68 years, 7 months. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x3] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $658,675, with Alpha filing at age 62 years, 1 month and Beta at age 66 years, 10 months. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x6] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $703,499, with Alpha filing at age 62 years, 1 month and Beta at age 70. Worked out the other way round, the ages and the figure can both differ slightly.
+- [x3] You both have the same full benefit, so there is no higher earner for the spousal top-up to be worked out from. Treating Alpha as the one it is worked out from, the best result is $990,183, with Alpha filing at age 62 and Beta at age 70. Worked out the other way round, the ages and the figure can both differ slightly.
 
 ## pdf/HouseholdSection.spousalSummary
 
@@ -232,9 +232,9 @@ readers would see it.
 - [x72] No top-up applies to this household: half of the higher earner's full benefit does not exceed the lower earner's own benefit at her own full retirement age.
 - [x60] No top-up applies to this household: half of the higher earner's full benefit does not exceed the lower earner's own benefit at his own full retirement age.
 - [x8] The lower earner's spousal top-up is $0.00/mo under the recommended strategy, though it never begins under the recommended strategy: a spousal benefit needs a month in which both spouses have filed and both are still living, and this strategy leaves none. The unreduced amount at the lower earner's own full retirement age is $1,200.00/mo.
-- [x36] The lower earner's spousal top-up is $1,137.00/mo under the recommended strategy, beginning at the lower earner's age 62, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,750.00/mo.
-- [x14] The lower earner's spousal top-up is $1,200.00/mo under the recommended strategy, beginning at the lower earner's age 70 years, 1 month, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,200.00/mo.
-- [x81] The lower earner's spousal top-up is $1,500.00/mo under the recommended strategy, beginning at the lower earner's age 66 years, 10 months, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,500.00/mo.
+- [x34] The lower earner's spousal top-up is $1,137.00/mo under the recommended strategy, beginning at the lower earner's age 62, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,750.00/mo.
+- [x15] The lower earner's spousal top-up is $1,200.00/mo under the recommended strategy, beginning at the lower earner's age 70 years, 1 month, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,200.00/mo.
+- [x82] The lower earner's spousal top-up is $1,500.00/mo under the recommended strategy, beginning at the lower earner's age 66 years, 10 months, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,500.00/mo.
 
 ## pdf/HouseholdSection.subtitle
 
@@ -242,9 +242,9 @@ readers would see it.
 
 ## pdf/HouseholdSection.survivorClaimNote
 
-- [x4] If Alpha were to claim the survivor benefit at age 61 years, 8 months instead of the date the chart above shows it starting, the household would gain an estimated $166. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
-- [x2] If Beta were to claim a survivor benefit at age 84, one the chart above does not otherwise show, the household would gain an estimated $3,317. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
-- [x8] If Beta were to claim the survivor benefit at age 67 instead of the date the chart above shows it starting, the household would gain an estimated $47,810. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x3] If Alpha were to claim the survivor benefit at age 61 years, 10 months instead of the date the chart above shows it starting, the household would gain an estimated $46. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x2] If Beta were to claim a survivor benefit at age 84, one the chart above does not otherwise show, the household would gain an estimated $3,328. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
+- [x9] If Beta were to claim the survivor benefit at age 67 instead of the date the chart above shows it starting, the household would gain an estimated $50,613. That is a straight sum of dollars paid over its lifetime, not a present value. This is not a recommendation: the recommendation above is built with one filing date per person and cannot model a separate survivor claim date.
 
 ## pdf/HouseholdSection.survivorFloorNote
 
@@ -253,7 +253,7 @@ readers would see it.
 ## pdf/HouseholdSection.survivorGapNote
 
 - [x4] Survivor benefits are modeled only for the lower-earning spouse, so no step-up is shown for Alpha, who outlives a spouse receiving $2,262.00/mo at that death. Alpha has not filed on his own record by then, so the chart shows him nothing from that death until his own benefit begins. SSA would pay a survivor benefit over those months.
-- [x3] Survivor benefits are modeled only for the lower-earning spouse, so no step-up is shown for Alpha, who outlives a spouse receiving $3,200.00/mo at that death. Alpha is under 60 then, so no widow(er) benefit is payable yet and the chart is right to show none. SSA could pay one from age 60 onward, and none is shown.
+- [x3] Survivor benefits are modeled only for the lower-earning spouse, so no step-up is shown for Alpha, who outlives a spouse receiving $3,080.00/mo at that death. Alpha is under 60 then, so no widow(er) benefit is payable yet and the chart is right to show none. SSA could pay one from age 60 onward, and none is shown.
 - [x3] Survivor benefits are modeled only for the lower-earning spouse, so no step-up is shown for Beta, who outlives a spouse receiving $1,750.00/mo at that death. Beta has not filed on her own record by then, so the chart shows her nothing from that death until her own benefit begins. SSA would pay a survivor benefit over those months.
 
 ## pdf/HouseholdSection.survivorIncomeCaption
@@ -279,9 +279,9 @@ readers would see it.
 - [x72] No top-up applies to this household: half of the higher earner's full benefit does not exceed the lower earner's own benefit at her own full retirement age.
 - [x60] No top-up applies to this household: half of the higher earner's full benefit does not exceed the lower earner's own benefit at his own full retirement age.
 - [x8] The lower earner's spousal top-up is $0.00/mo under the recommended strategy, though it never begins under the recommended strategy: a spousal benefit needs a month in which both spouses have filed and both are still living, and this strategy leaves none. The unreduced amount at the lower earner's own full retirement age is $1,200.00/mo.
-- [x36] The lower earner's spousal top-up is $1,137.00/mo under the recommended strategy, beginning at the lower earner's age 62, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,750.00/mo.
-- [x14] The lower earner's spousal top-up is $1,200.00/mo under the recommended strategy, beginning at the lower earner's age 70 years, 1 month, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,200.00/mo.
-- [x81] The lower earner's spousal top-up is $1,500.00/mo under the recommended strategy, beginning at the lower earner's age 66 years, 10 months, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,500.00/mo.
+- [x34] The lower earner's spousal top-up is $1,137.00/mo under the recommended strategy, beginning at the lower earner's age 62, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,750.00/mo.
+- [x15] The lower earner's spousal top-up is $1,200.00/mo under the recommended strategy, beginning at the lower earner's age 70 years, 1 month, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,200.00/mo.
+- [x82] The lower earner's spousal top-up is $1,500.00/mo under the recommended strategy, beginning at the lower earner's age 66 years, 10 months, the later of the lower earner's own filing and the other spouse's, since a spousal benefit cannot start before the other spouse has filed. The unreduced amount at the lower earner's own full retirement age is $1,500.00/mo.
 
 ## pdf/MethodologyAppendix.survivorBenefitCard
 
@@ -290,15 +290,15 @@ readers would see it.
 
 ## pdf/PersonSection.soloVsHouseholdNote
 
-- [x15] Two answers, because there are two questions. On Alpha's own record alone, age 62 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 69 is worth the most. That is the age every figure in this report is built on.
-- [x22] Two answers, because there are two questions. On Alpha's own record alone, age 65 years, 3 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
-- [x72] Two answers, because there are two questions. On Alpha's own record alone, age 67 years, 7 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 68 years, 7 months is worth the most. That is the age every figure in this report is built on.
-- [x8] Two answers, because there are two questions. On Alpha's own record alone, age 68 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 66 years, 5 months is worth the most. That is the age every figure in this report is built on.
-- [x16] Two answers, because there are two questions. On Alpha's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
-- [x31] Two answers, because there are two questions. On Alpha's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 67 is worth the most. That is the age every figure in this report is built on.
-- [x68] Two answers, because there are two questions. On Beta's own record alone, age 67 years, 11 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 70 is worth the most. That is the age every figure in this report is built on.
-- [x3] Two answers, because there are two questions. On Beta's own record alone, age 68 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 69 years, 1 month is worth the most. That is the age every figure in this report is built on.
-- [x38] Two answers, because there are two questions. On Beta's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 67 years, 11 months is worth the most. That is the age every figure in this report is built on.
+- [x16] Two answers, because there are two questions. On Alpha's own record alone, age 62 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 69 is worth the most. That is the age every figure in this report is built on.
+- [x19] Two answers, because there are two questions. On Alpha's own record alone, age 65 years, 3 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
+- [x70] Two answers, because there are two questions. On Alpha's own record alone, age 69 years, 3 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 66 years, 7 months is worth the most. That is the age every figure in this report is built on.
+- [x22] Two answers, because there are two questions. On Alpha's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 67 is worth the most. That is the age every figure in this report is built on.
+- [x15] Two answers, because there are two questions. On Beta's own record alone, age 65 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
+- [x3] Two answers, because there are two questions. On Beta's own record alone, age 65 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 62 years, 1 month is worth the most. That is the age every figure in this report is built on.
+- [x74] Two answers, because there are two questions. On Beta's own record alone, age 67 years, 11 months is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 70 is worth the most. That is the age every figure in this report is built on.
+- [x15] Two answers, because there are two questions. On Beta's own record alone, age 68 years, 1 month is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 68 years, 7 months is worth the most. That is the age every figure in this report is built on.
+- [x40] Two answers, because there are two questions. On Beta's own record alone, age 70 is worth the most. For the household, where a filing age also sets what a surviving spouse inherits, age 67 years, 11 months is worth the most. That is the age every figure in this report is built on.
 
 ## pdf/WidowedSection.piaEstimateNote
 
@@ -388,10 +388,10 @@ readers would see it.
 - [x1] $177,359 more than “Survivor benefit first, own at 62 years, 1 month”
 - [x22] $279,236 more than “Own benefit first, survivor at 67”
 - [x15] $28,154 more than “Own benefit first, survivor at 66 years, 10 months”
-- [x33] $31,493 more than “Wait until 70”
-- [x143] $34,890 more than “Both claim as early as you can”
+- [x33] $31,218 more than “Wait until 70”
+- [x142] $34,545 more than “Both claim as early as you can”
 - [x3] $388,905 more than “Own benefit first, survivor at 61 years, 1 month”
-- [x61] $4,877 more than “Claim as early as you can”
+- [x57] $4,877 more than “Claim as early as you can”
 - [x12] $48,001 more than “Survivor benefit first, own at 70”
 - [x23] $576,075 more than “Both as early as possible”
 - [x2] $58,780 more than “Survivor benefit first, own at 62 years, 2 months”
@@ -492,10 +492,10 @@ readers would see it.
 
 ## report/Survivor.gainNote
 
-- [x1] $11,952 a year more than “Best for the two of you”, and about 5 years to receive it, on the ages in this report.
-- [x1] $11,952 a year more than “Best for the two of you”, for every year the survivor lives on. On the ages in this report they die within a year of each other, so the difference barely arises. It is still worth weighing, because those ages are the least certain part of this report.
-- [x143] $11,952 a year more than “Both claim as early as you can”, and about 5 years to receive it, on the ages in this report.
-- [x143] $11,952 a year more than “Both claim as early as you can”, for every year the survivor lives on. On the ages in this report they die within a year of each other, so the difference barely arises. It is still worth weighing, because those ages are the least certain part of this report.
+- [x2] $11,952 a year more than “Best for the two of you”, and about 5 years to receive it, on the ages in this report.
+- [x2] $11,952 a year more than “Best for the two of you”, for every year the survivor lives on. On the ages in this report they die within a year of each other, so the difference barely arises. It is still worth weighing, because those ages are the least certain part of this report.
+- [x142] $11,952 a year more than “Both claim as early as you can”, and about 5 years to receive it, on the ages in this report.
+- [x142] $11,952 a year more than “Both claim as early as you can”, for every year the survivor lives on. On the ages in this report they die within a year of each other, so the difference barely arises. It is still worth weighing, because those ages are the least certain part of this report.
 - [x3] $11,952 a year more than “Both claim at your full ages”, and about 5 years to receive it, on the ages in this report.
 - [x3] $11,952 a year more than “Both claim at your full ages”, for every year the survivor lives on. On the ages in this report they die within a year of each other, so the difference barely arises. It is still worth weighing, because those ages are the least certain part of this report.
 - [x153] $11,952 a year more than “Both wait until 70”, and about 5 years to receive it, on the ages in this report.

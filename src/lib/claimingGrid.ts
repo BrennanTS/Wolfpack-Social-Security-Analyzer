@@ -49,11 +49,10 @@ export interface ClaimingGridCell {
    */
   valueNominal: number;
   /**
-   * The engine's `expectedNpv` for this square, used ONLY to decide which
-   * strategy wins it. Kept separate from `value` because the two are no
-   * longer the same number (`lifetimeValue.ts`), and selecting on the printed
-   * figure while the table selects on the engine's would let the grid's best
-   * square and the table's Best row name different filing ages.
+   * The figure that decided which strategy wins this square: `rankOf`'s, the
+   * same one the table's Best row is ranked on. In the app that is the real
+   * household value, equal to `value` before a dollars-mode swap; kept as its
+   * own field so the swap to nominal cannot change which square won.
    */
   rank: number;
 }
@@ -91,15 +90,19 @@ export function buildClaimingGrid(
   /**
    * The figure to PRINT on a square, if it is not the engine's own.
    *
-   * Selection is untouched: which strategy wins a square is still decided by
-   * `expectedNpv`, because that is the engine's ranking job and the strategy
-   * table's Best row is chosen the same way — the two surfaces must agree on
-   * WHICH combination wins. What they must also agree on is the DOLLARS shown
-   * for it, and the table now prints `householdValue`, summed from the
-   * strategy's own stream (see `lifetimeValue.ts`). Applied after selection,
-   * so it costs one call per drawn square rather than one per candidate.
+   * The table prints `householdValue`, summed from the strategy's own stream
+   * (see `lifetimeValue.ts`), and a square must show the same dollars for the
+   * same ages. Which strategy wins the square is `rankOf`'s decision, below.
    */
   valueOf?: (strategy: RankedStrategy) => { real: number; nominal: number },
+  /**
+   * The figure that decides which strategy wins a square. `analyzeHousehold`
+   * passes the printed household value, the same figure its Best row is
+   * ranked on, so the top square and the Best row are the same strategy.
+   * Defaults to the engine's own `expectedNpv` for a caller with only
+   * `ranked`.
+   */
+  rankOf: (strategy: RankedStrategy) => number = (strategy) => strategy.expectedNpv,
 ): ClaimingGrid | null {
   if (ranked.length === 0 || ranked[0].filingAges.length !== 2) return null;
 
@@ -112,7 +115,8 @@ export function buildClaimingGrid(
     // sorted best-first, so ties resolve to the earlier-listed combination
     // rather than to iteration order — the same tie rule the comparison
     // table's lookup uses.
-    if (current !== undefined && strategy.expectedNpv <= current.rank) continue;
+    const rank = rankOf(strategy);
+    if (current !== undefined && rank <= current.rank) continue;
     // Once, not once per field: this rebuilds the square's whole payment
     // stream, and calling it twice would double the grid's cost for nothing.
     const valued = valueOf?.(strategy);
@@ -122,7 +126,7 @@ export function buildClaimingGrid(
         { years: ages[0].years, months: ages[0].months },
         { years: ages[1].years, months: ages[1].months },
       ],
-      rank: strategy.expectedNpv,
+      rank,
       // No `valueOf` means no stream to sum, so the engine's own figure
       // stands in for both — every test that omits the resolver, and any
       // caller that has only `ranked`.

@@ -164,18 +164,10 @@ describe('the strategy table agrees with itself', () => {
       const best = flagged[0] ?? optimal;
 
       for (const c of comparisons) {
-        // The engine still RANKS, so no row may beat the optimum on its terms.
-        if (c.expectedNpv > optimal.expectedNpv + EPS) {
-          findings.push({
-            index,
-            label,
-            detail: `${c.key} NPV ${c.expectedNpv} exceeds the optimum ${optimal.expectedNpv}`,
-          });
-        }
-        // But the table PRINTS `householdValue`, and "vs. best" is the
-        // distance in the printed figure (`withTimelineDerived`), not in
-        // `expectedNpv`: the two differ by the six-month seam. Checking it
-        // against `expectedNpv` reported 3,704 findings that were all this.
+        // "vs. best" is the distance in the printed figure
+        // (`withTimelineDerived`), not in `expectedNpv`: the two differ by the
+        // six-month seam. Checking it against `expectedNpv` reported 3,704
+        // findings that were all this.
         const implied = Math.round((c.householdValue - best.householdValue) * 100) / 100;
         if (!near(c.deltaVsOptimal, implied)) {
           findings.push({
@@ -199,24 +191,16 @@ describe('the strategy table agrees with itself', () => {
   });
 
   /**
-   * PARKED DEFECT, pinned so a fix and a regression both flip it.
+   * Best is ranked on the figure the table prints (`rankOnPrintedValue`).
    *
-   * The Best row is chosen by `expectedNpv` but printed as `householdValue`.
-   * The engine prices six months past each plan-to age that the printed
-   * stream does not contain (`lifetimeValue.ts`), and those six months are
-   * worth most to whoever filed latest. So the engine can crown a later pair
-   * while an earlier one is worth more in the dollars on the page: the table
-   * then prints a positive "vs. best" beside a row that is not Best, and the
-   * grid's 100% square is not the Best row's square.
-   *
-   * Measured when found (seeded corpus, 1,500 + 375 widowed): always the
-   * `earliest` row, in 106 households (72 married, 34 single), 42 of them by
-   * more than `MATERIAL_MARGIN`, largest +$25,509; and 230 of 1,125 grids.
-   * Widowed households are unaffected, because they are ranked and printed
-   * on one figure.
-   *
-   * Waiting on a decision about which figure should rank. When it is fixed,
-   * these counts go to zero: replace the pins with `toEqual([])`.
+   * It used to be ranked on the engine's `expectedNpv`, which prices six
+   * months past each plan-to age; those months pay most to whoever files
+   * latest, so the engine crowned later pairs that printed below a row beside
+   * them. When this check was written that was the `earliest` row in 106 of
+   * 1,875 households (up to $25,509), and a grid square above Best in 230 of
+   * 1,125 grids. The grid holds the best of every candidate in each year
+   * pair, so its maximum matching Best is the check that Best is the optimum
+   * over the whole search and not just over the table's rows.
    */
   it(`no row prints ahead of the Best row (${COUNT} households)`, async () => {
     const rows: Finding[] = [];
@@ -241,26 +225,20 @@ describe('the strategy table agrees with itself', () => {
       const grid = analysis.claimingGrid;
       if (grid) {
         gridCount++;
-        if (grid.max > best.householdValue + EPS) {
+        if (!near(grid.max, best.householdValue)) {
           grids.push({
             index,
             label,
-            detail: `grid max ${grid.max} > Best ${best.householdValue}`,
+            detail: `grid max ${grid.max} != Best ${best.householdValue}`,
           });
         }
       }
     }
 
-    console.log(summarize('rows printing ahead of Best [PARKED]', rows));
-    console.log(summarize(`grids peaking above Best of ${gridCount} [PARKED]`, grids));
-    // The class, not just the count: a row other than `earliest`, or a
-    // widowed household, is a new defect rather than this one.
-    expect(rows.filter((f) => !f.detail.startsWith('earliest '))).toEqual([]);
-    expect(rows.filter((f) => f.label.includes('widowed'))).toEqual([]);
-    if (COUNT === 1500 && WIDOWED_COUNT === 375) {
-      expect(rows).toHaveLength(106);
-      expect(grids).toHaveLength(230);
-    }
+    console.log(summarize('rows printing ahead of Best', rows));
+    console.log(summarize(`grids whose top is not Best (${gridCount} grids)`, grids));
+    expect(rows).toEqual([]);
+    expect(grids).toEqual([]);
   });
 });
 

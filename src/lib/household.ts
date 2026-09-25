@@ -153,8 +153,9 @@ export interface HouseholdStrategy {
    * `householdValue` is what the strategy table prints, NOT `expectedNpv`:
    * the two differ by the six-month seam documented in `lifetimeValue.ts`,
    * and only this one agrees with the per-year table and cumulative charts
-   * that read `timeline`. `expectedNpv` keeps the job it is better at —
-   * ranking which filing ages win — and still orders these rows.
+   * that read `timeline`. It is also what RANKS: Best is the strategy with
+   * the highest `householdValue` (`rankOnPrintedValue`). `expectedNpv` is
+   * the engine's own figure, carried for reference and not printed.
    *
    * A display layer showing nominal dollars must re-sum `timeline` through
    * `householdValueFromTimeline` rather than scaling `householdValue`: each
@@ -792,14 +793,87 @@ function withTimelineDerived(
   // seeded in `buildComparisons` from `expectedNpv`, which differs from
   // `householdValue` by the six-month seam — so leaving them would put a
   // "vs. best" column beside a value column that it does not subtract from.
-  // The Best row is the optimum by `expectedNpv` (the engine still ranks);
-  // this only restates the distance to it in the printed units.
+  // The Best row is the optimum in these same units (`rankOnPrintedValue`),
+  // so no delta is positive.
   const best = withValues.find((c) => c.isOptimal);
   if (best === undefined) return withValues;
   return withValues.map((c) => ({
     ...c,
     deltaVsOptimal: roundCents(c.householdValue - best.householdValue),
   }));
+}
+
+/**
+ * The engine's candidates, re-ordered best-first by the figure the page
+ * PRINTS for each of them.
+ *
+ * The engine ranks on `expectedNpv`, which prices every life six months past
+ * its plan-to age (the seam in `lifetimeValue.ts`). The page prints
+ * `householdValue`, summed from the strategy's own stream, which stops AT the
+ * plan-to age. Those six months pay most to whoever filed latest, so ranking
+ * on the engine's figure crowned later pairs that the strategy table then
+ * printed as worth less than a row beside it: the invariant sweep found the
+ * `earliest` row ahead of Best in 106 of 1,875 households, by up to $25,509,
+ * and a grid square above Best in 230 of 1,125 grids.
+ *
+ * So every candidate is valued the way its row would be, and the order
+ * follows that. The sort is stable, so an exact tie keeps the engine's own
+ * order and resolves the way it always has. About 7,200 candidates for a
+ * couple; each is one `householdPeriods` call and one pass over its years,
+ * about 20ms for a couple in all.
+ *
+ * `values` is returned alongside so a caller that prints a candidate's figure
+ * (the grid) reads the one it was ranked on rather than recomputing it.
+ */
+function rankOnPrintedValue(
+  ranked: readonly RankedStrategy[],
+  people: Person[],
+  recipients: Recipient[],
+  labels: string[],
+  valueOptions: Omit<LifetimeValueOptions, 'dollarsMode'>,
+): { ranked: RankedStrategy[]; values: Map<RankedStrategy, number> } {
+  const ids = people.map((person) => person.id);
+  const options = { ...valueOptions, dollarsMode: 'real' } as const;
+  const values = new Map<RankedStrategy, number>();
+  for (const strategy of ranked) {
+    const { bands } = householdPeriods(
+      people,
+      recipients,
+      strategy.filingAges.map((f) => f.monthDuration),
+      labels,
+    );
+    // The year totals alone: the same arithmetic `buildCombinedTimeline`
+    // runs (`eachYearTotal`), without the keyed objects nothing here reads.
+    const totals: { year: number; total: number }[] = [];
+    eachYearTotal(bands, ids, (year, _k, _s, _p, _n, total) => totals.push({ year, total }));
+    values.set(strategy, householdValueFromTimeline(totals, options));
+  }
+  const reordered = [...ranked].sort((a, b) => values.get(b)! - values.get(a)!);
+  return { ranked: reordered, values };
+}
+
+/**
+ * The best filing age for one person on their own, on the same basis as a
+ * single claimant's Best row: a person tab's "best alone" must name the age
+ * that person's own single-claimant report would.
+ */
+function soloBestFilingAge(
+  person: Person,
+  discountRate: number,
+  asOf: Date,
+  valueOptions: Omit<LifetimeValueOptions, 'dollarsMode'>,
+): FilingAgeDisplay | null {
+  const recipient = createRecipientFor(person);
+  const engine = rankedSingleStrategies(recipient, discountRate, person.lifeExpectancy, asOf);
+  if (engine.length === 0) return null;
+  const { ranked } = rankOnPrintedValue(
+    engine,
+    [person],
+    [recipient],
+    [personLabel(person.name, 0)],
+    valueOptions,
+  );
+  return ranked[0].filingAges[0];
 }
 
 function createRecipientFor(person: Person) {
@@ -990,41 +1064,104 @@ export function monthDateAt(index: number): MonthDate {
  */
 function buildCombinedTimeline(
   bands: BenefitBand[],
-  people: PersonAnalysis[],
+  people: readonly { person: Pick<Person, 'id'> }[],
 ): CombinedTimelinePoint[] {
-  if (bands.length === 0) return [];
-
-  const start = Math.floor(Math.min(...bands.map((b) => b.startIndex)) / 12);
-  const end = Math.floor(Math.max(...bands.map((b) => b.endIndex)) / 12);
-
   const points: CombinedTimelinePoint[] = [];
-  for (let year = start; year <= end; year++) {
-    // Seeded from `people` so every person keys into every year, including
-    // years they are paid nothing — the chart stacks on a stable key set.
-    const byPersonId: Record<string, number> = {};
-    for (const p of people) byPersonId[p.person.id] = 0;
-
-    const bySeries: Record<string, number> = {};
-    for (const band of bands) {
-      const amount = monthsInYear(band, year) * band.monthlyAmount;
-      const seriesKey = `${band.personId}:${band.type}`;
-      bySeries[seriesKey] = (bySeries[seriesKey] ?? 0) + amount;
-    }
-
-    for (const [seriesKey, amount] of Object.entries(bySeries)) {
-      bySeries[seriesKey] = roundCents(amount);
-      const personId = seriesKey.slice(0, seriesKey.lastIndexOf(':'));
-      byPersonId[personId] = (byPersonId[personId] ?? 0) + bySeries[seriesKey];
-    }
-
-    let total = 0;
-    for (const id of Object.keys(byPersonId)) {
-      byPersonId[id] = roundCents(byPersonId[id]);
-      total += byPersonId[id];
-    }
-    points.push({ year, bySeries, byPersonId, total: roundCents(total) });
-  }
+  eachYearTotal(
+    bands,
+    people.map((p) => p.person.id),
+    (year, seriesKeys, series, personIds, persons, total) => {
+      // Keyed in the same order the arrays are: series by first appearance
+      // in `bands`, people as given and then any a band names that they do
+      // not — every person keys into every year, including years they are
+      // paid nothing, so the chart stacks on a stable key set.
+      const bySeries: Record<string, number> = {};
+      for (let s = 0; s < seriesKeys.length; s++) bySeries[seriesKeys[s]] = series[s];
+      const byPersonId: Record<string, number> = {};
+      for (let i = 0; i < personIds.length; i++) byPersonId[personIds[i]] = persons[i];
+      points.push({ year, bySeries, byPersonId, total });
+    },
+  );
   return points;
+}
+
+/**
+ * The per-year arithmetic behind `buildCombinedTimeline`, on index arrays.
+ *
+ * Split out because the ranking pass (`rankOnPrintedValue`) values every one
+ * of a couple's ~6,000 candidates, and building keyed objects per year for
+ * each of them made a married analysis twenty times slower. Both callers go
+ * through THIS function, so the figure a candidate is ranked on and the
+ * figure its row prints are the same additions in the same order.
+ *
+ * Each series (`${personId}:${type}`) sums its bands' months in the year and
+ * is rounded to cents; each person sums their rounded series and is rounded;
+ * the total sums the rounded people and is rounded. `visit` receives buffers
+ * that are reused from year to year and must copy what it keeps.
+ */
+function eachYearTotal(
+  bands: readonly BenefitBand[],
+  peopleIds: readonly string[],
+  visit: (
+    year: number,
+    seriesKeys: readonly string[],
+    series: readonly number[],
+    personIds: readonly string[],
+    persons: readonly number[],
+    total: number,
+  ) => void,
+): void {
+  if (bands.length === 0) return;
+
+  const personIds = [...peopleIds];
+  const personIndex = new Map(personIds.map((id, i) => [id, i]));
+  const seriesKeys: string[] = [];
+  const seriesPerson: number[] = [];
+  const seriesIndex = new Map<string, number>();
+  const bandSeries = bands.map((band) => {
+    const key = `${band.personId}:${band.type}`;
+    let index = seriesIndex.get(key);
+    if (index === undefined) {
+      index = seriesKeys.length;
+      seriesKeys.push(key);
+      seriesIndex.set(key, index);
+      let person = personIndex.get(band.personId);
+      if (person === undefined) {
+        person = personIds.length;
+        personIds.push(band.personId);
+        personIndex.set(band.personId, person);
+      }
+      seriesPerson.push(person);
+    }
+    return index;
+  });
+
+  let start = Infinity;
+  let end = -Infinity;
+  for (const band of bands) {
+    start = Math.min(start, band.startIndex);
+    end = Math.max(end, band.endIndex);
+  }
+
+  const series = new Array<number>(seriesKeys.length);
+  const persons = new Array<number>(personIds.length);
+  for (let year = Math.floor(start / 12); year <= Math.floor(end / 12); year++) {
+    series.fill(0);
+    for (let b = 0; b < bands.length; b++) {
+      series[bandSeries[b]] += monthsInYear(bands[b], year) * bands[b].monthlyAmount;
+    }
+    persons.fill(0);
+    for (let s = 0; s < series.length; s++) {
+      series[s] = roundCents(series[s]);
+      persons[seriesPerson[s]] += series[s];
+    }
+    let total = 0;
+    for (let i = 0; i < persons.length; i++) {
+      persons[i] = roundCents(persons[i]);
+      total += persons[i];
+    }
+    visit(year, seriesKeys, series, personIds, persons, roundCents(total));
+  }
 }
 
 export interface MonthlyIncomePoint extends CombinedTimelinePoint {
@@ -1249,7 +1386,7 @@ function spousalFiguresFrom(
  */
 function coupleRecommendationDetail(
   isPiaTie: boolean,
-  expectedNpv: number,
+  householdValue: number,
   labels: readonly [string, string],
   ages: readonly [string, string],
 ): string {
@@ -1259,14 +1396,14 @@ function coupleRecommendationDetail(
     return (
       `You both have the same full benefit, so there is no higher earner for the ` +
       `spousal top-up to be worked out from. Treating ${labels[0]} as the one it is ` +
-      `worked out from, the best result is ${formatCurrency(expectedNpv)}, with ` +
+      `worked out from, the best result is ${formatCurrency(householdValue)}, with ` +
       `${labels[0]} filing at age ${ages[0]} and ${labels[1]} at age ${ages[1]}. ` +
       `Worked out the other way round, the ages and the figure can both differ slightly.`
     );
   }
 
   return (
-    `Filing at these ages is worth ${formatCurrency(expectedNpv)} to the two of you over ` +
+    `Filing at these ages is worth ${formatCurrency(householdValue)} to the two of you over ` +
     `your lifetimes, more than any other pair of ages, with ${labels[0]} filing at age ` +
     `${ages[0]} and ${labels[1]} at age ${ages[1]}, assuming each lives to the age set for them.`
   );
@@ -1546,16 +1683,36 @@ export async function analyzeHousehold(
     // the optimizer weights each recipient by their OWN horizon, and pairing
     // person A's age with person B's recipient would silently swap which of
     // them the household's inputs say outlives the other.
-    const ranked = rankedCoupleStrategies(
+    const engineRanked = rankedCoupleStrategies(
       recipient0,
       recipient1,
       assumptions.discountRate,
       [enginePeople[0].lifeExpectancy, enginePeople[1].lifeExpectancy],
       asOf,
     );
-    if (ranked.length === 0) {
+    if (engineRanked.length === 0) {
       throw new Error('No eligible couple filing strategies');
     }
+
+    // Labels are needed to value each candidate, and are display text only:
+    // they name bands, they do not change a single amount.
+    const displayLabels: [string, string] = [
+      personLabel(personA.name, 0),
+      personLabel(personB.name, 1),
+    ];
+    // Display-order labels, the text a reader sees, reordered into engine
+    // slots so each label stays attached to the person it names.
+    const engineLabels = reorder(displayLabels);
+
+    // Best-first by the printed figure, from here on: the table's Best row,
+    // every delta, the grid and the recommendation all read this order.
+    const { ranked, values: printedValue } = rankOnPrintedValue(
+      engineRanked,
+      enginePeople,
+      [recipient0, recipient1],
+      engineLabels,
+      valueOptions,
+    );
 
     const { optimal, selected, allComparisons } = buildComparisons(
       ranked,
@@ -1583,18 +1740,12 @@ export async function analyzeHousehold(
     // Cheap enough to do unconditionally now that the optimizer takes a fixed
     // horizon rather than fetching and weighting a mortality table.
     const people = household.people.map((person, i) => {
-      const solo = rankedSingleStrategies(
-        createRecipientFor(person),
-        assumptions.discountRate,
-        person.lifeExpectancy,
-        asOf,
-      );
       return analyzePerson(
         person,
         displayFilingAges[i],
         assumptions.annualCola,
         asOf,
-        solo.length > 0 ? solo[0].filingAges[0] : null,
+        soloBestFilingAge(person, assumptions.discountRate, asOf, valueOptions),
         // The OPTIMUM's age for this person, not the shown scenario's. These
         // differ the moment an adviser selects any other row.
         displayOptimalAges[i],
@@ -1624,15 +1775,6 @@ export async function analyzeHousehold(
     // which direction the classifier's default happens to point.
     const isPiaTie =
       !higherEarningsThan(recipient0, recipient1) && !higherEarningsThan(recipient1, recipient0);
-
-    // Display-order labels — the text a reader sees. Reordered into engine
-    // slots for everything that indexes by slot, so the label text stays
-    // attached to the person it names whichever slot they landed in.
-    const displayLabels: [string, string] = [
-      personLabel(personA.name, 0),
-      personLabel(personB.name, 1),
-    ];
-    const engineLabels = reorder(displayLabels);
 
     const { bands, survivorGap, survivorFloor, finalIndexByPersonId } = householdPeriods(
       enginePeople,
@@ -1700,17 +1842,20 @@ export async function analyzeHousehold(
       periods: bands,
       survivorGap,
       survivorFloor,
-      // Print the same basis the strategy table prints. Selection inside the
-      // grid still runs on the engine's `expectedNpv`; only the dollars shown
-      // are re-summed from each winning square's own stream, so a square and
-      // the table's Best row can never quote different figures for the same
-      // filing ages. One call per drawn square (~81), not per candidate.
+      // Print, and choose each square's strategy on, the same figure the
+      // strategy table prints and ranks on: a square and the Best row can
+      // never quote different figures for the same filing ages, and the top
+      // square IS the Best row. The real figure was computed while ranking;
+      // only the nominal one is summed here, once per drawn square (~81).
       //
       // BOTH dollars modes, because the stream is built here and discarded
       // here: a lifetime sum carries a different COLA factor in each of its
       // years, so it cannot be restated later by scaling. Summing the same
       // points twice is the cheap half of this; rebuilding them would not be.
-      claimingGrid: buildClaimingGrid(ranked, reorder, (strategy) => {
+      claimingGrid: buildClaimingGrid(
+        ranked,
+        reorder,
+        (strategy) => {
         const timeline = buildCombinedTimeline(
           householdPeriods(
             enginePeople,
@@ -1721,7 +1866,7 @@ export async function analyzeHousehold(
           people,
         );
         return {
-          real: householdValueFromTimeline(timeline, { ...valueOptions, dollarsMode: 'real' }),
+          real: printedValue.get(strategy)!,
           // `discountRate: 0` to match what "future value" means everywhere
           // else: the dollars as received, with nothing discounted out of
           // them. See `reportBasis.displayDiscountRate`.
@@ -1731,7 +1876,9 @@ export async function analyzeHousehold(
             discountRate: 0,
           }),
         };
-      }),
+        },
+        (strategy) => printedValue.get(strategy)!,
+      ),
       survivorClaim,
       finalIndexByPersonId,
       spousalTopUp: spousalFiguresFrom(
@@ -1746,7 +1893,7 @@ export async function analyzeHousehold(
         `${displayLabels[0]} files at ${displayFilingAges[0].label} · ` +
         `${displayLabels[1]} files at ${displayFilingAges[1].label}`,
       recommendationDetail: selectedRow.isOptimal
-        ? coupleRecommendationDetail(isPiaTie, optimal.expectedNpv, displayLabels, [
+        ? coupleRecommendationDetail(isPiaTie, optimalRow.householdValue, displayLabels, [
             displayFilingAges[0].label,
             displayFilingAges[1].label,
           ])
@@ -1754,8 +1901,8 @@ export async function analyzeHousehold(
             displayLabels,
             [displayFilingAges[0].label, displayFilingAges[1].label],
             [displayOptimalAges[0].label, displayOptimalAges[1].label],
-            selected.expectedNpv,
-            optimal.expectedNpv,
+            selectedRow.householdValue,
+            optimalRow.householdValue,
           ),
       assumptions,
       asOf,
@@ -1770,15 +1917,23 @@ export async function analyzeHousehold(
 
   const [person] = household.people;
   const recipient = createRecipientFor(person);
-  const recipientRanked = rankedSingleStrategies(
+  const engineRanked = rankedSingleStrategies(
     recipient,
     assumptions.discountRate,
     person.lifeExpectancy,
     asOf,
   );
-  if (recipientRanked.length === 0) {
+  if (engineRanked.length === 0) {
     throw new Error('No eligible filing ages for this person');
   }
+  // Best-first by the printed figure; see `rankOnPrintedValue`.
+  const { ranked: recipientRanked } = rankOnPrintedValue(
+    engineRanked,
+    [person],
+    [recipient],
+    [personLabel(person.name, 0)],
+    valueOptions,
+  );
 
   const { optimal, selected, allComparisons } = buildComparisons(
     recipientRanked,
@@ -1858,15 +2013,15 @@ export async function analyzeHousehold(
         // same sentence for one person, so the two surfaces stop describing
         // the same finding in two different voices.
       ? `Filing at age ${optimal.filingAges[0].label} is worth ` +
-        `${formatCurrency(optimal.expectedNpv)} over your lifetime, more than any other ` +
+        `${formatCurrency(optimalRow.householdValue)} over your lifetime, more than any other ` +
         `age, and pays ${formatCurrency(people[0].monthlyAtFilingAge)} a month, assuming ` +
         `you live to age ${person.lifeExpectancy}.`
       : selectedScenarioDetail(
           [personLabel(person.name, 0)],
           [selected.filingAges[0].label],
           [optimal.filingAges[0].label],
-          selected.expectedNpv,
-          optimal.expectedNpv,
+          selectedRow.householdValue,
+          optimalRow.householdValue,
         ),
     assumptions,
     asOf,

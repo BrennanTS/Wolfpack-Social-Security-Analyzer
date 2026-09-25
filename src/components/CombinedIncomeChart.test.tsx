@@ -42,20 +42,20 @@ const noRecordSarah: Person = { ...jane, piaMonthly: 0 };
 
 // The $0.00 spousal-band fixture, reused verbatim from `household.test.ts`
 // ("keeps the start date of a spousal entitlement that is fully absorbed")
-// rather than invented. Avery (PIA $3,000) files at 70; the real couple
+// rather than invented. Avery (PIA $3,000) files at 68y7m; the real couple
 // *optimizer* — not a forced filing age — files Blythe (PIA $1,400, FRA
-// 66y8m) at 67y10m, 14 months past her own FRA. Her own benefit is then
-// 1400 * (1 + 14 * 2/3%) = $1,530.67, already above the $1,500 combined
+// 66y8m) at 68y11m, 27 months past her own FRA. Her own benefit is then
+// 1400 * (1 + 27 * 2/3%) = $1,652.00, already above the $1,500 combined
 // (half-of-Avery's-PIA) cap, so the engine's Spousal band is real — it does
 // begin — but carries $0.00 for every month it runs. This makes it a
 // genuinely optimizer-reachable $0 band, not one that needs forced ages.
 const avery: Person = {
   id: 'a', name: 'Avery', birthYear: 1960, birthMonth: 6, birthDay: 15,
-  gender: 'male', piaMonthly: 3000, lifeExpectancy: 85,
+  gender: 'male', piaMonthly: 3000, lifeExpectancy: 86,
 };
 const blythe: Person = {
   id: 'b', name: 'Blythe', birthYear: 1958, birthMonth: 3, birthDay: 15,
-  gender: 'female', piaMonthly: 1400, lifeExpectancy: 90,
+  gender: 'female', piaMonthly: 1400, lifeExpectancy: 88,
 };
 const zeroSpousalAssumptions = { annualCola: 0, discountRate: 0.025 };
 
