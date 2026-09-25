@@ -4,7 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { analyzeHousehold, type Household, type HouseholdAnalysis } from './household';
 import { percentOfBest } from './claimingGrid';
-import { comparisonsInDollarsMode, gridInDollarsMode, outrankedByDisplay } from './displayDollars';
+import {
+  comparisonsInDollarsMode,
+  gridInDollarsMode,
+  outrankedByDisplay,
+  recommendationDetailInDollarsMode,
+} from './displayDollars';
+import { formatCurrency } from './format';
+import { DEFAULT_SCENARIO_ROWS } from './scenario';
 import { longevityInDollarsMode, longevitySensitivity } from './longevity';
 import { TRUSTEES_ASSUMPTION, solvencyInDollarsMode, solvencySensitivity } from './solvency';
 
@@ -242,5 +249,93 @@ describe('a recommendation that is not the largest figure on the page', () => {
       opts('nominal', 0),
     );
     expect(outrankedByDisplay(shown)).toBeNull();
+  });
+});
+
+/**
+ * The sentence under the recommendation quotes a dollar figure, and that
+ * figure has to be the one the Best row beside it prints. It was built once,
+ * in today's dollars, and printed unchanged in future dollars: on this couple
+ * the card said "$867,416 … more than any other pair" over a Best row of
+ * $1,892,838 and a Delay-to-70 row of $1,920,856.
+ */
+describe('the recommendation sentence follows the report’s dollars', () => {
+  const PROBE: Household = {
+    status: 'married',
+    people: [
+      { id: 'a', name: 'John', birthYear: 1962, birthMonth: 6, birthDay: 15, gender: 'male', piaMonthly: 3000, lifeExpectancy: 85 },
+      { id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 6, birthDay: 15, gender: 'female', piaMonthly: 1500, lifeExpectancy: 90 },
+    ],
+  };
+  const SINGLE: Household = {
+    status: 'single',
+    people: [
+      { id: 'a', name: 'John', birthYear: 1962, birthMonth: 6, birthDay: 15, gender: 'male', piaMonthly: 3000, lifeExpectancy: 85 },
+    ],
+  };
+  const assumptions = { annualCola: COLA, discountRate: 0.025 };
+  const nominal = (a: HouseholdAnalysis) => ({
+    dollarsMode: 'nominal' as const,
+    annualCola: COLA,
+    discountRate: a.assumptions.discountRate,
+    asOfYear: AS_OF.getFullYear(),
+  });
+  const shownRows = (a: HouseholdAnalysis) =>
+    comparisonsInDollarsMode(a.allComparisons, a.people, a.finalIndexByPersonId, nominal(a));
+
+  it('is the analysis’s own sentence in today’s dollars', async () => {
+    const a = await analyzeHousehold(PROBE, assumptions, AS_OF);
+    const opts = { ...nominal(a), dollarsMode: 'real' as const };
+    expect(recommendationDetailInDollarsMode(a, a.allComparisons, opts)).toBe(a.recommendationDetail);
+  });
+
+  it('quotes the Best row’s future-dollar figure, and scopes the ranking claim', async () => {
+    const a = await analyzeHousehold(PROBE, assumptions, AS_OF);
+    const rows = shownRows(a);
+    const best = rows.find((r) => r.isOptimal)!;
+    // Guard: the two bases really do print different figures for this row.
+    expect(best.householdValue).not.toBeCloseTo(a.optimal.householdValue, 0);
+
+    const text = recommendationDetailInDollarsMode(a, rows, nominal(a));
+    expect(text).toContain(formatCurrency(best.householdValue));
+    expect(text).not.toContain(formatCurrency(a.optimal.householdValue));
+    expect(text).toContain('in future dollars');
+    // In future dollars another pair can print more; the claim is only true
+    // in the dollars the recommendation is ranked in, and must say so.
+    expect(outrankedByDisplay(rows)).not.toBeNull();
+    expect(text).not.toContain('more than any other pair');
+    expect(text).toContain('Counted in today’s dollars, no other pair of ages is worth more.');
+  });
+
+  it('prices a chosen scenario in future dollars, and its cost in today’s', async () => {
+    const a = await analyzeHousehold(PROBE, assumptions, AS_OF, {
+      rows: [...DEFAULT_SCENARIO_ROWS],
+      selectedId: 'earliest',
+    });
+    expect(a.scenarioIsBest).toBe(false);
+    const rows = shownRows(a);
+    const selected = rows.find((r) => r.isSelected)!;
+    const best = rows.find((r) => r.isOptimal)!;
+    const realShortfall = a.optimal.householdValue - a.selected.householdValue;
+    expect(realShortfall).toBeGreaterThan(0);
+
+    const text = recommendationDetailInDollarsMode(a, rows, nominal(a));
+    expect(text).toContain(formatCurrency(selected.householdValue));
+    expect(text).toContain(formatCurrency(best.householdValue));
+    expect(text).toContain(`${formatCurrency(realShortfall)} less`);
+    expect(text).not.toContain(formatCurrency(a.selected.householdValue));
+  });
+
+  it('does the same for one person', async () => {
+    const a = await analyzeHousehold(SINGLE, assumptions, AS_OF);
+    const rows = shownRows(a);
+    const best = rows.find((r) => r.isOptimal)!;
+    const text = recommendationDetailInDollarsMode(a, rows, nominal(a));
+    expect(text).toContain(formatCurrency(best.householdValue));
+    expect(text).toContain('in future dollars');
+    expect(text).not.toContain('more than any other age');
+    expect(text).toContain('Counted in today’s dollars, no other age is worth more.');
+    // The monthly figure is not restated, so it has to say which dollars it is in.
+    expect(text).toMatch(/a month in today’s dollars/);
   });
 });

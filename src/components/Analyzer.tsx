@@ -810,7 +810,7 @@ export function Analyzer({ darkMode, onToggleDarkMode }: AnalyzerProps) {
                 <span />
               </div>
               <h3>Running analysis…</h3>
-              <p>Computing optimal filing ages with SSA mortality tables and benefit formulas.</p>
+              <p>Comparing filing ages with SSA benefit formulas.</p>
             </div>
           ) : analysisError ? (
             <div className="empty-state" data-testid="analysis-error">

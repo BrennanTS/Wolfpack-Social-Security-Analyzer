@@ -1,7 +1,12 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { HouseholdPanel } from './HouseholdPanel';
-import type { HouseholdAnalysis } from '../lib/household';
+import { analyzeHousehold, type HouseholdAnalysis } from '../lib/household';
+import { comparisonsInDollarsMode } from '../lib/displayDollars';
+import { formatCurrency } from '../lib/format';
 import type { PersonAnalysis } from '../lib/personAnalysis';
 
 // Minimal hand-built fixtures — HouseholdPanel takes data as props and never
@@ -394,5 +399,54 @@ describe('the household-value caption in each basis', () => {
     expect(caption()).toContain('No discount is applied');
     expect(caption()).not.toContain('less per year');
     expect(caption()).not.toContain('today’s money');
+  });
+});
+
+/**
+ * The card's sentence quotes a dollar figure beside a table that the dollars
+ * toggle restates. It used to stay in today's dollars when the table moved,
+ * so the card and the Best row under it quoted different figures.
+ */
+describe('HouseholdPanel — the recommendation sentence follows the dollars toggle', () => {
+  const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../public');
+  let analysis: HouseholdAnalysis;
+
+  beforeAll(async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      const contents = await readFile(path.join(publicDir, String(url).replace(/^\//, '')), 'utf8');
+      return { ok: true, json: async () => JSON.parse(contents) } as Response;
+    });
+    analysis = await analyzeHousehold(
+      {
+        status: 'married',
+        people: [
+          { id: 'a', name: 'John', birthYear: 1962, birthMonth: 6, birthDay: 15, gender: 'male', piaMonthly: 3000, lifeExpectancy: 85 },
+          { id: 'b', name: 'Jane', birthYear: 1964, birthMonth: 6, birthDay: 15, gender: 'female', piaMonthly: 1500, lifeExpectancy: 90 },
+        ],
+      },
+      { annualCola: 2.5, discountRate: 0.025 },
+      new Date('2026-09-21'),
+    );
+  });
+  afterAll(() => vi.unstubAllGlobals());
+
+  const cardText = () =>
+    screen.getByTestId('recommendation-title').parentElement!.querySelector('p')!.textContent;
+
+  it('quotes the Best row’s figure in future dollars', () => {
+    render(<HouseholdPanel analysis={analysis} annualCola={2.5} dollarsMode="nominal" />);
+    const best = comparisonsInDollarsMode(analysis.comparisons, analysis.people, analysis.finalIndexByPersonId, {
+      dollarsMode: 'nominal',
+      annualCola: 2.5,
+      discountRate: analysis.assumptions.discountRate,
+      asOfYear: analysis.asOf.getFullYear(),
+    }).find((c) => c.isOptimal)!;
+    expect(cardText()).toContain(formatCurrency(best.householdValue));
+    expect(cardText()).not.toContain(formatCurrency(analysis.optimal.householdValue));
+  });
+
+  it('keeps the analysis’s own sentence in today’s dollars', () => {
+    render(<HouseholdPanel analysis={analysis} annualCola={2.5} dollarsMode="real" />);
+    expect(cardText()).toBe(analysis.recommendationDetail);
   });
 });

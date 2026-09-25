@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { buildMonthlyIncomeSeries, type HouseholdAnalysis } from '../lib/household';
 import { computeBreakEvens } from '../lib/benefitMath';
 import { formatPercent } from '../lib/cpiHistory';
-import { comparisonsInDollarsMode } from '../lib/displayDollars';
+import { comparisonsInDollarsMode, recommendationDetailInDollarsMode } from '../lib/displayDollars';
 import { displayDiscountRate } from '../lib/reportBasis';
 import { toNominal, toNominalMonthly, type DollarsMode } from '../lib/dollarsMode';
 import { personLabel } from '../lib/format';
@@ -133,6 +133,19 @@ export function HouseholdPanel({
         : analysis.allComparisons,
     [analysis, annualCola, dollarsMode, asOfYear],
   );
+  // The card's sentence quotes a figure, so it is rebuilt from the rows as
+  // shown rather than printed as the analysis built it, in today's dollars.
+  // The full set, so a chosen row the table hides is still found.
+  const recommendationDetail = useMemo(
+    () =>
+      recommendationDetailInDollarsMode(analysis, displayAllComparisons, {
+        dollarsMode,
+        annualCola,
+        asOfYear,
+        discountRate: analysis.assumptions.discountRate,
+      }),
+    [analysis, displayAllComparisons, dollarsMode, annualCola, asOfYear],
+  );
   const displayAnalysis: HouseholdAnalysis = useMemo(
     () =>
       dollarsMode === 'nominal'
@@ -178,7 +191,7 @@ export function HouseholdPanel({
       <div className="recommendation-card">
         <span className="rec-label">Household · {scenarioEyebrow(analysis.scenarioIsBest)}</span>
         <h2 data-testid="recommendation-title">{analysis.recommendation}</h2>
-        <p>{analysis.recommendationDetail}</p>
+        <p>{recommendationDetail}</p>
       </div>
 
       <CombinedIncomeChart

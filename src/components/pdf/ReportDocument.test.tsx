@@ -15,6 +15,8 @@ import { setActiveReportTheme, styles } from './theme';
 import { DEFAULT_REPORT_THEME_ID, reportTheme } from '../../lib/reportTheme';
 import { solvencySensitivity, TRUSTEES_ASSUMPTION } from '../../lib/solvency';
 import { MethodologyAppendix } from './reportChrome';
+import { comparisonsInDollarsMode } from '../../lib/displayDollars';
+import { formatCurrency } from '../../lib/format';
 import * as copy from './reportCopy';
 
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../public');
@@ -643,3 +645,37 @@ describe('ReportDocument — the action plan for a widow(er)', () => {
   });
 });
 
+
+/**
+ * The household block's recommendation card quotes a dollar figure, and it
+ * has to be the one the Best row under it prints. The report restated every
+ * row into future dollars and printed the sentence as built, in today's.
+ */
+describe('ReportDocument — the recommendation sentence in future dollars', () => {
+  let married: HouseholdAnalysis;
+
+  beforeAll(async () => {
+    married = await analyzeHousehold({ status: 'married', people: [john, jane] }, assumptions, asOf);
+  });
+
+  it('quotes the figure the Best row prints', () => {
+    const best = comparisonsInDollarsMode(married.comparisons, married.people, married.finalIndexByPersonId, {
+      dollarsMode: 'nominal',
+      annualCola: assumptions.annualCola,
+      discountRate: assumptions.discountRate,
+      asOfYear: asOf.getFullYear(),
+    }).find((c) => c.isOptimal)!;
+    const text = collectText(
+      ReportDocument({ analysis: married, layout: ADVISER_LAYOUT, dollarsMode: 'nominal' }),
+    ).join(' ');
+    expect(text).toContain(`worth ${formatCurrency(best.householdValue)} to the two of you`);
+    expect(text).not.toContain(married.recommendationDetail);
+  });
+
+  it('prints the analysis’s own sentence in today’s dollars', () => {
+    const text = collectText(
+      ReportDocument({ analysis: married, layout: ADVISER_LAYOUT, dollarsMode: 'real' }),
+    ).join(' ');
+    expect(text).toContain(married.recommendationDetail);
+  });
+});

@@ -29,7 +29,11 @@ import {
   type ExhibitBasis,
 } from './ScenarioExhibits';
 import type { DollarsMode } from '../../lib/dollarsMode';
-import { comparisonsInDollarsMode, gridInDollarsMode } from '../../lib/displayDollars';
+import {
+  comparisonsInDollarsMode,
+  gridInDollarsMode,
+  recommendationDetailInDollarsMode,
+} from '../../lib/displayDollars';
 import { displayDiscountRate } from '../../lib/reportBasis';
 import { PersonBlock, type PersonPart } from './PersonSection';
 import { WidowedSection } from './WidowedSection';
@@ -165,8 +169,26 @@ export function ReportDocument({
   // One restatement for the whole document, before anything reads it.
   // `comparisonsInDollarsMode` is the identity in real mode, so this costs
   // nothing in the default path.
+  const restateOpts = {
+    dollarsMode,
+    annualCola: rawAnalysis.assumptions.annualCola,
+    ...exhibitBasis,
+  };
   const analysis: HouseholdAnalysis = {
     ...rawAnalysis,
+    // The household block's card quotes a figure, so its sentence is rebuilt
+    // around the rows as printed. The full set, so a chosen row the table
+    // hides is still found.
+    recommendationDetail: recommendationDetailInDollarsMode(
+      rawAnalysis,
+      comparisonsInDollarsMode(
+        rawAnalysis.allComparisons,
+        rawAnalysis.people,
+        rawAnalysis.finalIndexByPersonId,
+        restateOpts,
+      ),
+      restateOpts,
+    ),
     // The grid is restated here too, and not only where it is drawn: every
     // block reads one `analysis`, and a document holding two of them in
     // different dollars is the defect this restatement exists to prevent.
@@ -175,11 +197,7 @@ export function ReportDocument({
       rawAnalysis.comparisons,
       rawAnalysis.people,
       rawAnalysis.finalIndexByPersonId,
-      {
-        dollarsMode,
-        annualCola: rawAnalysis.assumptions.annualCola,
-        ...exhibitBasis,
-      },
+      restateOpts,
     ),
   };
   // The last two blocks reading figures the restatement above cannot reach:

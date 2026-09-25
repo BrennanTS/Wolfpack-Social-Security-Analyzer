@@ -19,7 +19,7 @@
 import { roundCents } from './benefitMath';
 import type { ClaimingGrid } from './claimingGrid';
 import { toNominal, toNominalAmount, type DollarsMode } from './dollarsMode';
-import type { HouseholdAnalysis, HouseholdStrategy } from './household';
+import { recommendationDetailFor, type HouseholdAnalysis, type HouseholdStrategy } from './household';
 import { firstDeath } from './incomeCliff';
 import { householdValueFromTimeline } from './lifetimeValue';
 
@@ -142,4 +142,38 @@ export function outrankedByDisplay(
   if (comparisons.length === 0) return null;
   const largest = comparisons.reduce((a, b) => (b.householdValue > a.householdValue ? b : a));
   return largest.isOptimal ? null : largest;
+}
+
+/**
+ * The sentence under the recommendation, in the dollars the page prints.
+ *
+ * `analysis.recommendationDetail` is built in today's dollars and quotes a
+ * figure. Printed unchanged beside a table restated in future dollars, the
+ * card quoted one figure and the Best row under it another, and said "more
+ * than any other pair" over a row printing more. Rebuilt here from `shown`,
+ * the rows as the page prints them (the full set, so a hidden chosen row is
+ * still found).
+ *
+ * Real mode, and a household with no facts to rebuild from (widowed), return
+ * the analysis's own sentence.
+ */
+export function recommendationDetailInDollarsMode(
+  analysis: HouseholdAnalysis,
+  shown: HouseholdStrategy[],
+  opts: DisplayDollarsOptions,
+): string {
+  const facts = analysis.recommendationFacts;
+  if (opts.dollarsMode !== 'nominal' || facts === undefined) return analysis.recommendationDetail;
+  const shownSelected = shown.find((c) => c.isSelected);
+  const shownOptimal = shown.find((c) => c.isOptimal);
+  if (shownSelected === undefined || shownOptimal === undefined) {
+    throw new Error('Restated rows lost the optimal or selected strategy');
+  }
+  return recommendationDetailFor(
+    facts,
+    analysis.scenarioIsBest,
+    analysis.selected.householdValue,
+    analysis.optimal.householdValue,
+    { selected: shownSelected.householdValue, optimal: shownOptimal.householdValue },
+  );
 }

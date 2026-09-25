@@ -110,8 +110,8 @@ export function AssumptionsPanel({
               <span>6%</span>
             </div>
             <span className="field-hint">
-              Used for mortality-weighted optimal filing (expected present value). Default 2.5%
-              approximates long-term TIPS yield.
+              Used to rank filing ages: each future payment counts this much less for every
+              year away. Default 2.5% approximates long-term TIPS yield.
             </span>
             {usingDefaultDiscount && (
               <p className="cpi-active-note">Using the default discount rate.</p>

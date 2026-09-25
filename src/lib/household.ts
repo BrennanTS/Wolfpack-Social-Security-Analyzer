@@ -365,6 +365,14 @@ export interface HouseholdAnalysis {
   finalIndexByPersonId: Record<string, number>;
   recommendation: string;
   recommendationDetail: string;
+  /**
+   * What `recommendationDetail` was built from, so a display layer that
+   * restates the figures can rebuild the sentence around the ones it prints
+   * (`recommendationDetailInDollarsMode`). Absent for a widowed household,
+   * whose sentence already names its own basis and whose figures are not
+   * restated.
+   */
+  recommendationFacts?: RecommendationFacts;
   assumptions: Assumptions;
   asOf: Date;
   /**
@@ -659,15 +667,15 @@ function buildComparisons(
     expectedNpv: entry.strategy.expectedNpv,
     lifetimeTotal: null,
     survivorClaimDate: null,
-    deltaVsOptimal:
-      Math.round((entry.strategy.expectedNpv - optimalStrategy.expectedNpv) * 100) / 100,
     isOptimal: entry.id === optimalEntryId,
     isSelected: entry.id === selectedId,
     hidden: entry.hidden,
-    // All three are filled in by `withTimelineDerived` once bands exist to
+    // All four are filled in by `withTimelineDerived` once bands exist to
     // compute them from — `buildComparisons` runs before this household's
     // `householdPeriods` call. Nothing reads these rows before that pass; the
-    // seeds exist so the shape is one type rather than two.
+    // seeds exist so the shape is one type rather than two. The delta was
+    // once seeded from `expectedNpv`, which is not the figure it sits beside.
+    deltaVsOptimal: 0,
     survivorIncome: null,
     timeline: [],
     householdValue: 0,
@@ -789,12 +797,11 @@ function withTimelineDerived(
     return { ...c, timeline, householdValue, survivorIncome: point ? point.total : null };
   });
 
-  // Re-anchor the deltas on the figure the table actually prints. They were
-  // seeded in `buildComparisons` from `expectedNpv`, which differs from
-  // `householdValue` by the six-month seam — so leaving them would put a
-  // "vs. best" column beside a value column that it does not subtract from.
-  // The Best row is the optimum in these same units (`rankOnPrintedValue`),
-  // so no delta is positive.
+  // The deltas, on the figure the table actually prints: `expectedNpv`
+  // differs from `householdValue` by the six-month seam, so a delta taken
+  // from it would sit beside a value column it does not subtract from. The
+  // Best row is the optimum in these same units (`rankOnPrintedValue`), so no
+  // delta is positive.
   const best = withValues.find((c) => c.isOptimal);
   if (best === undefined) return withValues;
   return withValues.map((c) => ({
@@ -1361,6 +1368,82 @@ function spousalFiguresFrom(
   };
 }
 
+/** The inputs to the recommendation sentence, other than its dollar figures. */
+export type RecommendationFacts =
+  | {
+      kind: 'couple';
+      isPiaTie: boolean;
+      labels: readonly [string, string];
+      ages: readonly [string, string];
+      optimalAges: readonly [string, string];
+    }
+  | {
+      kind: 'single';
+      label: string;
+      age: string;
+      optimalAge: string;
+      /** In today's dollars; never restated. */
+      monthlyAtFilingAge: number;
+      lifeExpectancy: number;
+    };
+
+/**
+ * Household values as some display prints them, when that is not the basis
+ * the recommendation was ranked in. Today's-dollar values ride along because
+ * the claim that one plan beats another is only true in those.
+ */
+export interface ShownValues {
+  selected: number;
+  optimal: number;
+}
+
+/**
+ * The sentence under the recommendation, for any basis. `selected` and
+ * `optimal` are the ranked (today's-dollar) values; `shown`, when given, is
+ * what the page prints in future dollars. One function, so the analysis and
+ * the display layer cannot word the same finding two ways.
+ */
+export function recommendationDetailFor(
+  facts: RecommendationFacts,
+  isOptimal: boolean,
+  selected: number,
+  optimal: number,
+  shown?: ShownValues,
+): string {
+  if (facts.kind === 'couple') {
+    return isOptimal
+      ? coupleRecommendationDetail(facts.isPiaTie, optimal, facts.labels, facts.ages, shown?.optimal)
+      : selectedScenarioDetail(facts.labels, facts.ages, facts.optimalAges, selected, optimal, shown);
+  }
+  if (!isOptimal) {
+    return selectedScenarioDetail([facts.label], [facts.age], [facts.optimalAge], selected, optimal, shown);
+  }
+  // "The optimizer recommends" named the engine and instructed the reader in
+  // the same breath. The married branch has always read "Filing at these ages
+  // is worth $X to the two of you"; this is the same sentence for one person,
+  // so the two surfaces stop describing the same finding in two voices.
+  if (shown === undefined) {
+    return (
+      `Filing at age ${facts.optimalAge} is worth ${formatCurrency(optimal)} over your lifetime, ` +
+      `more than any other age, and pays ${formatCurrency(facts.monthlyAtFilingAge)} a month, ` +
+      `assuming you live to age ${facts.lifeExpectancy}.`
+    );
+  }
+  return (
+    `Filing at age ${facts.optimalAge} is worth ${formatCurrency(shown.optimal)} over your ` +
+    `lifetime in future dollars, and pays ${formatCurrency(facts.monthlyAtFilingAge)} a month ` +
+    `in today’s dollars, assuming you live to age ${facts.lifeExpectancy}. ${TODAYS_DOLLARS_RANKING}` +
+    'age is worth more.'
+  );
+}
+
+/**
+ * Why a future-dollar sentence cannot say "more than any other": in future
+ * dollars a plan that waits can print the larger total (`outrankedByDisplay`),
+ * and the recommendation is ranked in today's dollars.
+ */
+const TODAYS_DOLLARS_RANKING = 'Counted in today’s dollars, no other ';
+
 /**
  * The sentence under the joint recommendation, on both surfaces.
  *
@@ -1389,7 +1472,20 @@ function coupleRecommendationDetail(
   householdValue: number,
   labels: readonly [string, string],
   ages: readonly [string, string],
+  shownValue?: number,
 ): string {
+  if (shownValue !== undefined) {
+    const lead = isPiaTie
+      ? `You both have the same full benefit, so there is no higher earner for the ` +
+        `spousal top-up to be worked out from. Treating ${labels[0]} as the one it is ` +
+        `worked out from, filing with ${labels[0]} at age ${ages[0]} and ${labels[1]} at ` +
+        `age ${ages[1]} is worth ${formatCurrency(shownValue)} in future dollars. ` +
+        `Worked out the other way round, the ages and the figure can both differ slightly.`
+      : `Filing at these ages is worth ${formatCurrency(shownValue)} to the two of you over ` +
+        `your lifetimes in future dollars, with ${labels[0]} filing at age ${ages[0]} and ` +
+        `${labels[1]} at age ${ages[1]}, assuming each lives to the age set for them.`;
+    return `${lead} ${TODAYS_DOLLARS_RANKING}pair of ages is worth more.`;
+  }
   if (isPiaTie) {
     // A sentence a client reads. The earlier version said "engine", "model"
     // and "admissible" in the space of three lines.
@@ -1431,6 +1527,7 @@ function selectedScenarioDetail(
   optimalAges: readonly string[],
   selectedNpv: number,
   optimalNpv: number,
+  shown?: ShownValues,
 ): string {
   // One phrase for both household shapes. "Combined" is redundant beside
   // "household", and neither is an *expected* value any more — the optimizer
@@ -1439,6 +1536,27 @@ function selectedScenarioDetail(
   const filings = labels.map((l, i) => `${l} at age ${ages[i]}`).join(' and ');
   const bestFilings = labels.map((l, i) => `${l} at age ${optimalAges[i]}`).join(' and ');
   const shortfall = Math.round((optimalNpv - selectedNpv) * 100) / 100;
+
+  // In future dollars the chosen plan can print MORE than the recommended one
+  // (a plan that waits collects more dollars, later), so the shortfall is
+  // stated in the dollars the recommendation is ranked in, beside both
+  // printed figures.
+  if (shown !== undefined) {
+    if (shortfall <= 0) {
+      return (
+        `Every figure here is computed with ${filings}. It is worth ` +
+        `${formatCurrency(shown.selected)} in future dollars, and counted in today’s dollars ` +
+        `it is worth the same as the best available (${bestFilings}), so this scenario costs nothing.`
+      );
+    }
+    return (
+      `Every figure here is computed with ${filings}, not the recommended ages. It is worth ` +
+      `${formatCurrency(shown.selected)} in future dollars, against ` +
+      `${formatCurrency(shown.optimal)} for the best available, ${bestFilings}. Counted in ` +
+      `today’s dollars, which is how the recommendation is ranked, it is worth ` +
+      `${formatCurrency(shortfall)} less.`
+    );
+  }
 
   if (shortfall <= 0) {
     return (
@@ -1829,6 +1947,14 @@ export async function analyzeHousehold(
       throw new Error('Comparison rows lost the optimal or selected strategy');
     }
 
+    const coupleFacts: RecommendationFacts = {
+      kind: 'couple',
+      isPiaTie,
+      labels: displayLabels,
+      ages: [displayFilingAges[0].label, displayFilingAges[1].label],
+      optimalAges: [displayOptimalAges[0].label, displayOptimalAges[1].label],
+    };
+
     return {
       status: 'married',
       people,
@@ -1892,18 +2018,13 @@ export async function analyzeHousehold(
       recommendation:
         `${displayLabels[0]} files at ${displayFilingAges[0].label} · ` +
         `${displayLabels[1]} files at ${displayFilingAges[1].label}`,
-      recommendationDetail: selectedRow.isOptimal
-        ? coupleRecommendationDetail(isPiaTie, optimalRow.householdValue, displayLabels, [
-            displayFilingAges[0].label,
-            displayFilingAges[1].label,
-          ])
-        : selectedScenarioDetail(
-            displayLabels,
-            [displayFilingAges[0].label, displayFilingAges[1].label],
-            [displayOptimalAges[0].label, displayOptimalAges[1].label],
-            selectedRow.householdValue,
-            optimalRow.householdValue,
-          ),
+      recommendationDetail: recommendationDetailFor(
+        coupleFacts,
+        selectedRow.isOptimal,
+        selectedRow.householdValue,
+        optimalRow.householdValue,
+      ),
+      recommendationFacts: coupleFacts,
       assumptions,
       asOf,
       piaEstimated: null,
@@ -1987,6 +2108,14 @@ export async function analyzeHousehold(
   if (optimalRow === undefined || selectedRow === undefined) {
     throw new Error('Comparison rows lost the optimal or selected strategy');
   }
+  const singleFacts: RecommendationFacts = {
+    kind: 'single',
+    label: personLabel(person.name, 0),
+    age: selected.filingAges[0].label,
+    optimalAge: optimal.filingAges[0].label,
+    monthlyAtFilingAge: people[0].monthlyAtFilingAge,
+    lifeExpectancy: person.lifeExpectancy,
+  };
 
   return {
     status: 'single',
@@ -2006,23 +2135,13 @@ export async function analyzeHousehold(
     survivorClaim: null,
     finalIndexByPersonId,
     recommendation: `Claim at age ${selected.filingAges[0].label}`,
-    recommendationDetail: selectedRow.isOptimal
-      // "The optimizer recommends" named the engine and instructed the
-        // reader in the same breath. The married branch has always read
-        // "Filing at these ages is worth $X to the two of you"; this is the
-        // same sentence for one person, so the two surfaces stop describing
-        // the same finding in two different voices.
-      ? `Filing at age ${optimal.filingAges[0].label} is worth ` +
-        `${formatCurrency(optimalRow.householdValue)} over your lifetime, more than any other ` +
-        `age, and pays ${formatCurrency(people[0].monthlyAtFilingAge)} a month, assuming ` +
-        `you live to age ${person.lifeExpectancy}.`
-      : selectedScenarioDetail(
-          [personLabel(person.name, 0)],
-          [selected.filingAges[0].label],
-          [optimal.filingAges[0].label],
-          selectedRow.householdValue,
-          optimalRow.householdValue,
-        ),
+    recommendationDetail: recommendationDetailFor(
+      singleFacts,
+      selectedRow.isOptimal,
+      selectedRow.householdValue,
+      optimalRow.householdValue,
+    ),
+    recommendationFacts: singleFacts,
     assumptions,
     asOf,
     piaEstimated: null,

@@ -53,10 +53,11 @@ export const ABOUT_CARDS: AboutCard[] = [
 export const ENGINE_ATTRIBUTION = {
   title: 'Calculation engine',
   body:
-    'Benefit amounts, full retirement ages, spousal and survivor rules, and the ' +
-    'mortality-weighted optimal filing search all come from the open-source ssa.tools ' +
-    'calculator, used under the MIT license. This app supplies the dates, the household ' +
-    'model and the presentation; it computes no benefit rule of its own.',
+    'Benefit amounts, full retirement ages, spousal and survivor rules, and the payments ' +
+    'behind every filing age compared all come from the open-source ssa.tools calculator, ' +
+    'used under the MIT license. This app supplies the dates, the household model and the ' +
+    'presentation, and ranks the filing ages on the household value it prints; it ' +
+    'computes no benefit rule of its own.',
   href: 'https://ssa.tools/',
   linkText: 'ssa.tools',
 };

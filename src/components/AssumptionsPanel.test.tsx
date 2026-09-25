@@ -293,3 +293,12 @@ describe('AssumptionsPanel scope', () => {
     );
   });
 });
+
+describe('AssumptionsPanel discount-rate hint', () => {
+  it('describes what the rate does now, not the retired mortality weighting', () => {
+    renderPanel();
+    const hint = screen.getByText(/Default 2.5%/);
+    expect(hint.textContent).not.toMatch(/mortality|expected present value/i);
+    expect(hint.textContent).toMatch(/rank/);
+  });
+});

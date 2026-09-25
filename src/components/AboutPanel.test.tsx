@@ -106,6 +106,16 @@ describe('AboutPanel', () => {
     expect(screen.queryByText(/licence/i)).not.toBeInTheDocument();
   });
 
+  it('credits the engine with what it does, not with the ranking', () => {
+    // Filing ages are ranked on the household value the page prints, to each
+    // person's plan-to age. The credit used to say the "mortality-weighted
+    // optimal filing search" came from the engine: the mortality weighting
+    // was retired, and the ranking is this app's.
+    const { container } = render(<AboutPanel open onClose={() => {}} />);
+    expect(container.textContent).not.toMatch(/mortality/i);
+    expect(screen.getByText(/ranks the filing ages on the household value it prints/)).toBeInTheDocument();
+  });
+
   it('carries the thirty-year CPI history', () => {
     render(<AboutPanel open onClose={() => {}} />);
     expect(screen.getByText(/BLS CPI-U/)).toBeInTheDocument();
