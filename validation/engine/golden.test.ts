@@ -8,7 +8,7 @@
  * engine output into the fixtures.
  *
  * 'full' scenarios exercise analyzeHousehold() (the exact pipeline the UI
- * uses, including the mortality-weighted optimizer). 'factorsOnly' scenarios
+ * uses, including the optimizer and its ranking on the printed household value). 'factorsOnly' scenarios
  * exercise the deterministic benefit-factor math directly so cohorts older
  * than 70 — which the optimizer rejects — keep their FRA-schedule coverage.
  */
