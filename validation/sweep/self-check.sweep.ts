@@ -83,6 +83,29 @@ describe('the sweep can fail', () => {
     expect(firstDifference(canonicalize(base), canonicalize(tampered))).not.toBeNull();
   });
 
+  it("detects a changed figure in a strategy row's own timeline", async () => {
+    // The row timeline is what the per-year table and cumulative charts read.
+    // Re-keying it must not drop it from the comparison.
+    const base = await married();
+    const row = base.comparisons.findIndex((c) => c.timeline.length > 0);
+    expect(row).toBeGreaterThanOrEqual(0);
+    const tampered = clone(base);
+    const point = tampered.comparisons[row].timeline[0];
+    const [personId] = Object.keys(point.byPersonId);
+    point.byPersonId[personId] += 1;
+    expect(firstDifference(canonicalize(base), canonicalize(tampered))).not.toBeNull();
+  });
+
+  it('detects a changed claiming-grid square', async () => {
+    // The grid prints dollars of its own and was outside `canonicalize` until
+    // the row-timeline fix audited what the comparison left out.
+    const base = await married();
+    expect(base.claimingGrid?.cells.length).toBeGreaterThan(0);
+    const tampered = clone(base);
+    tampered.claimingGrid!.cells[0].value += 1;
+    expect(firstDifference(canonicalize(base), canonicalize(tampered))).not.toBeNull();
+  });
+
   it('does NOT report a difference for an untouched re-analysis', async () => {
     const base = await married();
     expect(firstDifference(canonicalize(base), canonicalize(clone(base)))).toBeNull();
@@ -199,5 +222,19 @@ describe('the canonicalizer', () => {
     expect(forward.people.map((p) => p.person.name)).not.toEqual(
       reverse.people.map((p) => p.person.name),
     );
+  });
+
+  it("re-keys each strategy row's own timeline, not just the household's", async () => {
+    // Every comparison row carries its own `timeline` since the lifetime-value
+    // work, keyed by slot exactly like `combinedTimeline`. The row spread
+    // carried it into the comparison un-re-keyed, so the order-independence
+    // sweep reported 299 of 300 married households as order-dependent on a
+    // difference that was nothing but slot names.
+    const { household } = householdAt(1);
+    if (household.status !== 'married') throw new Error('index 1 should be married');
+    const forward = await analyze(household);
+    const reverse = await analyze(swapped(household));
+    expect(forward.comparisons.some((c) => c.timeline.length > 0)).toBe(true);
+    expect(firstDifference(canonicalize(forward), canonicalize(reverse))).toBeNull();
   });
 });

@@ -161,8 +161,10 @@ describe('the strategy table agrees with itself', () => {
       if (flagged.length !== 1) {
         findings.push({ index, label, detail: `${flagged.length} rows flagged optimal, expected 1` });
       }
+      const best = flagged[0] ?? optimal;
 
       for (const c of comparisons) {
+        // The engine still RANKS, so no row may beat the optimum on its terms.
         if (c.expectedNpv > optimal.expectedNpv + EPS) {
           findings.push({
             index,
@@ -170,7 +172,11 @@ describe('the strategy table agrees with itself', () => {
             detail: `${c.key} NPV ${c.expectedNpv} exceeds the optimum ${optimal.expectedNpv}`,
           });
         }
-        const implied = Math.round((c.expectedNpv - optimal.expectedNpv) * 100) / 100;
+        // But the table PRINTS `householdValue`, and "vs. best" is the
+        // distance in the printed figure (`withTimelineDerived`), not in
+        // `expectedNpv`: the two differ by the six-month seam. Checking it
+        // against `expectedNpv` reported 3,704 findings that were all this.
+        const implied = Math.round((c.householdValue - best.householdValue) * 100) / 100;
         if (!near(c.deltaVsOptimal, implied)) {
           findings.push({
             index,
@@ -190,6 +196,71 @@ describe('the strategy table agrees with itself', () => {
 
     console.log(summarize('strategy table consistency', findings));
     expect(findings).toEqual([]);
+  });
+
+  /**
+   * PARKED DEFECT, pinned so a fix and a regression both flip it.
+   *
+   * The Best row is chosen by `expectedNpv` but printed as `householdValue`.
+   * The engine prices six months past each plan-to age that the printed
+   * stream does not contain (`lifetimeValue.ts`), and those six months are
+   * worth most to whoever filed latest. So the engine can crown a later pair
+   * while an earlier one is worth more in the dollars on the page: the table
+   * then prints a positive "vs. best" beside a row that is not Best, and the
+   * grid's 100% square is not the Best row's square.
+   *
+   * Measured when found (seeded corpus, 1,500 + 375 widowed): always the
+   * `earliest` row, in 106 households (72 married, 34 single), 42 of them by
+   * more than `MATERIAL_MARGIN`, largest +$25,509; and 230 of 1,125 grids.
+   * Widowed households are unaffected, because they are ranked and printed
+   * on one figure.
+   *
+   * Waiting on a decision about which figure should rank. When it is fixed,
+   * these counts go to zero: replace the pins with `toEqual([])`.
+   */
+  it(`no row prints ahead of the Best row (${COUNT} households)`, async () => {
+    const rows: Finding[] = [];
+    const grids: Finding[] = [];
+    let gridCount = 0;
+
+    for (const { index, household, label } of corpus()) {
+      const analysis = await analyze(household);
+      const best = analysis.comparisons.find((c) => c.isOptimal);
+      if (!best) continue; // reported by the consistency check above
+
+      for (const c of analysis.comparisons) {
+        if (c.householdValue > best.householdValue + EPS) {
+          rows.push({
+            index,
+            label,
+            detail: `${c.key} prints ${c.householdValue} > Best ${best.householdValue}`,
+          });
+        }
+      }
+
+      const grid = analysis.claimingGrid;
+      if (grid) {
+        gridCount++;
+        if (grid.max > best.householdValue + EPS) {
+          grids.push({
+            index,
+            label,
+            detail: `grid max ${grid.max} > Best ${best.householdValue}`,
+          });
+        }
+      }
+    }
+
+    console.log(summarize('rows printing ahead of Best [PARKED]', rows));
+    console.log(summarize(`grids peaking above Best of ${gridCount} [PARKED]`, grids));
+    // The class, not just the count: a row other than `earliest`, or a
+    // widowed household, is a new defect rather than this one.
+    expect(rows.filter((f) => !f.detail.startsWith('earliest '))).toEqual([]);
+    expect(rows.filter((f) => f.label.includes('widowed'))).toEqual([]);
+    if (COUNT === 1500 && WIDOWED_COUNT === 375) {
+      expect(rows).toHaveLength(106);
+      expect(grids).toHaveLength(230);
+    }
   });
 });
 

@@ -126,10 +126,36 @@ export function canonicalize(analysis: HouseholdAnalysis): Json {
     .map((p, i) => ({ i, name: nameOf(p.person.id) }))
     .sort((x, y) => x.name.localeCompare(y.name));
 
+  // Any timeline, household or per-row, is keyed by slot and so is re-keyed.
+  const timeline = (points: HouseholdAnalysis['combinedTimeline']) =>
+    points.map((point) => ({
+      ...point,
+      bySeries: rekey(point.bySeries, names),
+      byPersonId: rekey(point.byPersonId, names),
+    }));
+
+  // Each row carries its own `timeline` since the lifetime-value work. The
+  // spread alone would carry it through keyed by slot, which is how every
+  // married household came to report a difference that was only slot names.
   const strategy = (s: HouseholdAnalysis['optimal']) => ({
     ...s,
     filingAges: order.map(({ i }) => s.filingAges[i]),
+    timeline: timeline(s.timeline),
   });
+
+  // A pair in display order, reordered by human like `filingAges`.
+  const pair = <T>(xs: readonly T[]) => order.map(({ i }) => xs[i]);
+
+  // The grid's axes, and each square's years and ages, are display-ordered
+  // pairs; squares are then sorted so a transposed grid lists them alike.
+  const grid = (g: HouseholdAnalysis['claimingGrid']) =>
+    g && {
+      ...g,
+      years: pair(g.years),
+      cells: g.cells
+        .map((c) => ({ ...c, years: pair(c.years), ages: pair(c.ages) }))
+        .sort((x, y) => x.years[0] - y.years[0] || x.years[1] - y.years[1]),
+    };
 
   return sortKeys(
     JSON.parse(
@@ -140,12 +166,18 @@ export function canonicalize(analysis: HouseholdAnalysis): Json {
           return { ...p, person: { ...p.person, id: nameOf(p.person.id) } };
         }),
         optimal: strategy(analysis.optimal),
+        selected: strategy(analysis.selected),
         comparisons: analysis.comparisons.map(strategy),
-        combinedTimeline: analysis.combinedTimeline.map((point) => ({
-          ...point,
-          bySeries: rekey(point.bySeries, names),
-          byPersonId: rekey(point.byPersonId, names),
-        })),
+        allComparisons: analysis.allComparisons.map(strategy),
+        scenarioIsBest: analysis.scenarioIsBest,
+        filingAgeOptions: pair(analysis.filingAgeOptions),
+        claimingGrid: grid(analysis.claimingGrid),
+        // One clause per person, joined in display order like `filingAges`.
+        recommendation: analysis.recommendation.split(' · ').sort(),
+        // `recommendationDetail` is left out: it is prose naming both people
+        // in display order, and its figure and ages are `optimal`'s, compared
+        // above. Its wording is `copy.sweep.ts`'s job.
+        combinedTimeline: timeline(analysis.combinedTimeline),
         periods: analysis.periods
           .map((b) => ({ ...b, personId: nameOf(b.personId) }))
           .sort(
