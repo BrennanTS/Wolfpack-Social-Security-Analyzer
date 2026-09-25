@@ -450,7 +450,9 @@ function widowedLabel(key: WidowedStrategyKey, outcome: WidowedOutcome): string 
     case 'ownFirst':
       return `Own benefit first, survivor at ${outcome.survivorClaimAge}`;
     case 'bothEarliest':
-      return 'Both as early as possible';
+      // "Both benefits", so it cannot be read as two people, and in the same
+      // words as the couple's earliest row.
+      return 'Both benefits as early as you can';
     case 'optimal':
       return 'Optimal';
   }
@@ -1467,6 +1469,18 @@ const TODAYS_DOLLARS_RANKING = 'Counted in today’s dollars, no other ';
  * identical, and this function does not know which kind it has without running
  * the optimizer twice, which is explicitly not what this app does.
  */
+/**
+ * The equal-benefit case, named in the reader's terms. It said "no higher
+ * earner for the spousal top-up to be worked out from" — but with equal
+ * benefits there IS no spousal benefit, and the framing matters for which
+ * spouse's survivor benefit is modeled, so the sentence now says only that
+ * one spouse had to be chosen.
+ */
+const TIE_LEAD = (first: string): string =>
+  `You both have the same full benefit, so this analysis has to treat one of you as the ` +
+  `higher earner. It treats ${first} as the higher earner.`;
+const TIE_TAIL = 'Treated the other way round, the ages and the figure can differ slightly.';
+
 function coupleRecommendationDetail(
   isPiaTie: boolean,
   householdValue: number,
@@ -1476,11 +1490,9 @@ function coupleRecommendationDetail(
 ): string {
   if (shownValue !== undefined) {
     const lead = isPiaTie
-      ? `You both have the same full benefit, so there is no higher earner for the ` +
-        `spousal top-up to be worked out from. Treating ${labels[0]} as the one it is ` +
-        `worked out from, filing with ${labels[0]} at age ${ages[0]} and ${labels[1]} at ` +
-        `age ${ages[1]} is worth ${formatCurrency(shownValue)} in future dollars. ` +
-        `Worked out the other way round, the ages and the figure can both differ slightly.`
+      ? `${TIE_LEAD(labels[0])} Filing with ${labels[0]} at age ${ages[0]} and ${labels[1]} ` +
+        `at age ${ages[1]} is worth ${formatCurrency(shownValue)} in future dollars. ` +
+        TIE_TAIL
       : `Filing at these ages is worth ${formatCurrency(shownValue)} to the two of you over ` +
         `your lifetimes in future dollars, with ${labels[0]} filing at age ${ages[0]} and ` +
         `${labels[1]} at age ${ages[1]}, assuming each lives to the age set for them.`;
@@ -1489,13 +1501,16 @@ function coupleRecommendationDetail(
   if (isPiaTie) {
     // A sentence a client reads. The earlier version said "engine", "model"
     // and "admissible" in the space of three lines.
-    return (
-      `You both have the same full benefit, so there is no higher earner for the ` +
-      `spousal top-up to be worked out from. Treating ${labels[0]} as the one it is ` +
-      `worked out from, the best result is ${formatCurrency(householdValue)}, with ` +
-      `${labels[0]} filing at age ${ages[0]} and ${labels[1]} at age ${ages[1]}. ` +
-      `Worked out the other way round, the ages and the figure can both differ slightly.`
-    );
+    // No figure when there is none to give. A "best result" of $0 reached
+    // clients for households where no plan pays anything within the ages
+    // set; a dollar amount for an absent figure is the rule-5 failure.
+    const result =
+      householdValue > 0
+        ? `The best result is ${formatCurrency(householdValue)}, with ${labels[0]} filing at ` +
+          `age ${ages[0]} and ${labels[1]} at age ${ages[1]}.`
+        : `The best filing ages are ${ages[0]} for ${labels[0]} and ${ages[1]} for ` +
+          `${labels[1]}; no plan pays a benefit within the ages set for you.`;
+    return `${TIE_LEAD(labels[0])} ${result} ${TIE_TAIL}`;
   }
 
   return (
@@ -1587,7 +1602,6 @@ async function analyzeWidowed(
   asOf: Date,
 ): Promise<HouseholdAnalysis> {
   const person = household.people[0];
-  const label = personLabel(person.name, 0);
   const input: WidowedInput = {
     survivor: person,
     deceased: household.deceased,
@@ -1723,15 +1737,17 @@ async function analyzeWidowed(
     survivorFloor: null,
     survivorClaim: null,
     finalIndexByPersonId,
+    // A statement of the two dates, not an instruction: "Claim the survivor
+    // benefit at..." was an imperative in the largest type on the page.
     recommendation:
-      `Claim the survivor benefit at age ${best.survivorClaimAge}, ` +
-      `and file on ${label}'s own record at age ${best.ownFilingAge}`,
+      `Survivor benefit at ${best.survivorClaimAge}, your own at ${best.ownFilingAge}`,
+    // "Deemed filing" is SSA's term, and the reader needs only its
+    // consequence: the two dates are independent. The basis is stated once,
+    // in the lifetime caption beneath this.
     recommendationDetail:
-      `SSA pays the larger of the two benefits each month, and deemed filing does not apply ` +
-      `to survivor benefits, so these two dates are independent. Claiming the survivor ` +
-      `benefit at age ${best.survivorClaimAge} and filing on ${label}'s own record at age ` +
-      `${best.ownFilingAge} pays ${formatCurrency(best.lifetimeTotal)} over ${label}'s ` +
-      `lifetime. That is a straight sum of dollars in today's dollars, not a present value.`,
+      `SSA pays the larger of the two benefits each month, and you can start each one on its ` +
+      `own date. Starting the survivor benefit at ${best.survivorClaimAge} and your own at ` +
+      `${best.ownFilingAge} pays ${formatCurrency(best.lifetimeTotal)} over your lifetime.`,
     assumptions,
     asOf,
     piaEstimated: best.piaEstimated,
@@ -2134,7 +2150,10 @@ export async function analyzeHousehold(
     claimingGrid: null,
     survivorClaim: null,
     finalIndexByPersonId,
-    recommendation: `Claim at age ${selected.filingAges[0].label}`,
+    // Declarative, like the couple's "Alpha files at 62 · Beta files at 68"
+    // and the report's own "You file at" label. "Claim at age 68" was an
+    // instruction.
+    recommendation: `You file at ${selected.filingAges[0].label}`,
     recommendationDetail: recommendationDetailFor(
       singleFacts,
       selectedRow.isOptimal,

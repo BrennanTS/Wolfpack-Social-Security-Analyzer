@@ -301,6 +301,7 @@ describe('no jargon on a client surface', () => {
         ...screenSurface(analysis, 'real'),
         ...pdfSurface(analysis),
         ...reportSurface(analysis),
+        ...reportSurface(analysis, 'nominal'),
         ...analysis.people.flatMap((_, i) => [
           ...personScreenSurface(analysis, i),
           ...personPdfSurface(analysis, i),

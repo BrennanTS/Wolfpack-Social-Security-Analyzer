@@ -145,7 +145,7 @@ const printedWithAppendix = (survivorGap: SurvivorGap | null) => {
 describe('HouseholdSection — the printed combined-income caption', () => {
   it('claims spousal and survivor segments are included when they are', () => {
     const text = printed(null);
-    expect(text).toContain('their own benefit, plus any spousal or survivor segment');
+    expect(text).toContain('includes any spousal or survivor benefit');
     expect(text).toContain("today’s dollars, before any cost-of-living adjustment");
     expect(text).not.toContain('No survivor segment is included');
   });
@@ -160,7 +160,7 @@ describe('HouseholdSection — the printed combined-income caption', () => {
       survivorUnder60: false,
     });
     expect(text).not.toContain('or survivor segment is included');
-    expect(text).toContain('No survivor segment is included for this household');
+    expect(text).toContain('No survivor benefit is shown for this household');
   });
 
   // The caption's second rewrite: the chart now draws one segment per person
@@ -168,10 +168,11 @@ describe('HouseholdSection — the printed combined-income caption', () => {
   // became false the moment a spousal or survivor segment could sit beside
   // the personal one. Printed unconditionally — it's a statement about how
   // the chart works, not a claim about this particular household's bands.
-  it("prints that each person's segments show the annual rate, and explains the survivor increment", () => {
+  it("prints what each person's part of the chart includes, and how a survivor amount stacks", () => {
     const text = printed(null);
-    expect(text).toContain('Each person’s segments show the annual rate they’re paid');
-    expect(text).toMatch(/survivor segment is the increment above the personal band/i);
+    expect(text).toContain('Each person’s part of the chart includes');
+    expect(text).toContain('sits on top of any benefit of their own');
+    expect(text).not.toMatch(/increment above the personal band/i);
     expect(text).not.toMatch(/band is everything they are paid/i);
     expect(text).not.toContain('sum to what they were actually paid');
   });
@@ -210,7 +211,7 @@ describe('HouseholdSection — the printed survivor-gap note', () => {
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
     });
-    expect(text).toContain('no step-up is shown for Blake');
+    expect(text).toContain('no survivor benefit is shown for Blake');
     expect(text).toContain('$1,780.00/mo');
     expect(text).toContain('$1,760.00/mo');
   });
@@ -237,7 +238,7 @@ describe('HouseholdSection — the printed survivor-gap note', () => {
       survivorUnder60: true,
     });
     expect(text).toContain('is under 60 then');
-    expect(text).toContain('from age 60 onward');
+    expect(text).toContain('from 60 onward');
     expect(text).not.toContain('lower than SSA would pay');
     const note = text.slice(text.indexOf('Survivor benefits are modeled'));
     expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual(['$2,016.00']);
@@ -287,7 +288,7 @@ describe('HouseholdSection — the printed widow(er)’s-limit note', () => {
       { survivorLabel: 'Blake', survivorGender: null, deceasedMonthly: 1780, survivorOwnMonthly: 1760, survivorUnder60: false },
       floor,
     );
-    expect(text).toContain('no step-up is shown for Blake');
+    expect(text).toContain('no survivor benefit is shown for Blake');
     expect(text).toContain('Blake is shown receiving $3,268.00/mo');
   });
 });
@@ -314,8 +315,8 @@ describe('HouseholdSection — the household page as the report composes it', ()
     const page = printedWithAppendix(gap);
     // Guard: the caption and note really are on this page, so the absence
     // below is a contradiction removed, not a page that says nothing.
-    expect(page).toContain('No survivor segment is included for this household');
-    expect(page).toContain('no step-up is shown for Blake');
+    expect(page).toContain('No survivor benefit is shown for this household');
+    expect(page).toContain('no survivor benefit is shown for Blake');
     // The reintroduced claim, in either of its wordings.
     expect(page).not.toMatch(/survivor benefits are (both )?modeled/);
     expect(page).toContain('the survivor benefit SSA would pay Blake is not in the recommendation');
@@ -324,8 +325,8 @@ describe('HouseholdSection — the household page as the report composes it', ()
 
   it('does claim survivor benefits are modeled when the household has no gap', () => {
     const page = printedWithAppendix(null);
-    expect(page).toContain('The spousal top-up and survivor benefits are both modeled');
-    expect(page).toContain('their own benefit, plus any spousal or survivor segment');
+    expect(page).toContain('Spousal and survivor benefits are both modeled');
+    expect(page).toContain('includes any spousal or survivor benefit');
     expect(page).not.toContain('No survivor segment is included');
   });
 
@@ -336,7 +337,7 @@ describe('HouseholdSection — the household page as the report composes it', ()
     // styles collided. The `MethodPair` bodies are behind an uncalled
     // component element, so this walk does not see them.
     const page = printedWithAppendix(null);
-    expect(page).toContain('Each person’s segments');
+    expect(page).toContain('Each person’s part of the chart');
     expect(page).toContain('today’s dollars, before any cost-of-living adjustment');
     expect(page).toContain('Benefit amounts are in today’s dollars');
   });
@@ -392,7 +393,7 @@ describe('HouseholdSection — the printed survivor-income column', () => {
   it('prints the column and its caption when the rows carry figures', () => {
     expect(table([36_480, 41_000])).toContain('Survivor income');
     expect(table([36_480, 41_000])).toContain('$36,480');
-    expect(page([36_480, 41_000])).toContain("each spouse's own life-expectancy input");
+    expect(page([36_480, 41_000])).toContain("the spouse who reaches their plan-to age first dies first");
   });
 
   it('prints neither the column nor its caption when no row carries a figure', () => {
@@ -403,13 +404,13 @@ describe('HouseholdSection — the printed survivor-income column', () => {
     // No placeholder anywhere: the survivor column is gone, header and cells
     // alike, and a blank "vs. best" on the best row is the only empty cell.
     expect(table([null, null])).not.toMatch(/—/);
-    expect(page([null, null])).not.toContain("each spouse's own life-expectancy input");
+    expect(page([null, null])).not.toContain("the spouse who reaches their plan-to age first dies first");
   });
 
   it('drops the delay claim in print too when the figures fall with later filing', () => {
     const text = page([36_480, 0]);
-    expect(text).not.toContain('Delaying raises');
-    expect(text).toContain('not simply larger for later filing');
+    expect(text).not.toContain('Filing later raises');
+    expect(text).toContain('Here it depends on');
   });
 });
 
@@ -470,7 +471,7 @@ describe('HouseholdSection — the spousal sentence on a PIA tie', () => {
       },
     } as unknown as HouseholdAnalysis;
     const text = collectText(HouseholdSection({ analysis, footerText: 'f' })).join(' ');
-    expect(text).toContain("The lower earner's spousal top-up is");
+    expect(text).toContain("The lower earner's spousal benefit is");
     expect(text).not.toContain('Both spouses have the same full benefit at full retirement age');
   });
 });
@@ -506,7 +507,7 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
     const text = collectText(
       HouseholdSection({ analysis: analysisWithCliff(null), footerText: 'f' }),
     ).join(' ');
-    expect(text).toContain('Income at the First Death');
+    expect(text).toContain('Income at the first death');
     expect(text).toContain('2047');
     expect(text).toContain('$60,000');
     expect(text).toContain('$38,000');
@@ -531,10 +532,10 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
     ).join(' ');
     // The cliff section really is on the page (guards against the count
     // below passing vacuously because the section didn't render).
-    expect(text).toContain('Income at the First Death');
+    expect(text).toContain('Income at the first death');
     // Exactly one occurrence of the note's distinguishing text — not zero
     // (it must still say so somewhere) and not two.
-    const occurrences = text.match(/no step-up is shown for Blake/g) ?? [];
+    const occurrences = text.match(/no survivor benefit is shown for Blake/g) ?? [];
     expect(occurrences).toHaveLength(1);
     expect(text).toContain('$1,780.00/mo');
     expect(text).toContain('$1,760.00/mo');
@@ -544,7 +545,7 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
     const text = collectText(
       HouseholdSection({ analysis: analysisWith(null), footerText: 'f' }),
     ).join(' ');
-    expect(text).not.toContain('Income at the First Death');
+    expect(text).not.toContain('Income at the first death');
   });
 
   // Print always renders real dollars and has no toggle, so this is the one
@@ -558,7 +559,7 @@ describe('HouseholdSection — the printed income-cliff callout', () => {
       assumptions: { annualCola: 2.5, discountRate: 0.025 },
     };
     const text = collectText(HouseholdSection({ analysis, footerText: 'f' })).join(' ');
-    expect(text).toContain('Income at the First Death');
+    expect(text).toContain('Income at the first death');
     expect(text).toMatch(/as it will actually be paid/i);
     expect(text).toContain('2.50%');
     // 2048 is `deathYear + 1` (2047 + 1); household total that year is
@@ -595,7 +596,7 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
     const occurrences = text.match(/\$135,700/g) ?? [];
     expect(occurrences).toHaveLength(1);
     expect(text).toContain('68 years, 0 months');
-    expect(text).toMatch(/one filing date per person/);
+    expect(text).toMatch(/gives each person one filing date/);
   });
 
   // Order, not just presence. The note is written to be read AFTER the cliff
@@ -612,7 +613,7 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
     const parts = collectText(
       HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
     );
-    const heading = parts.findIndex((t) => t.includes('Income at the First Death'));
+    const heading = parts.findIndex((t) => t.includes('Income at the first death'));
     const cliffSentence = parts.findIndex((t) => t.includes('At the first death, projected for'));
     const note = parts.findIndex((t) => t.includes('$135,700'));
     // Guards: all three really are on the page, so the ordering below is not
@@ -631,7 +632,7 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
     const text = collectText(
       HouseholdSection({ analysis: analysis as unknown as HouseholdAnalysis, footerText: 'f' }),
     ).join(' ');
-    expect(text).not.toMatch(/separate survivor claim date/i);
+    expect(text).not.toMatch(/separate one for the survivor benefit/i);
     expect(text).not.toContain('68 years, 0 months');
   });
 
@@ -665,7 +666,7 @@ describe('HouseholdSection — the printed survivor-claim note', () => {
     // Guard: both sections really are on the page (the cliff sentence and
     // the claim note), so the comparison below isn't passing vacuously
     // because the note didn't render.
-    expect(withNote.text).toContain('Income at the First Death');
+    expect(withNote.text).toContain('Income at the first death');
     expect(withNote.text).toContain('$135,700');
     // The count with the note present must equal the count without it — the
     // note added no new occurrence of the clause in real mode.

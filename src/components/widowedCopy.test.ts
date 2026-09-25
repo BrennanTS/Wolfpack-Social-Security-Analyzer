@@ -22,20 +22,37 @@ const DECEASED: DeceasedSummary = {
  * stay grammatical — which is the half of this that is easy to break.
  */
 describe('prose about the deceased spouse', () => {
-  it('uses the pronoun the form was given', () => {
-    const note = (gender: 'male' | 'female' | null) =>
-      piaEstimateNote({ ...DECEASED, gender }, true)!;
-    expect(note('male')).toContain('every cost-of-living rise since he filed');
-    expect(note('female')).toContain('every cost-of-living rise since she filed');
-    expect(note(null)).toContain('every cost-of-living rise since they filed');
+  it('dates the estimated benefit by the death, and says it includes the increases', () => {
+    // It said "a check includes every cost-of-living rise since he filed and
+    // this figure includes none", which was wrong twice: SSA applies the
+    // increases from the year a person turns 62, not from the filing, and
+    // `deceasedPia` removes none of them, so the recovered figure carries
+    // every increase the last check did. The fixture filed in 2017 and died
+    // in 2021, so the year printed discriminates between the two.
+    const note = piaEstimateNote(DECEASED, true)!;
+    expect(note).toContain('includes the cost-of-living increases paid up to that check');
+    expect(note).toContain('is in 2021 dollars');
+    expect(note).not.toContain('2017');
+    expect(note).not.toMatch(/since (he|she|they) filed/);
+    expect(note).not.toContain('includes none');
   });
 
   it('agrees the verb in the survivor card', () => {
     // "they were receiving" but "she was receiving" — the trap a plain
     // find-and-replace on the pronoun walks straight into.
-    expect(widowedSurvivorCard('female')).toContain('capped at what she was receiving');
-    expect(widowedSurvivorCard('male')).toContain('capped at what he was receiving');
-    expect(widowedSurvivorCard(null)).toContain('capped at what they were receiving');
+    expect(widowedSurvivorCard('female')).toContain('what she was receiving and 82.5% of her');
+    expect(widowedSurvivorCard('male')).toContain('what he was receiving and 82.5% of his');
+    expect(widowedSurvivorCard(null)).toContain('what they were receiving and 82.5% of their');
+  });
+
+  it('states the widow(er)’s limit as the larger of the two, not a cap at what was received', () => {
+    // It said the survivor benefit "is capped at what he was receiving", the
+    // opposite of the rule the rest of the report explains: for an early
+    // filer the ceiling is the LARGER of that and 82.5% of the full benefit,
+    // which is why a survivor can be paid more than the deceased received.
+    const card = widowedSurvivorCard('male');
+    expect(card).toContain('limited to the larger of');
+    expect(card).not.toMatch(/capped at what/);
   });
 
   it('keeps the rules around it impersonal', () => {
@@ -43,8 +60,8 @@ describe('prose about the deceased spouse', () => {
     // household. Only the last clause is about this one's deceased spouse.
     for (const gender of ['male', 'female', null] as const) {
       const card = widowedSurvivorCard(gender);
-      expect(card).toContain('payable from age 60');
-      expect(card).toContain('survivor full retirement age');
+      expect(card).toContain('can start at 60');
+      expect(card).toContain('survivor’s full retirement age');
     }
   });
 

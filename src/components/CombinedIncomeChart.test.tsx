@@ -190,7 +190,7 @@ describe('CombinedIncomeChart', () => {
   it('says the bands include spousal and survivor benefits, for a couple', () => {
     render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
-    expect(caveat.textContent).toMatch(/spousal or survivor segment/i);
+    expect(caveat.textContent).toMatch(/spousal or survivor benefit/i);
     // The claims the rebase falsified must not come back.
     expect(caveat.textContent).not.toMatch(/excludes any spousal/i);
     expect(caveat.textContent).not.toMatch(/survivor benefits are not\s+modeled/i);
@@ -205,12 +205,14 @@ describe('CombinedIncomeChart', () => {
   // explanation that a survivor segment is stacked ON the personal band
   // rather than replacing it, against drifting back to either the old
   // wording or silence.
-  it("says each person's segments show the annual rate, and explains the survivor increment", () => {
+  it("says what each person's part of the chart includes, and how a survivor amount stacks", () => {
     render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
-    expect(caveat.textContent).toMatch(/segments show the annual rate they.re paid/i);
-    expect(caveat.textContent).toMatch(/survivor segment is the increment above the personal band/i);
-    expect(caveat.textContent).toMatch(/personal band keeps paying what it already was/i);
+    expect(caveat.textContent).toMatch(/Each person.s part of the chart includes/i);
+    expect(caveat.textContent).toMatch(/sits on top of any benefit of their own/i);
+    expect(caveat.textContent).toMatch(/SSA pays the two as one check/i);
+    // The chart's construction, in its own vocabulary.
+    expect(caveat.textContent).not.toMatch(/increment|personal band/i);
     // The old, now-false claims.
     expect(caveat.textContent).not.toMatch(/band is everything they are paid/i);
     expect(caveat.textContent).not.toMatch(/sum to what they were actually paid/i);
@@ -226,7 +228,6 @@ describe('CombinedIncomeChart', () => {
   it('does not claim a filing or final year renders at full height', () => {
     render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} />);
     const caveat = screen.getByTestId('combined-income-caveat');
-    expect(caveat.textContent).toMatch(/annual rate/i);
     expect(caveat.textContent).not.toMatch(/filing year and a final year render at the same height/i);
     expect(caveat.textContent).not.toMatch(/shorter than a full one/i);
   });
@@ -274,7 +275,7 @@ describe('CombinedIncomeChart', () => {
       <CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={contemporaneous} />,
     );
     const note = screen.getByTestId('survivor-gap-note');
-    expect(note.textContent).toMatch(/no step-up is shown for Jane/i);
+    expect(note.textContent).toMatch(/no survivor benefit is shown for Jane/i);
     expect(note.textContent).toMatch(/lower than SSA would pay/i);
     expect(note.textContent).toContain('$1,780.00/mo');
     expect(note.textContent).toContain('$1,760.00/mo');
@@ -288,8 +289,8 @@ describe('CombinedIncomeChart', () => {
       <CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={contemporaneous} />,
     );
     const caveat = screen.getByTestId('combined-income-caveat');
-    expect(caveat.textContent).not.toMatch(/or survivor segment is included/i);
-    expect(caveat.textContent).toMatch(/No survivor segment is included for this household/i);
+    expect(caveat.textContent).not.toMatch(/or survivor benefit/i);
+    expect(caveat.textContent).toMatch(/No survivor benefit is shown for this household/i);
   });
 
   it('quotes no figure on screen for a survivor who has not filed at the death', () => {
@@ -305,7 +306,7 @@ describe('CombinedIncomeChart', () => {
     render(<CombinedIncomeChart monthlySeries={monthlySeries} people={people} survivorGap={under60} />);
     const note = screen.getByTestId('survivor-gap-note');
     expect(note.textContent).toMatch(/is under 60 then/i);
-    expect(note.textContent).toMatch(/from age 60 onward/i);
+    expect(note.textContent).toMatch(/from 60 onward/i);
     expect(note.textContent!.match(/\$[\d,]+\.\d\d/g)).toEqual(['$2,016.00']);
   });
 

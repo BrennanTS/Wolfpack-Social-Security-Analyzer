@@ -50,6 +50,8 @@ import { formatPercent } from '../../src/lib/cpiHistory';
 import { formatCurrency, personLabel } from '../../src/lib/format';
 import * as reportCopy from '../../src/components/pdf/reportCopy';
 import { DEFAULT_DISCLOSURE } from '../../src/lib/reportTheme';
+import { dataVintageLine } from '../../src/lib/dataVintage';
+import { displayDiscountRate } from '../../src/lib/reportBasis';
 import { incomeCliff } from '../../src/lib/incomeCliff';
 import { toNominalAmount, type DollarsMode } from '../../src/lib/dollarsMode';
 import type { HouseholdAnalysis } from '../../src/lib/household';
@@ -158,10 +160,15 @@ export function screenSurface(analysis: HouseholdAnalysis, mode: DollarsMode): L
   push(
     lines,
     'StrategyComparisonTable.householdValueCaption',
+    // The rate the PRINTED figures carry, exactly as `HouseholdPanel` passes
+    // it. This passed the assumption itself, so the corpus showed "counted
+    // at 2.50% less per year" under future dollars, a sentence the app never
+    // renders, and never showed the undiscounted branch it does.
     householdValueCaption(
-      formatPercent(analysis.assumptions.discountRate * 100, 2),
+      formatPercent(displayDiscountRate(mode, analysis.assumptions.discountRate) * 100, 2),
       mode,
-      analysis.assumptions.discountRate > 0,
+      displayDiscountRate(mode, analysis.assumptions.discountRate) > 0,
+      analysis.people.length === 2,
     ),
   );
   push(
@@ -239,6 +246,7 @@ export function pdfSurface(analysis: HouseholdAnalysis): Line[] {
         formatPercent(analysis.assumptions.discountRate * 100, 2),
         'real',
         analysis.assumptions.discountRate > 0,
+        analysis.people.length === 2,
       ),
     );
     push(lines, 'pdf/HouseholdSection.subtitle', COMBINED_INCOME_SUBTITLE);
@@ -396,7 +404,7 @@ export const SURFACES = [
  * never generated. Their copy is covered by `reportCopy.test.ts` and by
  * `ReportDocument.test.tsx`, and this gap is named rather than papered over.
  */
-export function reportSurface(analysis: HouseholdAnalysis): Line[] {
+export function reportSurface(analysis: HouseholdAnalysis, mode: DollarsMode = 'real'): Line[] {
   const lines: Line[] = [];
   const people = analysis.people.map((p) => p.person);
   const names = people.map((p, i) => personLabel(p.name, i));
@@ -415,13 +423,14 @@ export function reportSurface(analysis: HouseholdAnalysis): Line[] {
 
   // The answer page — the headline figure and what it is measured against.
   push(lines, 'report/Answer.title', reportCopy.ANSWER_TITLE);
-  push(lines, 'report/Answer.lifetimeCaption', reportCopy.LIFETIME_CAPTION);
+  push(lines, 'report/Answer.lifetimeCaption', reportCopy.lifetimeCaption(mode, hasSpouse));
+  // `householdValue`, as `AnswerBlock` measures it: the printed figure.
   const worst = analysis.comparisons.reduce<typeof selected | null>(
-    (low, c) => (low === null || c.expectedNpv < low.expectedNpv ? c : low),
+    (low, c) => (low === null || c.householdValue < low.householdValue ? c : low),
     null,
   );
   if (worst !== null) {
-    const gain = selected.expectedNpv - worst.expectedNpv;
+    const gain = selected.householdValue - worst.householdValue;
     push(
       lines,
       'report/Answer.versusWorstNote',
@@ -431,7 +440,7 @@ export function reportSurface(analysis: HouseholdAnalysis): Line[] {
 
   // What changes, and when.
   push(lines, 'report/Changes.title', reportCopy.CHANGE_TABLE_TITLE);
-  push(lines, 'report/Changes.note', reportCopy.CHANGE_TABLE_NOTE);
+  push(lines, 'report/Changes.note', reportCopy.changeTableNote(mode));
 
   // The survivor page, for couples.
   if (hasSpouse) {
@@ -468,26 +477,45 @@ export function reportSurface(analysis: HouseholdAnalysis): Line[] {
   push(
     lines,
     'report/Assumptions.planToNote',
+    // Both forms: the pointer to the longevity page prints only in a layout
+    // that carries that page.
     reportCopy.planToNote(
       names,
       people.map((p) => p.lifeExpectancy),
     ),
   );
-  for (const term of reportCopy.KEY_TERMS) {
+  push(
+    lines,
+    'report/Assumptions.planToNote',
+    reportCopy.planToNote(
+      names,
+      people.map((p) => p.lifeExpectancy),
+      true,
+    ),
+  );
+  for (const term of reportCopy.keyTerms(
+    mode,
+    formatPercent(analysis.assumptions.annualCola, 2),
+  )) {
     push(lines, 'report/Terms.term', term.term);
     push(lines, 'report/Terms.body', term.body);
   }
   push(lines, 'report/Limits.title', reportCopy.LIMITS_TITLE);
   push(lines, 'report/Limits.intro', reportCopy.LIMITS_INTRO);
-  for (const limit of reportCopy.LIMITS) {
+  for (const limit of reportCopy.limitsFor(hasSpouse)) {
     push(lines, 'report/Limits.term', limit.term);
     push(lines, 'report/Limits.body', limit.body);
   }
   // The firm's own disclosures, as shipped. A theme may replace them, but
   // what ships is what an unedited install prints.
+  //
+  // A bracketed placeholder is left out, as `DisclosureBlock` leaves it out:
+  // listing it here showed reviewers a paragraph no client can receive.
   for (const paragraph of DEFAULT_DISCLOSURE.split('\n\n')) {
+    if (/^\[.*\]$/.test(paragraph.replace(/\s+/g, ' ').trim())) continue;
     push(lines, 'report/Disclosure.paragraph', paragraph);
   }
+  push(lines, 'report/Disclosure.dataVintage', dataVintageLine());
 
   return lines;
 }

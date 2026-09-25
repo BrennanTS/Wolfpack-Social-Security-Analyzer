@@ -154,7 +154,7 @@ describe('HouseholdPanel', () => {
       },
     } as HouseholdAnalysis;
     const { getByTestId } = render(<HouseholdPanel analysis={analysis} annualCola={0} dollarsMode="real" />);
-    expect(getByTestId('survivor-gap-note').textContent).toContain('no step-up is shown for John');
+    expect(getByTestId('survivor-gap-note').textContent).toContain('no survivor benefit is shown for John');
   });
 
   it('renders no survivor-gap note when the analysis has none', () => {
@@ -309,7 +309,7 @@ describe('HouseholdPanel', () => {
     // toggle must decide only whether to disclose the basis, never transform
     // the figure.
     expect(nominalText).toContain('135,700');
-    expect(nominalText).toContain('today’s dollars, before any cost-of-living adjustment');
+    expect(nominalText).toContain('plain sum in today’s dollars, unlike the other figures');
     nominal.unmount();
   });
 
@@ -387,7 +387,7 @@ describe('the household-value caption in each basis', () => {
     expect(caption()).toContain(
       `${(analysis.assumptions.discountRate * 100).toFixed(2)}% less per year`,
     );
-    expect(caption()).toContain('today’s money');
+    expect(caption()).toContain('in today’s dollars');
   });
 
   it('claims no discount in future value, though the assumption is unchanged', () => {
@@ -396,9 +396,9 @@ describe('the household-value caption in each basis', () => {
     render(
       <HouseholdPanel analysis={analysis} annualCola={2.5} dollarsMode="nominal" />,
     );
-    expect(caption()).toContain('No discount is applied');
+    expect(caption()).toContain('Nothing is discounted for how far away a payment is');
     expect(caption()).not.toContain('less per year');
-    expect(caption()).not.toContain('today’s money');
+    expect(caption()).not.toContain('today’s');
   });
 });
 

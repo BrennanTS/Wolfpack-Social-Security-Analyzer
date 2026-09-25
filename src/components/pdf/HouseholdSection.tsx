@@ -479,6 +479,7 @@ export function HouseholdBlock({
           formatPercent(displayDiscountRate(dollarsMode, analysis.assumptions.discountRate) * 100, 2),
           dollarsMode,
           displayDiscountRate(dollarsMode, analysis.assumptions.discountRate) > 0,
+          people.length === 2,
         )}
       </Text>
       {/* Only when the biggest number on the table is not the one marked

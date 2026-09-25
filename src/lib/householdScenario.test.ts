@@ -299,7 +299,8 @@ describe('a single claimant', () => {
     const best = await run(single);
     const chosen = await run(single, withCustom({ years: 65, months: 0 }));
     expect(chosen.scenarioIsBest).toBe(false);
-    expect(chosen.recommendation).toBe('Claim at age 65');
+    // A statement, not an instruction: it was "Claim at age 65".
+    expect(chosen.recommendation).toBe('You file at 65');
     expect(chosen.people[0].filingAge.label).toBe('65');
     expect(chosen.selected.expectedNpv).toBeLessThan(best.optimal.expectedNpv);
     // One phrase for both household shapes now: "combined" was redundant

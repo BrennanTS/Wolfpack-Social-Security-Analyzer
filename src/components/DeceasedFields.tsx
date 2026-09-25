@@ -230,7 +230,7 @@ export function DeceasedFields({
               onClick={() => setDeceased({ recordKind: 'checkAmount' })}
               aria-pressed={deceased.recordKind === 'checkAmount'}
             >
-              Monthly check {p.subject} received
+              Last monthly check {p.subject} received
             </button>
           </div>
         </div>
@@ -321,7 +321,7 @@ export function DeceasedFields({
         ) : (
           <>
             <div className="field" data-testid="dec-check-amount-field">
-              <label htmlFor="dec-check-amount">Monthly check {p.subject} received</label>
+              <label htmlFor="dec-check-amount">Last monthly check {p.subject} received</label>
               <div className="currency-input">
                 <span className="currency-prefix">$</span>
                 <input
@@ -373,8 +373,8 @@ export function DeceasedFields({
               </div>
               {errors.filed && <span className="field-error">{ERROR_TEXT[errors.filed]}</span>}
               <span className="field-hint" id="dec-check-amount-hint">
-                This is an estimate. A current check includes every cost-of-living increase
-                since {p.subject} filed, which the benefit formula does not.
+                This is an estimate. It includes the cost-of-living increases paid up to
+                that check.
               </span>
             </div>
           </>

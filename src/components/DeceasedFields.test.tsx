@@ -140,8 +140,7 @@ describe('DeceasedFields', () => {
       renderFields({ deceased: { ...BLANK_DECEASED, recordKind: 'checkAmount' } });
       expect(
         screen.getByText(
-          'This is an estimate. A current check includes every cost-of-living increase ' +
-            'since they filed, which the benefit formula does not.',
+          'This is an estimate. It includes the cost-of-living increases paid up to that check.',
         ),
       ).toBeInTheDocument();
     });
@@ -210,13 +209,17 @@ describe('the deceased’s own pronoun through the form', () => {
       deceased: { ...BLANK_DECEASED, gender: 'female', recordKind: 'checkAmount' },
     });
     // Twice on purpose: the route button and the field label beneath it.
-    expect(screen.getAllByText('Monthly check she received')).toHaveLength(2);
+    // "Last": the recovered figure carries every increase the check did, so
+    // the year it is in depends on WHICH check. See `piaEstimateNote`.
+    expect(screen.getAllByText('Last monthly check she received')).toHaveLength(2);
+    // The hint used to date the increases from the filing ("since she
+    // filed"); SSA applies them from the year a person turns 62.
     expect(
       screen.getByText(
-        'This is an estimate. A current check includes every cost-of-living increase ' +
-          'since she filed, which the benefit formula does not.',
+        'This is an estimate. It includes the cost-of-living increases paid up to that check.',
       ),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/since she filed/)).not.toBeInTheDocument();
   });
 
   it('capitalizes the pronoun where the label is title case', () => {

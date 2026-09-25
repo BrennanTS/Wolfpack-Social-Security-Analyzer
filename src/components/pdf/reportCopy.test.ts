@@ -121,8 +121,11 @@ describe('report copy', () => {
     const tied = copy.longevityVerdict(null, true);
     expect(tied).toMatch(/within half a percent/);
     expect(tied).not.toMatch(/No single plan wins/);
-    // And it tells the reader what to decide on instead.
-    expect(tied).toMatch(/when you want to stop working/);
+    // And it names what else may matter, without telling the reader to
+    // choose on it: "Choose between them on when you want to stop working"
+    // was an instruction.
+    expect(tied).toMatch(/when you plan to stop working, may matter more/);
+    expect(tied).not.toMatch(/\bChoose\b/);
   });
 
   it('stays silent about dropped strategies when none were dropped', () => {
@@ -131,8 +134,16 @@ describe('report copy', () => {
 
   it('names each person and their own plan-to age', () => {
     const note = copy.planToNote(['John', 'Jane'], [79, 95]);
-    expect(note).toContain('John to 79');
-    expect(note).toContain('Jane to 95');
+    // With its verb: "Every figure assumes John to 79" had none.
+    expect(note).toContain('assumes John lives to 79 and Jane to 95');
+  });
+
+  it('points to the longevity page only when the report carries it', () => {
+    // Four of the five preset layouts print this note without the longevity
+    // page, and a cross-reference to a page the reader cannot find is the
+    // first thing a compliance reviewer marks.
+    expect(copy.planToNote(['John'], [85])).not.toMatch(/longevity/);
+    expect(copy.planToNote(['John'], [85], true)).toMatch(/The page on longevity/);
   });
 });
 
@@ -171,8 +182,14 @@ describe('how definite the report allows itself to be', () => {
     for (const hasSpouse of [false, true]) {
       const subtitle = copy.coverSubtitle(hasSpouse);
       expect(subtitle.toLowerCase()).not.toContain('should');
-      // And it points forward to there being more to it.
-      expect(subtitle.toLowerCase()).toContain('weigh');
+      // And it points forward to there being more to it. The clause, not the
+      // particular verb: this used to pin the word "weigh", which made the
+      // wording unchangeable without touching the assertion, and said nothing
+      // about whether the cover still conceded anything.
+      expect(subtitle.toLowerCase()).toContain('what else');
+      // The figures behind the cover are projections. Stating them as settled
+      // is the same over-promise as telling the reader when to claim.
+      expect(subtitle.toLowerCase()).not.toContain('would pay');
     }
   });
 

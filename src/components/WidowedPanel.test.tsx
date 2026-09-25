@@ -157,10 +157,16 @@ describe('WidowedPanel', () => {
     // cannot be compared. The sentence used to name the method
     // ("mortality-weighted", "undiscounted") on a page a widow(er) reads;
     // what it has to do is draw the distinction, not the jargon.
+    //
+    // It then went on to describe the married and single tables, which a
+    // widowed reader never sees, by a method they no longer use ("allows for
+    // the chance of not living to receive it"). What this page needs is that
+    // the column is every dollar added up, and in which dollars.
     const caption = screen.getByTestId('widowed-lifetime-caption');
-    expect(caption).toHaveTextContent(/straight sum/i);
-    expect(caption).toHaveTextContent(/present value/i);
-    expect(caption).toHaveTextContent(/not comparable/i);
+    expect(caption).toHaveTextContent(/every dollar paid through age \d+, added up/i);
+    expect(caption).toHaveTextContent(/today.s dollars/i);
+    expect(caption).not.toHaveTextContent(/married and single tables/i);
+    expect(caption).not.toHaveTextContent(/chance of not living/i);
   });
 
   it('reads the money column off `lifetimeTotal`, not `expectedNpv`', () => {
@@ -214,13 +220,16 @@ describe('WidowedPanel', () => {
   });
 
   it('discloses a recovered PIA, and the year its dollars are in', () => {
-    // A check carries every COLA since they filed and the engine's PIA
-    // carries none, so the recovered figure is in the filing year's dollars.
-    // Without the year the reader cannot judge how wide that gap is.
+    // The recovered figure carries every increase the last check did, and
+    // the last check is paid in the year of the death, so that is the year
+    // it is in. Without the year the reader cannot judge how wide the gap to
+    // today is. The fixture's filing year (2022) differs from its death year
+    // (2024), so this discriminates between the two.
     renderPanel({ piaEstimated: true });
     const note = screen.getByTestId('pia-estimate-note');
     expect(note).toHaveTextContent(/estimate/i);
-    expect(note).toHaveTextContent('2022 dollars');
+    expect(note).toHaveTextContent('2024 dollars');
+    expect(note).not.toHaveTextContent('2022 dollars');
   });
 
   it('stops claiming an increment when the two benefits never overlap', () => {
@@ -243,7 +252,8 @@ describe('WidowedPanel', () => {
     // or survivor segment" — a widow(er) has one of each and neither is
     // spousal.
     const caption = screen.getByTestId('combined-income-caveat');
-    expect(caption).toHaveTextContent(/survivor segment is the increment/i);
+    expect(caption).toHaveTextContent(/sits on top of the survivor.s own benefit/i);
+    expect(caption).toHaveTextContent(/not a second check/i);
     // The couple caption speaks of "each person's segments" and "any spousal
     // or survivor segment" — a widow(er) has one of each and neither is
     // spousal.

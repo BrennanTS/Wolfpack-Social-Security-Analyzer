@@ -122,15 +122,17 @@ export function survivorGapNote(gap: SurvivorGap | null | undefined): string | n
   if (!gap) return null;
 
   const lead =
-    `Survivor benefits are modeled only for the lower-earning spouse, so no step-up is ` +
-    `shown for ${gap.survivorLabel}, who outlives a spouse receiving ` +
+    `Survivor benefits are modeled only for the lower-earning spouse, so no survivor benefit ` +
+    `is shown for ${gap.survivorLabel}, who outlives a spouse receiving ` +
     `${formatCurrencyPrecise(gap.deceasedMonthly)}/mo at that death`;
 
   if (gap.survivorUnder60) {
     return (
-      `${lead}. ${gap.survivorLabel} is under 60 then, so no widow(er) benefit is payable ` +
-      `yet and the chart is right to show none. SSA could pay one from age 60 onward, ` +
-      `and none is shown.`
+      // "Usual": a disabled widow(er) can claim from 50, and one caring for a
+      // young child at any age. Neither is modeled, and saying no benefit is
+      // payable at all overstated it.
+      `${lead}. ${gap.survivorLabel} is under 60 then, the usual earliest age for a ` +
+      `widow(er)’s benefit. SSA could pay one from 60 onward, and none is shown.`
     );
   }
 
@@ -257,9 +259,9 @@ export function survivorClaimNote(
   const { survivorLabel, claimAge, gain, baselineHasSurvivorBand } = alt;
 
   const claimClause = baselineHasSurvivorBand
-    ? `claim the survivor benefit at age ${claimAge} instead of the date the chart above shows ` +
+    ? `claimed the survivor benefit at age ${claimAge} instead of when the chart above shows ` +
       `it starting`
-    : `claim a survivor benefit at age ${claimAge}, one the chart above does not otherwise show`;
+    : `claimed a survivor benefit at age ${claimAge}, which the chart above does not show`;
 
   // Only in nominal mode: in real mode `incomeCliffSentence` directly above
   // has already said this, and this figure agrees with it — repeating it
@@ -272,14 +274,14 @@ export function survivorClaimNote(
   // and the clause has to say so or a reader will assume it moved too.
   const basisClause =
     mode === 'nominal'
-      ? ` Unlike every other figure on this page, this one ${dollarsBasisClause('real')}.`
-      : '';
+      ? 'It is a plain sum in today’s dollars, unlike the other figures on this page.'
+      : 'It is a plain sum, not a present value.';
 
   return (
-    `If ${survivorLabel} were to ${claimClause}, the household would gain an estimated ` +
-    `${formatCurrency(gain)}. That is a straight sum of dollars paid over its lifetime, not a ` +
-    `present value.${basisClause} This is not a recommendation: the recommendation above is ` +
-    `built with one filing date per person and cannot model a separate survivor claim date.`
+    `If ${survivorLabel} ${claimClause}, the two of you would receive about ` +
+    `${formatCurrency(gain)} more in total. ${basisClause} It is shown for comparison only: ` +
+    `the plan above gives each person one filing date and cannot set a separate one for ` +
+    `the survivor benefit.`
   );
 }
 
@@ -378,29 +380,15 @@ export function combinedIncomeCaption(
   gap: SurvivorGap | null | undefined,
   mode: DollarsMode = 'real',
 ): string {
-  const included = gap
-    ? 'their own benefit, plus any spousal segment'
-    : 'their own benefit, plus any spousal or survivor segment';
-  const survivorCaveat = gap
-    ? ' No survivor segment is included for this household. See the note below.'
-    : '';
-  // Real: the band genuinely stays flat (the engine applies no COLA), so the
-  // increment framing can say so. Nominal: the band keeps growing on its own
-  // — exactly as it would with no survivor segment present at all — and the
-  // survivor segment stacked on top is still only the increase over THAT
-  // trajectory, not over a flat line.
-  //
-  // "the yearly cost-of-living increase", not "the assumed COLA": this
-  // caption sits under a chart, and in the client report that chart comes
-  // pages before the terms page where the acronym is introduced. The other
-  // branch of this very function already writes it out in full.
-  const bandContinuityClause =
-    mode === 'nominal'
-      ? 'that personal band keeps growing with the yearly cost-of-living increase on its ' +
-        'own, exactly as it would without the survivor segment, and the survivor segment ' +
-        'stacked on top of it is only the increase over that.'
-      : 'that personal band keeps paying what it already was, and the survivor segment ' +
-        'stacked on top of it is only the increase.';
+  // What the reader is paid, not how the chart is drawn. It used to explain
+  // "the increment above the personal band beneath it" at 109 words, and the
+  // gap variant explained a survivor segment right after saying there was
+  // none. The subtitle directly above already says these are annual rates.
+  const included = gap ? 'any spousal benefit' : 'any spousal or survivor benefit';
+  const survivorClause = gap
+    ? ' No survivor benefit is shown for this household. See the note below.'
+    : ' After a death, the survivor’s added amount sits on top of any benefit of their own, ' +
+      'and SSA pays the two as one check.';
   // This is the other sentence in the caption that `mode` can falsify: the
   // engine's bands never carry a COLA, so "today's dollars" is true only
   // while nothing downstream of them has compounded one forward. The nominal
@@ -414,14 +402,7 @@ export function combinedIncomeCaption(
   // carried before extraction. This sentence prints beside copy that uses
   // them — the PDF disclaimer's "today’s dollars" is on the same page — so
   // ASCII here renders straight quotes next to curly ones.
-  return (
-    `Each person’s segments show the annual rate they’re paid once a benefit is running: ` +
-    `${included}.` +
-    survivorCaveat +
-    ' A survivor segment is the increment above the personal band beneath it: ' +
-    bandContinuityClause +
-    ` ${dollarsClause}`
-  );
+  return `Each person’s part of the chart includes ${included}.${survivorClause} ${dollarsClause}`;
 }
 
 /**
@@ -458,12 +439,12 @@ export function coupleModelingNote(
   householdPrinted: boolean,
 ): string {
   if (!gap) {
-    return 'The spousal top-up and survivor benefits are both modeled via the couple optimizer.';
+    return 'Spousal and survivor benefits are both modeled via the couple optimizer.';
   }
   const pointer = householdPrinted
     ? ` See the note under ${COMBINED_INCOME_HEADING} for the amounts.`
     : '';
-  return `The spousal top-up is modeled via the couple optimizer. ${survivorGapScope(gap)}${pointer}`;
+  return `Spousal benefits are modeled via the couple optimizer. ${survivorGapScope(gap)}${pointer}`;
 }
 
 /**
@@ -540,7 +521,7 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
     // distinction the acronym was there for.
     return (
       `Both spouses have the same full benefit at full retirement age, so neither is the ` +
-      `lower earner, and there is no spousal top-up to claim on the other's record.`
+      `lower earner, and there is no spousal benefit to claim on the other's record.`
     );
   }
   if (spousal.atFra <= 0) {
@@ -551,7 +532,7 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
     // genuinely exceed what they receive while this sentence is still true.
     // Unqualified, the sentence denied that.
     return (
-      `No top-up applies to this household: half of the higher earner's full benefit does not ` +
+      `No spousal benefit applies to this household: half of the higher earner's full benefit does not ` +
       `exceed ${subject}'s own benefit at ${pronounsFor(spousal.lowerEarnerGender).possessive} ` +
       `own full retirement age.`
     );
@@ -566,21 +547,26 @@ function sentence(spousal: SpousalTopUp, subject: string | null): string {
   // collecting survivor benefits, so naming a single cause is wrong half the
   // time. State the condition the engine actually tests — an empty overlap —
   // rather than guessing which side produced it.
-  const start =
-    spousal.startsAtSpouseAge === null
-      ? `, though it never begins under the recommended strategy: a spousal benefit needs a ` +
-        `month in which both spouses have filed and both are still living, and this strategy ` +
-        `leaves none`
-      : `, beginning at ${subject}'s age ${spousal.startsAtSpouseAge}, the later of ` +
-        `${subject}'s own filing and the other spouse's, since a spousal benefit cannot ` +
-        `start before the other spouse has filed`;
+  const unreduced =
+    `The unreduced amount at ${subject}'s own full retirement age is ` +
+    `${formatCurrencyPrecise(spousal.atFra)}/mo.`;
+
+  // A benefit that never starts is stated as absent, in words. It printed as
+  // "$0.00/mo ... though it never begins", a dollar figure for something
+  // that is not there, explained away in the same sentence.
+  if (spousal.startsAtSpouseAge === null) {
+    return (
+      `${subject}'s spousal benefit never starts under the recommended strategy: it needs a ` +
+      `month when both spouses have filed and both are living, and this strategy has none. ` +
+      unreduced
+    );
+  }
 
   return (
-    `${subject}'s spousal top-up is ` +
+    `${subject}'s spousal benefit is ` +
     `${formatCurrencyPrecise(spousal.atRecommendedFilingAge)}/mo under the recommended ` +
-    `strategy${start}. The unreduced amount at ${subject}'s own full retirement ` +
-    `age is ` +
-    `${formatCurrencyPrecise(spousal.atFra)}/mo.`
+    `strategy, starting at ${subject}'s age ${spousal.startsAtSpouseAge}, once both spouses ` +
+    `have filed. ${unreduced}`
   );
 }
 
@@ -599,7 +585,7 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
   const spousal = analysis.spousalTopUp;
 
   if (!spousal) {
-    return `Select Married to model the spousal top-up. ${SINGLE_CLAIMANT_BENEFIT_NOTE}`;
+    return `Select Married to model the spousal benefit. ${SINGLE_CLAIMANT_BENEFIT_NOTE}`;
   }
 
   // For a gap household the blanket "survivor benefits are included" claim is
@@ -616,7 +602,7 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
     : 'Survivor benefits are included in the recommendation and in the combined income timeline.';
 
   return (
-    'Married households are optimized jointly, including the spousal top-up. ' +
+    'Married households are optimized jointly, including the spousal benefit. ' +
     `${spousalSummary(spousal, spousal.lowerEarnerLabel)} ${survivor}`
   );
 }
@@ -677,6 +663,15 @@ export function spousalMethodologyCopy(analysis: HouseholdAnalysis): string {
  */
 export function incomeCliffSentence(cliff: IncomeCliff, mode: DollarsMode = 'real'): string {
   const { deathYear, before, after, dropPercent, survivorLabel } = cliff;
+  // Nothing was being paid the year before, so there is no drop to measure.
+  // It printed "does not fall: $0/yr the year before, $0/yr the year after",
+  // which reads as reassurance about figures that do not exist.
+  if (before <= 0) {
+    return (
+      `At the first death, projected for ${deathYear}, no benefits had started in the year ` +
+      `before, so there is no drop to show.`
+    );
+  }
   const change =
     dropPercent > 0
       ? `falls ${dropPercent.toFixed(1)}%, from ${formatCurrency(before)}/yr the year before to ` +
@@ -721,7 +716,7 @@ export function nominalFirstDeathNote(
  * behind three of this project's prior defects, and one this task itself
  * added a second instance of on first pass.
  */
-export const INCOME_CLIFF_HEADING = 'Income at the First Death';
+export const INCOME_CLIFF_HEADING = 'Income at the first death';
 
 /**
  * The "Survivor income" column header on the strategy comparison table,
@@ -760,6 +755,7 @@ export function householdValueCaption(
   discountRatePercent: string,
   dollarsMode: DollarsMode = 'real',
   discounted = true,
+  hasSpouse = true,
 ): string {
   // Both halves follow the report basis, and they are separate knobs: the
   // dollars decide whether COLA is compounded into the figure, the rate
@@ -768,20 +764,17 @@ export function householdValueCaption(
   // with the control that drives it.
   const basis =
     dollarsMode === 'nominal'
-      ? 'in the dollars they will actually be paid in, grown forward at the assumed ' +
-        'cost-of-living increase'
-      : 'in today’s money';
+      ? 'in future dollars, including the assumed yearly increase'
+      : 'in today’s dollars';
+  // The horizon is part of what the figure IS, so it follows the household:
+  // "both your lifetimes" beside one person's number misstated it.
+  const horizon = hasSpouse
+    ? 'over your lifetimes, assuming each of you lives exactly to the age set for you'
+    : 'over your lifetime, assuming you live exactly to the age set for you';
   const discountClause = discounted
-    ? `Future payments are counted at ${discountRatePercent} less per year for being further ` +
-      `away. `
-    : 'No discount is applied for how far away a payment is, so this is a straight sum of ' +
-      'what changes hands. ';
-  return (
-    `Household value is everything Social Security pays this household over both your ` +
-    `lifetimes, ${basis}. It assumes each of you lives exactly to the age set for ` +
-    `you rather than averaging over how long someone might live, so it is a figure for ` +
-    `those ages and not an average across all of them. ${discountClause}See the assumptions page.`
-  );
+    ? `Payments further away count for ${discountRatePercent} less per year.`
+    : 'Nothing is discounted for how far away a payment is, so this is a plain sum.';
+  return `Household value is everything Social Security pays you ${horizon}, ${basis}. ${discountClause}`;
 }
 
 /**
@@ -903,10 +896,11 @@ export function survivorIncomeCaption(
   gap: SurvivorGap | null | undefined,
   mode: DollarsMode = 'real',
 ): string {
+  // Death order follows the calendar, not the ages themselves: the spouse
+  // whose final month (birth plus plan-to age) comes first dies first.
   const base =
     "Household income in the first full year after the first spouse's death, under each " +
-    "strategy, assuming the death direction implied by each spouse's own life-expectancy " +
-    'input.';
+    'plan. It assumes the spouse who reaches their plan-to age first dies first.';
 
   if (!comparisons.some((c) => c.survivorIncome != null)) {
     return `${base} No strategy in this table has a figure to show for it.`;
@@ -919,28 +913,27 @@ export function survivorIncomeCaption(
   // them mentally converting one of them a second time.
   const basisClause =
     mode === 'nominal'
-      ? ' This column is in future dollars, grown forward at the assumed yearly increase — ' +
-        `the same basis as ${HOUSEHOLD_VALUE_COLUMN_HEADER} beside it.`
-      : ' This column is in today’s dollars, before any cost-of-living adjustment.';
+      ? ' In future dollars, like the other figures in this table.'
+      : ' In today’s dollars.';
 
   // The claim, made only when the figures below actually support it.
+  // States what the figures show and stops. It went on to call this "the
+  // argument for delaying", which is advocacy on the table where the plan is
+  // chosen.
   const riseClause = survivorIncomeRisesWithDelay(comparisons)
-    ? 'Delaying raises this figure for this household, and the survivor keeps the higher ' +
-      'amount for every year they outlive their spouse. This is the argument for delaying ' +
-      `that the ${HOUSEHOLD_VALUE_COLUMN_HEADER} column alone cannot show.`
-    : 'For this household the figure is not simply larger for later filing: it turns on what ' +
-      'the first spouse to die had filed for AND on whether the survivor has begun collecting ' +
-      'by that year. A strategy under which the survivor’s own benefit has not started by ' +
-      'then shows $0: nothing has started yet, rather than anything having been reduced.';
+    ? 'Filing later raises this figure for this household, and the survivor receives it ' +
+      'for as long as they live.'
+    : 'Here it depends on what the spouse who died was receiving and on whether the ' +
+      'survivor has started benefits by then. $0 means nothing has started yet, not that ' +
+      'anything was cut.';
 
   const gapClause = !gap
     ? ''
     : gap.survivorUnder60
-      ? ' The survivor has not yet reached the age a widow(er) benefit can start. See the ' +
-        'note below for what changes from age 60 onward.'
-      : ' The engine does not model survivor benefits in this household’s ' +
-        'direction, so these figures understate what the survivor would actually receive. ' +
-        'See the note below.';
+      ? ' The survivor is under 60, the usual earliest age for a widow(er)’s benefit. See ' +
+        'the note below.'
+      : ' Survivor benefits in this direction are not included, so these figures understate ' +
+        'what the survivor would receive. See the note below.';
 
   return `${base} ${riseClause}${gapClause}${basisClause}`;
 }
@@ -975,8 +968,8 @@ export function soloVsHouseholdNote(
   if (soloAge !== null) {
     parts.push(
       `Two answers, because there are two questions. On ${label}'s own record alone, age ` +
-        `${soloAge} is worth the most. For the household, where a filing age also sets what ` +
-        `a surviving spouse inherits, age ${householdBestAge} is worth the most.`,
+        `${soloAge} is worth the most. For the household, where a filing age also sets the ` +
+        `survivor benefit, age ${householdBestAge} is worth the most.`,
     );
   } else {
     parts.push(`The best answer for this household is age ${householdBestAge}.`);

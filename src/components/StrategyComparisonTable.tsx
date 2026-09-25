@@ -409,7 +409,7 @@ export function StrategyComparisonTable({
 
       {discountRateLabel !== undefined && (
         <p className="chart-caveat" data-testid="household-value-caption">
-          {householdValueCaption(discountRateLabel, dollarsMode, discounted)}
+          {householdValueCaption(discountRateLabel, dollarsMode, discounted, people.length === 2)}
         </p>
       )}
       {/* Only when the biggest figure in the column is not the row marked

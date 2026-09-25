@@ -64,8 +64,8 @@ describe('spousalMethodologyCopy', () => {
         lowerEarnerLabel: 'Jane', lowerEarnerGender: null,
       }),
     );
-    expect(copy).toContain("Jane's spousal top-up is $790.00/mo under the recommended strategy");
-    expect(copy).toContain("beginning at Jane's age 67");
+    expect(copy).toContain("Jane's spousal benefit is $790.00/mo under the recommended strategy");
+    expect(copy).toContain("starting at Jane's age 67, once both spouses have filed");
     expect(copy).toContain("The unreduced amount at Jane's own full retirement age is $1,200.00/mo");
   });
 
@@ -85,7 +85,7 @@ describe('spousalMethodologyCopy', () => {
     expect(copy).toContain('$500.00/mo');
   });
 
-  it('says plainly that no top-up applies rather than printing $0.00', () => {
+  it('says plainly that no spousal benefit applies rather than printing $0.00', () => {
     const copy = spousalMethodologyCopy(
       analysisWith({
         atFra: 0,
@@ -94,8 +94,9 @@ describe('spousalMethodologyCopy', () => {
         lowerEarnerLabel: 'Client', lowerEarnerGender: null,
       }),
     );
-    expect(copy).toContain('No top-up applies');
+    expect(copy).toContain('No spousal benefit applies');
     expect(copy).toContain("does not exceed Client's own benefit");
+    expect(copy).not.toContain('$0.00');
   });
 
   it('qualifies the zero-entitlement comparison to the FRA benefit it actually makes', () => {
@@ -163,7 +164,7 @@ describe('spousalSummary', () => {
 
   it('capitalizes a non-proper-noun subject at the start of the sentence', () => {
     const copy = spousalSummary({ ...base, startsAtSpouseAge: '67' }, 'the lower earner');
-    expect(copy.startsWith("The lower earner's spousal top-up is $800.00/mo")).toBe(true);
+    expect(copy.startsWith("The lower earner's spousal benefit is $800.00/mo")).toBe(true);
   });
 
   it('keeps the subject lowercase mid-sentence', () => {
@@ -183,7 +184,7 @@ describe('spousalSummary', () => {
         { ...base, atFra, atRecommendedFilingAge: 0, startsAtSpouseAge: null },
         'the lower earner',
       );
-      expect(copy).not.toContain('beginning at');
+      expect(copy).not.toContain('starting at');
       expect(copy).not.toContain('—  ');
       expect(copy).not.toMatch(/age\s*—/);
     }
@@ -200,15 +201,18 @@ describe('spousalSummary', () => {
       { ...base, atFra: 1000, atRecommendedFilingAge: 0, startsAtSpouseAge: null },
       'the lower earner',
     );
-    expect(copy).toContain('never begins under the recommended strategy');
-    expect(copy).toContain('both spouses have filed and both are still living');
+    expect(copy).toContain('never starts under the recommended strategy');
+    expect(copy).toContain('both spouses have filed and both are living');
     expect(copy).toContain("The unreduced amount at the lower earner's own full retirement age is $1,000.00/mo");
+    // Rule 5: a benefit that never starts gets no dollar figure of its own.
+    // It printed "$0.00/mo ... though it never begins".
+    expect(copy).not.toContain('$0.00');
     // The specific false claims this replaced.
     expect(copy).not.toContain('does not file');
     expect(copy).not.toMatch(/within .*lifetime/);
   });
 
-  it('keeps the start date of a $0.00 top-up, which does begin', () => {
+  it('keeps the start date of a $0.00 spousal benefit, which does begin', () => {
     // A band the engine emits at $0.00 — the entitlement is real and starts on
     // a real date, it is just fully absorbed by the lower earner's own
     // delayed credits. Distinct from having no band at all.
@@ -221,7 +225,7 @@ describe('spousalSummary', () => {
       },
       'Blythe',
     );
-    expect(copy).toContain("beginning at Blythe's age 72 years, 3 months");
+    expect(copy).toContain("starting at Blythe's age 72 years, 3 months");
     expect(copy).toContain('$0.00/mo');
   });
 
@@ -246,7 +250,7 @@ describe('spousalSummary', () => {
       );
       expect(copy).toBe(
         `Both spouses have the same full benefit at full retirement age, so neither is the lower earner, and ` +
-          `there is no spousal top-up to claim on the other's record.`,
+          `there is no spousal benefit to claim on the other's record.`,
       );
     }
   });
@@ -293,8 +297,8 @@ describe('the printed spousal sentence, over real households', () => {
     // so the engine emits no Spousal band and there is no start date. This is
     // the shape of six of the eleven married golden scenarios.
     const copy = await printed([john, jane]);
-    expect(copy).toContain('No top-up applies');
-    expect(copy).not.toContain('beginning at');
+    expect(copy).toContain('No spousal benefit applies');
+    expect(copy).not.toContain('starting at');
     expect(copy).not.toMatch(/—\s*—/);
   });
 
@@ -323,8 +327,8 @@ describe('the printed spousal sentence, over real households', () => {
     expect(analysis.spousalTopUp!.startsAtSpouseAge).toBeNull();
 
     const copy = spousalSummary(analysis.spousalTopUp!, 'the lower earner');
-    expect(copy).toContain('never begins under the recommended strategy');
-    expect(copy).not.toContain('beginning at');
+    expect(copy).toContain('never starts under the recommended strategy');
+    expect(copy).not.toContain('starting at');
     expect(copy).not.toMatch(/age\s*—/);
   });
 
@@ -359,7 +363,7 @@ describe('the printed spousal sentence, over real households', () => {
     expect(analysis.periods.some((b) => b.personId === 'b' && b.type === 'survivor')).toBe(true);
 
     const copy = spousalSummary(analysis.spousalTopUp!, 'the lower earner');
-    expect(copy).toContain('both spouses have filed and both are still living');
+    expect(copy).toContain('both spouses have filed and both are living');
     expect(copy).not.toContain('does not file');
     expect(copy).not.toMatch(/age\s*—/);
   });
@@ -367,7 +371,7 @@ describe('the printed spousal sentence, over real households', () => {
   it('prints the real start date when there is one', async () => {
     const noRecord: Person = { ...jane, piaMonthly: 0 };
     const copy = await printed([john, noRecord]);
-    expect(copy).toMatch(/beginning at the lower earner's age \d+/);
+    expect(copy).toMatch(/starting at the lower earner's age \d+/);
     expect(copy).not.toMatch(/age\s*—/);
   });
 });
@@ -440,7 +444,7 @@ describe('spousalMethodologyCopy — entry order on an equal-PIA tie', () => {
     // this exact match too.
     expect(forwardCopy).toContain(
       `Both spouses have the same full benefit at full retirement age, so neither is the lower earner, and ` +
-        `there is no spousal top-up to claim on the other's record.`,
+        `there is no spousal benefit to claim on the other's record.`,
     );
   });
 });
@@ -482,7 +486,7 @@ describe('survivorGapNote', () => {
   it('names the survivor and both monthly figures when both are contemporaneous', () => {
     const note = survivorGapNote(contemporaneous)!;
     expect(note).toContain('modeled only for the lower-earning spouse');
-    expect(note).toContain('no step-up is shown for Blake');
+    expect(note).toContain('no survivor benefit is shown for Blake');
     expect(note).toContain('$1,780.00/mo'); // what the deceased was receiving
     expect(note).toContain('$1,760.00/mo'); // the survivor's own, at that death
     expect(note).toContain('lower than SSA would pay');
@@ -502,12 +506,17 @@ describe('survivorGapNote', () => {
     expect(note).not.toContain('of their own');
   });
 
-  it('says a step-up cannot begin before 60 when the survivor is under 60', () => {
+  it('says a survivor benefit usually cannot begin before 60 when the survivor is under 60', () => {
     const note = survivorGapNote(under60)!;
     expect(note).toContain('is under 60 then');
-    expect(note).toContain('no widow(er) benefit is payable yet');
-    expect(note).toContain('the chart is right to show none');
-    expect(note).toContain('from age 60 onward');
+    // "Usual", not "none is payable": a disabled widow(er) can claim from 50,
+    // and one caring for a young child at any age.
+    expect(note).toContain('the usual earliest age for a widow(er)’s benefit');
+    expect(note).not.toContain('no widow(er) benefit is payable');
+    // It said the chart was "right to show none" and then that none is shown
+    // from 60 either; the two read as a contradiction. Only the second stays.
+    expect(note).not.toContain('right to show none');
+    expect(note).toContain('from 60 onward, and none is shown');
     // No claim of an immediate, permanent shortfall, and no invented figure.
     expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual(['$2,016.00']);
     expect(note).not.toContain('lower than SSA would pay');
@@ -595,9 +604,12 @@ const RISING = rowsWith([[67, 67], 44000], [[70, 70], 52000], [[70, 64], 48000])
 const FALLING = rowsWith([[70, 62.08], 36480], [[70, 70], 0]);
 
 describe('survivorIncomeCaption', () => {
-  it('states the figure assumes the life-expectancy-implied death direction, without naming one', () => {
+  it('states which spouse is assumed to die first, without naming one', () => {
     const caption = survivorIncomeCaption(RISING, null);
-    expect(caption).toContain("each spouse's own life-expectancy input");
+    // In the reader's terms. It said "the death direction implied by each
+    // spouse's own life-expectancy input", which is the model's vocabulary.
+    expect(caption).toContain('the spouse who reaches their plan-to age first dies first');
+    expect(caption).not.toMatch(/death direction|life-expectancy input/);
     // The earlier version hardcoded a direction — false for a household whose
     // higher earner happens to be the one projected to survive, with no gap
     // firing to correct it (that direction is a fact about who dies first
@@ -609,8 +621,11 @@ describe('survivorIncomeCaption', () => {
 
   it('makes the delay claim when the rows beneath it actually rise', () => {
     const caption = survivorIncomeCaption(RISING, null);
-    expect(caption).toContain('Delaying raises this figure for this household');
-    expect(caption).not.toContain('not simply larger for later filing');
+    expect(caption).toContain('Filing later raises this figure for this household');
+    expect(caption).not.toContain('Here it depends on');
+    // It states what the figures show and stops: "the argument for delaying"
+    // was advocacy under the table where the plan is chosen.
+    expect(caption).not.toMatch(/argument for/i);
   });
 
   it('states the composition fact instead when delaying LOWERS the figure', () => {
@@ -619,18 +634,17 @@ describe('survivorIncomeCaption', () => {
     // survivor lives through it" directly beneath a column reading $36,480
     // for the optimum and $0 for "both delay to 70".
     const caption = survivorIncomeCaption(FALLING, null);
-    expect(caption).not.toContain('Delaying raises');
-    expect(caption).toContain('not simply larger for later filing');
-    expect(caption).toContain('whether the survivor has begun collecting by that year');
-    expect(caption).toContain('shows $0');
+    expect(caption).not.toContain('Filing later raises');
+    expect(caption).toContain('whether the survivor has started benefits by then');
+    expect(caption).toContain('$0 means nothing has started yet');
     // Both drivers named, not just the survivor's own filing age: the figure
     // is a survivor benefit derived from the first-to-die's record too.
-    expect(caption).toContain('what the first spouse to die had filed for');
+    expect(caption).toContain('what the spouse who died was receiving');
   });
 
   it('does not read a flat all-zero column as rising', () => {
     const caption = survivorIncomeCaption(rowsWith([[67, 67], 0], [[70, 70], 0]), null);
-    expect(caption).not.toContain('Delaying raises');
+    expect(caption).not.toContain('Filing later raises');
   });
 
   it('claims nothing about figures when no row has one', () => {
@@ -640,7 +654,7 @@ describe('survivorIncomeCaption', () => {
     // figures — or a dollars basis for figures that are not there.
     const caption = survivorIncomeCaption(rowsWith([[67, 67], null], [[70, 70], null]), null);
     expect(caption).toContain('No strategy in this table has a figure');
-    expect(caption).not.toContain('Delaying raises');
+    expect(caption).not.toContain('Filing later raises');
     expect(caption).not.toMatch(/today.s dollars/i);
   });
 
@@ -656,9 +670,10 @@ describe('survivorIncomeCaption', () => {
       survivorUnder60: false,
     };
     const caption = survivorIncomeCaption(RISING, gap);
-    expect(caption).toContain('understate what the survivor would actually receive');
+    expect(caption).toContain('understate what the survivor would receive');
     expect(caption).toContain('See the note below');
-    expect(caption).toContain('Delaying raises this figure for this household');
+    expect(caption).toContain('Filing later raises this figure for this household');
+    expect(caption).not.toMatch(/\bengine\b/i);
     // The gap note's own figures belong to `survivorGapNote`, not here — a
     // second rendering of them is the exact duplication three of this
     // project's prior defects were made of.
@@ -682,9 +697,9 @@ describe('survivorIncomeCaption', () => {
       survivorUnder60: true,
     };
     const caption = survivorIncomeCaption(rowsWith([[67, 67], 0], [[70, 70], 0]), gap);
-    expect(caption).toContain('has not yet reached the age a widow(er) benefit can start');
+    expect(caption).toContain('the usual earliest age for a widow(er)’s benefit');
     expect(caption).toContain('See the note below');
-    expect(caption).not.toContain('Delaying raises');
+    expect(caption).not.toContain('Filing later raises');
     expect(caption).not.toContain('understate');
   });
 
@@ -694,22 +709,21 @@ describe('survivorIncomeCaption', () => {
   // branches, since the basis clause is appended in every one of them.
   describe('dollars mode', () => {
     it('defaults to naming today’s dollars when mode is omitted', () => {
-      expect(survivorIncomeCaption(RISING, null)).toMatch(
-        /today.s dollars, before any cost-of-living/i,
-      );
+      expect(survivorIncomeCaption(RISING, null)).toMatch(/In today.s dollars\./);
     });
 
     it('names today’s dollars in real mode, in the no-gap branch', () => {
       const caption = survivorIncomeCaption(RISING, null, 'real');
-      expect(caption).toMatch(/today.s dollars, before any cost-of-living/i);
+      expect(caption).toMatch(/In today.s dollars\./);
       expect(caption).not.toMatch(/future dollars/i);
     });
 
-    it('names nominal dollars and calls out Household value by contrast, in the no-gap branch', () => {
+    it('names future dollars, and says the rest of the table matches, in the no-gap branch', () => {
       const caption = survivorIncomeCaption(RISING, null, 'nominal');
-      expect(caption).toMatch(/future dollars/i);
-      expect(caption).toMatch(/Household value/);
-      expect(caption).not.toMatch(/today.s dollars, before any cost-of-living/i);
+      expect(caption).toMatch(/future dollars, like the other figures in this table/i);
+      expect(caption).not.toMatch(/today.s dollars/i);
+      // The em dash the nominal branch ended in.
+      expect(caption).not.toContain('—');
     });
 
     it('states the dollars basis in the falling branch too', () => {
@@ -780,19 +794,21 @@ describe('COMBINED_INCOME_SUBTITLE', () => {
     expect(COMBINED_INCOME_SUBTITLE).not.toMatch(/by year/i);
   });
 
-  it('states the annual-rate framing, matching combinedIncomeCaption rather than contradicting it', () => {
+  it('states the annual-rate framing, and the caption beneath does not restate or contradict it', () => {
     expect(COMBINED_INCOME_SUBTITLE).toMatch(/annual rate/i);
-    expect(combinedIncomeCaption(null)).toMatch(/annual rate/i);
+    // In print the two share one <Text>; the caption used to open by saying
+    // the annual-rate framing a second time.
+    expect(combinedIncomeCaption(null)).not.toMatch(/annual rate/i);
+    expect(combinedIncomeCaption(null)).not.toMatch(/by year|lifetime/i);
   });
 });
 
 describe('combinedIncomeCaption', () => {
   it('claims spousal and survivor segments are included when they are', () => {
     const caption = combinedIncomeCaption(null);
-    expect(caption).toContain('their own benefit, plus any spousal or survivor segment');
-    expect(caption).toContain('annual rate');
+    expect(caption).toContain('includes any spousal or survivor benefit');
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
-    expect(caption).not.toContain('No survivor segment is included');
+    expect(caption).not.toContain('No survivor benefit is shown');
   });
 
   it('drops the survivor claim for a household whose survivor benefit is unmodeled', () => {
@@ -802,11 +818,13 @@ describe('combinedIncomeCaption', () => {
       survivorOwnMonthly: 1760,
       survivorUnder60: false,
     });
-    expect(caption).not.toContain('or survivor segment is included');
-    expect(caption).toContain('their own benefit, plus any spousal segment');
-    expect(caption).toContain('No survivor segment is included for this household');
-    // The parts that stay true either way.
-    expect(caption).toContain('annual rate');
+    expect(caption).not.toContain('or survivor benefit');
+    expect(caption).toContain('includes any spousal benefit');
+    expect(caption).toContain('No survivor benefit is shown for this household');
+    // It used to explain how a survivor segment stacks right after saying
+    // there was none.
+    expect(caption).not.toMatch(/sits on top|one check/);
+    // The part that stays true either way.
     expect(caption).toContain("today’s dollars, before any cost-of-living adjustment");
   });
 
@@ -833,28 +851,21 @@ describe('combinedIncomeCaption', () => {
     // that still does — the PDF disclaimer's "today’s dollars" shares its
     // page — so ASCII here renders straight quotes next to curly ones.
     const caption = combinedIncomeCaption(null);
-    expect(caption).toContain('Each person’s segments');
+    expect(caption).toContain('Each person’s part of the chart');
     expect(caption).toContain('today’s dollars');
     expect(caption).not.toContain("'");
   });
 
-  // The one fact a reader needs to parse the chart at all: a survivor
-  // segment is stacked ON TOP of the personal band, not a replacement for
-  // it. Asserted for both the modeled and the unmodeled-direction household,
-  // since it's a general statement about how the chart works, not a claim
-  // about this particular household's bands.
-  it('explains that a survivor segment is the increment above the personal band, not a replacement', () => {
+  // The one fact a reader needs to parse the chart at all: the survivor's
+  // amount is stacked ON TOP of their own benefit, not a replacement for it,
+  // and the two are one payment. Said in terms of what is paid rather than
+  // how the chart is drawn: "the increment above the personal band beneath
+  // it" was the chart's construction, in its own vocabulary.
+  it('explains that the survivor amount sits on top of their own benefit, as one check', () => {
     const noGap = combinedIncomeCaption(null);
-    expect(noGap).toMatch(/survivor segment is the increment above the personal band/i);
-    expect(noGap).toMatch(/personal band keeps paying what it already was/i);
-
-    const gap = combinedIncomeCaption({
-      survivorLabel: 'Blake', survivorGender: null,
-      deceasedMonthly: 1780,
-      survivorOwnMonthly: 1760,
-      survivorUnder60: false,
-    });
-    expect(gap).toMatch(/survivor segment is the increment above the personal band/i);
+    expect(noGap).toContain('the survivor’s added amount sits on top of any benefit of their own');
+    expect(noGap).toContain('SSA pays the two as one check');
+    expect(noGap).not.toMatch(/increment|personal band|segment/i);
   });
 
   // The toggle's whole reason for existing: a chart in nominal dollars beside
@@ -894,35 +905,18 @@ describe('combinedIncomeCaption', () => {
     // does survive the mode; only the "stays flat" wording is mode-specific.
     // These three tests replace the single over-broad one, pinning exactly
     // that boundary instead of erasing it.
-    it('states the segment decomposition and the increment framing identically in both modes', () => {
-      const prefixThroughIncrementFraming = (caption: string) =>
-        caption.split('A survivor segment is the increment above the personal band beneath it:')[0] +
-        'A survivor segment is the increment above the personal band beneath it:';
-      const real = prefixThroughIncrementFraming(combinedIncomeCaption(null, 'real'));
-      const nominal = prefixThroughIncrementFraming(combinedIncomeCaption(null, 'nominal'));
-      expect(nominal).toBe(real);
-    });
-
-    it('claims the personal band stays flat only in real dollars', () => {
-      expect(combinedIncomeCaption(null, 'real')).toContain(
-        'personal band keeps paying what it already was',
+    // The caption no longer says whether the survivor's own benefit stays
+    // flat or grows, which is the one claim that differed between modes, so
+    // everything before the dollars sentence is now the same in both. That
+    // is asserted rather than assumed: a flat-band claim creeping back into
+    // one mode would be the defect the old three tests were guarding.
+    it('says the same thing in both modes apart from the dollars sentence', () => {
+      const lead = (caption: string) => caption.split(' Amounts are in ')[0];
+      expect(lead(combinedIncomeCaption(null, 'nominal'))).toBe(
+        lead(combinedIncomeCaption(null, 'real')),
       );
-      expect(combinedIncomeCaption(null, 'nominal')).not.toContain(
-        'personal band keeps paying what it already was',
-      );
-    });
-
-    it('says the personal band keeps compounding on its own in nominal dollars, with the increment framing intact', () => {
-      const nominal = combinedIncomeCaption(null, 'nominal');
-      // The CLAIM, not the wording: the band keeps growing on its own. It
-      // used to say "at the assumed COLA", an acronym this caption meets
-      // pages before the terms page introduces it.
-      expect(nominal).toMatch(/personal band keeps growing with the yearly cost-of-living/i);
-      expect(nominal).not.toMatch(/\bCOLA\b/);
-      expect(nominal).toContain(
-        'A survivor segment is the increment above the personal band beneath it',
-      );
-      expect(nominal).toMatch(/survivor segment stacked on top of it is only the increase/i);
+      expect(combinedIncomeCaption(null, 'nominal')).not.toMatch(/keeps paying what it already was/);
+      expect(combinedIncomeCaption(null, 'nominal')).not.toMatch(/\bCOLA\b/);
     });
   });
 });
@@ -935,7 +929,7 @@ describe('combinedIncomeCaption', () => {
 describe('coupleModelingNote', () => {
   it('claims survivor benefits are modeled when they are', () => {
     const note = coupleModelingNote(null, true);
-    expect(note).toContain('The spousal top-up and survivor benefits are both modeled');
+    expect(note).toContain('Spousal and survivor benefits are both modeled');
     expect(note).toContain('the couple optimizer');
   });
 
@@ -949,7 +943,7 @@ describe('coupleModelingNote', () => {
   it('stops claiming survivor benefits are modeled for a gap household', () => {
     for (const householdPrinted of [true, false]) {
       const note = coupleModelingNote(gap, householdPrinted);
-      expect(note).toContain('The spousal top-up is modeled');
+      expect(note).toContain('Spousal benefits are modeled');
       expect(note).toContain(survivorGapScope(gap));
       expect(note).not.toMatch(/survivor benefits are (both )?modeled via/i);
     }
@@ -1252,7 +1246,7 @@ describe('the survivor-gap note over real households', () => {
 
     const note = survivorGapNote(gap)!;
     expect(note).toContain('is under 60 then');
-    expect(note).toContain('from age 60 onward');
+    expect(note).toContain('from 60 onward');
     expect(note.match(/\$[\d,]+\.\d\d/g)).toEqual([
       `$${gap.deceasedMonthly.toLocaleString('en-US')}.00`,
     ]);
@@ -1273,14 +1267,14 @@ describe('survivorClaimNote', () => {
     expect(note).toMatch(/Jane/);
     expect(note).toMatch(/68 years, 0 months/);
     expect(note).toMatch(/\$135,700/);
-    expect(note).toMatch(/one filing date per person/);
+    expect(note).toMatch(/one filing date/);
   });
 
   it('renders nothing when there is no alternative to show', () => {
     expect(survivorClaimNote(null)).toBeNull();
   });
 
-  it('says it is not a recommendation, when the baseline already shows a survivor band', () => {
+  it('says it is for comparison only, when the baseline already shows a survivor band', () => {
     const note = survivorClaimNote({
       claimIndex: 2036 * 12 + 4,
       claimAge: '67 years, 10 months',
@@ -1290,13 +1284,13 @@ describe('survivorClaimNote', () => {
       gain: 79_040,
       baselineHasSurvivorBand: true,
     })!;
-    expect(note).toContain('This is not a recommendation');
+    expect(note).toContain('It is shown for comparison only');
     // Discriminating: the `true` branch names the date the chart already
     // shows, and must not also read like the `false` branch, which claims no
     // such date is shown at all — a ternary bug that swapped the two would
     // pass a merely-`toContain` check on either alone.
-    expect(note).toContain('instead of the date');
-    expect(note).not.toContain('does not otherwise show');
+    expect(note).toContain('instead of when the chart above shows it starting');
+    expect(note).not.toContain('which the chart above does not show');
     // Points at the chart, not an invented "plan" noun — the thing that
     // actually shows a survivor-benefit start date on this page.
     expect(note).toContain('the chart above');
@@ -1321,12 +1315,12 @@ describe('survivorClaimNote', () => {
     })!;
     expect(note).toMatch(/Bob/);
     expect(note).toMatch(/\$102,960/);
-    expect(note).toContain('does not otherwise show');
-    expect(note).not.toContain('instead of the date');
+    expect(note).toContain('which the chart above does not show');
+    expect(note).not.toContain('instead of when');
     expect(note).toContain('the chart above');
   });
 
-  it('disclaims present value unconditionally, in both dollars modes', () => {
+  it('calls itself a plain sum in both dollars modes, and not a present value where the page is one', () => {
     const build = (mode: 'real' | 'nominal') =>
       survivorClaimNote(
         {
@@ -1340,8 +1334,8 @@ describe('survivorClaimNote', () => {
         },
         mode,
       )!;
-    expect(build('real')).toMatch(/not a present value/i);
-    expect(build('nominal')).toMatch(/not a present value/i);
+    expect(build('real')).toMatch(/plain sum, not a present value/i);
+    expect(build('nominal')).toMatch(/plain sum/i);
   });
 
   it('states its dollars basis only in nominal mode, where the figure and the page can disagree', () => {
@@ -1365,18 +1359,18 @@ describe('survivorClaimNote', () => {
     // below.
     const real = survivorClaimNote(alt, 'real')!;
     expect(real).not.toMatch(/future dollars/i);
-    expect(real).not.toContain('today’s dollars, before any cost-of-living adjustment');
+    expect(real).not.toContain('today’s dollars');
 
     // Nominal mode: the figure above says future dollars, this figure has
     // not moved, and that mismatch is exactly what the clause exists to
     // prevent a reader from missing. The GAIN ITSELF must be unchanged
     // between the two calls — only the disclosure differs.
     const nominal = survivorClaimNote(alt, 'nominal')!;
-    expect(nominal).toContain('today’s dollars, before any cost-of-living adjustment');
+    expect(nominal).toContain('in today’s dollars');
     expect(nominal).toContain('$135,700');
-    expect(real.replace(/\s*Unlike every other figure.*?adjustment\.\s*/, ' ')).toBe(
-      nominal.replace(/\s*Unlike every other figure.*?adjustment\.\s*/, ' '),
-    );
+    // Everything but the basis sentence is the same in both modes.
+    const withoutBasis = (note: string) => note.replace(/ It is a plain sum[^.]*\./, '');
+    expect(withoutBasis(real)).toBe(withoutBasis(nominal));
 
     // The default with no `mode` argument at all matches the explicit
     // `'real'` call — every pre-existing call site keeps its exact prior
@@ -1406,7 +1400,9 @@ describe('survivorClaimNote', () => {
     )!;
     expect(nominal).not.toContain('Unlike the figures above');
     expect(nominal).not.toContain('Unlike the chart above');
-    expect(nominal).toContain('Unlike every other figure on this page');
+    expect(nominal).toContain('unlike the other figures on this page');
+    // The grammar slip this sentence shipped with: "this one figures are".
+    expect(nominal).not.toContain('this one figures');
     // The sentence beside it on the same screen, which used to say the
     // opposite. Pinned here so a future reword of either one has to face the
     // other: both columns of the strategy table are on the report's basis,
@@ -1417,7 +1413,7 @@ describe('survivorClaimNote', () => {
         null,
         'nominal',
       ),
-    ).toContain('the same basis as Household value beside it');
+    ).toContain('like the other figures in this table');
   });
 
   it('names the benefit with one on-screen noun in both branches', () => {
@@ -1456,9 +1452,9 @@ describe('survivorClaimNote', () => {
       gain: 102_960,
       baselineHasSurvivorBand: false,
     })!;
-    expect(note).toContain('built with one filing date per person');
+    expect(note).toContain('gives each person one filing date');
     expect(note).not.toContain('filing date fixed');
-    expect(note).toContain('cannot model a separate survivor claim date');
+    expect(note).toContain('cannot set a separate one for the survivor benefit');
   });
 
   it('reads correctly for a bare-year claim age, e.g. exactly 60', () => {
@@ -1517,11 +1513,31 @@ describe('survivorFloorNote', () => {
  * find out from the page.
  */
 describe('householdValueCaption', () => {
-  it('names today’s money only when that is what the column holds', () => {
-    expect(householdValueCaption('2.50%', 'real')).toContain('in today’s money');
+  it('names today’s dollars only when that is what the column holds', () => {
+    expect(householdValueCaption('2.50%', 'real')).toContain('in today’s dollars');
     const nominal = householdValueCaption('2.50%', 'nominal');
-    expect(nominal).not.toContain('in today’s money');
-    expect(nominal).toContain('the dollars they will actually be paid in');
+    expect(nominal).not.toContain('today’s');
+    expect(nominal).toContain('in future dollars, including the assumed yearly increase');
+  });
+
+  it('gives a single person one lifetime, not "both your lifetimes"', () => {
+    // The horizon is part of what the figure is. The caption said "both your
+    // lifetimes" and "each of you" beside one person's number.
+    const single = householdValueCaption('2.50%', 'real', true, false);
+    expect(single).toContain('over your lifetime, assuming you live exactly to the age set for you');
+    expect(single).not.toMatch(/lifetimes|each of you|both/);
+    expect(householdValueCaption('2.50%', 'real', true, true)).toContain(
+      'over your lifetimes, assuming each of you lives exactly to the age set for you',
+    );
+  });
+
+  it('says the fixed-age assumption once', () => {
+    // It said it twice in one sentence: "rather than averaging over how long
+    // someone might live, so it is a figure for those ages and not an average
+    // across all of them".
+    const caption = householdValueCaption('2.50%', 'real');
+    expect(caption).not.toMatch(/averag/);
+    expect(caption.match(/age set for/g)).toHaveLength(1);
   });
 
   it('stops charging for distance when nothing is discounted', () => {
@@ -1530,7 +1546,7 @@ describe('householdValueCaption', () => {
     // one they chose.
     const off = householdValueCaption('0.00%', 'nominal', false);
     expect(off).not.toContain('0.00%');
-    expect(off).toContain('No discount is applied');
+    expect(off).toContain('Nothing is discounted for how far away a payment is');
     expect(householdValueCaption('2.50%', 'real', true)).toContain('2.50% less per year');
   });
 

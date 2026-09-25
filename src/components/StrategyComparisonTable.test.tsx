@@ -117,8 +117,8 @@ describe('StrategyComparisonTable', () => {
     ];
     render(<StrategyComparisonTable comparisons={falling} people={people} />);
     const caption = screen.getByTestId('survivor-income-caption');
-    expect(caption.textContent).not.toContain('Delaying raises');
-    expect(caption).toHaveTextContent('not simply larger for later filing');
+    expect(caption.textContent).not.toContain('Filing later raises');
+    expect(caption).toHaveTextContent('Here it depends on');
   });
 
   it('leaves the cell blank rather than printing a currency figure when a row has no survivor income', () => {
@@ -134,7 +134,7 @@ describe('StrategyComparisonTable', () => {
   it('states the assumed death direction in the caption below the table, without naming one', () => {
     render(<StrategyComparisonTable comparisons={comparisons} people={people} />);
     const caption = screen.getByTestId('survivor-income-caption');
-    expect(caption).toHaveTextContent("each spouse's own life-expectancy input");
+    expect(caption).toHaveTextContent("the spouse who reaches their plan-to age first dies first");
     // Which spouse survives falls out of life expectancy, not PIA — a fixed
     // direction claim here would be false for a household whose higher
     // earner happens to be the one projected to survive.
@@ -150,7 +150,7 @@ describe('StrategyComparisonTable', () => {
     };
     render(<StrategyComparisonTable comparisons={comparisons} people={people} survivorGap={gap} />);
     const caption = screen.getByTestId('survivor-income-caption');
-    expect(caption).toHaveTextContent('understate what the survivor would actually receive');
+    expect(caption).toHaveTextContent('understate what the survivor would receive');
     // The gap note's own figures belong to `survivorGapNote` alone — this
     // caption must not repeat them.
     expect(caption.textContent).not.toContain('1,780');
@@ -164,11 +164,11 @@ describe('StrategyComparisonTable', () => {
     it('defaults to naming today’s dollars when omitted', () => {
       render(<StrategyComparisonTable comparisons={comparisons} people={people} />);
       expect(screen.getByTestId('survivor-income-caption')).toHaveTextContent(
-        /today.s dollars, before any cost-of-living/i,
+        /In today.s dollars\./,
       );
     });
 
-    it('says future dollars, contrasted against Household value, when passed nominal', () => {
+    it('says future dollars, like the rest of the table, when passed nominal', () => {
       render(
         <StrategyComparisonTable
           comparisons={comparisons}
@@ -177,8 +177,7 @@ describe('StrategyComparisonTable', () => {
         />,
       );
       const caption = screen.getByTestId('survivor-income-caption');
-      expect(caption).toHaveTextContent(/future dollars/i);
-      expect(caption).toHaveTextContent(/Household value/);
+      expect(caption).toHaveTextContent(/future dollars, like the other figures in this table/i);
     });
   });
 });

@@ -900,8 +900,8 @@ describe('analyzeHousehold — survivor income can FALL with a later filing age'
     // The claim is falsifiable BY THE DATA, end to end: real engine output
     // into the real caption, no hand-built rows in between.
     const caption = survivorIncomeCaption(result.comparisons, result.survivorGap);
-    expect(caption).not.toContain('Delaying raises');
-    expect(caption).toContain('not simply larger for later filing');
+    expect(caption).not.toContain('Filing later raises');
+    expect(caption).toContain('Here it depends on');
   });
 
   it('still reports a rise for a household where delaying genuinely does raise it', async () => {
@@ -914,7 +914,7 @@ describe('analyzeHousehold — survivor income can FALL with a later filing age'
     );
     expect(survivorIncomeRisesWithDelay(result.comparisons)).toBe(true);
     expect(survivorIncomeCaption(result.comparisons, result.survivorGap)).toContain(
-      'Delaying raises this figure for this household',
+      'Filing later raises this figure for this household',
     );
   });
 });
@@ -1324,8 +1324,12 @@ describe('analyzeHousehold — entry order', () => {
       // In the client's words now — the earlier sentence said "engine",
       // "model" and "admissible" on a screen a client reads.
       expect(result.recommendationDetail).toContain('You both have the same full benefit');
-      expect(result.recommendationDetail).toContain('Treating');
-      expect(result.recommendationDetail).toContain('Worked out the other way round');
+      expect(result.recommendationDetail).toContain('treat one of you as the higher earner');
+      expect(result.recommendationDetail).toContain('Treated the other way round');
+      // With equal benefits there is no spousal benefit to work out; the
+      // framing decides which survivor benefit is modeled. It said "no higher
+      // earner for the spousal top-up to be worked out from".
+      expect(result.recommendationDetail).not.toMatch(/top-up/);
       // Still names the figure and both ages — the qualifier replaces the
       // claim about the figure, not the figure.
       expect(result.recommendationDetail).toContain(

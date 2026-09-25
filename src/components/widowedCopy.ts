@@ -60,11 +60,12 @@ export const WIDOWED_HEADERS = {
  */
 export function widowedLifetimeCaption(planToAge: number): string {
   return (
-    `Lifetime total is a straight sum of every dollar paid through age ${planToAge}, in ` +
-    `today’s dollars, before any cost-of-living adjustment. The married and single tables ` +
-    `show a present value instead, which counts a payment far in the future as worth less ` +
-    `than the same payment today and allows for the chance of not living to receive it. ` +
-    `The two figures are not comparable.`
+    // It went on to describe the married and single tables, which a widowed
+    // reader never sees, by a method they no longer use ("allows for the
+    // chance of not living to receive it"). What is left is the one fact
+    // this page needs.
+    `Lifetime total is every dollar paid through age ${planToAge}, added up, in ` +
+    `today’s dollars, before any cost-of-living adjustment.`
   );
 }
 
@@ -104,8 +105,8 @@ export function widowedIncomeCaption(
         'the assumed yearly cost-of-living increase, rather than today’s purchasing power.'
       : '';
   const shape = overlaps
-    ? 'The survivor segment is the increment above the personal band beneath it, not a second ' +
-      'check: the two benefits are one payment, and SSA pays the larger.'
+    ? 'The survivor amount sits on top of the survivor’s own benefit and is not a second ' +
+      'check: SSA pays the larger of the two benefits as one payment.'
     : 'The two benefits never run together here. SSA pays the larger, and this person’s own ' +
       'record is worth more than the survivor benefit, so the survivor benefit stops the month ' +
       `${pronounsFor(survivorGender).possessive} own begins.`;
@@ -116,25 +117,28 @@ export function widowedIncomeCaption(
  * The deceased's PIA, when it was recovered from a check amount rather than
  * known. Null when it was entered directly — there is nothing to disclose.
  *
- * Names the year the figure is in. A check carries every cost-of-living rise
- * since they filed and the engine's PIA carries none, so the recovered number
- * is in the filing year's dollars; for a filing twenty years ago that gap is
- * large, and the reader can only judge it if the year is on the page.
+ * Names the year the figure is in. The recovered number carries every
+ * increase the last check did, so it is in the year of the death's dollars;
+ * for a death twenty years ago that gap to today is large, and the reader can
+ * only judge it if the year is on the page.
  */
 export function piaEstimateNote(
   deceased: DeceasedSummary,
   piaEstimated: boolean,
 ): string | null {
   if (!piaEstimated) return null;
-  const basis = deceased.filed
-    ? `${formatCurrency(deceased.piaMonthly)} is in ${deceased.filed.year} dollars`
-    : `${formatCurrency(deceased.piaMonthly)} carries no cost-of-living adjustment`;
-  const p = pronounsFor(deceased.gender);
+  // What `deceasedPia` actually does: it solves for the full benefit that
+  // reproduces the check at the filing date and removes no increase, so the
+  // figure carries every cost-of-living increase paid up to that check. The
+  // note used to say the opposite ("this figure includes none") and to date
+  // the increases from the filing, when SSA applies them from the year a
+  // person turns 62. The form now asks for the LAST check, which is paid in
+  // the year of the death, so that is the year the figure is in.
   return (
-    `This benefit was worked back from the monthly check you entered, so it is an ` +
-    `estimate: a check includes every cost-of-living rise since ${p.subject} ` +
-    `${p.verb('filed', 'filed')} and this figure includes none, which means ${basis}. ` +
-    `Every survivor figure on this page follows from it.`
+    `This benefit was estimated from the last monthly check you entered, so it includes ` +
+    `the cost-of-living increases paid up to that check, which means ` +
+    `${formatCurrency(deceased.piaMonthly)} is in ${deceased.deathYear} dollars. Every ` +
+    `survivor figure on this page follows from it.`
   );
 }
 
@@ -181,9 +185,15 @@ export const WIDOWED_MODELING_NOTE =
 export function widowedSurvivorCard(deceasedGender: Gender | null): string {
   const p = pronounsFor(deceasedGender);
   return (
-    'A survivor benefit is payable from age 60, reduced for each month claimed before the ' +
-    'survivor full retirement age, which follows a different schedule from the retirement ' +
-    `one. Where the deceased had already filed, it is capped at what ${p.subject} ` +
-    `${p.verb('was', 'were')} receiving.`
+    // The widow(er)'s limit, stated the right way round. It said "capped at
+    // what he was receiving", which is the opposite of the rule the rest of
+    // the report explains: for an early filer the ceiling is the LARGER of
+    // that and 82.5% of the full benefit, so a survivor can be paid more. For
+    // a filer at or after full retirement age the larger is simply what they
+    // were receiving, so one sentence is true for both.
+    'A survivor benefit can start at 60 and is reduced for each month before the ' +
+    'survivor’s full retirement age, which follows its own schedule. If the deceased had ' +
+    `already filed, it is limited to the larger of what ${p.subject} ` +
+    `${p.verb('was', 'were')} receiving and 82.5% of ${p.possessive} full benefit.`
   );
 }

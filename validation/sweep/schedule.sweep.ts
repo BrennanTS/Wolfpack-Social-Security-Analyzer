@@ -72,7 +72,7 @@ describe('copy schedule', () => {
 
     const collect = async (household: Parameters<typeof analyze>[0]) => {
       const analysis = await analyze(household);
-      for (const line of reportSurface(analysis)) {
+      for (const line of [...reportSurface(analysis), ...reportSurface(analysis, 'nominal')]) {
         const trimmed = line.text.trim();
         if (trimmed === '') continue;
         const key = `${line.source} :: ${shapeOf(trimmed)}`;

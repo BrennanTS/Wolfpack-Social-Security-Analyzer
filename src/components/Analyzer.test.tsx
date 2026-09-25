@@ -110,7 +110,9 @@ describe('Analyzer', () => {
       // retirement benefit alone, with no mention of the survivor benefit
       // that is usually the larger half of her income.
       expect(title).toHaveTextContent(/survivor benefit/i);
-      expect(title).toHaveTextContent(/own record/i);
+      expect(title).toHaveTextContent(/your own at/i);
+      // A statement of the two dates, not an instruction.
+      expect(title).not.toHaveTextContent(/^Claim/);
     });
 
     it('offers Export PDF and Copy Link, which were dead ends before', async () => {

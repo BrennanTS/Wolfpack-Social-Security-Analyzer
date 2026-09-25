@@ -260,21 +260,24 @@ export function ReportDocument({
       case 'intro':
         return IntroBlock({ analysis });
       case 'limits':
-        return LimitsBlock();
+        return LimitsBlock({ hasSpouse: analysis.people.length === 2 });
       case 'disclosure':
         return DisclosureBlock();
       case 'answer':
         return AnswerBlock({
           analysis,
           solvency: pricesReduction ? solvency?.assumption : undefined,
+          dollarsMode,
         });
       case 'changes':
-        return ChangesBlock({ analysis });
+        return ChangesBlock({ analysis, dollarsMode });
       case 'survivor':
         return SurvivorBlock({ analysis });
       case 'longevity':
         // The one block whose data the caller may not have computed.
-        return sensitivity ? LongevityBlock({ sensitivity }) : null;
+        return sensitivity
+          ? LongevityBlock({ sensitivity, hasSpouse: analysis.people.length === 2 })
+          : null;
       case 'solvency':
         // The other block whose data the caller may not have computed.
         return solvency ? SolvencyBlock({ sensitivity: solvency, dollarsMode }) : null;
@@ -300,7 +303,7 @@ export function ReportDocument({
       case 'cumulativeOverTime':
         return CumulativeOverTimeBlock({ comparisons: analysis.comparisons, basis: exhibitBasis });
       case 'terms':
-        return TermsBlock({ analysis });
+        return TermsBlock({ analysis, dollarsMode, hasLongevityPage: printsLongevity });
       case 'methodology':
         return MethodologyBlock({
           appendix: (
@@ -325,6 +328,9 @@ export function ReportDocument({
   // Whether the household block prints, for the same reason: the assumptions
   // page points a gap household at the note in that block.
   const printsHousehold = runs.some((run) => run.includes('household'));
+  // Whether the longevity page prints, for the same reason: the assumptions
+  // note points to it, and must not point to a page this layout leaves out.
+  const printsLongevity = Boolean(sensitivity) && runs.some((run) => run.includes('longevity'));
   // The document title goes on the first sheet that is not a cover: a cover
   // already carries the title, and printing it twice on one page reads as a
   // template nobody finished.

@@ -27,6 +27,8 @@ import {
   personLabel,
 } from '../../lib/format';
 import { firstDeath } from '../../lib/incomeCliff';
+import { formatPercent } from '../../lib/cpiHistory';
+import { medicareStartsAutomatically } from '../../lib/medicare';
 import { ADVISER, DISCLOSURE, FIRM, LOGO, styles } from './theme';
 import * as copy from './reportCopy';
 
@@ -52,9 +54,12 @@ export function AnswerBlock({
   analysis,
   header,
   solvency,
+  dollarsMode = 'real',
 }: {
   analysis: HouseholdAnalysis;
   header?: React.ReactNode;
+  /** The report basis, which names the headline figure. */
+  dollarsMode?: DollarsMode;
   /**
    * The benefit reduction being priced, when this report prices one.
    *
@@ -121,7 +126,7 @@ export function AnswerBlock({
         </View>
 
         <View style={styles.heroBig}>
-          <Text style={styles.heroBigCap}>{copy.LIFETIME_CAPTION}</Text>
+          <Text style={styles.heroBigCap}>{copy.lifetimeCaption(dollarsMode, people.length === 2)}</Text>
           <Text style={styles.heroBigNum}>
             {formatCompactCurrency(selected.householdValue, compactUnitFor(selected.householdValue))}
           </Text>
@@ -148,7 +153,13 @@ export function AnswerBlock({
  * death for most, more for a household with spousal and survivor steps — so
  * it is also the part an adviser is most likely to cut for a short report.
  */
-export function ChangesBlock({ analysis }: { analysis: HouseholdAnalysis }) {
+export function ChangesBlock({
+  analysis,
+  dollarsMode = 'real',
+}: {
+  analysis: HouseholdAnalysis;
+  dollarsMode?: DollarsMode;
+}) {
   const people = analysis.people.map((p) => p.person);
   const names = people.map((p, i) => personLabel(p.name, i));
   const changes = incomeChanges(analysis);
@@ -186,7 +197,7 @@ export function ChangesBlock({ analysis }: { analysis: HouseholdAnalysis }) {
           </Text>
         </View>
       ))}
-      <Text style={[styles.sectionDesc, { marginTop: 8 }]}>{copy.CHANGE_TABLE_NOTE}</Text>
+      <Text style={[styles.sectionDesc, { marginTop: 8 }]}>{copy.changeTableNote(dollarsMode)}</Text>
 
     </>
   );
@@ -282,8 +293,10 @@ export function SurvivorBlock({
 /** Every plan priced at three lifespans — see `longevitySensitivity`. */
 export function LongevityBlock({
   sensitivity,
+  hasSpouse = true,
 }: {
   sensitivity: LongevitySensitivity;
+  hasSpouse?: boolean;
 }) {
   const { rows, strategies } = sensitivity;
   if (strategies.length === 0) return null;
@@ -302,7 +315,7 @@ export function LongevityBlock({
   return (
     <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.LONGEVITY_TITLE}</Text>
-      <Text style={styles.sectionDesc}>{copy.LONGEVITY_INTRO}</Text>
+      <Text style={styles.sectionDesc}>{copy.longevityIntro(hasSpouse)}</Text>
 
       <View style={[styles.tableHeader, { marginTop: 10 }]}>
         <Text style={[styles.th, { flex: 1 }]}>If you live to</Text>
@@ -389,7 +402,9 @@ export function ActionBlock({
       rows.push({
         when: applyMonth(sixtyFive),
         who: names[i],
-        what: at(starts) <= at(sixtyFive) ? copy.ACTION_MEDICARE_AUTOMATIC : copy.ACTION_MEDICARE_MANUAL,
+        what: medicareStartsAutomatically(at(starts), at(sixtyFive))
+          ? copy.ACTION_MEDICARE_AUTOMATIC
+          : copy.ACTION_MEDICARE_MANUAL,
       });
     }
     return rows;
@@ -479,8 +494,13 @@ export function ActionBlock({
 /** The glossary five of the six competing reports carry and ours does not. */
 export function TermsBlock({
   analysis,
+  dollarsMode = 'real',
+  hasLongevityPage = false,
 }: {
   analysis: HouseholdAnalysis;
+  dollarsMode?: DollarsMode;
+  /** Whether this report prints the longevity page the assumptions may point to. */
+  hasLongevityPage?: boolean;
 }) {
   const names = analysis.people.map((p, i) => personLabel(p.person.name, i));
   const ages = analysis.people.map((p) => p.person.lifeExpectancy);
@@ -488,7 +508,7 @@ export function TermsBlock({
   return (
     <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>Words used in this report</Text>
-      {copy.KEY_TERMS.map((term) => (
+      {copy.keyTerms(dollarsMode, formatPercent(analysis.assumptions.annualCola, 2)).map((term) => (
         <View key={term.term} style={styles.termRow} wrap={false}>
           <Text style={styles.termName}>{term.term}</Text>
           <Text style={styles.termBody}>{term.body}</Text>
@@ -502,7 +522,7 @@ export function TermsBlock({
         <Text style={styles.sectionTitle}>{copy.ASSUMPTIONS_TITLE}</Text>
         <Text style={styles.sectionDesc}>{copy.ASSUMPTIONS_INTRO}</Text>
         <View style={styles.termRow}>
-          <Text style={styles.termBody}>{copy.planToNote(names, ages)}</Text>
+          <Text style={styles.termBody}>{copy.planToNote(names, ages, hasLongevityPage)}</Text>
         </View>
       </View>
     </>
@@ -597,12 +617,12 @@ export function IntroBlock({ analysis }: { analysis: HouseholdAnalysis }) {
  * ------------------------------------------------------------------ */
 
 /** The edges of the report, named — the most trustworthy page a report can carry. */
-export function LimitsBlock() {
+export function LimitsBlock({ hasSpouse = true }: { hasSpouse?: boolean } = {}) {
   return (
     <>
       <Text style={[styles.sectionTitle, styles.sectionTitleFirst]}>{copy.LIMITS_TITLE}</Text>
       <Text style={styles.sectionDesc}>{copy.LIMITS_INTRO}</Text>
-      {copy.LIMITS.map((limit) => (
+      {copy.limitsFor(hasSpouse).map((limit) => (
         <View key={limit.term} style={styles.termRow} wrap={false}>
           <Text style={styles.termName}>{limit.term}</Text>
           <Text style={styles.termBody}>{limit.body}</Text>

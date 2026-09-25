@@ -14,6 +14,7 @@ import {
 import { setActiveReportTheme, styles } from './theme';
 import { DEFAULT_REPORT_THEME_ID, reportTheme } from '../../lib/reportTheme';
 import { solvencySensitivity, TRUSTEES_ASSUMPTION } from '../../lib/solvency';
+import { longevitySensitivity } from '../../lib/longevity';
 import { MethodologyAppendix } from './reportChrome';
 import { comparisonsInDollarsMode } from '../../lib/displayDollars';
 import { formatCurrency } from '../../lib/format';
@@ -677,5 +678,78 @@ describe('ReportDocument — the recommendation sentence in future dollars', () 
       ReportDocument({ analysis: married, layout: ADVISER_LAYOUT, dollarsMode: 'real' }),
     ).join(' ');
     expect(text).toContain(married.recommendationDetail);
+  });
+});
+
+/**
+ * The captions and glossary that name the report's basis.
+ *
+ * In a future-value report they were constants written for present value:
+ * page one captioned an undiscounted total "in today's money", and the terms
+ * page said later payments were counted for less. Rendered here as the
+ * document composes them, since the copy module alone cannot show which
+ * sentence reaches which report.
+ */
+describe('ReportDocument — the basis named where the figures are', () => {
+  let married: HouseholdAnalysis;
+  let single: HouseholdAnalysis;
+
+  beforeAll(async () => {
+    married = await analyzeHousehold({ status: 'married', people: [john, jane] }, assumptions, asOf);
+    single = await analyzeHousehold({ status: 'single', people: [john] }, assumptions, asOf);
+  });
+
+  const text = (analysis: HouseholdAnalysis, dollarsMode: 'real' | 'nominal', layout = CLIENT_LAYOUT) =>
+    collectText(ReportDocument({ analysis, layout, dollarsMode })).join(' ');
+
+  it('captions the headline figure as a present value in present value', () => {
+    const page = text(married, 'real');
+    expect(page).toContain('Lifetime value of your benefits, in today’s dollars');
+    expect(page).toContain('Lifetime value');
+    expect(page).toContain('later payments are counted for less');
+    expect(page).not.toContain('in future dollars');
+  });
+
+  it('captions it as a total in future dollars, and stops saying anything is discounted', () => {
+    const page = text(married, 'nominal');
+    expect(page).toContain('Total paid over your lifetimes, in future dollars');
+    expect(page).not.toContain('Lifetime value of your benefits');
+    // The glossary follows the basis.
+    expect(page).toContain('Lifetime total');
+    expect(page).toContain('so this is not a present value');
+    expect(page).not.toContain('later payments are counted for less');
+    expect(page).not.toContain('$3,000 of today’s buying power');
+    // The table of changes is built from the engine's bands, which stay in
+    // today's dollars, so in this basis it is the exception and says so.
+    expect(page).toContain('Unlike the lifetime figures, they leave out the yearly increases');
+    expect(page).not.toMatch(/today’s money/);
+  });
+
+  it('gives a single person one lifetime on the answer and limits pages', () => {
+    const page = text(single, 'nominal');
+    expect(page).toContain('Total paid over your lifetime, in future dollars');
+    expect(page).toContain('what Social Security itself pays over your lifetime.');
+    expect(page).not.toMatch(/over your lifetimes/);
+  });
+
+  it('points to the longevity page only in a report that prints it', async () => {
+    const sensitivity = await longevitySensitivity(
+      { status: 'married', people: [john, jane] },
+      assumptions,
+      asOf,
+    );
+    expect(sensitivity).not.toBeNull();
+    const pointer = 'The page on longevity shows';
+    // The default layout carries the assumptions note and not the page.
+    expect(
+      collectText(ReportDocument({ analysis: married, layout: CLIENT_LAYOUT, sensitivity })).join(' '),
+    ).not.toContain(pointer);
+    expect(
+      collectText(ReportDocument({ analysis: married, layout: ADVISER_LAYOUT, sensitivity })).join(' '),
+    ).toContain(pointer);
+    // A layout naming the page, with nothing computed to print on it.
+    expect(
+      collectText(ReportDocument({ analysis: married, layout: ADVISER_LAYOUT, sensitivity: null })).join(' '),
+    ).not.toContain(pointer);
   });
 });

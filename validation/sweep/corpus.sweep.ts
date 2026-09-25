@@ -83,7 +83,11 @@ describe('client-facing copy corpus', () => {
       keep(screenSurface(analysis, 'real'));
       keep(screenSurface(analysis, 'nominal'));
       keep(pdfSurface(analysis));
-      keep(reportSurface(analysis));
+      // Both bases: the report's captions and glossary change with it, and
+      // rendering only present value is how a future-value report came to
+      // call its figures "today's money" with nothing reviewing it.
+      keep(reportSurface(analysis, 'real'));
+      keep(reportSurface(analysis, 'nominal'));
       for (let person = 0; person < analysis.people.length; person++) {
         keep(personScreenSurface(analysis, person));
         keep(personPdfSurface(analysis, person));

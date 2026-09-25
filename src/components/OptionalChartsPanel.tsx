@@ -101,7 +101,7 @@ export function OptionalChartsPanel({
         // which carry no projected COLA. Screen and print used to agree here
         // and both be wrong; correcting only print would leave them
         // disagreeing about identical numbers.
-        description={`Total benefits received by age ${lifeExpectancy}, in today’s money, before Social Security’s yearly rises.`}
+        description={`Total benefits received by age ${lifeExpectancy}, in today’s dollars, before Social Security’s yearly increases.`}
         visible={visibility.lifetimeBar}
         onToggle={() => onToggle('lifetimeBar')}
       >

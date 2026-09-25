@@ -81,7 +81,7 @@ export function incomeChanges(analysis: HouseholdAnalysis): IncomeChange[] {
     const survivor = starting.find((b) => b.type === 'survivor');
     if (survivor) return `${who(survivor)} adds a survivor benefit`;
     const spousal = starting.find((b) => b.type === 'spousal');
-    if (spousal) return `${who(spousal)} adds a spousal top-up`;
+    if (spousal) return `${who(spousal)} adds a spousal benefit`;
     const personal = starting.find((b) => b.type === 'personal');
     if (personal) return `${who(personal)} starts their own benefit`;
     return 'Income changes';

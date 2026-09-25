@@ -542,7 +542,7 @@ test('renders a widowed household, and never the single-claimant view', async ({
   // alone is the defect this whole phase exists to prevent.
   const title = page.getByTestId('recommendation-title');
   await expect(title).toContainText(/survivor benefit/i);
-  await expect(title).toContainText(/own record/i);
+  await expect(title).toContainText(/your own at/i);
 
   // The money column says what it is. `expectedNpv` holds an undiscounted
   // lifetime sum for a widowed row, and it used to print under "Combined PV".

@@ -168,10 +168,10 @@ const SAMPLES: Sample[] = [
   },
   {
     file: 'sample-3-widow-widows-limit-binds.pdf',
-    label: 'a widow whose widow’s limit binds',
+    label: 'a widow whose widow(er)’s limit binds',
     household: widowed,
     // The glossary entry that explains the counter-intuitive figures.
-    shows: 'The widow’s limit',
+    shows: 'The widow(er)’s limit',
     survivorSection: false,
     // A widow(er) claims twice, and the death has already happened, so both
     // of those have to be on the page: the survivor claim as its own dated
